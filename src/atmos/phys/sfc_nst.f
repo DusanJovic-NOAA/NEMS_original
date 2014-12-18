@@ -1,16 +1,16 @@
 
-      SUBROUTINE SFC_NST                                                &
+      subroutine sfc_nst                                                &
 !...................................
 !  ---  inputs:
-     &     ( IM, KM, PS, U1, V1, T1, Q1, tref, cm, ch,                  &
-     &       prsl1, prslki, slimsk, xlon, sinlat, stress,               &
+     &     ( im, km, ps, u1, v1, t1, q1, tref, cm, ch,                  &
+     &       prsl1, prslki, islimsk, xlon, sinlat, stress,              &
      &       sfcemis, dlwflx, sfcnsw, rain, timestep, kdt,              &
      &       ddvel, flag_iter, flag_guess, nst_fcst, lprnt, ipr,        &
-!  --- Input/output
+!  --- input/output
      &       tskin, tsurf, xt, xs, xu, xv, xz, zm, xtts, xzts, dt_cool, &
-     &       z_c,   c_0,   c_d,   w_0, w_d, d_conv, ifd, Qrain,         &
+     &       z_c,   c_0,   c_d,   w_0, w_d, d_conv, ifd, qrain,         &
 !  ---  outputs:
-     &       qsurf, gflux, CMM, CHH, EVAP, HFLX, EP                     &
+     &       qsurf, gflux, cmm, chh, evap, hflx, ep                     &
      &      )
 !
 ! ===================================================================== !
@@ -19,17 +19,17 @@
 !                                                                       !
 !  usage:                                                               !
 !                                                                       !
-!    call sfc_nst                                                    !
+!    call sfc_nst                                                       !
 !       inputs:                                                         !
 !          ( im, km, ps, u1, v1, t1, q1, tref, cm, ch,                  !
-!            prsl1, prslki, slimsk, xlon, sinlat, stress,               !
+!            prsl1, prslki, islimsk, xlon, sinlat, stress,              !
 !            sfcemis, dlwflx, sfcnsw, rain, timestep, kdt,              !
 !            ddvel, flag_iter, flag_guess, nst_fcst, lprnt, ipr,        !
 !       input/outputs:                                                  !
 !            tskin, tsurf, xt, xs, xu, xv, xz, zm, xtts, xzts, dt_cool, !
-!            z_c, c_0,   c_d,   w_0, w_d, d_conv, ifd, Qrain,           !
+!            z_c, c_0,   c_d,   w_0, w_d, d_conv, ifd, qrain,           !
 !  --   outputs:
-!            qsurf, gflux, CMM, CHH, EVAP, HFLX, EP                     !
+!            qsurf, gflux, cmm, chh, evap, hflx, ep                     !
 !           )
 !                                                                       !
 !                                                                       !
@@ -38,7 +38,7 @@
 !                                                                       !
 !  program history log:                                                 !
 !         2007  -- xu li       createad original code                   !
-!         2008  -- s. Moorthi  Adapted to the parallel version          !
+!         2008  -- s. moorthi  adapted to the parallel version          !
 !    may  2009  -- y.-t. hou   modified to include input lw surface     !
 !                     emissivity from radiation. also replaced the      !
 !                     often comfusing combined sw and lw suface         !
@@ -56,16 +56,16 @@
 !  inputs:                                                       size   !
 !     im       - integer, horiz dimension                          1    !
 !     km       - integer, vertical dimension                       1    !
-!     ps       - real, surface pressure (Pa)                       im   !
+!     ps       - real, surface pressure (pa)                       im   !
 !     u1, v1   - real, u/v component of surface layer wind (m/s)   im   !
 !     t1       - real, surface layer mean temperature ( k )        im   !
 !     q1       - real, surface layer mean specific humidity        im   !
 !     tref     - real, reference/foundation temperature ( k )      im   !
 !     cm       - real, surface exchange coeff for momentum (m/s)   im   !
 !     ch       - real, surface exchange coeff heat & moisture(m/s) im   !
-!     prsl1    - real, surface layer mean pressure (Pa)            im   !
+!     prsl1    - real, surface layer mean pressure (pa)            im   !
 !     prslki   - real,                                             im   !
-!     slimsk   - real, sea/land/ice mask (=0/1/2)                  im   !
+!     islimsk  - integer, sea/land/ice mask (=0/1/2)               im   !
 !     xlon     - real, longitude         (radians)                 im   !
 !     sinlat   - real, sin of latitude                             im   !
 !     stress   - real, wind stress       (n/m**2)                  im   !
@@ -79,7 +79,7 @@
 !     flag_iter- logical,                                          im   !
 !     flag_guess-logical,                                          im   !
 !     nst_fcst  -integer, flag 0 for no nst, 1 for uncoupled nst        !
-!                          and 2 for coupled NST                   1    !
+!                          and 2 for coupled nst                   1    !
 !     lprnt    - logical, control flag for check print out         1    !
 !     ipr      - integer, grid index for check print out           1    !
 !                                                                       !
@@ -87,23 +87,23 @@
 ! li added for oceanic components
 !     tskin    - real, ocean surface skin temperature ( k )        im   !
 !     tsurf    - real, ocean surface skin temperature ( k )??      im   !
-!     xt       - real, heat content in DTL                         im   !
-!     xs       - real, salinity  content in DTL                    im   !
-!     xu       - real, u-current content in DTL                    im   !
-!     xv       - real, v-current content in DTL                    im   !
-!     xz       - real, DTL thickness                               im   !
-!     zm       - real, MXL thickness                               im   !
+!     xt       - real, heat content in dtl                         im   !
+!     xs       - real, salinity  content in dtl                    im   !
+!     xu       - real, u-current content in dtl                    im   !
+!     xv       - real, v-current content in dtl                    im   !
+!     xz       - real, dtl thickness                               im   !
+!     zm       - real, mxl thickness                               im   !
 !     xtts     - real, d(xt)/d(ts)                                 im   !
 !     xzts     - real, d(xz)/d(ts)                                 im   !
-!     dt_cool  - real, Sub-layer cooling amount                    im   !
-!     d_conv   - real, thickness of Free Convection Layer (FCL)    im   !
-!     z_c      - Sub-layer cooling thickness                       im   !
-!     c_0      - coefficient1 to calculate d(Tz)/d(Ts)             im   !
-!     c_d      - coefficient2 to calculate d(Tz)/d(Ts)             im   !
-!     w_0      - coefficient3 to calculate d(Tz)/d(Ts)             im   !
-!     w_d      - coefficient4 to calculate d(Tz)/d(Ts)             im   !
-!     ifd      - real, index to start DTM run or not               im   !
-!     Qrain    - real, sensible heat flux due to rainfall (watts)  im   !
+!     dt_cool  - real, sub-layer cooling amount                    im   !
+!     d_conv   - real, thickness of free convection layer (fcl)    im   !
+!     z_c      - sub-layer cooling thickness                       im   !
+!     c_0      - coefficient1 to calculate d(tz)/d(ts)             im   !
+!     c_d      - coefficient2 to calculate d(tz)/d(ts)             im   !
+!     w_0      - coefficient3 to calculate d(tz)/d(ts)             im   !
+!     w_d      - coefficient4 to calculate d(tz)/d(ts)             im   !
+!     ifd      - real, index to start dtm run or not               im   !
+!     qrain    - real, sensible heat flux due to rainfall (watts)  im   !
 
 !  outputs:                                                             !
 
@@ -116,43 +116,44 @@
 !     ep       - real, potential evaporation                       im   !
 !                                                                       !
 ! ===================================================================== !
-      USE MACHINE , ONLY : kind_phys
-      USE FUNCPHYS, ONLY : fpvs
-      USE PHYSCONS, HVAP => con_HVAP
-     &,             CP => con_CP, HFUS => con_HFUS, JCAL => con_JCAL
-     &,             EPS => con_eps, EPSM1 => con_epsm1
-     &,             RVRDM1 => con_FVirt, RD => con_RD
-     &,             RHW0 => con_rhw0,SBC => con_sbc,pi => con_pi
-      USE date_def, only: idate
-      USE module_nst_parameters, ONLY : t0K,cp_w,omg_m,omg_sh,
-     &    sigma_r,gray,solar_time_6am,Ri_c,z_w_max,delz,wd_max,
+      use machine , only : kind_phys
+      use funcphys, only : fpvs
+      use physcons, hvap => con_hvap                                    &
+     &,             cp => con_cp, hfus => con_hfus, jcal => con_jcal    &
+     &,             eps => con_eps, epsm1 => con_epsm1                  &
+     &,             rvrdm1 => con_fvirt, rd => con_rd                   &
+     &,             rhw0 => con_rhw0,sbc => con_sbc,pi => con_pi
+      use date_def, only: idate
+      use module_nst_parameters, only : t0k,cp_w,omg_m,omg_sh,          &
+     &    sigma_r,gray,solar_time_6am,ri_c,z_w_max,delz,wd_max,         &
      &    rad2deg,const_rot,tau_min,tw_max,sst_max
-      USE module_nst_water_prop, ONLY: solar_time_from_julian,
-     &     density,rhocoef,compjd,grv 
-     &,    sw_ps_9b
-      USE nst_module, ONLY : cool_skin,dtm_1p,cal_w,cal_ttop,convdepth,
-     &  dtm_1p_fca,dtm_1p_tla,dtm_1p_mwa,dtm_1p_mda,dtm_1p_mta,dtl_reset
+      use module_nst_water_prop, only: solar_time_from_julian,          &
+     &                                 density,rhocoef,compjd,grv       &
+     &,                                sw_ps_9b
+      use nst_module, only : cool_skin,dtm_1p,cal_w,cal_ttop,           &
+     &                       convdepth,dtm_1p_fca,dtm_1p_tla,           &
+     &                       dtm_1p_mwa,dtm_1p_mda,dtm_1p_mta,          &
+     &                       dtl_reset
 !
       implicit none
 !
 !  ---  constant parameters:
-      real (kind=kind_phys), parameter :: cpinv=1.0/cp, HVAPI=1.0/HVAP
-      real (kind=kind_phys), parameter :: EMISSIV=0.97
+      real (kind=kind_phys), parameter :: cpinv=1.0/cp, hvapi=1.0/hvap
       real (kind=kind_phys), parameter :: f24   = 24.0     ! hours/day
       real (kind=kind_phys), parameter :: f1440 = 1440.0   ! minutes/day
 
 !  ---  inputs:
       integer, intent(in) :: im, km, kdt, ipr, nst_fcst
       real (kind=kind_phys), dimension(im), intent(in) :: ps, u1, v1,   &
-     &       t1, q1, tref, cm, ch, prsl1, prslki, slimsk, xlon,         &
+     &       t1, q1, tref, cm, ch, prsl1, prslki, xlon,                 &
      &       sinlat, stress, sfcemis, dlwflx, sfcnsw, rain, ddvel
-
+      integer, intent(in), dimension(im):: islimsk
       real (kind=kind_phys), intent(in) :: timestep
 
       logical, intent(in) :: flag_iter(im), flag_guess(im), lprnt
 
 !  ---  input/outputs:
-! control variables of DTL system (5+2) and SL (2) and coefficients for d(Tz)/d(Ts) calculation
+! control variables of dtl system (5+2) and sl (2) and coefficients for d(tz)/d(ts) calculation
       real (kind=kind_phys), dimension(im), intent(inout) :: tskin,     &
      &      tsurf, xt, xs, xu, xv, xz, zm, xtts, xzts, dt_cool,         &
      &      z_c, c_0, c_d, w_0, w_d, d_conv, ifd, qrain
@@ -162,16 +163,16 @@
      &       qsurf, gflux, cmm, chh, evap, hflx, ep
 
 !
-!     Locals
+!     locals
 !
-      integer :: k,i,iter
+      integer :: k,i
 !
-      real (kind=kind_phys), dimension(im) ::  Q0, QSS, RCH, 
-     &                     rho_a, THETA1, TV1, WIND, wndmag
+      real (kind=kind_phys), dimension(im) ::  q0, qss, rch, 
+     &                     rho_a, theta1, tv1, wind, wndmag
 
       real(kind=kind_phys) elocp,tem
 !
-!    NSTM related prognostic fields
+!    nstm related prognostic fields
 !
       logical flag(im)
       real (kind=kind_phys), dimension(im) ::        
@@ -182,26 +183,26 @@
 !     real(kind=kind_phys) rig(im),
 !    &                     ulwflx(im),dlwflx(im),
 !    &                     slrad(im),nswsfc(im)
-      real(kind=kind_phys) alpha,beta,rho_w,F_nsol,sss,sep,soltim,
-     & cosa,sina,taux,tauy,grav,dz,t0,ttop0,ttop
+      real(kind=kind_phys) alpha,beta,rho_w,f_nsol,sss,sep,soltim,
+     &                     cosa,sina,taux,tauy,grav,dz,t0,ttop0,ttop
 
-      integer :: iyear,imon,iday,ihr,imin,jd
+      integer :: iyear,imon,iday,ihr,imin
       integer :: idat(8),jdat(8)
 
-      real(kind=kind_phys) Le,fc,dwat,dtmp,wetc,alfac,ustar_a,rich
-      real(kind=kind_phys) Rnl_Ts,Hs_Ts,Hl_Ts,RF_Ts,Q_Ts
-      real(kind=kind_phys) jday,jday_old,fw,Q_warm
-      real(kind=kind_phys) t12,alon,alat,es,Qs,tsea,sstc,dta
+      real(kind=kind_phys) le,fc,dwat,dtmp,wetc,alfac,ustar_a,rich
+      real(kind=kind_phys) rnl_ts,hs_ts,hl_ts,rf_ts,q_ts
+      real(kind=kind_phys) jday,fw,q_warm
+      real(kind=kind_phys) t12,alon,tsea,sstc,dta
       real(kind=kind_phys) fjd1,jd1,jd0
       real(kind=kind_phys) rinc(5) 
-      real(kind=4) rinc4(5) 
+      real(kind=4) rinc4(5)
       integer w3kindreal,w3kindint
 
 !  external functions called: iw3jdn
       integer :: iw3jdn
 !======================================================================================================
 cc
-      PARAMETER (elocp=hvap/cp)
+      parameter (elocp=hvap/cp)
 
       sss = 34.0             ! temporarily, when sea surface salinity data is not ready
 
@@ -222,9 +223,9 @@ cc
       call w3kind(w3kindreal,w3kindint)
       if(w3kindreal==4) then
         rinc4=rinc
-        CALL W3MOVDAT(RINC4,IDAT,JDAT)
+        call w3movdat(rinc4,idat,jdat)
       else
-        CALL W3MOVDAT(RINC,IDAT,JDAT)
+        call w3movdat(rinc,idat,jdat)
       endif
 
       iyear = jdat(1)
@@ -248,17 +249,17 @@ cc
       endif
       jday  = jd1 - jd0 + fjd1 
 !
-! FLAG for open water
+! flag for open water
 !
-      DO I = 1, IM
-         FLAG(I) = SLIMSK(I).EQ. 0. .AND. flag_iter(i)
-      ENDDO
+      do i = 1, im
+         flag(i) = islimsk(i) == 0 .and. flag_iter(i)
+      enddo
 
 !
 !  save nst-related prognostic fields for guess run
 !
       do i=1, im
-        if((SLIMSK(I).EQ. 0.) .AND. flag_guess(i)) then
+        if((islimsk(i) == 0) .and. flag_guess(i)) then
           xt_old(i)      = xt(i)
           xs_old(i)      = xs(i)
           xu_old(i)      = xu(i)
@@ -317,7 +318,7 @@ cc
         endif
       enddo
 
-! Run NST Model: DTM + SLM   
+! run nst model: dtm + slm   
 ! 
       do i = 1, im
         if ( flag(i) ) then
@@ -326,46 +327,46 @@ cc
           ulwflx(i) = sfcemis(i) * sbc * t12 * t12
           alon      = xlon(i)*rad2deg
           grav      = grv(sinlat(i))
-          CALL solar_time_from_julian(jday,alon,soltim)
-          CALL density(tsea,SSS,rho_w)                     ! Sea water density
-          CALL rhocoef(tsea,SSS,rho_w,alpha,beta)          ! alpha & beta
+          call solar_time_from_julian(jday,alon,soltim)
+          call density(tsea,sss,rho_w)                     ! sea water density
+          call rhocoef(tsea,sss,rho_w,alpha,beta)          ! alpha & beta
 !
-!  CALCULATE SENSIBLE HEAT FLUX due to rainfall 
+!  calculate sensible heat flux due to rainfall 
 !
-          Le       = (2.501-.00237*tsea)*1e6
-          dwat     = 2.11e-5*(T1(I)/t0K)**1.94               ! water vapor diffusivity
-          dtmp     = (1.+3.309e-3*(T1(I)-t0K)-1.44e-6*(T1(I)-t0K)*
-     &              (T1(I)-t0K))*0.02411/(rho_a(I)*CP)       ! heat diffusivity
-          wetc     = 622.0*Le*QSS(I)/(rd*t1(i)*t1(i))
-          alfac    = 1/(1+(wetc*Le*dwat)/(CP*dtmp))          ! wet bulb factor
-          Qrain(I) =  (1000.*rain(I)/rho_w)*alfac*cp_w*
-     &                (tsea-T1(I)+(1000.*QSS(I)-1000.*Q0(I))*Le/CP)
+          le       = (2.501-.00237*tsea)*1e6
+          dwat     = 2.11e-5*(t1(i)/t0k)**1.94               ! water vapor diffusivity
+          dtmp     = (1.+3.309e-3*(t1(i)-t0k)-1.44e-6*(t1(i)-t0k)*
+     &              (t1(i)-t0k))*0.02411/(rho_a(i)*cp)       ! heat diffusivity
+          wetc     = 622.0*le*qss(i)/(rd*t1(i)*t1(i))
+          alfac    = 1/(1+(wetc*le*dwat)/(cp*dtmp))          ! wet bulb factor
+          qrain(i) =  (1000.*rain(i)/rho_w)*alfac*cp_w*
+     &                (tsea-t1(i)+(1000.*qss(i)-1000.*q0(i))*le/cp)
 
 !  --- ...  input non solar heat flux as upward = positive to models here
 
-          f_nsol = hflx(i) + evap(i) + ulwflx(i) - dlwflx(i)
-     &           + omg_sh*Qrain(i)
+          f_nsol   = hflx(i) + evap(i) + ulwflx(i) - dlwflx(i)
+     &             + omg_sh*qrain(i)
 
 !     if (lprnt .and. i == ipr) print *,' f_nsol=',f_nsol,' hflx=',
 !    &hflx(i),' evap=',evap(i),' ulwflx=',ulwflx(i),' dlwflx=',dlwflx(i)
 !    &,' omg_sh=',omg_sh,' qrain=',qrain(i)
 
-          sep      =  sss*(evap(i)/Le-rain(i))/rho_w
+          sep      =  sss*(evap(i)/le-rain(i))/rho_w
           ustar_a  = sqrt(stress(i)/rho_a(i))          ! air friction velocity
 !
-!  Sensitivities of heat flux components to Ts
+!  sensitivities of heat flux components to ts
 !
-          Rnl_Ts = 4.0*gray*sigma_r*tsea*tsea*tsea     ! d(Rnl)/d(Ts)
-          Hs_Ts = rch(i)
-          Hl_Ts = rch(i)*elocp*eps*hvap*qss(i)/(rd*t12)
-          RF_Ts = (1000.*rain(i)/rho_w)*alfac*cp_w*(1.0+rch(i)*Hl_Ts)
-          Q_Ts  = Rnl_Ts + Hs_Ts + Hl_Ts + omg_sh*RF_Ts
+          rnl_ts = 4.0*gray*sigma_r*tsea*tsea*tsea     ! d(rnl)/d(ts)
+          hs_ts  = rch(i)
+          hl_ts  = rch(i)*elocp*eps*hvap*qss(i)/(rd*t12)
+          rf_ts  = (1000.*rain(i)/rho_w)*alfac*cp_w*(1.0+rch(i)*hl_ts)
+          q_ts   = rnl_ts + hs_ts + hl_ts + omg_sh*rf_ts
 !
 !    run sub-layer cooling model/parameterization & calculate c_0, c_d
 !
-          call cool_skin(ustar_a,F_nsol,NSWSFC(i),evap(i),sss,alpha,beta
-     &,   rho_w,rho_a(i),tsea,Q_Ts,Hl_Ts,grav,Le
-     &,   dt_cool(i),z_c(i),c_0(i),c_d(i))
+          call cool_skin(ustar_a,f_nsol,nswsfc(i),evap(i),sss,alpha,beta
+     &,                  rho_w,rho_a(i),tsea,q_ts,hl_ts,grav,le
+     &,                  dt_cool(i),z_c(i),c_0(i),c_d(i))
 
           tem  = 1.0 / wndmag(i)
           cosa = u1(i)*tem
@@ -374,19 +375,19 @@ cc
           tauy = max(stress(i),tau_min)*sina
           fc   = const_rot*sinlat(i)
 !
-!     Run DTM-1p system
+!     run dtm-1p system
 !
           if ( (soltim > solar_time_6am .and. ifd(i) == 0.0) ) then
           else
             ifd(i) = 1.0
 !
-!     Calculate FCL thickness with current forcing and previous time's profile
+!     calculate fcl thickness with current forcing and previous time's profile
 !
 !     if (lprnt .and. i == ipr) print *,' beg xz=',xz(i)
 
-            if ( F_nsol > 0.0 .and. xt(i) > 0.0 ) then
-              call convdepth(kdt,timestep,NSWSFC(i),F_nsol,sss,sep,rho_w
-     &,            alpha,beta,xt(i),xs(i),xz(i),d_conv(i))
+            if ( f_nsol > 0.0 .and. xt(i) > 0.0 ) then
+              call convdepth(kdt,timestep,nswsfc(i),f_nsol,sss,sep,rho_w
+     &,                      alpha,beta,xt(i),xs(i),xz(i),d_conv(i))
             else
               d_conv(i) = 0.0
             endif
@@ -405,16 +406,16 @@ cc
 !             rich = 0.25 + min(0.8*wind(i),0.50)
 !           endif
 
-            rich = Ri_c
+            rich = ri_c
          
-            call dtm_1p(kdt,timestep,rich,taux,tauy,NSWSFC(i),
-     &      F_nsol,sss,sep,Q_Ts,Hl_Ts,rho_w,alpha,beta,alon,sinlat(i),
-     &      soltim,grav,Le,d_conv(i),
-     &      xt(i),xs(i),xu(i),xv(i),xz(i),xzts(i),xtts(i))
+            call dtm_1p(kdt,timestep,rich,taux,tauy,nswsfc(i),
+     &                  f_nsol,sss,sep,q_ts,hl_ts,rho_w,alpha,beta,alon,
+     &                  sinlat(i),soltim,grav,le,d_conv(i),
+     &                  xt(i),xs(i),xu(i),xv(i),xz(i),xzts(i),xtts(i))
 
 !     if (lprnt .and. i == ipr) print *,' beg xz2=',xz(i)
 
-!  Apply MDA
+!  apply mda
             if ( xt(i) > 0.0 ) then
               call dtm_1p_mda(xt(i),xtts(i),xz(i),xzts(i))
               if ( xz(i) >= z_w_max ) then
@@ -425,7 +426,7 @@ cc
 !    &,z_w_max
               endif
 
-!  Apply FCA
+!  apply fca
               if ( d_conv(i) > 0.0 ) then
                 call dtm_1p_fca(d_conv(i),xt(i),xtts(i),xz(i),xzts(i))
                 if ( xz(i) >= z_w_max ) then
@@ -436,13 +437,13 @@ cc
 
 !     if (lprnt .and. i == ipr) print *,' beg xz4=',xz(i)
 
-!  Apply TLA
+!  apply tla
               dz = min(xz(i),max(d_conv(i),delz))
 !
               call sw_ps_9b(delz,fw)
-              Q_warm = fw*NSWSFC(i)-F_nsol    !total heat absorbed in warm layer
-              if ( Q_warm > 0.0 ) then
-                call cal_ttop(kdt,timestep,Q_warm,rho_w,dz,
+              q_warm = fw*nswsfc(i)-f_nsol    !total heat absorbed in warm layer
+              if ( q_warm > 0.0 ) then
+                call cal_ttop(kdt,timestep,q_warm,rho_w,dz,
      &                        xt(i),xz(i),ttop0)
 
 !     if (lprnt .and. i == ipr) print *,' d_conv=',d_conv(i),' delz=',
@@ -466,11 +467,11 @@ cc
      &                   (xt(i),xs(i),xu(i),xv(i),xz(i),xzts(i),xtts(i))
                   endif
                 endif
-              endif           ! if ( Q_warm > 0.0 ) then
+              endif           ! if ( q_warm > 0.0 ) then
 
 !     if (lprnt .and. i == ipr) print *,' beg xz5=',xz(i)
 
-!  Apply MWA
+!  apply mwa
               t0 = (xt(i)+xt(i))/xz(i)
               if ( t0 > tw_max ) then
                 call dtm_1p_mwa(xt(i),xtts(i),xz(i),xzts(i))
@@ -482,12 +483,12 @@ cc
 
 !     if (lprnt .and. i == ipr) print *,' beg xz6=',xz(i)
 
-!  Apply MTA
+!  apply mta
               sstc = tref(i) + (xt(i)+xt(i))/xz(i) - dt_cool(i)
               if ( sstc > sst_max ) then
                 dta = sstc - sst_max
                 call  dtm_1p_mta(dta,xt(i),xtts(i),xz(i),xzts(i))
-!               write(*,'(a,F3.0,7F8.3)') 'MTA, sstc,dta :',slimsk(i),
+!               write(*,'(a,f3.0,7f8.3)') 'mta, sstc,dta :',islimsk(i),
 !    &          sstc,dta,tref(i),xt(i),xz(i),2.0*xt(i)/xz(i),dt_cool(i)
                if ( xz(i) >= z_w_max ) then
                   call dtl_reset
@@ -496,13 +497,13 @@ cc
               endif
 !
             endif             ! if ( xt(i) > 0.0 ) then
-!           Reset DTL at mignight
+!           reset dtl at mignight
             if ( abs(soltim) < 2.0*timestep ) then
               call dtl_reset
      &           (xt(i),xs(i),xu(i),xv(i),xz(i),xzts(i),xtts(i))
             endif
 
-          endif             ! IF (solar_time > solar_time_6am .and. ifd(i) == 0.0 ) THEN: too late to start the first day
+          endif             ! if (solar_time > solar_time_6am .and. ifd(i) == 0.0 ) then: too late to start the first day
 
 !     if (lprnt .and. i == ipr) print *,' beg xz7=',xz(i)
 
@@ -525,15 +526,15 @@ cc
 !           rig(i) = 0.25
 !         endif
 
-!         Qrain(i) = rig(i)
+!         qrain(i) = rig(i)
           zm(i) = wind(i)
         
-        ENDIF
-      ENDDO
+        endif
+      enddo
 
-! restore NST-related prognostic fields for guess run
+! restore nst-related prognostic fields for guess run
       do i=1, im
-        if((slimsk(I) == 0.) ) then
+        if((islimsk(i) == 0) ) then
           if(flag_guess(i)) then
             xt(i)      = xt_old(i)
             xs(i)      = xs_old(i)
@@ -552,7 +553,7 @@ cc
               tskin(i) = tsurf(i)
             endif                  ! if ( nst_fcst > 1 ) then
           endif                    ! if(flag_guess(i)) then
-        endif                      ! if((SLIMSK(I).EQ. 0.) ) then
+        endif                      ! if((islimsk(i).eq. 0.) ) then
       enddo
 
 !     if (lprnt .and. i == ipr) print *,' beg xz8=',xz(i)

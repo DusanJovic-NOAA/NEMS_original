@@ -173,59 +173,73 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !---------------------------------------------------------------------
 !
-  subroutine read_postnmlt(kpo,kth,kpv,po,th,pv)
+  subroutine read_postnmlt(kpo,kth,kpv,po,th,pv,nlunit,post_namelist)
 !
       use ctlblk_mod, only : komax,fileNameD3D,lsm,lsmp1,SPL,SPLDEF,  &
-                              lsmdef,ALSL,me
+                              lsmdef,ALSL,me,d3d_on,gocart_on
 !
       implicit none
 !---
-      integer :: kpo,kth,kpv
+      character (len=*), intent(in) :: post_namelist
+      integer :: kpo,kth,kpv,nlunit
       real,dimension(komax) :: po,th,pv
-      namelist/nampgb/kpo,po,kth,th,kpv,pv
+      namelist/nampgb/kpo,po,kth,th,kpv,pv,d3d_on,gocart_on
       integer l,k,iret
 !---------------------------------------------------------------------
 !
       print *,'in read_postnmlt'
 !
 ! set default for kpo, kth, th, kpv, pv
-      kpo=0
-      po=0
-      kth=1
-      th=(/320.,(0.,k=kth+1,komax)/) ! isentropic level to output
-      kpv=8
-      pv=(/0.5,-0.5,1.0,-1.0,1.5,-1.5,2.0,-2.0,(0.,k=kpv+1,komax)/)
-      read(5,nampgb,iostat=iret,end=118)
+      kpo = 0
+      po  = 0
+      kth = 1
+      th  = (/320.,(0.,k=kth+1,komax)/) ! isentropic level to output
+      kpv = 8
+      pv  = (/0.5,-0.5,1.0,-1.0,1.5,-1.5,2.0,-2.0,(0.,k=kpv+1,komax)/)
+      d3d_on    = .false.
+      gocart_on = .false.
+!
+      if (me == 0) print *,' nlunit=',nlunit,' post_namelist=', &
+     &                      post_namelist
+!     read(5,nampgb,iostat=iret,end=118)
+      if (nlunit > 0) then
+        open (unit=nlunit,file=post_namelist)
+        rewind(nlunit)
+        read(nlunit,nampgb,iostat=iret,end=118)
+      endif
  118  continue
-      if(me==0)print*,'komax,iret for nampgb= ',komax,iret
-      if(me==0)print*,'komax,kpo,kth,th,kpv,pv= ',komax,kpo            &
-     &  ,kth,th(1:kth),kpv,pv(1:kpv)
-       fileNameD3D='/dev/null'
- 119  continue
+      if (me == 0) then
+        print*,'komax,iret for nampgb= ',komax,iret
+        print*,'komax,kpo,kth,th,kpv,pv= ',komax,kpo            &
+     &  ,kth,th(1:kth),kpv,pv(1:kpv),' gocart_on=',gocart_on
+       endif
+       fileNameD3D = '/dev/null'
+!
+!119  continue
 ! set up pressure level from POSTGPVARS or DEFAULT
       if(kpo == 0)then
 ! use default pressure levels
         print*,'using default pressure levels,spldef=',(spldef(l),l=1,lsmdef)
-        lsm=lsmdef
+        lsm = lsmdef
         do l=1,lsm
-         spl(l)=spldef(l)
+         spl(l) = spldef(l)
         end do
       else
 ! use POSTGPVARS
         print*,'using pressure levels from POSTGPVARS'
-        lsm=kpo
+        lsm = kpo
         if(po(lsm)<po(1))then ! post logic assumes asscending
          do l=1,lsm
-          spl(l)=po(lsm-l+1)*100.
+          spl(l) = po(lsm-l+1)*100.
          end do
         else
          do l=1,lsm
-          spl(l)=po(l)*100.
+          spl(l) = po(l)*100.
          end do
         end if
       end if
       print*,'LSM, SPL = ',lsm,spl(1:lsm)
-      lsmp1=lsm+1
+      lsmp1 = lsm + 1
 !
 !     COMPUTE DERIVED MAP OUTPUT CONSTANTS.
       DO L = 1,LSM

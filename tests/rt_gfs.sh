@@ -18,6 +18,7 @@ export SCHEDULER=${SCHEDULER:-lsf}
 export SHOWQ=${SHOWQ:-/opt/moab/default/bin/showq}
 export MSUB=${MSUB:-/opt/moab/default/bin/msub}
 
+export IALB=0
 export IEMS=0
 export ISOL=1
 export ICO2=2
@@ -66,6 +67,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_NSOUT_:${NSOUT}:g                   \
                      | sed s:_QUILT_:${QUILT}:g                   \
                      | sed s:_IAER_:${IAER}:g                     \
+                     | sed s:_IALB_:${IALB}:g                     \
                      | sed s:_wave_:${wave}:g                     \
                      | sed s:_lm_:${lm}:g                         \
                      | sed s:_lsoil_:${lsoil}:g                   \
@@ -91,17 +93,17 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_CDATE_:${CDATE}:g                   \
                      | sed s:_IEMS_:${IEMS}:g                     \
                      | sed s:_ISOL_:${ISOL}:g                     \
-                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
-                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
                      | sed s:_ICO2_:${ICO2}:g                     \
                      | sed s:_IAER_:${IAER}:g                     \
+                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
+                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
                      | sed s:_SIGHDR_:${SIGHDR}:g                 \
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
                      | sed s:_RTPWD_:${RTPWD}:g                   \
                      | sed s:_SCHEDULER_:${SCHEDULER}:g           \
                      | sed s:_SLG_:${SLG}:g                        \
-                     | sed s:_SLG_:${SLG}:g                        \
                      | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
+
 
  chmod 755 gfs_fcst_run
 
@@ -260,8 +262,10 @@ if [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
 
  export TPN=$((12/THRD))
+ export QUEUE=${QUEUE:-batch}
  cat gfs_qsub.IN     | sed s:_JBNME_:${JBNME}:g   \
                      | sed s:_ACCNR_:${ACCNR}:g   \
+                     | sed s:_QUEUE_:${QUEUE}:g   \
                      | sed s:_WLCLK_:${WLCLK}:g   \
                      | sed s:_TASKS_:${TASKS}:g   \
                      | sed s:_THRD_:${THRD}:g     \

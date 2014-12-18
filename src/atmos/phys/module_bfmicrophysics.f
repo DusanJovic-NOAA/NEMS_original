@@ -1339,6 +1339,8 @@
         QI_min_0C = 10.E3*MASSI(MDImin)   !- Ver5
         ARAIN = 0.   ! Accumulated rainfall at surface for this step (kg/m**2)
         ASNOW = 0.   ! Accumulated snowfall at surface for this step (kg/m**2)
+
+        INDEXR   = MDRmin
 !
 !-----------------------------------------------------------------------
 !
@@ -1951,8 +1953,8 @@
               PRLOSS   = 0.
               RQR      = 0.
               N0r      = 0.
-              INDEXR1  = INDEXR    ! For debugging only
               INDEXR   = MDRmin
+              INDEXR1  = INDEXR    ! For debugging only
               IF (RAIN_logical) THEN
                 IF (ARAIN <= 0.) THEN
                   INDEXR = MDRmin

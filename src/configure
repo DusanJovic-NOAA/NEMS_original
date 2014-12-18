@@ -61,6 +61,13 @@ elif [[ $1 = 6_gsm_zeus ]]; then
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 6.3.0r series library on zeus"
+elif [[ $1 = 6_gaea ]]; then
+     set -x
+     cp conf/configure.nems.Gaea.intel conf/configure.nems
+     cp conf/modules.nems.Gaea_ESMF_630rAPI conf/modules.nems.gaea
+     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 6.3.0r library on gaea"
 
 
 #

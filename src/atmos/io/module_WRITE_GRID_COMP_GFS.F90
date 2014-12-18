@@ -1861,9 +1861,9 @@
             N=NFIELD+wrt_int_state%KOUNT_I2D(1)
             TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
 !
-!              write(0,*)'nfhours=',nf_hours,'after write N=',N,' var=',trim(NAME),'value=',&
-!               maxval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), &
-!               minval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), 'itr=',itr
+               write(0,*)'nfhours=',nf_hours,'after write N=',N,' var=',trim(NAME),'value=',&
+                maxval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), &
+                minval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), 'itr=',itr
 !
             call w3kind(w3realkind,w3ikind)
             if(itr==-99) then

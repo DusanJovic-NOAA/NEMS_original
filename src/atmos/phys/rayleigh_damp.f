@@ -4,7 +4,7 @@
 !   ********************************************************************
 ! ----->  I M P L E M E N T A T I O N    V E R S I O N   <----------
 !
-!          --- rayleigh friction with total energy conserving ---
+!          --- rayleigh friction with total energy conservation ---
 !              ----------------     -----------------------
 !
 !------ friction coefficient is based on deldif ----
@@ -38,36 +38,28 @@
       implicit none
 !
       integer,intent(in)  :: im, ix, iy, km,levr
-      real(kind=kind_phys),intent(in) :: DT, CP, PRSLRD0
-      real(kind=kind_phys),intent(in) :: PRSL(IM,KM)
-      real(kind=kind_phys),intent(in) :: U1(IX,KM), V1(IX,KM)
+      real(kind=kind_phys),intent(in)    :: DT, CP, PRSLRD0
+      real(kind=kind_phys),intent(in)    :: PRSL(IX,KM)
+      real(kind=kind_phys),intent(in)    :: U1(IX,KM), V1(IX,KM)
       real(kind=kind_phys),intent(inout) :: A(IY,KM), B(IY,KM), C(IY,KM)
 
-!--- local vars
+!--- local variables
       real(kind=kind_phys) rtrd(km)
-      real(kind=kind_phys) cons1, cons2, half
+      real(kind=kind_phys), parameter :: cons1=1.0, cons2=2.0, half=0.5
       real(kind=kind_phys) DTAUX, DTAUY, wrk1, rtrd1, rfactrd
-      real(kind=kind_phys) ENG0, ENG1
-      integer i, k, kstr
+      real(kind=kind_phys) ENG0, ENG1, tem1, tem2, dti, hfbcpdt
+      integer i, k
 !
-!     Some constants
-!
-      CONS1 = 1.0
-      CONS2 = 2.0
-      HALF  = CONS1/CONS2
 ! change PRSLRD0(2mb) to pascal
 !      PRSLRD0  = 200.
 !-----INITIALIZE SOME ARRAYS
 !
       RTRD1 = 1./(5*86400) ! RECIPROCAL OF TIME SCALE PER SCALE HEIGHT
-                           !  ABOVE BEGINNING SIGMA LEVEL FOR RAYLEIGH
-                           !  DAMPING
+                           ! ABOVE BEGINNING SIGMA LEVEL FOR RAYLEIGH DAMPING
 !
 ! pressure in pascal
-      KSTR=1
       DO K=1,km
         IF(PRSL(1,K) < PRSLRD0) THEN
-          if( KSTR.eq.1 ) kstr = k
           wrk1 = LOG(PRSLRD0/PRSL(1,K))
           if (k > levr) then
             RTRD(K) = RTRD1 * wrk1 * wrk1
@@ -79,19 +71,24 @@
         ENDIF
       ENDDO
 
+      dti = cons1 / dt
+      hfbcpdt = half / (cp*dt)
+
       DO K = 1,KM
+        RFACTRD = CONS1 / (CONS1+DT*RTRD(K)) - cons1
         DO I = 1,IM
-          RFACTRD    = CONS1/(CONS1+DT*RTRD(K))
-          DTAUX      = U1(I,k)*(RFACTRD-CONS1)/DT
-          DTAUY      = V1(I,k)*(RFACTRD-CONS1)/DT
-          ENG0       = HALF*(U1(I,K)**CONS2+V1(I,K)**CONS2)
-          ENG1       = HALF*((U1(I,K)+DTAUX*DT)**CONS2+
-     &                       (V1(I,K)+DTAUY*DT)**CONS2)
-          A(I,K)     = A(I,K) + DTAUY
-          B(I,K)     = B(I,K) + DTAUX
-          C(I,K)     = C(I,K) + (ENG0-ENG1)/CP/DT
+          DTAUX  = U1(I,k) * RFACTRD
+          DTAUY  = V1(I,k) * RFACTRD
+          ENG0   = U1(I,K)*U1(I,K) + V1(I,K)*V1(I,K)
+          tem1   = U1(I,K) + DTAUX
+          tem2   = V1(I,K) + DTAUY
+          ENG1   = tem1*tem1 + tem2*tem2
+          A(I,K) = A(I,K) + DTAUY * dti
+          B(I,K) = B(I,K) + DTAUX * dti
+          C(I,K) = C(I,K) + (ENG0-ENG1) * hfbcpdt
         ENDDO
       ENDDO
+
 
       RETURN
       END

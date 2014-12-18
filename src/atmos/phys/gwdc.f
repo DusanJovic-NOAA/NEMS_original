@@ -261,10 +261,10 @@
      &          sinphi(npt),  xstress(npt),  ystress(npt), wrk(npt),
      &          ucltop(npt),  vcltop(npt),dlen(npt),     gqmcldlen(npt))
 
-!     allocate (plnint(npt,km+1),   dpint(npt,km+1),
+!     allocate (plnint(npt,2:km+1), dpint(npt,km+1),
 !    &          taugwci(npt,km+1),  taugwcxi(npt,km+1),
 !    &          taugwcyi(npt,km+1), bruni(npt,km+1),
-      allocate (plnint(npt,km+1),
+      allocate (plnint(npt,2:km+1),
      &          taugwci(npt,km+1),  bruni(npt,km+1),
      &          rhoi(npt,km+1),     basicui(npt,km+1),
      &          ti(npt,km+1),       riloc(npt,km+1),
@@ -321,12 +321,11 @@
         enddo
       enddo
 
-      do k=1,km+1
+       do k=1,km+1
         k1 = km - k + 2
         do i=1,npt
           ii = ipt(i)
           pint(i,k)     = pint1(ii,k1)
-          plnint(i,k)   = log(pint(i,k))
           taugwci(i,k)  = zero
           bruni(i,k)    = zero
           rhoi(i,k)     = zero
@@ -334,6 +333,11 @@
           basicui(i,k)  = zero
           riloc(i,k)    = zero
           rimin(i,k)    = zero
+        enddo
+      enddo
+      do k=2,km+1
+        do i=1,npt
+          plnint(i,k)   = log(pint(i,k))
         enddo
       enddo
 

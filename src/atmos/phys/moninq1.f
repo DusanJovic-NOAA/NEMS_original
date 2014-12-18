@@ -41,7 +41,8 @@ cfpp$ noconcur r
 !
 !    locals
 !
-      integer i,iprt,is,iun,k,kk,km1,kmpbl,latd,lond
+      integer i,is,k,kk,km1,kmpbl
+!     integer iprt,latd,lond
       integer lcld(im),icld(im),kcld(im),krad(im)
       integer kemx(im)
 !
@@ -76,48 +77,47 @@ cfpp$ noconcur r
 !
       real(kind=kind_phys) aphi16,  aphi5,  bvf2,   wfac,
      &                     cfac,    conq,   cont,   conw,
-     &                     conwrc,  dk,     dkmax,  dkmin,
-     &                     dq1,     dsdz2,  dsdzq,  dsdzt,
+     &                     dk,     dkmax,  dkmin,
+     &                     dsdz2,  dsdzq,  dsdzt,
      &                     dsdzu,   dsdzv,  sfac,
-     &                     dsig,    dt,     dthe1,  dtodsd,
+     &                     dsig,    dt,     dtodsd,
      &                     dtodsu,  dw2,    dw2min, g,
-     &                     gamcrq,  gamcrt, gocp,   gor, gravi,
+     &                     gamcrq,  gamcrt, gocp,   gravi,
      &                     hol1,    pfac,   prmax,  prmin,
      &                     prnum,   qmin,   tdzmin, qtend, rbcr,
      &                     rbint,   rdt,    rdz,    qlmin, 
 !    &                     rbint,   rdt,    rdz,    rdzt1,
      &                     ri,      rimin,  rl2,    rlam,  rlamun,
-     &                     rone,    rzero,  sfcfrac,
+     &                     sfcfrac,
      &                     shr2,    spdk2,  sri,
-     &                     tem,     ti,     ttend,  tvd,
-     &                     tvu,     utend,  vk,     vk2,
+     &                     tem,     ti,     ttend,  
+     &                     utend,  vk, 
      &                     vtend,   zfac,   vpert,  cpert,
      &                     entfac,  rentfac,radfac,
      &                     zfmin,   zk,     tem1,   tem2,  xkzm,
      &                     ptem,    ptem1,  ptem2
 !
-      real(kind=kind_phys) zstblmax,h1,     h2,
+      real(kind=kind_phys) zstblmax,h1,     
      &                     qlcr,    cldtime,alpri,  chiri,
      &                     u01,     v01,    delu,   delv
 cc
       parameter(gravi=1.0/grav)
       parameter(g=grav)
-      parameter(gor=g/rd,gocp=g/cp)
+      parameter(gocp=g/cp)
       parameter(cont=cp/g,conq=hvap/g,conw=1.0/g)
       parameter(alpri=hvap/rd,chiri=eps*hvap*hvap/cp/rd)
-      parameter(rlam=30.0,vk=0.4,vk2=vk*vk)
+      parameter(rlam=30.0,vk=0.4)
       parameter(prmin=0.25,prmax=4.)
       parameter(dw2min=0.0001,dkmin=0.0,dkmax=1000.,rimin=-100.)
       parameter(rbcr=0.25,wfac=7.0,cfac=6.5,pfac=2.0,sfcfrac=0.1)
 !     parameter(qmin=1.e-8,xkzm=1.0,zfmin=1.e-8,aphi5=5.,aphi16=16.)
       parameter(qmin=1.e-8,xkzm=0.25,zfmin=1.e-8,aphi5=5.,aphi16=16.)
       parameter(tdzmin=1.e-3,qlmin=1.e-12,cpert=0.25,sfac=5.4)
-      parameter(h1=0.33333333,h2=0.66666667)
+      parameter(h1=0.33333333)
       parameter(cldtime=500.)
 !     parameter(gamcrt=3.,gamcrq=2.e-3,rlamun=150.0)
       parameter(gamcrt=3.,gamcrq=0.,rlamun=150.0)
       parameter(entfac=0.2,rentfac=0.2,radfac=0.85)
-      parameter(iun=84)
 !
 !     parameter (zstblmax = 2500., qlcr=3.0e-5)
 !     parameter (zstblmax = 2500., qlcr=3.5e-5)
@@ -591,7 +591,7 @@ c
         endif
       enddo
 c
-c     compute inverse Prandtl number
+c     compute inverse prandtl number
 c
       do i = 1, im
         if(pblflg(i)) then

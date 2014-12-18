@@ -219,6 +219,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+! Added by Moorthi to extract namelist unit number for post
+      call esmf_configgetattribute(cf, int_state%nlunit, label = 'nlunit:',  rc = rc)
+      call err_msg(rc,message_check,rc_conf)
+
+      call esmf_configgetattribute(cf, int_state%post_namelist, label = 'namelist:', rc = rc)
+      call err_msg(rc,message_check,rc_conf)
 !
 !-----------------------------------------------------------------------
 !

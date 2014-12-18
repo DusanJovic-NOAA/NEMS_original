@@ -664,8 +664,9 @@ echo SITE= ${SITE}
 
      EXTENDED_SOURCE = -extend_source
      FC := ifort
-     FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
-     FPE := -fp-model precise
+##   FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
+     FOPT := -O -g -traceback
+     FPE := -fp-model source
      BIG_ENDIAN =-convert big_endian
      BYTERECLEN =-assume byterecl
      FREAL8 = -r8
@@ -692,8 +693,9 @@ echo SITE= ${SITE}
 
      EXTENDED_SOURCE = -extend_source
      FC := mpiifort
-     FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
-     FPE := -fp-model precise
+##   FOPT := -O0-g -traceback  -debug ${EXTENDED_SOURCE}
+     FOPT := -O -g -traceback
+     FPE := -fp-model source
      BIG_ENDIAN =-convert big_endian
      BYTERECLEN =-assume byterecl
      FREAL8 = -r8

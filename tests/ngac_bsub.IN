@@ -4,7 +4,8 @@
 #BSUB -eo _RUND_/err
 #BSUB -J _JBNME_
 #BSUB -network type=sn_all:mode=US
-#BSUB -q "_ACCNR_"
+#BSUB -P "_ACCNR_"
+#BSUB -q "_QUEUE_"
 #BSUB -n _TASKS_
 #BSUB -R span[ptile=_TPN_]
 #BSUB -R affinity[core(_THRDS_)]
@@ -14,6 +15,7 @@
 . /usrx/local/Modules/3.2.9/init/bash
  module load ibmpe
  module load ics
+ export FCST_LAUNCHER=mpirun.lsf
  export OMP_NUM_THREADS=_THRDS_
  export MP_MPILIB=mpich2
  export MP_EUIDEVELOP=min
@@ -35,6 +37,7 @@ export RUN_ENVIR=dev
 export cyc=00
 export envir=dev
 export PARA_CONFIG=_CONFIG_
+export CONFIG_FILE=_CONFIGFILE_
 export NEMSDIR=_NEMSDIR_
 export WORKDIR=_WORKDIR_
 export REGSDIR=_REGSDIR_

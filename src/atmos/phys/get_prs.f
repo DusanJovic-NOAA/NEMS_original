@@ -2,6 +2,7 @@
      &                   thermodyn_id, sfcpress_id,
      &                   gen_coord_hybrid,
      &                   prsi,prki,prsl,prkl,phii,phil,del)
+!    &                   prsi,prki,prsl,prkl,phii,phil,del,lprnt)
 !
       USE MACHINE ,              ONLY : kind_phys
 !     use resol_def ,            only : thermodyn_id, sfcpress_id
@@ -13,6 +14,7 @@
 !
       integer im, ix, levs, ntrac, thermodyn_id, sfcpress_id
       logical gen_coord_hybrid
+!     logical gen_coord_hybrid, lprnt
       real(kind=kind_phys) prsi(ix,levs+1), prki(ix,levs+1)
      &,                    phii(ix,levs+1), phil(ix,levs)
      &,                    prsl(ix,levs),   prkl(ix,levs)
@@ -127,6 +129,8 @@
      &                        / (PRSI(i,k) + PRSI(i,k+1))
                   phil(i,k)   = phii(i,k) + DPHI
                   phii(i,k+1) = phil(i,k) + DPHI
+      if (k == 1 .and. phil(i,k) < 0.0) write(0,*)' phil=',phil(i,k)
+     &,' dphi=',dphi,' prsi=',prsi(i,k),prsi(i,k+1),' tem=',tem
                 ENDDO
               ENDDO
           endif
@@ -155,6 +159,7 @@
       else                                   ! Not gc Virtual Temp (Orig Joe)
         if (prki(1,1) <= zero) then
 !                                      Pressure is in Pa!!!!
+!     if (lprnt) write(0,*)' prsi=',prsi(1,:)
           do i=1,im
             prki(i,1) = (prsi(i,1)*p00i) ** rkap
           enddo
@@ -166,6 +171,8 @@
      &                   / tem
             enddo
           enddo
+!     if (lprnt) write(0,*)' prki=',prki(1,:)
+!     if (lprnt) write(0,*)' prkl=',prkl(1,:)
         
         elseif (prkl(1,1) <= zero) then
           do k=1,levs
@@ -197,6 +204,8 @@
               phii(i,k+1) = phil(i,k) + DPHIT
             ENDDO
           ENDDO
+!       if (lprnt)write(0,*)' in get_prs phil=',phil(1,1),'t=',t(1,1),
+!    &' q=',q(1,1,1),' nu=',nu,' prkl=',prkl(1,1),prki(1,1),' cp=',cp
         endif
       endif
 !

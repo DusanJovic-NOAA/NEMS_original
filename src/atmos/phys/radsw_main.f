@@ -807,15 +807,15 @@
           enddo
 
 
-       if (lprnt) then
-       if (ipt == 1) then
-         write(0,*)' pavel=',pavel
-         write(0,*)' tavel=',tavel
-         write(0,*)' delp=',delp
-         write(0,*)' h2ovmr=',h2ovmr*1000
-         write(0,*)' o3vmr=',o3vmr*1000000
-       endif
-       endif
+          if (lprnt) then
+            if (ipt == 1) then
+              write(0,*)' pavel=',pavel
+              write(0,*)' tavel=',tavel
+              write(0,*)' delp=',delp
+              write(0,*)' h2ovmr=',h2ovmr*1000
+              write(0,*)' o3vmr=',o3vmr*1000000
+            endif
+          endif
 
 !  --- ...  set up gas column amount, convert from volume mixing ratio
 !           to molec/cm2 based on coldry (scaled to 1.0e-20)

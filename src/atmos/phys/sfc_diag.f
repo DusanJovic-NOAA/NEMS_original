@@ -1,78 +1,57 @@
-      SUBROUTINE SFC_DIAG(IM,KM,PS,U1,V1,T1,Q1,
-     &                  TSKIN,QSURF,F10M,U10M,V10M,T2M,Q2M,
-     &                  PRSLKI,SLIMSK,EVAP,FM,FH,FM10,FH2)
+      subroutine sfc_diag(im,ps,u1,v1,t1,q1,
+     &                    tskin,qsurf,f10m,u10m,v10m,t2m,q2m,
+     &                    prslki,evap,fm,fh,fm10,fh2)
 !
-      USE MACHINE , ONLY : kind_phys
-      USE FUNCPHYS, ONLY : fpvs
-      USE PHYSCONS, grav => con_g, SBC => con_sbc, HVAP => con_HVAP
-     &,             CP => con_CP, HFUS => con_HFUS, JCAL => con_JCAL
-     &,             EPS => con_eps, EPSM1 => con_epsm1
-     &,             RVRDM1 => con_FVirt, RD => con_RD
+      use machine , only : kind_phys
+      use funcphys, only : fpvs
+      use physcons, grav => con_g,  cp => con_cp,
+     &              eps => con_eps, epsm1 => con_epsm1
       implicit none
 !
-      integer              IM, km
+      integer              im
+      real, dimension(im) :: ps,   u1,   v1,   t1,  q1,  tskin,  qsurf,
+     &                       f10m, u10m, v10m, t2m, q2m, prslki, evap,
+     &                       fm,   fh,   fm10, fh2
 !
-      real(kind=kind_phys) PS(IM),       U1(IM),      V1(IM),
-     &                     T1(IM),       Q1(IM),  
-     &                     TSKIN(IM),    QSURF(IM), 
-     &                     F10M(IM),     U10M(IM),
-     &                     V10M(IM),     T2M(IM),     Q2M(IM),
-     &                                   PRSL1(IM),   PRSLKI(IM),
-     &                     SLIMSK(IM),   EVAP(IM),    
-     &                     FM(IM),       FH(IM),
-     &                     FM10(IM),     FH2(IM)
-!
-!     Locals
+!     locals
 !
       real (kind=kind_phys), parameter :: qmin=1.0e-8
       integer              k,i
 !
-      real(kind=kind_phys) QSS(IM), THETA1(IM)
+      real(kind=kind_phys) sig2k, fhi, theta1, qss
 !
-      real(kind=kind_phys) g,    sig2k, fhi
+!     real, parameter :: g=grav
 !
-      PARAMETER (G=grav)
+!     estimate sigma ** k at 2 m
 !
-      LOGICAL FLAG(IM), FLAGSNW(IM)
-      real(kind=kind_phys) KT1(IM),       KT2(IM),      KTSOIL,
-     &                     ET(IM,KM),
-     &                     STSOIL(IM,KM), AI(IM,KM),    BI(IM,KM),
-     &                     CI(IM,KM),     RHSTC(IM,KM)
+!     sig2k = 1. - 4. * g * 2. / (cp * 280.)
 !
-!
-!     ESTIMATE SIGMA ** K AT 2 M
-!
-      SIG2K = 1. - 4. * G * 2. / (CP * 280.)
-!
-!  INITIALIZE VARIABLES. ALL UNITS ARE SUPPOSEDLY M.K.S. UNLESS SPECIFIE
-!  PS IS IN PASCALS
-!  THETA1 IS ADIABATIC SURFACE TEMP FROM LEVEL 1
+!  initialize variables. all units are supposedly m.k.s. unless specified
+!  ps is in pascals
+!  theta1 is adiabatic surface temp from level 1
 !
 !!
-      DO I=1,IM
-        THETA1(I) = T1(I) * PRSLKI(I)
-      ENDDO
-!!
-!
-      DO I = 1, IM
-        F10M(I) = FM10(I) / FM(I)
-        F10M(I) = min(F10M(I),1.)
-        U10M(I) = F10M(I) *  U1(I)
-        V10M(I) = F10M(I) * V1(I)
-        FHI     = FH2(I) / FH(I)
-        T2M(I)  = TSKIN(I)*(1. - FHI) + THETA1(I)*FHI
-        T2M(I)  = T2M(I) * SIG2K
-        IF(EVAP(I) >= 0.) THEN !  For EVAPORATION>0, USE INFERRED QSURF TO DEDUCE Q2M
-          Q2M(I) = QSURF(I)*(1.-FHI) + max(qmin,Q1(I))*FHI
-        ELSE                   !  FOR DEW FORMATION, USE SATURATED Q AT TSKIN
-          qss(I) = fpvs(tskin(I))
-          QSS(I) = EPS * QSS(I) / (PS(I) + EPSM1 * QSS(I))
-          Q2M(I) = QSS(I)*(1.-FHI) + max(qmin,Q1(I))*FHI
-        ENDIF
-        QSS(I) = fpvs(t2m(I))
-        QSS(I) = EPS * QSS(I) / (PS(I) + EPSM1 * QSS(I))
-        Q2M(I) = MIN(Q2M(I),QSS(I))
-      ENDDO
+      do i = 1, im
+        theta1  = t1(i) * prslki(i)
+        f10m(i) = fm10(i) / fm(i)
+!       f10m(i) = min(f10m(i),1.)
+        u10m(i) = f10m(i) *  u1(i)
+        v10m(i) = f10m(i) * v1(i)
+        fhi     = fh2(i) / fh(i)
+        t2m(i)  = tskin(i)*(1. - fhi) + theta1*fhi
+        sig2k = 1. - grav * 2. / (cp * t2m(i))
+        t2m(i)  = t2m(i) * sig2k
+        if(evap(i) >= 0.) then !  for evaporation>0, use inferred qsurf to deduce q2m
+          q2m(i) = qsurf(i)*(1.-fhi) + max(qmin,q1(i))*fhi
+        else                   !  for dew formation, use saturated q at tskin
+          qss    = fpvs(tskin(i))
+          qss    = eps * qss / (ps(i) + epsm1 * qss)
+          q2m(i) = qss*(1.-fhi) + max(qmin,q1(i))*fhi
+        endif
+        qss    = fpvs(t2m(i))
+        qss    = eps * qss / (ps(i) + epsm1 * qss)
+        q2m(i) = min(q2m(i),qss)
+      enddo
 
-      RETURN
-      END
+      return
+      end

@@ -4,6 +4,7 @@
 #PBS -o _RUND_/out
 #PBS -N _JBNME_
 #PBS -A _ACCNR_
+#PBS -q _QUEUE_
 #PBS -l procs=_TASKS_
 #PBS -l walltime=00:_WLCLK_:00
 #PBS -W umask=027

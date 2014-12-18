@@ -3,7 +3,7 @@
 !...................................
 !  ---  inputs:
      &     ( im, ps, u1, v1, t1, q1, tskin, cm, ch,                     &
-     &       prsl1, prslki, slimsk, ddvel, flag_iter,                   &
+     &       prsl1, prslki, islimsk, ddvel, flag_iter,                  &
 !  ---  outputs:
      &       qsurf, cmm, chh, gflux, evap, hflx, ep                     &
      &     )
@@ -16,7 +16,7 @@
 !    call sfc_ocean                                                     !
 !       inputs:                                                         !
 !          ( im, ps, u1, v1, t1, q1, tskin, cm, ch,                     !
-!            prsl1, prslki, slimsk, ddvel, flag_iter,                   !
+!            prsl1, prslki, islimsk, ddvel, flag_iter,                  !
 !       outputs:                                                        !
 !            qsurf, cmm, chh, gflux, evap, hflx, ep )                   !
 !                                                                       !
@@ -47,7 +47,7 @@
 !     ch       - real, surface exchange coeff heat & moisture(m/s) im   !
 !     prsl1    - real, surface layer mean pressure                 im   !
 !     prslki   - real,                                             im   !
-!     slimsk   - real, sea/land/ice mask (=0/1/2)                  im   !
+!     islimsk  - integer, sea/land/ice mask (=0/1/2)               im   !
 !     ddvel    - real, wind enhancement due to convection (m/s)    im   !
 !     flag_iter- logical,                                          im   !
 !                                                                       !
@@ -79,7 +79,8 @@
       integer, intent(in) :: im
 
       real (kind=kind_phys), dimension(im), intent(in) :: ps, u1, v1,   &
-     &      t1, q1, tskin, cm, ch, prsl1, prslki, slimsk, ddvel
+     &      t1, q1, tskin, cm, ch, prsl1, prslki, ddvel
+      integer, dimension(im), intent(in):: islimsk
 
       logical, intent(in) :: flag_iter(im)
 
@@ -99,7 +100,7 @@
 !
 !  --- ...  flag for open water
       do i = 1, im
-         flag(i) = ( slimsk(i) == 0.0 .and. flag_iter(i) )
+         flag(i) = ( islimsk(i) == 0 .and. flag_iter(i) )
       enddo
 
 !  --- ...  initialize variables. all units are supposedly m.k.s. unless specified

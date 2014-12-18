@@ -12,7 +12,8 @@
 !                                                                      !
 !     1990-04-30  g and rd are made consistent with NWS usage          !
 !     2001-10-22  g made consistent with SI usage                      !
-!     2005-04-13  added molicular weights for gases          - y-t hou !
+!     2005-04-13  added molecular weights for gases          - y-t hou !
+!     2013-07-12  added temperature for homogen. nuc. for ice. - R.sun !
 !                                                                      !
 !   external modules referenced:                                       !
 !                                                                      !
@@ -99,7 +100,19 @@
   real(kind=kind_phys),parameter:: con_amo2   =31.9999        ! molecular wght of o2  (g/mol)
   real(kind=kind_phys),parameter:: con_amch4  =16.043         ! molecular wght of ch4 (g/mol)
   real(kind=kind_phys),parameter:: con_amn2o  =44.013         ! molecular wght of n2o (g/mol)
+  real(kind=kind_phys), parameter:: con_thgni  =-38.15         ! temperature the H.G.Nuc. ice starts
 
+!
+! Miscellaneous physics related constatnts (Moorthi - Jul 2014)
+!
+! integer, parameter :: max_lon=16000, max_lat=8000, min_lon=192, min_lat=94
+! integer, parameter :: max_lon=5000,  max_lat=2500, min_lon=192, min_lat=94 ! current opr
+  integer, parameter :: max_lon=5000,  max_lat=2000, min_lon=192, min_lat=94 ! current opr
+  real(kind=kind_phys), parameter:: rlapse  = 0.65e-2, rhc_max = 0.9999      ! current opr
+! real(kind=kind_phys), parameter:: rlapse  = 0.65e-2, rhc_max = 0.9900
+  real(kind=kind_phys), parameter:: cb2mb   = 10.0, pa2mb   = 0.01
+
+  real(kind=kind_phys) :: dxmax, dxmin, dxinv
 
 !........................................!
       end module physcons                !

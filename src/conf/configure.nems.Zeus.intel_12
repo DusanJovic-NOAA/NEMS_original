@@ -52,7 +52,9 @@ NETCDF_LIB   = -L$(NETCDF)/lib -lnetcdf
 
 LIBDIR=/contrib/nceplibs/nwprod/lib
 PARADIR=/contrib/nceplibs_ext/lib
-POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Sarah.Lu/Summer_School_2013/lib
+#POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Sarah.Lu/Summer_School_2013/lib
+#POSTDIR=/scratch2/portfolios/NCEPDEV/global/noscrub/Shrinivas.Moorthi/post_wam_moorthi/src
+POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
 
 ##NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
 NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/nemsgfs_newrad/incmod
@@ -106,13 +108,14 @@ R8           = -r8
 
 FINCS        = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS        =
-#TRAPS        = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
+#TRAPS       = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
 
-#FFLAGS       = $(TRAPS) $(FINCS) -fp-model strict
-FFLAGS       = $(TRAPS) $(FINCS) -fp-model precise 
+FFLAGS       = $(TRAPS) $(FINCS) -fp-model strict
+#FFLAGS      = $(TRAPS) $(FINCS) -fp-model precise 
 
 
 OPTS_NMM     = -O3
+#OPTS_GFS    = -O0 -g -traceback
 OPTS_GFS     = -O3
 OPTS_GEN     = -O3
 OPTS_FIM     = -O3

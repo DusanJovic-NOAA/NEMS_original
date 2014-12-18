@@ -650,18 +650,18 @@
 !   find the interface level of the projected wind where
 !   low levels & upper levels meet above pbl
 !
-      do i=1,npt
-        kint(i) = km
-      enddo
-      do k = 1,kmm1
-        do i = 1,npt
-          IF (K .GT. kref(I)) THEN
-            if(velco(i,k) .lt. veleps .and. kint(i) .eq. km) then
-              kint(i) = k+1
-            endif
-          endif
-        enddo
-      enddo
+!     do i=1,npt
+!       kint(i) = km
+!     enddo
+!     do k = 1,kmm1
+!       do i = 1,npt
+!         IF (K .GT. kref(I)) THEN
+!           if(velco(i,k) .lt. veleps .and. kint(i) .eq. km) then
+!             kint(i) = k+1
+!           endif
+!         endif
+!       enddo
+!     enddo
 !  WARNING  KINT = KREF !!!!!!!!!
       do i=1,npt
         kint(i) = kref(i)

@@ -101,22 +101,20 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(SYS_LIB)
 ###
 
-FC          = ftn -convert big_endian -assume byterecl
+FC          = ftn -convert big_endian -assume byterecl -openmp  -mkl=sequential
 FPP         = -eZ
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8
 
 FINCS       = $(ESMF_INC) $(NEMSIO_INC)
-#TRAPS       =
- TRAPS       = -check all -ftrapuv -fp-stack-check -fstack-protector -heap-arrays
-#TRAPS       = -check all -ftrapuv -fp-stack-check -fstack-protector -heap-arrays
+ TRAPS       =
 #TRAPS       = -check all -ftrapuv -fp-stack-check -fstack-protector -heap-arrays
 
-FFLAGS      = $(TRAPS) $(FINCS) -fp-model source -g -O0 -traceback
+FFLAGS      = $(TRAPS) $(FINCS) -fp-model source
 
 OPTS_NMM    = -O3
-#OPTS_GFS    = -O0 -g -traceback
+ OPTS_GFS    = -O3 -g -traceback
 #OPTS_GFS    = -O3
 OPTS_GEN    = -O3
 OPTS_FIM    = -O3
@@ -127,6 +125,7 @@ FFLAGS_GFSF = $(OPTS_GFS) $(FFLAGS) $(FIXED)
 FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
+FPP         = -fpp
 CPP         = /lib/cpp -P -traditional
 CPPFLAGS    = -DCHNK_RRTM=8 -DENABLE_SMP -DTHREAD_2D
 

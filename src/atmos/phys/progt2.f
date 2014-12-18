@@ -1,5 +1,5 @@
       SUBROUTINE PROGT2(IM,KM,RHSCNPY,
-     &                  RHSMC,AI,BI,CI,SMC,SLIMSK,
+     &                  RHSMC,AI,BI,CI,SMC,iSLIMSK,
      &                  CANOPY,PRECIP,RUNOFF,SNOWMT,
      &                  ZSOIL,SOILTYP,SIGMAF,DELT,me)
 cc
@@ -10,10 +10,10 @@ cc
       real(kind=kind_phys) delt
       real(kind=kind_phys) RHSCNPY(IM),  RHSMC(IM,KM), AI(IM,KM),
      &                     BI(IM,KM),    CI(IM,KM),    SMC(IM,KM),
-     &                     SLIMSK(IM),   CANOPY(IM),   PRECIP(IM),
+     &                                   CANOPY(IM),   PRECIP(IM),
      &                     RUNOFF(IM),   SNOWMT(IM),   ZSOIL(IM,KM),
      &                     SIGMAF(IM)
-      INTEGER SOILTYP(IM)
+      INTEGER SOILTYP(IM), ISLIMSK(IM)
 !
       integer              k, lond, i
       real(kind=kind_phys) CNPY(IM), PRCP(IM),   TSAT(IM),
@@ -35,7 +35,7 @@ C##DG LATD = 44
       DELT2 = DELT * 2.
 
       DO I=1,IM
-        FLAG(I) = SLIMSK(I).EQ.1.
+        FLAG(I) = ISLIMSK(I) == 1
       ENDDO
 
 C

@@ -89,7 +89,8 @@
 !*** read namelist for pv,th,po
 !-----------------------------------------------------------------------
 !
-         call read_postnmlt(kpo,kth,kpv,po,th,pv)
+         call read_postnmlt(kpo,kth,kpv,po,th,pv,wrt_int_state%nlunit, &
+                            wrt_int_state%post_namelist)
       write(0,*)'in post_run,aft nmlst po'
 !
 !-----------------------------------------------------------------------

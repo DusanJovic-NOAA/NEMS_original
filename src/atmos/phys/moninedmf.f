@@ -1,10 +1,20 @@
-cfpp$ noconcur r
-      subroutine moninq(ix,im,km,ntrac,ntcw,dv,du,tau,rtg,
-     &     uo,vo,t1,q1,swh,hlw,xmu,
-     &     psk,rbsoil,fm,fh,tsea,qss,heat,evap,stress,spd1,kpbl,
-     &     prsi,del,prsl,prslk,phii,phil,deltim,dspheat,
-     &     dusfc,dvsfc,dtsfc,dqsfc,hpbl,hgamt,hgamq,dkt,
-     &     kinver,xkzm_m,xkzm_h,xkzm_s,lprnt,ipr)
+!!!!!  ==========================================================  !!!!!
+! subroutine 'moninedmf' computes subgrid vertical mixing by turbulence
+! 
+! for the convective boundary layer, the scheme adopts eddy-diffusion
+!  mass-flux (edmf) parameterization (siebesma et al., 2007) to take into 
+!  account nonlocal transport by large eddies. to reduce the tropical wind rmse, 
+!  a hybrid scheme is used, in which the edmf scheme is used only for strongly 
+!  unstable pbl while the current operational vertical diffusion scheme is called 
+!  for the weakly unstable pbl.  
+!
+      subroutine moninedmf(ix,im,km,ntrac,ntcw,dv,du,tau,rtg,
+     &   u1,v1,t1,q1,swh,hlw,xmu,
+     &   psk,rbsoil,zorl,u10m,v10m,fm,fh,
+     &   tsea,qss,heat,evap,stress,spd1,kpbl,
+     &   prsi,del,prsl,prslk,phii,phil,delt,dspheat,
+     &   dusfc,dvsfc,dtsfc,dqsfc,hpbl,hgamt,hgamq,dkt,
+     &   kinver,xkzm_m,xkzm_h,xkzm_s,lprnt,ipr)
 !
       use machine  , only : kind_phys
       use funcphys , only : fpvs
@@ -16,29 +26,27 @@ cfpp$ noconcur r
 !
       logical lprnt
       integer ipr
-      integer ix, im, km, ntrac, ntcw, kpbl(im), kpblx(im), kinver(im)
+      integer ix, im, km, ntrac, ntcw, kpbl(im), kinver(im)
 !
-      real(kind=kind_phys) deltim, xkzm_m, xkzm_h, xkzm_s
+      real(kind=kind_phys) delt, xkzm_m, xkzm_h, xkzm_s
       real(kind=kind_phys) dv(im,km),     du(im,km),
      &                     tau(im,km),    rtg(im,km,ntrac),
-     &                     uo(ix,km),     vo(ix,km),
+     &                     u1(ix,km),     v1(ix,km),
      &                     t1(ix,km),     q1(ix,km,ntrac),
      &                     swh(ix,km),    hlw(ix,km),
-     &                     xmu(im),
-     &                     psk(im),       rbsoil(im),
-!    &                     cd(im),        ch(im),
+     &                     xmu(im),       psk(im),
+     &                     rbsoil(im),    zorl(im),
+     &                     u10m(im),      v10m(im),
      &                     fm(im),        fh(im),
      &                     tsea(im),      qss(im),
      &                                    spd1(im),
-!    &                     dphi(im),      spd1(im),
      &                     prsi(ix,km+1), del(ix,km),
      &                     prsl(ix,km),   prslk(ix,km),
      &                     phii(ix,km+1), phil(ix,km),
-     &                                    dusfc(im),
-     &                     dvsfc(im),     dtsfc(im),
-     &                     dqsfc(im),     hpbl(im),      hpblx(im),
+     &                     dusfc(im),     dvsfc(im),
+     &                     dtsfc(im),     dqsfc(im),
+     &                     hpbl(im),      hpblx(im),
      &                     hgamt(im),     hgamq(im)
-!    &,                    hgamu(im),     hgamv(im),     hgams(im)
 !
       logical dspheat
 !          flag for tke dissipative heating
@@ -47,77 +55,85 @@ cfpp$ noconcur r
 !
       integer i,iprt,is,iun,k,kk,km1,kmpbl,latd,lond
       integer lcld(im),icld(im),kcld(im),krad(im)
-      integer kx1(im)
-!     integer kemx(im), kx1(im)
+      integer kx1(im), kpblx(im)
 !
 !     real(kind=kind_phys) betaq(im), betat(im),   betaw(im),
       real(kind=kind_phys) evap(im),  heat(im),    phih(im),
      &                     phim(im),  rbdn(im),    rbup(im),
      &                     stress(im),beta(im),    sflux(im),
-     &                     ustar(im), wscale(im),  thermal(im),
-     &                     wstar3(im)
+     &                     z0(im),    crb(im),     wstar(im),
+     &                     zol(im),   ustmin(im),  ustar(im),
+     &                     thermal(im),wscale(im), wscaleu(im)
 !
-      real(kind=kind_phys) thvx(im,km), thlvx(im,km),
+      real(kind=kind_phys) theta(im,km),thvx(im,km),  thlvx(im,km),
      &                     qlx(im,km),  thetae(im,km),
      &                     qtx(im,km),  bf(im,km-1),  diss(im,km),
-     &                     u1(im,km),   v1(im,km),    radx(im,km-1),
-     &                     govrth(im),  hrad(im),     cteit(im),
+     &                     radx(im,km-1),
+     &                     govrth(im),  hrad(im),
 !    &                     hradm(im),   radmin(im),   vrad(im),
      &                     radmin(im),  vrad(im),
      &                     zd(im),      zdd(im),      thlvx1(im)
 !
-      real(kind=kind_phys) rdzt(im,km-1),dktx(im,km-1),dkux(im,km-1),
+      real(kind=kind_phys) rdzt(im,km-1),dktx(im,km-1),
      &                     zi(im,km+1),  zl(im,km),    xkzo(im,km-1),
      &                     dku(im,km-1), dkt(im,km-1), xkzmo(im,km-1),
      &                     cku(im,km-1), ckt(im,km-1),
      &                     ti(im,km-1),  shr2(im,km-1),
      &                     al(im,km-1),  ad(im,km),
      &                     au(im,km-1),  a1(im,km), 
-     &                     a2(im,km*ntrac), theta(im,km)
+     &                     a2(im,km*ntrac)
 !
-!     real(kind=kind_phys) prinv(im), hpbl01(im), rent(im)
+      real(kind=kind_phys) tcko(im,km),  qcko(im,km,ntrac),
+     &                     ucko(im,km),  vcko(im,km),  xmf(im,km)
+!
       real(kind=kind_phys) prinv(im), rent(im)
 !
       logical  pblflg(im), sfcflg(im), scuflg(im), flg(im)
+      logical  ublflg(im), pcnvflg(im)
+!
+!  pcnvflg: true for convective(strongly unstable) pbl
+!  ublflg: true for unstable but not convective(strongly unstable) pbl
 !
       real(kind=kind_phys) aphi16,  aphi5,  bvf2,   wfac,
      &                     cfac,    conq,   cont,   conw,
      &                     dk,      dkmax,  dkmin,
      &                     dq1,     dsdz2,  dsdzq,  dsdzt,
-     &                     dsdzu,   dsdzv,  sfac,
-     &                     dsig,    dt,     dthe1,  dtodsd,
+     &                     dsdzu,   dsdzv,
+     &                     dsig,    dt2,    dthe1,  dtodsd,
      &                     dtodsu,  dw2,    dw2min, g,
-     &                     gamcrq,  gamcrt, gocp,   gor, gravi,
-     &                     hol,     hol1,   pfac,   prmax, prmin,
-     &                     prnum,   qmin,   tdzmin, qtend, rbcr,
+     &                     gamcrq,  gamcrt, gocp,
+     &                     gravi,   f0,
+     &                     prnum,   prmax,  prmin,  pfac,  crbcon,
+     &                     qmin,    tdzmin, qtend,  crbmin,crbmax,
      &                     rbint,   rdt,    rdz,    qlmin, 
-!    &                     rbint,   rdt,    rdz,    rdzt1,
      &                     ri,      rimin,  rl2,    rlam,  rlamun,
      &                     rone,    rzero,  sfcfrac,
-     &                     spdk2,   sri,
-     &                     tem,     ttend,  tvd,
-     &                     tvu,     utend,  vk,     vk2,
-     &                     vtend,   zfac,   vpert,  cpert,
+     &                     spdk2,   sri,    zol1,   zolcr, zolcru,
+     &                     robn,    ttend, 
+     &                     utend,   vk,     vk2,
+     &                     ust3,    wst3,
+     &                     vtend,   zfac,   vpert,  cteit,
      &                     rentf1,  rentf2, radfac,
-     &                     zfmin,   zk,     tem1,   tem2,
+     &                     zfmin,   zk,     tem,    tem1,  tem2,
      &                     xkzm,    xkzmu,  xkzminv,
      &                     ptem,    ptem1,  ptem2, tx1(im), tx2(im)
 !
       real(kind=kind_phys) zstblmax,h1,     h2,     qlcr,  actei,
-     &                     cldtime, u01,    v01,    delu,  delv
+     &                     cldtime
 cc
       parameter(gravi=1.0/grav)
       parameter(g=grav)
-      parameter(gor=g/rd,gocp=g/cp)
+      parameter(gocp=g/cp)
       parameter(cont=cp/g,conq=hvap/g,conw=1.0/g)               ! for del in pa
 !     parameter(cont=1000.*cp/g,conq=1000.*hvap/g,conw=1000./g) ! for del in kpa
       parameter(rlam=30.0,vk=0.4,vk2=vk*vk)
-      parameter(prmin=0.25,prmax=4.)
+      parameter(prmin=0.25,prmax=4.,zolcr=0.2,zolcru=-0.5)
       parameter(dw2min=0.0001,dkmin=0.0,dkmax=1000.,rimin=-100.)
-      parameter(rbcr=0.25,wfac=7.0,cfac=6.5,pfac=2.0,sfcfrac=0.1)
+      parameter(crbcon=0.25,crbmin=0.15,crbmax=0.35)
+      parameter(wfac=7.0,cfac=6.5,pfac=2.0,sfcfrac=0.1)
 !     parameter(qmin=1.e-8,xkzm=1.0,zfmin=1.e-8,aphi5=5.,aphi16=16.)
       parameter(qmin=1.e-8,         zfmin=1.e-8,aphi5=5.,aphi16=16.)
-      parameter(tdzmin=1.e-3,qlmin=1.e-12,cpert=0.25,sfac=5.4)
+      parameter(tdzmin=1.e-3,qlmin=1.e-12,f0=1.e-4)
       parameter(h1=0.33333333,h2=0.66666667)
       parameter(cldtime=500.,xkzminv=0.3)
 !     parameter(cldtime=500.,xkzmu=3.0,xkzminv=0.3)
@@ -165,8 +181,8 @@ c
 !     lond = 0
 !     endif
 !
-      dt    = 2. * deltim
-      rdt   = 1. / dt
+      dt2   = delt
+      rdt   = 1. / dt2
       km1   = km - 1
       kmpbl = km / 2
 !
@@ -174,8 +190,6 @@ c
         do i=1,im
           zi(i,k) = phii(i,k) * gravi
           zl(i,k) = phil(i,k) * gravi
-          u1(i,k) = uo(i,k)
-          v1(i,k) = vo(i,k)
         enddo
       enddo
       do i=1,im
@@ -226,10 +240,10 @@ c
 !
       do k = 1,kmpbl
         do i=1,im
-!         if(zi(i,k+1).gt.200..and.zi(i,k+1).lt.zstblmax) then
-          if(zi(i,k+1).gt.250.) then
+!         if(zi(i,k+1) > 200..and.zi(i,k+1) < zstblmax) then
+          if(zi(i,k+1) > 250.) then
             tem1 = (t1(i,k+1)-t1(i,k)) * rdzt(i,k)
-            if(tem1 .gt. 1.e-5) then
+            if(tem1 > 1.e-5) then
                xkzo(i,k)  = min(xkzo(i,k),xkzminv)
             endif
           endif
@@ -237,27 +251,24 @@ c
       enddo
 !
       do i = 1,im
+         z0(i)    = 0.01 * zorl(i)
          dusfc(i) = 0.
          dvsfc(i) = 0.
          dtsfc(i) = 0.
          dqsfc(i) = 0.
-         hgamt(i) = 0.
-         hgamq(i) = 0.
-!        hgamu(i) = 0.
-!        hgamv(i) = 0.
-!        hgams(i) = 0.
          wscale(i)= 0.
+         wscaleu(i)= 0.
          kpbl(i)  = 1
-         kpblx(i) = 1
          hpbl(i)  = zi(i,1)
          hpblx(i) = zi(i,1)
          pblflg(i)= .true.
          sfcflg(i)= .true.
-         if(rbsoil(i).gt.0.0) sfcflg(i) = .false.
+         if(rbsoil(i) > 0.) sfcflg(i) = .false.
+         ublflg(i)= .false.
+         pcnvflg(i)= .false.
          scuflg(i)= .true.
          if(scuflg(i)) then
            radmin(i)= 0.
-           cteit(i) = 0.
            rent(i)  = rentf1
            hrad(i)  = zi(i,1)
 !          hradm(i) = zi(i,1)
@@ -287,7 +298,6 @@ c
           dku(i,k)  = 0.
           dkt(i,k)  = 0.
           dktx(i,k) = 0.
-          dkux(i,k) = 0.
           cku(i,k)  = 0.
           ckt(i,k)  = 0.
           tem       = zi(i,k+1)-zi(i,k)
@@ -300,7 +310,7 @@ c
       enddo
       do k = 1, km1
         do i=1,im
-          if(flg(i).and.zl(i,k).ge.zstblmax) then
+          if(flg(i).and.zl(i,k) >= zstblmax) then
              lcld(i)=k
              flg(i)=.false.
           endif
@@ -315,7 +325,7 @@ c
          bf(i,k) = (thvx(i,k+1)-thvx(i,k))*rdz
          ti(i,k) = 2./(t1(i,k)+t1(i,k+1))
          dw2  = (u1(i,k)-u1(i,k+1))**2
-     &         +(v1(i,k)-v1(i,k+1))**2
+     &        + (v1(i,k)-v1(i,k+1))**2
          shr2(i,k) = max(dw2,dw2min)*rdz*rdz
       enddo
       enddo
@@ -325,21 +335,38 @@ c
       enddo
 !
       do i=1,im
-         beta(i)  = dt / (zi(i,2)-zi(i,1))
+         beta(i)  = dt2 / (zi(i,2)-zi(i,1))
       enddo
 !
       do i=1,im
          ustar(i) = sqrt(stress(i))
-         thermal(i) = thvx(i,1)
       enddo
 !
-!  compute the first guess pbl height
+      do i = 1,im
+         sflux(i)  = heat(i) + evap(i)*fv*theta(i,1)
+         if(.not.sfcflg(i) .or. sflux(i) <= 0.) pblflg(i)=.false.
+      enddo
+!
+!  compute the pbl height
 !
       do i=1,im
          flg(i) = .false.
          rbup(i) = rbsoil(i)
+!
+         if(pblflg(i)) then
+           thermal(i) = thvx(i,1)
+           crb(i) = crbcon
+         else
+           thermal(i) = tsea(i)*(1.+fv*max(q1(i,1,1),qmin))
+           tem = sqrt(u10m(i)**2+v10m(i)**2)
+           tem = max(tem, 1.)
+           robn = tem / (f0 * z0(i))
+           tem1 = 1.e-7 * robn
+           crb(i) = 0.16 * (tem1 ** (-0.18))
+           crb(i) = max(min(crb(i), crbmax), crbmin)
+         endif
       enddo
-      do k = 2, kmpbl
+      do k = 1, kmpbl
       do i = 1, im
         if(.not.flg(i)) then
           rbdn(i) = rbup(i)
@@ -347,56 +374,75 @@ c
           rbup(i) = (thvx(i,k)-thermal(i))*
      &              (g*zl(i,k)/thvx(i,1))/spdk2
           kpbl(i) = k
-          flg(i)  = rbup(i).gt.rbcr
+          flg(i)  = rbup(i) > crb(i)
         endif
       enddo
       enddo
       do i = 1,im
-         k = kpbl(i)
-         if(rbdn(i).ge.rbcr) then
-           rbint = 0.
-         elseif(rbup(i).le.rbcr) then
-           rbint = 1.
-         else
-           rbint = (rbcr-rbdn(i))/(rbup(i)-rbdn(i))
-         endif
-         hpbl(i) = zl(i,k-1) + rbint*(zl(i,k)-zl(i,k-1))
-         if(hpbl(i).lt.zi(i,kpbl(i))) kpbl(i) = kpbl(i) - 1
-         hpblx(i) = hpbl(i)
-         kpblx(i) = kpbl(i)
+        if(kpbl(i) > 1) then
+          k = kpbl(i)
+          if(rbdn(i) >= crb(i)) then
+            rbint = 0.
+          elseif(rbup(i) <= crb(i)) then
+            rbint = 1.
+          else
+            rbint = (crb(i)-rbdn(i))/(rbup(i)-rbdn(i))
+          endif
+          hpbl(i) = zl(i,k-1) + rbint*(zl(i,k)-zl(i,k-1))
+          if(hpbl(i) < zi(i,kpbl(i))) kpbl(i) = kpbl(i) - 1
+        else
+          hpbl(i) = zl(i,1)
+          kpbl(i) = 1
+        endif
+        kpblx(i) = kpbl(i)
+        hpblx(i) = hpbl(i)
       enddo
 !
-!     compute similarity parameters 
+!  compute similarity parameters 
 !
       do i=1,im
-         sflux(i) = heat(i) + evap(i)*fv*theta(i,1)
-         if(sfcflg(i).and.sflux(i).gt.0.) then
-           hol = max(rbsoil(i)*fm(i)*fm(i)/fh(i),rimin)
-           hol = min(hol,-zfmin)
-!
-           hol1 = hol*hpbl(i)/zl(i,1)*sfcfrac
-!          phim(i) = (1.-aphi16*hol1)**(-1./4.)
-!          phih(i) = (1.-aphi16*hol1)**(-1./2.)
-           tem     = 1.0 / (1. - aphi16*hol1)
+         zol(i) = max(rbsoil(i)*fm(i)*fm(i)/fh(i),rimin)
+         if(sfcflg(i)) then
+           zol(i) = min(zol(i),-zfmin)
+         else
+           zol(i) = max(zol(i),zfmin)
+         endif
+         zol1 = zol(i)*sfcfrac*hpbl(i)/zl(i,1)
+         if(sfcflg(i)) then
+!          phim(i) = (1.-aphi16*zol1)**(-1./4.)
+!          phih(i) = (1.-aphi16*zol1)**(-1./2.)
+           tem     = 1.0 / (1. - aphi16*zol1)
            phih(i) = sqrt(tem)
            phim(i) = sqrt(phih(i))
-           wstar3(i) = govrth(i)*sflux(i)*hpbl(i)
-           tem1      = ustar(i)**3.
-           wscale(i) = (tem1+wfac*vk*wstar3(i)*sfcfrac)**h1
-!          wscale(i) = ustar(i)/phim(i)
-!          wscale(i) = min(wscale(i),ustar(i)*aphi16)
-           wscale(i) = max(wscale(i),ustar(i)/aphi5)
          else
-           pblflg(i)=.false.
+           phim(i) = 1. + aphi5*zol1
+           phih(i) = phim(i)
          endif
+         wscale(i) = ustar(i)/phim(i)
+         ustmin(i) = ustar(i)/aphi5
+         wscale(i) = max(wscale(i),ustmin(i))
+      enddo
+      do i=1,im
+        if(pblflg(i)) then
+          if(zol(i) < zolcru .and. kpbl(i) > 1) then
+            pcnvflg(i) = .true.
+          else
+            ublflg(i) = .true.
+          endif
+          wst3 = govrth(i)*sflux(i)*hpbl(i)
+          wstar(i)= wst3**h1
+          ust3 = ustar(i)**3.
+          wscaleu(i) = (ust3+wfac*vk*wst3*sfcfrac)**h1
+          wscaleu(i) = max(wscaleu(i),ustmin(i))
+        endif
       enddo
 !
 ! compute counter-gradient mixing term for heat and moisture
 !
       do i = 1,im
-         if(pblflg(i)) then
-           hgamt(i)  = min(cfac*heat(i)/wscale(i),gamcrt)
-           hgamq(i)  = min(cfac*evap(i)/wscale(i),gamcrq)
+         if(ublflg(i)) then
+           hgamt(i)  = min(cfac*heat(i)/wscaleu(i),gamcrt)
+           hgamq(i)  = min(cfac*evap(i)/wscaleu(i),gamcrq)
            vpert     = hgamt(i) + hgamq(i)*fv*theta(i,1)
            vpert     = min(vpert,gamcrt)
            thermal(i)= thermal(i)+max(vpert,0.)
@@ -405,65 +451,11 @@ c
          endif
       enddo
 !
-! compute large-scale mixing term for momentum
-!
-!     do i = 1,im
-!       flg(i) = pblflg(i)
-!       kemx(i)= 1
-!       hpbl01(i)= sfcfrac*hpbl(i)
-!     enddo
-!     do k = 1, kmpbl
-!     do i = 1, im
-!       if(flg(i).and.zl(i,k).gt.hpbl01(i)) then
-!         kemx(i) = k
-!         flg(i)  = .false.
-!       endif
-!     enddo
-!     enddo
-!     do i = 1, im
-!       if(pblflg(i)) then
-!         kk = kpbl(i)
-!         if(kemx(i).le.1) then
-!           ptem  = u1(i,1)/zl(i,1)
-!           ptem1 = v1(i,1)/zl(i,1)
-!           u01   = ptem*hpbl01(i)
-!           v01   = ptem1*hpbl01(i)
-!         else
-!           tem   = zl(i,kemx(i))-zl(i,kemx(i)-1)
-!           ptem  = (u1(i,kemx(i))-u1(i,kemx(i)-1))/tem
-!           ptem1 = (v1(i,kemx(i))-v1(i,kemx(i)-1))/tem
-!           tem1  = hpbl01(i)-zl(i,kemx(i)-1)
-!           u01   = u1(i,kemx(i)-1)+ptem*tem1
-!           v01   = v1(i,kemx(i)-1)+ptem1*tem1
-!         endif
-!         if(kk.gt.kemx(i)) then
-!           delu  = u1(i,kk)-u01
-!           delv  = v1(i,kk)-v01
-!           tem2  = sqrt(delu**2+delv**2)
-!           tem2  = max(tem2,0.1)
-!           ptem2 = -sfac*ustar(i)*ustar(i)*wstar3(i)
-!    1                /(wscale(i)**4.)
-!           hgamu(i) = ptem2*delu/tem2
-!           hgamv(i) = ptem2*delv/tem2
-!           tem  = sqrt(u1(i,kk)**2+v1(i,kk)**2)
-!           tem1 = sqrt(u01**2+v01**2)
-!           ptem = tem - tem1
-!           if(ptem.gt.0.) then
-!             hgams(i)=-sfac*vk*sfcfrac*wstar3(i)/(wscale(i)**3.)
-!           else
-!             hgams(i)=sfac*vk*sfcfrac*wstar3(i)/(wscale(i)**3.)
-!           endif
-!         else
-!           hgams(i) = 0.
-!         endif
-!       endif
-!     enddo
-!
 !  enhance the pbl height by considering the thermal excess
 !
       do i=1,im
          flg(i)  = .true.
-         if(pblflg(i)) then
+         if(ublflg(i)) then
            flg(i)  = .false.
            rbup(i) = rbsoil(i)
          endif
@@ -476,23 +468,26 @@ c
           rbup(i) = (thvx(i,k)-thermal(i))*
      &              (g*zl(i,k)/thvx(i,1))/spdk2
           kpbl(i) = k
-          flg(i)  = rbup(i).gt.rbcr
+          flg(i)  = rbup(i) > crb(i)
         endif
       enddo
       enddo
       do i = 1,im
-        if(pblflg(i)) then
+        if(ublflg(i)) then
            k = kpbl(i)
-           if(rbdn(i).ge.rbcr) then
+           if(rbdn(i) >= crb(i)) then
               rbint = 0.
-           elseif(rbup(i).le.rbcr) then
+           elseif(rbup(i) <= crb(i)) then
               rbint = 1.
            else
-              rbint = (rbcr-rbdn(i))/(rbup(i)-rbdn(i))
+              rbint = (crb(i)-rbdn(i))/(rbup(i)-rbdn(i))
            endif
            hpbl(i) = zl(i,k-1) + rbint*(zl(i,k)-zl(i,k-1))
-           if(hpbl(i).lt.zi(i,kpbl(i))) kpbl(i) = kpbl(i) - 1
-           if(kpbl(i).le.1) pblflg(i) = .false.
+           if(hpbl(i) < zi(i,kpbl(i))) kpbl(i) = kpbl(i) - 1
+           if(kpbl(i) <= 1) then
+              ublflg(i) = .false.
+              pblflg(i) = .false.
+           endif
         endif
       enddo
 !
@@ -503,7 +498,7 @@ c
       enddo
       do k = kmpbl,1,-1
       do i = 1, im
-        if(flg(i).and.k.le.lcld(i)) then
+        if(flg(i) .and. k <= lcld(i)) then
           if(qlx(i,k).ge.qlcr) then
              kcld(i)=k
              flg(i)=.false.
@@ -512,7 +507,7 @@ c
       enddo
       enddo
       do i = 1, im
-        if(scuflg(i).and.kcld(i).eq.km1) scuflg(i)=.false.
+        if(scuflg(i) .and. kcld(i)==km1) scuflg(i)=.false.
       enddo
 !
       do i = 1, im
@@ -520,9 +515,9 @@ c
       enddo
       do k = kmpbl,1,-1
       do i = 1, im
-        if(flg(i).and.k.le.kcld(i)) then
-          if(qlx(i,k).ge.qlcr) then
-            if(radx(i,k).lt.radmin(i)) then
+        if(flg(i) .and. k <= kcld(i)) then
+          if(qlx(i,k) >= qlcr) then
+            if(radx(i,k) < radmin(i)) then
               radmin(i)=radx(i,k)
               krad(i)=k
             endif
@@ -533,8 +528,8 @@ c
       enddo
       enddo
       do i = 1, im
-        if(scuflg(i).and.krad(i).le.1) scuflg(i)=.false.
-        if(scuflg(i).and.radmin(i).ge.0.) scuflg(i)=.false.
+        if(scuflg(i) .and. krad(i) <= 1) scuflg(i)=.false.
+        if(scuflg(i) .and. radmin(i)>=0.) scuflg(i)=.false.
       enddo
 !
       do i = 1, im
@@ -542,8 +537,8 @@ c
       enddo
       do k = kmpbl,2,-1
       do i = 1, im
-        if(flg(i).and.k.le.krad(i)) then
-          if(qlx(i,k).ge.qlcr) then
+        if(flg(i) .and. k <= krad(i)) then
+          if(qlx(i,k) >= qlcr) then
             icld(i)=icld(i)+1
           else
             flg(i)=.false.
@@ -552,7 +547,7 @@ c
       enddo
       enddo
       do i = 1, im
-        if(scuflg(i).and.icld(i).lt.1) scuflg(i)=.false.
+        if(scuflg(i) .and. icld(i) < 1) scuflg(i)=.false.
       enddo
 !
       do i = 1, im
@@ -563,7 +558,7 @@ c
       enddo
 !
       do i = 1, im
-        if(scuflg(i).and.hrad(i).lt.zi(i,2)) scuflg(i)=.false.
+        if(scuflg(i) .and. hrad(i)<zi(i,2)) scuflg(i)=.false.
       enddo
 !
       do i = 1, im
@@ -572,7 +567,7 @@ c
           tem  = zi(i,k+1)-zi(i,k)
           tem1 = cldtime*radmin(i)/tem
           thlvx1(i) = thlvx(i,k)+tem1
-!         if(thlvx1(i).gt.thlvx(i,k-1)) scuflg(i)=.false.
+!         if(thlvx1(i) > thlvx(i,k-1)) scuflg(i)=.false.
         endif
       enddo
 ! 
@@ -581,8 +576,8 @@ c
       enddo
       do k = kmpbl,1,-1
       do i = 1, im
-        if(flg(i).and.k.le.krad(i))then
-          if(thlvx1(i).le.thlvx(i,k))then
+        if(flg(i) .and. k <= krad(i))then
+          if(thlvx1(i) <= thlvx(i,k))then
              tem=zi(i,k+1)-zi(i,k)
              zd(i)=zd(i)+tem
           else
@@ -609,12 +604,18 @@ c
 !     compute inverse prandtl number
 !
       do i = 1, im
-        if(pblflg(i)) then
+        if(ublflg(i)) then
           tem = phih(i)/phim(i)+cfac*vk*sfcfrac
-!         prinv(i) = (1.0-hgams(i))/tem
-          prinv(i) = 1.0 / tem
-          prinv(i) = min(prinv(i),prmax)
-          prinv(i) = max(prinv(i),prmin)
+        else
+          tem = phih(i)/phim(i)
+        endif
+        prinv(i) =  1.0 / tem
+        prinv(i) = min(prinv(i),prmax)
+        prinv(i) = max(prinv(i),prmin)
+      enddo
+      do i = 1, im
+        if(zol(i) > zolcr) then
+          kpbl(i) = 1
         endif
       enddo
 !
@@ -622,70 +623,106 @@ c
 !
       do k = 1, kmpbl
       do i=1,im
-         if(pblflg(i).and.k.lt.kpbl(i)) then
+         if(k < kpbl(i)) then
 !           zfac = max((1.-(zi(i,k+1)-zl(i,1))/
 !    1             (hpbl(i)-zl(i,1))), zfmin)
             zfac = max((1.-zi(i,k+1)/hpbl(i)), zfmin)
-            tem = wscale(i)*vk*zi(i,k+1)*zfac**pfac
-!           dku(i,k) = xkzo(i,k)+wscale(i)*vk*zi(i,k+1)
-!    1                 *zfac**pfac
-            dku(i,k) = xkzmo(i,k) + tem
-            dkt(i,k) = xkzo(i,k)  + tem * prinv(i)
+            tem = zi(i,k+1) * (zfac**pfac)
+            if(pblflg(i)) then
+              tem1 = vk * wscaleu(i) * tem
+!             dku(i,k) = xkzmo(i,k) + tem1
+!             dkt(i,k) = xkzo(i,k)  + tem1 * prinv(i)
+              dku(i,k) = tem1
+              dkt(i,k) = tem1 * prinv(i)
+            else
+              tem1 = vk * wscale(i) * tem
+!             dku(i,k) = xkzmo(i,k) + tem1
+!             dkt(i,k) = xkzo(i,k)  + tem1 * prinv(i)
+              dku(i,k) = tem1
+              dkt(i,k) = tem1 * prinv(i)
+            endif
             dku(i,k) = min(dku(i,k),dkmax)
-!           dku(i,k) = max(dku(i,k),xkzmo(i,k))
+            dku(i,k) = max(dku(i,k),xkzmo(i,k))
             dkt(i,k) = min(dkt(i,k),dkmax)
-!           dkt(i,k) = max(dkt(i,k),xkzo(i,k))
+            dkt(i,k) = max(dkt(i,k),xkzo(i,k))
             dktx(i,k)= dkt(i,k)
-            dkux(i,k)= dku(i,k)
          endif
       enddo
       enddo
 !
-! compute diffusion coefficients based on local scheme
+! compute diffusion coefficients based on local scheme above pbl
 !
-      do i = 1, im
-        if(.not.pblflg(i)) then
-          kpbl(i) = 1
-        endif
-      enddo
       do k = 1, km1
          do i=1,im
-            if(k.ge.kpbl(i)) then
+            if(k >= kpbl(i)) then
                bvf2 = g*bf(i,k)*ti(i,k)
                ri   = max(bvf2/shr2(i,k),rimin)
                zk   = vk*zi(i,k+1)
-               if(ri.lt.0.) then ! unstable regime
+               if(ri < 0.) then ! unstable regime
                   rl2      = zk*rlamun/(rlamun+zk)
                   dk       = rl2*rl2*sqrt(shr2(i,k))
                   sri      = sqrt(-ri)
-                  dku(i,k) = xkzmo(i,k) + dk*(1+8.*(-ri)/(1+1.746*sri))
-                  dkt(i,k) = xkzo(i,k)  + dk*(1+8.*(-ri)/(1+1.286*sri))
+!                 dku(i,k) = xkzmo(i,k) + dk*(1+8.*(-ri)/(1+1.746*sri))
+!                 dkt(i,k) = xkzo(i,k)  + dk*(1+8.*(-ri)/(1+1.286*sri))
+                  dku(i,k) = dk*(1+8.*(-ri)/(1+1.746*sri))
+                  dkt(i,k) = dk*(1+8.*(-ri)/(1+1.286*sri))
                else             ! stable regime
                   rl2      = zk*rlam/(rlam+zk)
 !!                tem      = rlam * sqrt(0.01*prsi(i,k))
 !!                rl2      = zk*tem/(tem+zk)
                   dk       = rl2*rl2*sqrt(shr2(i,k))
                   tem1     = dk/(1+5.*ri)**2
-                  if(k.ge.kpblx(i)) then
+!
+                  if(k >= kpblx(i)) then
                     prnum = 1.0 + 2.1*ri
                     prnum = min(prnum,prmax)
                   else
                     prnum = 1.0
                   endif
-                  dkt(i,k) = xkzo(i,k)  + tem1
-                  dku(i,k) = xkzmo(i,k) + tem1 * prnum
+!                 dku(i,k) = xkzmo(i,k) + tem1 * prnum
+!                 dkt(i,k) = xkzo(i,k)  + tem1
+                  dku(i,k) = tem1 * prnum
+                  dkt(i,k) = tem1
                endif
 !
                dku(i,k) = min(dku(i,k),dkmax)
-!              dku(i,k) = max(dku(i,k),xkzmo(i,k))
+               dku(i,k) = max(dku(i,k),xkzmo(i,k))
                dkt(i,k) = min(dkt(i,k),dkmax)
-!              dkt(i,k) = max(dkt(i,k),xkzo(i,k))
+               dkt(i,k) = max(dkt(i,k),xkzo(i,k))
 !
             endif
 !
          enddo
       enddo
 !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!  compute components for mass flux mixing by large thermals
+!
+      do k = 1, km
+        do i = 1, im
+          if(pcnvflg(i)) then
+            tcko(i,k) = t1(i,k)
+            ucko(i,k) = u1(i,k)
+            vcko(i,k) = v1(i,k)
+            xmf(i,k) = 0.
+          endif
+        enddo
+      enddo
+      do kk = 1, ntrac
+      do k = 1, km
+        do i = 1, im
+          if(pcnvflg(i)) then
+            qcko(i,k,kk) = q1(i,k,kk)
+          endif
+        enddo
+      enddo
+      enddo
+!
+      call mfpbl(im,ix,km,ntrac,dt2,pcnvflg,
+     &       zl,zi,thvx,q1,t1,u1,v1,hpbl,kpbl,
+     &       sflux,ustar,wstar,xmf,tcko,qcko,ucko,vcko)
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !  compute diffusion coefficients for cloud-top driven diffusion
 !  if the condition for cloud-top instability is met,
 !    increase entrainment flux at cloud top
@@ -695,9 +732,9 @@ c
            k = krad(i)
            tem = thetae(i,k) - thetae(i,k+1)
            tem1 = qtx(i,k) - qtx(i,k+1)
-           if (tem.gt.0..and.tem1.gt.0.) then
-             cteit(i)= cp*tem/(hvap*tem1)
-             if(cteit(i).gt.actei) rent(i) = rentf2
+           if (tem > 0. .and. tem1 > 0.) then
+             cteit= cp*tem/(hvap*tem1)
+             if(cteit > actei) rent(i) = rentf2
            endif
         endif
       enddo
@@ -712,10 +749,10 @@ c
 !
       do k = 1, kmpbl
          do i=1,im
-            if(scuflg(i).and.k.lt.krad(i)) then
+            if(scuflg(i) .and. k < krad(i)) then
                tem1=hrad(i)-zd(i)
                tem2=zi(i,k+1)-tem1
-               if(tem2.gt.0.) then
+               if(tem2 > 0.) then
                   ptem= tem2/zd(i)
                   if(ptem.ge.1.) ptem= 1.
                   ptem= tem2*ptem*sqrt(1.-ptem)
@@ -751,7 +788,7 @@ c
          a2(i,1) = q1(i,1,1) + beta(i) * evap(i)
       enddo
 
-      if(ntrac.ge.2) then
+      if(ntrac >= 2) then
         do k = 2, ntrac
           is = (k-1) * km
           do i = 1, im
@@ -762,44 +799,73 @@ c
 !
       do k = 1,km1
         do i = 1,im
-          dtodsd = dt/del(i,k)
-          dtodsu = dt/del(i,k+1)
+          dtodsd = dt2/del(i,k)
+          dtodsu = dt2/del(i,k+1)
           dsig   = prsl(i,k)-prsl(i,k+1)
-!         rdz    = rdzt(i,k)*2./(t1(i,k)+t1(i,k+1))
           rdz    = rdzt(i,k)
           tem1   = dsig * dkt(i,k) * rdz
-
-          if(pblflg(i).and.k.lt.kpbl(i)) then
-!            dsdzt = dsig*dkt(i,k)*rdz*(gocp-hgamt(i)/hpbl(i))
-!            dsdzq = dsig*dkt(i,k)*rdz*(-hgamq(i)/hpbl(i))
-             ptem1 = dsig * dktx(i,k) * rdz
-             tem   = 1.0 / hpbl(i)
-             dsdzt = tem1 * gocp - ptem1*hgamt(i)*tem
-             dsdzq = ptem1 * (-hgamq(i)*tem)
-             a2(i,k)   = a2(i,k)+dtodsd*dsdzq
-             a2(i,k+1) = q1(i,k+1,1)-dtodsu*dsdzq
-          else
-!            dsdzt = dsig*dkt(i,k)*rdz*(gocp)
-             dsdzt = tem1 * gocp
-             a2(i,k+1) = q1(i,k+1,1)
-          endif
-!         dsdz2 = dsig*dkt(i,k)*rdz*rdz
           dsdz2     = tem1 * rdz
           au(i,k)   = -dtodsd*dsdz2
           al(i,k)   = -dtodsu*dsdz2
-          ad(i,k)   = ad(i,k)-au(i,k)
-          ad(i,k+1) = 1.-al(i,k)
-          a1(i,k)   = a1(i,k)+dtodsd*dsdzt
-          a1(i,k+1) = t1(i,k+1)-dtodsu*dsdzt
+!
+          if(pcnvflg(i) .and. k < kpbl(i)) then
+             tem2      = dsig * rdz
+             ptem      = 0.5 * tem2 * xmf(i,k)
+             ptem1     = dtodsd * ptem
+             ptem2     = dtodsu * ptem
+             ad(i,k)   = ad(i,k)-au(i,k)-ptem1
+             ad(i,k+1) = 1.-al(i,k)+ptem2
+             au(i,k)   = au(i,k)-ptem1
+             al(i,k)   = al(i,k)+ptem2
+             ptem      = tcko(i,k) + tcko(i,k+1)
+             dsdzt     = tem1 * gocp
+             a1(i,k)   = a1(i,k)+dtodsd*dsdzt-ptem1*ptem
+             a1(i,k+1) = t1(i,k+1)-dtodsu*dsdzt+ptem2*ptem
+             ptem      = qcko(i,k,1) + qcko(i,k+1,1)
+             a2(i,k)   = a2(i,k) - ptem1 * ptem
+             a2(i,k+1) = q1(i,k+1,1) + ptem2 * ptem
+          elseif(ublflg(i) .and. k < kpbl(i)) then
+             ptem1 = dsig * dktx(i,k) * rdz
+             tem   = 1.0 / hpbl(i)
+             dsdzt = tem1 * gocp - ptem1 * hgamt(i) * tem
+             dsdzq = - ptem1 * hgamq(i) * tem
+             ad(i,k)   = ad(i,k)-au(i,k)
+             ad(i,k+1) = 1.-al(i,k)
+             a1(i,k)   = a1(i,k)+dtodsd*dsdzt
+             a1(i,k+1) = t1(i,k+1)-dtodsu*dsdzt
+             a2(i,k)   = a2(i,k)+dtodsd*dsdzq
+             a2(i,k+1) = q1(i,k+1,1)-dtodsu*dsdzq
+          else
+             ad(i,k)   = ad(i,k)-au(i,k)
+             ad(i,k+1) = 1.-al(i,k)
+             dsdzt     = tem1 * gocp
+             a1(i,k)   = a1(i,k)+dtodsd*dsdzt
+             a1(i,k+1) = t1(i,k+1)-dtodsu*dsdzt
+             a2(i,k+1) = q1(i,k+1,1)
+          endif
+!
         enddo
       enddo
-
-      if(ntrac.ge.2) then
+!
+      if(ntrac >= 2) then
         do kk = 2, ntrac
           is = (kk-1) * km
           do k = 1, km1
             do i = 1, im
-              a2(i,k+1+is) = q1(i,k+1,kk)
+              if(pcnvflg(i) .and. k < kpbl(i)) then
+                dtodsd = dt2/del(i,k)
+                dtodsu = dt2/del(i,k+1)
+                dsig  = prsl(i,k)-prsl(i,k+1)
+                tem   = dsig * rdzt(i,k)
+                ptem  = 0.5 * tem * xmf(i,k)
+                ptem1 = dtodsd * ptem
+                ptem2 = dtodsu * ptem
+                tem1  = qcko(i,k,kk) + qcko(i,k+1,kk)
+                a2(i,k+is) = a2(i,k+is) - ptem1*tem1
+                a2(i,k+1+is)= q1(i,k+1,kk) + ptem2*tem1
+              else
+                a2(i,k+1+is) = q1(i,k+1,kk)
+              endif
             enddo
           enddo
         enddo
@@ -814,7 +880,7 @@ c
 !
       do  k = 1,km
          do i = 1,im
-            ttend      = (a1(i,k)-t1(i,k))*rdt
+            ttend      = (a1(i,k)-t1(i,k)) * rdt
             qtend      = (a2(i,k)-q1(i,k,1))*rdt
             tau(i,k)   = tau(i,k)+ttend
             rtg(i,k,1) = rtg(i,k,1)+qtend
@@ -822,7 +888,7 @@ c
             dqsfc(i)   = dqsfc(i)+conq*del(i,k)*qtend
          enddo
       enddo
-      if(ntrac.ge.2) then
+      if(ntrac >= 2) then
         do kk = 2, ntrac
           is = (kk-1) * km
           do k = 1, km 
@@ -850,7 +916,7 @@ c
       do i = 1,im
          tem   = govrth(i)*sflux(i)
          tem1  = tem + stress(i)*spd1(i)/zl(i,1)
-         tem2  = 0.5 * (tem1+diss(i,1))
+         tem2  = 0.5 * (tem1+diss(i,1)) 
          tem2  = max(tem2, 0.)
          ttend = tem2 / cp
          tau(i,1) = tau(i,1)+0.5*ttend
@@ -879,29 +945,37 @@ c
 !
       do k = 1,km1
         do i=1,im
-          dtodsd = dt/del(i,k)
-          dtodsu = dt/del(i,k+1)
-          dsig   = prsl(i,k)-prsl(i,k+1)
-          rdz    = rdzt(i,k)
-          tem1   = dsig*dku(i,k)*rdz
-!         if(pblflg(i).and.k.lt.kpbl(i))then
-!           ptem1 = dsig*dkux(i,k)*rdz
-!           dsdzu = ptem1*(-hgamu(i)/hpbl(i))
-!           dsdzv = ptem1*(-hgamv(i)/hpbl(i))
-!           a1(i,k)   = a1(i,k)+dtodsd*dsdzu
-!           a1(i,k+1) = u1(i,k+1)-dtodsu*dsdzu
-!           a2(i,k)   = a2(i,k)+dtodsd*dsdzv
-!           a2(i,k+1) = v1(i,k+1)-dtodsu*dsdzv
-!         else
-            a1(i,k+1) = u1(i,k+1)
-            a2(i,k+1) = v1(i,k+1)
-!         endif
-!         dsdz2     = dsig*dku(i,k)*rdz*rdz
-          dsdz2     = tem1*rdz
-          au(i,k)   = -dtodsd*dsdz2
-          al(i,k)   = -dtodsu*dsdz2
-          ad(i,k)   = ad(i,k)-au(i,k)
-          ad(i,k+1) = 1.-al(i,k)
+          dtodsd  = dt2/del(i,k)
+          dtodsu  = dt2/del(i,k+1)
+          dsig    = prsl(i,k)-prsl(i,k+1)
+          rdz     = rdzt(i,k)
+          tem1    = dsig*dku(i,k)*rdz
+          dsdz2   = tem1 * rdz
+          au(i,k) = -dtodsd*dsdz2
+          al(i,k) = -dtodsu*dsdz2
+!
+          if(pcnvflg(i) .and. k < kpbl(i)) then
+             tem2      = dsig * rdz
+             ptem      = 0.5 * tem2 * xmf(i,k)
+             ptem1     = dtodsd * ptem
+             ptem2     = dtodsu * ptem
+             ad(i,k)   = ad(i,k)-au(i,k)-ptem1
+             ad(i,k+1) = 1.-al(i,k)+ptem2
+             au(i,k)   = au(i,k)-ptem1
+             al(i,k)   = al(i,k)+ptem2
+             ptem      = ucko(i,k) + ucko(i,k+1)
+             a1(i,k)   = a1(i,k) - ptem1 * ptem
+             a1(i,k+1) = u1(i,k+1) + ptem2 * ptem
+             ptem      = vcko(i,k) + vcko(i,k+1)
+             a2(i,k)   = a2(i,k) - ptem1 * ptem
+             a2(i,k+1) = v1(i,k+1) + ptem2 * ptem
+          else
+             ad(i,k)   = ad(i,k)-au(i,k)
+             ad(i,k+1) = 1.-al(i,k)
+             a1(i,k+1) = u1(i,k+1)
+             a2(i,k+1) = v1(i,k+1)
+          endif
+!
         enddo
       enddo
 !
@@ -919,10 +993,20 @@ c
             dv(i,k)  = dv(i,k)  + vtend
             dusfc(i) = dusfc(i) + conw*del(i,k)*utend
             dvsfc(i) = dvsfc(i) + conw*del(i,k)*vtend
+!
+!  for dissipative heating for ecmwf model
+!
+!           tem1 = 0.5*(a1(i,k)+u1(i,k))
+!           tem2 = 0.5*(a2(i,k)+v1(i,k))
+!           diss(i,k) = -(tem1*utend+tem2*vtend)
+!           diss(i,k) = max(diss(i,k),0.)
+!           ttend = diss(i,k) / cp
+!           tau(i,k) = tau(i,k) + ttend
+!
          enddo
       enddo
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!  pbl height for diagnostic purpose
 !
       do i = 1, im
          hpbl(i) = hpblx(i)
@@ -930,5 +1014,109 @@ c
       enddo
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine tridi2(l,n,cl,cm,cu,r1,r2,au,a1,a2)
+cc
+      use machine     , only : kind_phys
+      implicit none
+      integer             k,n,l,i
+      real(kind=kind_phys) fk
+cc
+      real(kind=kind_phys) cl(l,2:n),cm(l,n),cu(l,n-1),r1(l,n),r2(l,n),
+     &          au(l,n-1),a1(l,n),a2(l,n)
+c-----------------------------------------------------------------------
+      do i=1,l
+        fk      = 1./cm(i,1)
+        au(i,1) = fk*cu(i,1)
+        a1(i,1) = fk*r1(i,1)
+        a2(i,1) = fk*r2(i,1)
+      enddo
+      do k=2,n-1
+        do i=1,l
+          fk      = 1./(cm(i,k)-cl(i,k)*au(i,k-1))
+          au(i,k) = fk*cu(i,k)
+          a1(i,k) = fk*(r1(i,k)-cl(i,k)*a1(i,k-1))
+          a2(i,k) = fk*(r2(i,k)-cl(i,k)*a2(i,k-1))
+        enddo
+      enddo
+      do i=1,l
+        fk      = 1./(cm(i,n)-cl(i,n)*au(i,n-1))
+        a1(i,n) = fk*(r1(i,n)-cl(i,n)*a1(i,n-1))
+        a2(i,n) = fk*(r2(i,n)-cl(i,n)*a2(i,n-1))
+      enddo
+      do k=n-1,1,-1
+        do i=1,l
+          a1(i,k) = a1(i,k)-au(i,k)*a1(i,k+1)
+          a2(i,k) = a2(i,k)-au(i,k)*a2(i,k+1)
+        enddo
+      enddo
+c-----------------------------------------------------------------------
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine tridin(l,n,nt,cl,cm,cu,r1,r2,au,a1,a2)
+cc
+      use machine     , only : kind_phys
+      implicit none
+      integer             is,k,kk,n,nt,l,i
+      real(kind=kind_phys) fk(l)
+cc
+      real(kind=kind_phys) cl(l,2:n), cm(l,n), cu(l,n-1),
+     &                     r1(l,n),   r2(l,n*nt),
+     &                     au(l,n-1), a1(l,n), a2(l,n*nt),
+     &                     fkk(l,2:n-1)
+c-----------------------------------------------------------------------
+      do i=1,l
+        fk(i)   = 1./cm(i,1)
+        au(i,1) = fk(i)*cu(i,1)
+        a1(i,1) = fk(i)*r1(i,1)
+      enddo
+      do k = 1, nt
+        is = (k-1) * n
+        do i = 1, l
+          a2(i,1+is) = fk(i) * r2(i,1+is)
+        enddo
+      enddo
+      do k=2,n-1
+        do i=1,l
+          fkk(i,k) = 1./(cm(i,k)-cl(i,k)*au(i,k-1))
+          au(i,k)  = fkk(i,k)*cu(i,k)
+          a1(i,k)  = fkk(i,k)*(r1(i,k)-cl(i,k)*a1(i,k-1))
+        enddo
+      enddo
+      do kk = 1, nt
+        is = (kk-1) * n
+        do k=2,n-1
+          do i=1,l
+            a2(i,k+is) = fkk(i,k)*(r2(i,k+is)-cl(i,k)*a2(i,k+is-1))
+          enddo
+        enddo
+      enddo
+      do i=1,l
+        fk(i)   = 1./(cm(i,n)-cl(i,n)*au(i,n-1))
+        a1(i,n) = fk(i)*(r1(i,n)-cl(i,n)*a1(i,n-1))
+      enddo
+      do k = 1, nt
+        is = (k-1) * n
+        do i = 1, l
+          a2(i,n+is) = fk(i)*(r2(i,n+is)-cl(i,n)*a2(i,n+is-1))
+        enddo
+      enddo
+      do k=n-1,1,-1
+        do i=1,l
+          a1(i,k) = a1(i,k) - au(i,k)*a1(i,k+1)
+        enddo
+      enddo
+      do kk = 1, nt
+        is = (kk-1) * n
+        do k=n-1,1,-1
+          do i=1,l
+            a2(i,k+is) = a2(i,k+is) - au(i,k)*a2(i,k+is+1)
+          enddo
+        enddo
+      enddo
+c-----------------------------------------------------------------------
       return
       end

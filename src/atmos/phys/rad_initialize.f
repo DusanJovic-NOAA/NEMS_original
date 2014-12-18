@@ -3,7 +3,7 @@
 !...................................
 !  ---  inputs:
      &     ( si,levr,ictm,isol,ico2,iaer,ialb,iems,ntcw,                &
-     &       num_p3d,ntoz,iovr_sw,iovr_lw,isubc_sw,isubc_lw,            &
+     &       num_p3d,npdf3d,ntoz,iovr_sw,iovr_lw,isubc_sw,isubc_lw,     &
      &       sashal,crick_proof,ccnorm,norad_precip,idate,iflip,me )
 !  ---  outputs: ( none )
 
@@ -23,6 +23,7 @@
 !   nov 2012  - yu-tai hou   modified control parameter through         !
 !                 module 'physparam'.                                   !
 !   mar 2014  - sarah lu  iaermdl is determined from iaer               !        
+!   jul 2014  - s moorthi add npdf3d for pdf clouds                     !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
@@ -74,6 +75,9 @@
 !                     >0 array index location for cloud condensate      !
 !   num_p3d          :=3: ferrier's microphysics cloud scheme           !
 !                     =4: zhao/carr/sundqvist microphysics cloud        !
+!   npdf3d            =0 no pdf clouds                                  !
+!                     =3 (when num_p3d=4) pdf clouds with zhao/carr/    !
+!                        sundqvist scheme                               !
 !   ntoz             : ozone data control flag                          !
 !                     =0: use climatological ozone profile              !
 !                     >0: use interactive ozone profile                 !
@@ -111,7 +115,7 @@
 
 !  ---  input:
       integer,  intent(in) :: levr, ictm, isol, ico2, iaer,             &
-     &       ntcw, ialb, iems, num_p3d, ntoz, iovr_sw, iovr_lw,         &
+     &       ntcw, ialb, iems, num_p3d, npdf3d, ntoz, iovr_sw, iovr_lw, &  
      &       isubc_sw, isubc_lw, iflip, me, idate(4)
 
       real (kind=kind_phys), intent(in) :: si(levr+1)
@@ -153,10 +157,15 @@
         icldflg = 0                     ! diagnostic cloud optical prop scheme
       endif
       if ( num_p3d == 4 ) then
-        icmphys = 1                     ! zhao/moorthi's prognostic cloud scheme
+        if (npdf3d /= 3) then
+          icmphys = 1                   ! zhao/moorthi's prognostic cloud scheme
+        else
+          icmphys = 3                   ! zhao+ pdf cloud & cnvc and cnvw
+        endif
       elseif ( num_p3d == 3 ) then
         icmphys = 2                     ! ferrier's microphysics
       endif
+!
       iovrsw = iovr_sw                  ! cloud overlapping control flag for sw
       iovrlw = iovr_lw                  ! cloud overlapping control flag for lw
 

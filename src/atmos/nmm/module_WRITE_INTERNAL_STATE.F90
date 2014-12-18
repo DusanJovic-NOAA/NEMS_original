@@ -300,6 +300,9 @@
       LOGICAL(kind=KLOG) :: PRINT_DIAG
       LOGICAL(kind=KLOG) :: PRINT_OUTPUT
       LOGICAL(kind=KLOG) :: PRINT_ESMF
+
+      integer            :: nlunit        ! post namelist unit number - Moorthi
+      character(80)      :: post_namelist
  
 !-----------------------------------------------------------------------
 !

@@ -9,8 +9,10 @@ export NEMSDIR=${PATHTR}
 export WORKDIR=${RUNDIR}
 
 export REGSDIR=${RTPWD}
-export PARA_CONFIG=${REGSDIR}/data_GOCART/ngac_para_config
-export CONFIG_FILE=${REGSDIR}/data_GOCART/ngac_config
+#export PARA_CONFIG=${REGSDIR}/data_GOCART/ngac_para_config
+export PARA_CONFIG=${NEMSDIR}/tests/ngac_para_config
+#export CONFIG_FILE=${NGAC_CONFIG_FILE:-${REGSDIR}/data_GOCART/ngac_config}
+export CONFIG_FILE=${NGAC_CONFIG_FILE:-$PATHRT/ngac_config}
 
 ####################################################################################################
 # Submit test
@@ -21,17 +23,23 @@ if [ $SCHEDULER = 'moab' ]; then
 cat ngac_msub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_WLCLK_:${WLCLK}:g   \
                     | sed s:_TPN_:${TPN}:g       \
+                    | sed s:_TASKS_:${TASKS}:g   \
+                    | sed s:_CONFIG_:${PARA_CONFIG}:g   \
+                    | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
                     | sed s:_THRD_:${THRD}:g     >  ngac_msub
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
 export TPN=$((12/THRD))
+export QUEUE=${QUEUE:-batch}
 cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
                     | sed s:_REGSDIR_:${REGSDIR}:g   \
                     | sed s:_CONFIG_:${PARA_CONFIG}:g   \
+                    | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
                     | sed s:_ACCNR_:${ACCNR}:g   \
+                    | sed s:_QUEUE_:${QUEUE}:g   \
                     | sed s:_WLCLK_:${WLCLK}:g   \
                     | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_THRDS_:${THRD}:g    \
@@ -47,6 +55,7 @@ cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
                     | sed s:_REGSDIR_:${REGSDIR}:g   \
                     | sed s:_CONFIG_:${PARA_CONFIG}:g   \
+                    | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
                     | sed s:_ACCNR_:${ACCNR}:g   \
                     | sed s:_WLCLK_:${WLCLK}:g   \
                     | sed s:_TASKS_:${TASKS}:g   \

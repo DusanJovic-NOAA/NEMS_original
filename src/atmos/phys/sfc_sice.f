@@ -4,7 +4,7 @@
 !  ---  inputs:
      &     ( im, km, ps, u1, v1, t1, q1, delt,                          &
      &       sfcemis, dlwflx, sfcnsw, sfcdsw, srflag,                   &
-     &       cm, ch, prsl1, prslki, slimsk, ddvel,                      &
+     &       cm, ch, prsl1, prslki, islimsk, ddvel,                     &
      &       flag_iter, mom4ice, lsm, lprnt,ipr,                        &
 !  ---  input/outputs:
      &       hice, fice, tice, weasd, tskin, tprcp, stc, ep,            &
@@ -21,7 +21,7 @@
 !       inputs:                                                         !
 !          ( im, km, ps, u1, v1, t1, q1, delt,                          !
 !            sfcemis, dlwflx, sfcnsw, sfcdsw, srflag,                   !
-!            cm, ch, prsl1, prslki, slimsk, ddvel,                      !
+!            cm, ch, prsl1, prslki, islimsk, ddvel,                     !
 !            flag_iter, mom4ice, lsm,                                   !
 !       input/outputs:                                                  !
 !            hice, fice, tice, weasd, tskin, tprcp, stc, ep,            !
@@ -63,7 +63,7 @@
 !     ch       - real, surface exchange coeff heat & moisture(m/s) im   !
 !     prsl1    - real, surface layer mean pressure                 im   !
 !     prslki   - real,                                             im   !
-!     slimsk   - real, sea/land/ice mask (=0/1/2)                  im   !
+!     islimsk  - integer, sea/land/ice mask (=0/1/2)               im   !
 !     ddvel    - real,                                             im   !
 !     flag_iter- logical,                                          im   !
 !     mom4ice  - logical,                                          im   !
@@ -120,9 +120,10 @@
 
       real (kind=kind_phys), dimension(im), intent(in) :: ps, u1, v1,   &
      &       t1, q1, sfcemis, dlwflx, sfcnsw, sfcdsw, srflag, cm, ch,   &
-     &       prsl1, prslki, slimsk, ddvel
+     &       prsl1, prslki, ddvel
 
-      real (kind=kind_phys), intent(in) :: delt
+      integer, dimension(im), intent(in) :: islimsk
+      real (kind=kind_phys), intent(in)  :: delt
 
       logical, intent(in) :: flag_iter(im), mom4ice
 
@@ -138,7 +139,8 @@
 
 !  ---  locals:
       real (kind=kind_phys), dimension(im) :: ffw, evapi, evapw,        &
-     &       hflxi, hflxw, sneti, snetw, qssi, qssw, hfd, hfi, hfw,     &
+     &       hflxi, hflxw, sneti, snetw, qssi, qssw, hfd, hfi,          &
+!    &       hflxi, hflxw, sneti, snetw, qssi, qssw, hfd, hfi, hfw,     &
      &       focn, snof, hi_save, hs_save, psurf, q0, qs1, rch, rho,    &
      &       snowd, theta1, tv1, ps1, wind
 
@@ -161,9 +163,16 @@
 !  --- ...  set flag for sea-ice
 
       do i = 1, im
-         flag(i) = (slimsk(i)>=2.0) .and. flag_iter(i)
+         flag(i) = (islimsk(i) >= 2) .and. flag_iter(i)
       enddo
-
+!
+      do i = 1, im
+        if (flag_iter(i) .and. islimsk(i) < 2) then
+          hice(i) = 0.0
+          fice(i) = 0.0
+        endif
+      enddo
+!
       if (mom4ice) then
         do i = 1, im
           if (flag(i)) then
@@ -171,18 +180,7 @@
             hs_save(i) = weasd(i) * 0.001
           endif
         enddo
-      endif
-!
-      do i = 1, im
-        if (flag_iter(i) .and. slimsk(i)<1.5) then
-          hice(i) = 0.0
-          fice(i) = 0.0
-        endif
-      enddo
-
-!  --- ...  snow-rain detection
-
-      if (.not. mom4ice .and. lsm > 0) then
+      elseif (lsm > 0) then           !  --- ...  snow-rain detection
         do i = 1, im
           if (flag(i)) then
             if (srflag(i) == 1.0) then
@@ -281,7 +279,7 @@
         enddo
       enddo
 
-      if (lprnt) write(0,*)' tice=',tice(ipr)
+!     if (lprnt) write(0,*)' tice=',tice(ipr)
 
       do i = 1, im
         if (flag(i)) then
@@ -321,14 +319,14 @@
         endif
       enddo
 
-      if (lprnt) write(0,*)' tice2=',tice(ipr)
+!     if (lprnt) write(0,*)' tice2=',tice(ipr)
       call ice3lay
 !  ---  inputs:                                                         !
 !    &     ( im, kmi, fice, flag, hfi, hfd, sneti, focn, delt,          !
 !  ---  outputs:                                                        !
 !    &       snowd, hice, stsice, tice, snof, snowmt, gflux )           !
 
-      if (lprnt) write(0,*)' tice3=',tice(ipr)
+!     if (lprnt) write(0,*)' tice3=',tice(ipr)
       if (mom4ice) then
         do i = 1, im
           if (flag(i)) then

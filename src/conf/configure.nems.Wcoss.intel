@@ -20,8 +20,10 @@ BACIO_LIB   = -L/nwprod/lib -lbacio_4
 SP_LIB      = -L/nwprod/lib -lsp_d
 SYS_LIB     =
 
-##POSTDIR     = /nwprod/lib
-POSTDIR     = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
+##POSTDIR   = /nwprod/lib
+#POSTDIR    = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
+#POSTDIR     = /global/noscrub/Shrinivas.Moorthi/post_wam_moorthi/src
+ POSTDIR     = /global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
 POSTMOD     = ${POSTDIR}/incmod/post_4
 POST_INC    = -I${POSTDIR}/incmod/post_4
 POST_LIB    = -L${POSTDIR} -lnceppost
@@ -71,10 +73,11 @@ TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check
 #TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
-FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX 
-#FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise 
+FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model source -xAVX -align array32byte
+#FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model source -align array32byte
 
 OPTS_NMM    = -O2
+#OPTS_GFS    = -O0 -g -traceback
 OPTS_GFS    = -O3
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2

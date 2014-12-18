@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+set -xeu
 
 hostname
 
@@ -35,18 +35,21 @@ if [ $MACHINE_ID = wcoss ]; then
   export PTMP=/ptmpp1
   export SCHEDULER=lsf
 elif [ $MACHINE_ID = gaea ]; then
-  export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
-  export STMP=/lustre/fs/scratch
-  export PTMP=/lustre/fs/scratch
+  export DISKNM=/lustre/f1/unswept/ncep/Ratko.Vasic
+  export STMP=/lustre/f1/ncep
+  export PTMP=/lustre/f1/ncep
   export SCHEDULER=moab
 elif [ $MACHINE_ID = zeus ]; then
   source /usr/share/Modules/init/sh
-  export ACCNR
+  export ACCNR=cmp
+  export QUEUE=batch
+# export QUEUE=debug
   export dprefix1=/scratch1/portfolios/NCEPDEV
   export dprefix2=/scratch2/portfolios/NCEPDEV
   export DISKNM=$dprefix2/meso
   export STMP=$dprefix2/stmp
   export PTMP=$dprefix2/ptmp
+# export PTMP=$dprefix2/stmp
   export SCHEDULER=pbs
   export SIGHDR=$dprefix2/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
 else
@@ -253,7 +256,7 @@ done
 
 # Finalize, Clenaup
 rm -f err out configure_file* nmm_msub nmm_run gfs_fcst_run
-rm -rf ${RUNDIR_ROOT}
+#rm -rf ${RUNDIR_ROOT}
 echo REGRESSION TEST WAS SUCCESSFUL
 echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
 

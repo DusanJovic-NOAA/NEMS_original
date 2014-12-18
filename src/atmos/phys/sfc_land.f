@@ -4,7 +4,8 @@
 !  ---  inputs:
      &     ( im, km, ps, u1, v1, t1, q1, smc, soiltyp,                  &
      &       sigmaf, vegtype, sfcemis, dlwflx, swnet, delt,             &
-     &       zorl, tg3, cm, ch, prsl1, prslki, slimsk,                  &
+     &             tg3, cm, ch, prsl1, prslki, islimsk,                 &
+!    &       zorl, tg3, cm, ch, prsl1, prslki, islimsk,                 &
      &       ddvel, flag_iter, flag_guess,                              &
 !  ---  input/outputs:
      &       weasd, tskin, tprcp, srflag, stc, canopy, tsurf,           & 
@@ -24,7 +25,7 @@
 !       inputs:                                                         !
 !          ( im, km, ps, u1, v1, t1, q1, smc, soiltyp,                  !
 !            sigmaf, vegtype, sfcemis, dlwflx, swnet, delt,             !
-!            zorl, tg3, cm, ch, prsl1, prslki, slimsk,                  !
+!            zorl, tg3, cm, ch, prsl1, prslki, islimsk,                  !
 !            ddvel, flag_iter, flag_guess,                              !
 !       input/outputs:                                                  !
 !            weasd, tskin, tprcp, srflag, stc, canopy, tsurf,           !
@@ -71,7 +72,7 @@
 !     ch       - real, surface exchange coeff heat & moisture(m/s) im   !
 !     prsl1    - real, surface layer mean pressure                 im   !
 !     prslki   - real,                                             im   !
-!     slimsk   - real, sea/land/ice mask (=0/1/2)                  im   !
+!     islimsk  - integer, sea/land/ice mask (=0/1/2)               im   !
 !     ddvel    - real,                                             im   !
 !     flag_iter- logical,                                          im   !
 !     flag_guess-logical,                                          im   !
@@ -140,11 +141,13 @@
       real (kind=kind_phys), parameter :: snomin = 1.0e-9
 
 !  ---  input:
-      integer, intent(in) :: im, km, soiltyp(im), vegtype(im)
+      integer, intent(in) :: im, km
+      integer, dimension(im), intent(in) :: islimsk, soiltyp, vegtype
 
       real (kind=kind_phys), dimension(im),   intent(in) :: ps, u1, v1, &
-     &      t1, q1, sigmaf, sfcemis, dlwflx, swnet, zorl, tg3, cm, ch,  &
-     &      prsl1, prslki, slimsk, ddvel
+     &      t1, q1, sigmaf, sfcemis, dlwflx, swnet,       tg3, cm, ch,  &
+!    &      t1, q1, sigmaf, sfcemis, dlwflx, swnet, zorl, tg3, cm, ch,  &
+     &      prsl1, prslki, ddvel
 
       real (kind=kind_phys), dimension(im,km), intent(in) :: smc
 
@@ -229,7 +232,7 @@
 !  --- ...  set default flag for land
 
       do i = 1, im
-        flag(i) = ( slimsk(i) == 1.0 )
+        flag(i) = ( islimsk(i) == 1 )
       enddo
 
 !  --- ...  save land-related prognostic fields for guess run
@@ -302,7 +305,7 @@
 !           we should eventually move to a linear combination of soil and
 !           snow under the condition of patchy snow.
 
-          if (snowd(i)>0.001 .or. slimsk(i)==2.0) rs(i) = 0.0
+          if (snowd(i)>0.001 .or. islimsk(i) == 2) rs(i) = 0.0
           if (snowd(i)>0.001) flagsnw(i) = .true.
         endif   ! end if_flag_iter_block
 
@@ -463,7 +466,7 @@
 !           direct evaporation from soil, the unit goes from m s-1 to kg m-2 s-1
 
       do i = 1, im
-        flag(i) = (slimsk(i)==1.0) .and. (ep(i)>0.0)
+        flag(i) = (islimsk(i) == 1) .and. (ep(i) > 0.0)
       enddo
 
       do i = 1, im
@@ -607,7 +610,7 @@
 !           to conform to precip unit
 
       do i = 1, im
-        flag(i) = (slimsk(i)==1.0 .and. ep(i)<=0.0)
+        flag(i) = (islimsk(i) == 1 .and. ep(i) <= 0)
         dew(i) = 0.0
       enddo
 
@@ -623,7 +626,7 @@
 !  --- ...  snow covered land 
 
       do i = 1, im
-        flag(i) = (slimsk(i)==1.0 .and. snowd(i)>0.0)
+        flag(i) = (islimsk(i) == 1 .and. snowd(i) > 0)
       enddo
 
 !  --- ...  change of snow depth due to evaporation or sublimation
@@ -668,7 +671,7 @@
 !  --- ...  snow melt (m)
 
       do i = 1, im
-        flag(i) = (slimsk(i)==1.0) .and. (snowd(i)>0.0)
+        flag(i) = (islimsk(i) == 1) .and. (snowd(i) > 0)
       enddo
 
       do i = 1, im
@@ -690,7 +693,7 @@
 
 !     qss = fpvs(tsea)
       do i = 1, im
-        flag(i) = (slimsk(i) == 1.0)
+        flag(i) = (islimsk(i) == 1)
 
         if (flag_iter(i) .and. flag(i))then
 !         if (snowd(i) > 0.0) then
@@ -807,8 +810,8 @@
 !  --- ...  update soil temperature
 
       do i = 1, im
-!       flag(i) = slimsk(i) /= 0.0
-        flag(i) = slimsk(i) == 1.0
+!       flag(i) = islimsk(i) /= 0
+        flag(i) = islimsk(i) == 1
       enddo
 
 !  --- ...  surface temperature is part of the update when snow is absent

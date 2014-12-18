@@ -29,14 +29,14 @@
 !            cv,cvt,cvb,fcice,frain,rrime,flgmin,                      !
 !            icsdsw,icsdlw, ntcw,ncld,ntoz, NTRAC,NFXR,                !
 !            dtlw,dtsw, lsswr,lslwr,lssav,                             !
-!            IX, IM, LM, me, lprnt, ipt, kdt,                          !
+!            IX, IM, LM, me, lprnt, ipt, kdt,deltaq,sup,cnvw,cnvc,     !
 !         output:                                                      !
 !            htrsw,topfsw,sfcfsw,dswcmp,uswcmp,sfalb,coszen,coszdg,    !
 !            htrlw,topflw,sfcflw,tsflw,semis,cldcov,                   !
 !         input/output:                                                !
 !            fluxr                                                     !
 !         optional output:                                             !
-!            HTRSWB,HTRLWB)                                            !
+!            htrlw0,htrsw0,htrswb,htrlwb                               !
 !                                                                      !
 !                                                                      !
 !   external modules referenced:                                       !
@@ -158,6 +158,8 @@
 !     mar 2013    h-m lin/y-t hou corrected a bug in extra top layer   !
 !                    when using ferrier microphysics.                  !
 !     may 2013    s. mooorthi - removed fpkapx                         !
+!     jul 2013    r. sun - added pdf cld and convective cloud water and!
+!                          cover for radiation                         !
 !     aug 2013    s. moorthi  - port from gfs to nems                  !
 !     13Feb2014   sarah lu - add aerodp to fluxr                       !
 !     Apr 2014    Xingren Wu - add sfc SW downward fluxes nir/vis and  !
@@ -191,7 +193,8 @@
       use module_radiation_surface, only : NF_ALBD, sfc_init, setalb,   &
      &                                     setemis
       use module_radiation_clouds,  only : NF_CLDS, cld_init,           &
-     &                                     progcld1, progcld2, diagcld1
+     &                                     progcld1, progcld2, progcld3,&
+     &                                     diagcld1
 
       use module_radsw_parameters,  only : topfsw_type, sfcfsw_type,    &
      &                                     profsw_type,cmpfsw_type,NBDSW
@@ -319,6 +322,7 @@
 !   icmphys  : cloud microphysics scheme control flag                   !
 !              =1 zhao/carr/sundqvist microphysics scheme               !
 !              =2 brad ferrier microphysics scheme                      !
+!              =3 zhao/carr/sundqvist microphysics+pdf cloud & cnvc,cnvw!
 !   iovrsw   : control flag for cloud overlap in sw radiation           !
 !   iovrlw   : control flag for cloud overlap in lw radiation           !
 !              =0: random overlapping clouds                            !
@@ -631,14 +635,14 @@
      &       cv,cvt,cvb,fcice,frain,rrime,flgmin,                       &
      &       icsdsw,icsdlw, ntcw,ncld,ntoz, NTRAC,NFXR,                 &
      &       dtlw,dtsw, lsswr,lslwr,lssav,                              &
-     &       IX, IM, LM, me, lprnt, ipt, kdt,                           &
+     &       IX, IM, LM, me, lprnt, ipt, kdt, deltaq,sup,cnvw,cnvc,     &
 !  ---  outputs:
      &       htrsw,topfsw,sfcfsw,dswcmp,uswcmp,sfalb,coszen,coszdg,     &
      &       htrlw,topflw,sfcflw,tsflw,semis,cldcov,                    &
 !  ---  input/output:
      &       fluxr                                                      &
 !! ---  optional outputs:
-     &,      HTRSWB,HTRLWB                                              &
+     &,      htrlw0,htrsw0,htrswb,htrlwb                                &
      &     )
 
 ! =================   subprogram documentation block   ================ !
@@ -721,6 +725,10 @@
 !      lprnt           : control flag for diagnostic print out          !
 !      ipt             : index for diagnostic printout point            !
 !      kdt             : time-step number                               !
+!      deltaq          : half width of uniform total water distribution !
+!      sup             : supersaturation in pdf cloud when t is very low!
+!      cnvw            : layer convective cloud water                   !
+!      cnvc            : layer convective cloud cover                   !
 !                                                                       !
 !    output variables:                                                  !
 !      htrsw (IX,LM)   : total sky sw heating rate in k/sec             !
@@ -911,6 +919,7 @@
 !     icmphys          : cloud microphysics scheme control flag         !
 !                        =1 zhao/carr/sundqvist microphysics scheme     !
 !                        =2 brad ferrier microphysics scheme            !
+!                        =3 zhao/carr/sundqvist microphysics +pdf cloud !
 !                                                                       !
 !    module variables:                                                  !
 !     itsfc            : =0 use same sfc skin-air/ground temp           !
@@ -930,8 +939,10 @@
       real (kind=kind_phys), dimension(IX,LM+1), intent(in) ::  prsi
 
       real (kind=kind_phys), dimension(IX,LM),   intent(in) ::  prsl,   &
-     &       prslk, tgrs, qgrs, vvl, fcice, frain, rrime
+     &       prslk, tgrs, qgrs, vvl, fcice, frain, rrime, deltaq, cnvw, &
+     &       cnvc
       real (kind=kind_phys), dimension(IM), intent(in) :: flgmin
+      real(kind=kind_phys), intent(in) :: sup
 
       real (kind=kind_phys), dimension(IM),      intent(in) ::  slmsk,  &
      &       xlon, xlat, tsfc, snowd, zorl, hprim, alvsf, alnsf, alvwf, &
@@ -964,6 +975,10 @@
      &                       intent(out) :: htrswb
       real (kind=kind_phys), dimension(IX,LM,NBDLW), optional,          &
      &                       intent(out) :: htrlwb
+      real (kind=kind_phys), dimension(ix,lm), optional,                &
+     &                       intent(out) :: htrlw0
+      real (kind=kind_phys), dimension(ix,lm), optional,                &
+     &                       intent(out) :: htrsw0
 
 !  ---  local variables: (horizontal dimensioned by IM)
       real (kind=kind_phys), dimension(IM,LM+1+LTP):: plvl, tlvl
@@ -990,12 +1005,12 @@
 
 !! ---  may be used for optional sw/lw outputs:
 !!      take out "!!" as needed
-!!    real (kind=kind_phys), dimension(IM,LM+LTP)   :: htsw0
+      real (kind=kind_phys), dimension(IM,LM+LTP)   :: htsw0
 !!    type (profsw_type),    dimension(IM,LM+1+LTP) :: fswprf
       type (cmpfsw_type),    dimension(IM)          :: scmpsw
       real (kind=kind_phys), dimension(IM,LM+LTP,NBDSW) :: htswb
 
-!!    real (kind=kind_phys), dimension(IM,LM+LTP)   :: htlw0
+      real (kind=kind_phys), dimension(IM,LM+LTP)   :: htlw0
 !!    type (proflw_type),    dimension(IM,LM+1+LTP) :: flwprf
       real (kind=kind_phys), dimension(IM,LM+LTP,NBDLW) :: htlwb
 
@@ -1364,6 +1379,18 @@
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
+!
+        elseif(icmphys == 3) then      ! zhao/moorthi's prognostic cloud+pdfcld
+
+          call progcld3                                                 &
+!  ---  inputs:
+     &     ( plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,clw,cnvw,cnvc,          &
+     &       xlat,xlon,slmsk,                                           &
+     &       im, lmk, lmp,                                              &
+     &       deltaq, sup,kdt,me,                                        &
+!  ---  outputs:
+     &       clouds,cldsa,mtopa,mbota                                   &
+     &      )
 
         endif                            ! end if_icmphys
 
@@ -1431,7 +1458,7 @@
 
 !     print *,' in grrad : calling swrad'
 
-          if ( present(htrswb) ) then
+          if ( present(htrswb) .and. present(htrsw0)) then
 
             call swrad                                                  &
 !  ---  inputs:
@@ -1443,7 +1470,7 @@
      &       htswc,topfsw,sfcfsw                                        &
 !! ---  optional:
 !!   &,      HSW0=htsw0,FLXPRF=fswprf                                   &
-     &,      HSWB=htswb,FDNCMP=scmpsw                                   &
+     &,      hsw0=htsw0,hswb=htswb,fdncmp=scmpsw                        &
      &     )
 
             do k = 1, LM
@@ -1455,6 +1482,45 @@
                 enddo
               enddo
             enddo
+
+          else if ( present(htrswb) .and. .not. present(htrsw0) ) then
+
+            call swrad                                                  &
+!  ---  inputs:
+     &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
+     &       clouds,icsdsw,faersw,sfcalb,                               &
+     &       coszen,solcon, nday,idxday,                                &
+     &       im, lmk, lmp, lprnt,                                       &
+!  ---  outputs:
+     &       htswc,topfsw,sfcfsw                                        &
+!! ---  optional:
+!!   &,      hsw0=htsw0,flxprf=fswprf                                   &
+     &,      hswb=htswb,fdncmp=scmpsw                                   &
+     &     )
+
+            do k = 1, lm
+              k1 = k + kd
+              do j = 1, nbdsw
+                do i = 1, im
+                  htrswb(i,k,j) = htswb(i,k1,j)
+                enddo
+              enddo
+            enddo
+
+          else if ( present(htrsw0) .and. .not. present(htrswb) ) then
+
+            call swrad                                                  &
+!  ---  inputs:
+     &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
+     &       clouds,icsdsw,faersw,sfcalb,                               &
+     &       coszen,solcon, nday,idxday,                                &
+     &       im, lmk, lmp, lprnt,                                       &
+!  ---  outputs:
+     &       htswc,topfsw,sfcfsw                                        &
+!! ---  optional:
+!!   &,      hsw0=htsw0,flxprf=fswprf                                   &
+     &,      hsw0=htsw0,fdncmp=scmpsw                                   &
+     &     )
 
           else
 
@@ -1480,6 +1546,14 @@
               htrsw(i,k) = htswc(i,k1)
             enddo
           enddo
+          if (present(htrsw0)) then
+             do k = 1, lm
+               k1 = k + kd
+               do i = 1, im
+                 htrsw0(i,k) = htsw0(i,k1)
+               enddo
+             enddo
+          endif
 
 !  --- surface down and up spectral component fluxes
 
@@ -1526,6 +1600,13 @@
               enddo
             enddo
           endif
+          if ( present(htrsw0) ) then
+              do k = 1, lm
+                do i = 1, im
+                  htrsw0(i,k) = 0.0
+                enddo
+              enddo
+          endif
 
         endif                  ! end_if_nday
 
@@ -1546,7 +1627,7 @@
 
 !     print *,' in grrad : calling lwrad'
 
-        if ( present(htrlwb) ) then
+        if ( present(htrlwb) .and. present(htrlw0) ) then
 
           call lwrad                                                    &
 !  ---  inputs:
@@ -1557,7 +1638,8 @@
      &       htlwc,topflw,sfcflw                                        &
 !! ---  optional:
 !!   &,      HLW0=htlw0,FLXPRF=flwprf                                   &
-     &,      HLWB=htlwb                                                 &
+     &,      hlw0=htlw0                                                 &
+     &,      hlwb=htlwb                                                 &
      &     )
 
           do k = 1, LM
@@ -1569,6 +1651,44 @@
               enddo
             enddo
           enddo
+
+        else if ( present(htrlwb) .and. .not. present(htrlw0) ) then
+
+          call lwrad                                                    &
+!  ---  inputs:
+     &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
+     &       clouds,icsdlw,faerlw,sfcemis,tsfg,                         &
+     &       im, lmk, lmp, lprnt,                                       &
+!  ---  outputs:
+     &       htlwc,topflw,sfcflw                                        &
+!! ---  optional:
+!!   &,      hlw0=htlw0,flxprf=flwprf                                   &
+     &,      hlwb=htlwb                                                 &
+     &     )
+
+          do k = 1, lm
+            k1 = k + kd
+
+            do j = 1, nbdlw
+              do i = 1, im
+                htrlwb(i,k,j) = htlwb(i,k1,j)
+              enddo
+            enddo
+          enddo
+        else if ( present(htrlw0) .and. .not. present(htrlwb) ) then
+
+          !print *,'call lwrad saving clear sky component'
+          call lwrad                                                    &
+!  ---  inputs:
+     &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
+     &       clouds,icsdlw,faerlw,sfcemis,tsfg,                         &
+     &       im, lmk, lmp, lprnt,                                       &
+!  ---  outputs:
+     &       htlwc,topflw,sfcflw                                        &
+!! ---  optional:
+!!   &,      hlw0=htlw0,flxprf=flwprf                                   &
+     &,      hlw0=htlw0                                                 &
+     &     )
 
         else
 
@@ -1598,6 +1718,15 @@
             htrlw(i,k) = htlwc(i,k1)
           enddo
         enddo
+
+        if (present(htrlw0)) then
+           do k = 1, lm
+             k1 = k + kd
+             do i = 1, im
+               htrlw0(i,k) = htlw0(i,k1)
+             enddo
+           enddo
+        endif
 
       endif                                ! end_if_lslwr
 

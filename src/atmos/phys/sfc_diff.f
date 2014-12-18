@@ -1,325 +1,333 @@
-      SUBROUTINE SFC_DIFF(IM,PS,U1,V1,T1,Q1,Z1,
-     &                    TSKIN,Z0RL,CM,CH,RB,
-     &                    PRSL1,PRSLKI,SLIMSK,
-     &                    STRESS,FM,FH,
-Clu_q2m_iter [-1L/+2L]: add tsurf, flag_iter
-!*   &                    USTAR,WIND,DDVEL,FM10,FH2)
-     +                    USTAR,WIND,DDVEL,FM10,FH2,
-     +                    SIGMAF,VEGTYPE,SHDMAX,
-     +                    tsurf,flag_iter)
+      subroutine sfc_diff(im,ps,u1,v1,t1,q1,z1,
+     &                    tskin,z0rl,cm,ch,rb,
+     &                    prsl1,prslki,islimsk,
+     &                    stress,fm,fh,
+     &                    ustar,wind,ddvel,fm10,fh2,
+     &                    sigmaf,vegtype,shdmax,
+     &                    tsurf,flag_iter,redrag)
 !
-      USE MACHINE , ONLY : kind_phys
-      USE FUNCPHYS, ONLY : fpvs    
-      USE PHYSCONS, grav => con_g, SBC => con_sbc 
-     &,             CP => con_CP, HFUS => con_HFUS 
-     &,             RVRDM1 => con_FVirt, RD => con_RD
-     &,             EPS => con_eps, EPSM1 => con_epsm1
+      use machine , only : kind_phys
+      use funcphys, only : fpvs    
+      use physcons, grav => con_g,       cp => con_cp
+     &,             rvrdm1 => con_fvirt, rd => con_rd
+     &,             eps => con_eps, epsm1 => con_epsm1
 
       implicit none
 !
-      integer              IM, km, ipr
-!
-      real(kind=kind_phys) PS(IM),       U1(IM),      V1(IM),
-     &                     T1(IM),       Q1(IM),      Z1(IM),      
-     &                     TSKIN(IM),    Z0RL(IM),
-     &                     CM(IM),       CH(IM),      RB(IM),
-     &                                   PRSL1(IM),   PRSLKI(IM),
-     &                     SLIMSK(IM),   STRESS(IM), 
-     &                     FM(IM),       FH(IM),      USTAR(IM),
-     &                     WIND(IM),     DDVEL(IM),    
-     &                     FM10(IM),     FH2(IM),     Z1I(IM),
-     &                     SIGMAF(IM),   SHDMAX(IM)   
-      integer VEGTYPE(IM)
+      integer              im
+      real(kind=kind_phys), dimension(im) :: ps,  u1, v1, t1
+     &,                                      q1,  z1, tskin, z0rl
+     &,                                      cm,  ch, rb, prsl1, prslki
+     &,                                      stress,  fm, fh, ustar
+     &,                                      wind, ddvel, fm10, fh2, z1i
+     &,                                      sigmaf,   shdmax   
+      integer, dimension(im) ::  vegtype, islimsk
 
-Clu_q2m_iter [+1L]: add flag_iter
-      logical              flag_iter(im)
-
+      logical   flag_iter(im) ! added by s.lu
+      logical   redrag        ! reduced drag coeff. flag for high wind over sea (j.han)
 !
-!     Locals
+!     locals
 !
-      integer              k,i
+      integer   i
 !
-      real(kind=kind_phys) DTV(IM),     HL1(IM),     HL12(IM),
-     &                     HLINF(IM),   PH(IM),
-     &                     PH2(IM),     PM(IM),      PM10(IM),
-     &                                  Q0(IM),      RAT(IM),
-     &                     THETA1(IM),  THV1(IM),
-     &                     TSURF(IM),   TV1(IM),
-     &                     TVS(IM),     Z0(IM),      Z0MAX(IM),
-     &                     ZTMAX(IM),   QS1(IM)
+      real(kind=kind_phys), dimension(im) :: dtv, hl1, hl12, hlinf, ph,
+     &                                       ph2, pm,  pm10, q0,    rat,
+     &                                       theta1,  thv1,  tsurf, tv1,
+     &                                       tvs, z0, z0max, ztmax, qs1
 
 !
-      real(kind=kind_phys) a0,    a0p,    a1,    a1p,   aa,   aa0,
-     &                     aa1,   adtv,   alpha, arnu,  b1,   b1p,
-     &                     b2,    b2p,    bb,    bb0,   bb1,  bb2,
-     &                     ca,    cc,     cc1,   cc2,   charnock, 
-     &                     cq,    fms,    fhs,   g,     hl0,  hl0inf,
-     &                     hl110, hlt,    hltinf,OLINF,   
-     &                     restar, rnu,   vis
+      real(kind=kind_phys)  aa,    aa0,   adtv,   bb,  bb0,
+     &                     cq,     fms,   fhs,    hl0,  hl0inf,
+     &                     hl110,  hlt,   hltinf, olinf,
+     &                     restar, czilc, tem1,   tem2
 !
-cc
-      PARAMETER (CHARNOCK=.014,CA=.4)!C CA IS THE VON KARMAN CONSTANT
-      PARAMETER (G=grav)
-      PARAMETER (ALPHA=5.,A0=-3.975,A1=12.32,B1=-7.755,B2=6.041)
-      PARAMETER (A0P=-7.941,A1P=24.75,B1P=-8.705,B2P=7.899,VIS=1.4E-5)
-      PARAMETER (AA1=-1.076,BB1=.7045,CC1=-.05808)
-      PARAMETER (BB2=-.1954,CC2=.009999)
-       PARAMETER (RNU=1.51E-5,ARNU=.135*RNU)
-C MBEK -- TOGA-COARE FLUX ALGORITHM
-!     PARAMETER (RNU=1.51E-5,ARNU=0.11*RNU)
-C
-C  INITIALIZE VARIABLES. ALL UNITS ARE SUPPOSEDLY M.K.S. UNLESS SPECIFIED
-C  PS IS IN PASCALS
-C  WIND IS WIND SPEED, THETA1 IS ADIABATIC SURFACE TEMP FROM LEVEL 1
-C  SURFACE ROUGHNESS LENGTH IS CONVERTED TO M FROM CM
-C
-      DO I=1,IM
+!                      z0s_max is a limiting value in high winds over sea
+
+      real(kind=kind_phys), parameter ::
+     &              charnock=.014, ca=.4  ! ca - von karman constant
+     &,             z0s_max=.317e-2       ! a limiting value at high winds over sea
+
+     &,             alpha=5.,   a0=-3.975, a1=12.32
+     &,             b1=-7.755,  b2=6.041
+     &,             a0p=-7.941, a1p=24.75, b1p=-8.705, b2p=7.899
+     &,             vis=1.4e-5, rnu=1.51e-5
+
+     &,             log01 = log(0.01)
+     &,             log05 = log(0.05)
+     &,             log07 = log(0.07)
+
+!     parameter (charnock=.014,ca=.4)!c ca is the von karman constant
+!     parameter (alpha=5.,a0=-3.975,a1=12.32,b1=-7.755,b2=6.041)
+!     parameter (a0p=-7.941,a1p=24.75,b1p=-8.705,b2p=7.899,vis=1.4e-5)
+
+!     real(kind=kind_phys) aa1,bb1,bb2,cc,cc1,cc2,arnu
+!     parameter (aa1=-1.076,bb1=.7045,cc1=-.05808)
+!     parameter (bb2=-.1954,cc2=.009999)
+!     parameter (arnu=.135*rnu)
+!
+!    z0s_max=.196e-2 for u10_crit=25 m/s
+!    z0s_max=.317e-2 for u10_crit=30 m/s
+!    z0s_max=.479e-2 for u10_crit=35 m/s
+!
+! mbek -- toga-coare flux algorithm
+!     parameter (rnu=1.51e-5,arnu=0.11*rnu)
+!
+!  initialize variables. all units are supposedly m.k.s. unless specified
+!  ps is in pascals
+!  wind is wind speed, theta1 is adiabatic surface temp from level 1
+!  surface roughness length is converted to m from cm
+!
+      do i=1,im
         if(flag_iter(i)) then 
-!**       TSURF(I)  = TSKIN(I)                 !! <---- Clu_q2m_iter [-1L]
-          WIND(I)   = SQRT(U1(I) * U1(I) + V1(I) * V1(I))
-     &              + MAX(0.0, MIN(DDVEL(I), 30.0))
-          WIND(I)   = MAX(WIND(I),1.)
-          Q0(I)     = MAX(Q1(I),1.E-8)
-          THETA1(I) = T1(I) * PRSLKI(I)
-          TV1(I)    = T1(I) * (1. + RVRDM1 * Q0(I))
-          THV1(I)   = THETA1(I) * (1. + RVRDM1 * Q0(I))
-Clu_q2m_iter[-1L/+2L]: TVS is computed from avg(tsurf,tskin)
-!**       TVS(I)    = TSURF(I) * (1. + RVRDM1 * Q0(I))
-          TVS(I)    = 0.5 * (TSURF(I)+TSKIN(I)) * (1. + RVRDM1 * Q0(I))
+!**       tsurf(i)  = tskin(i)                 !! <---- clu_q2m_iter [-1l]
+          wind(i)   = sqrt(u1(i) * u1(i) + v1(i) * v1(i))
+     &              + max(0.0, min(ddvel(i), 30.0))
+          wind(i)   = max(wind(i),1.)
+          q0(i)     = max(q1(i),1.e-8)
+          theta1(i) = t1(i) * prslki(i)
+          tv1(i)    = t1(i) * (1. + rvrdm1 * q0(i))
+          thv1(i)   = theta1(i) * (1. + rvrdm1 * q0(i))
+clu_q2m_iter[-1l/+2l]: tvs is computed from avg(tsurf,tskin)
+!**       tvs(i)    = tsurf(i) * (1. + rvrdm1 * q0(i))
+          tvs(i)    = 0.5 * (tsurf(i)+tskin(i)) * (1. + rvrdm1 * q0(i))
           qs1(i)    = fpvs(t1(i))
-          QS1(I)    = EPS * QS1(I) / (PRSL1(I) + EPSM1 * QS1(I))
-          QS1(I)    = MAX(QS1(I), 1.E-8)
-          Q0(I)     = min(QS1(I),Q0(I))
+          qs1(i)    = eps * qs1(i) / (prsl1(i) + epsm1 * qs1(i))
+          qs1(i)    = max(qs1(i), 1.e-8)
+          q0(i)     = min(qs1(i),q0(i))
 
-          Z0(I)     = .01 * Z0RL(i)
-!         Z1(I)     = -RD * TV1(I) * LOG(PS1(I)/PSURF(I)) / G
-          Z1I(I)    = 1.0 / Z1(I)
+          z0(i)     = 0.01 * z0rl(i)
+!         z1(i)     = -rd * tv1(i) * log(ps1(i)/psurf(i)) / grav
+          z1i(i)    = 1.0 / z1(i)
         endif
-      ENDDO
+      enddo
+!     write(0,*)' z0rl=',z0rl(im-3:im),' im=',im,' z0=',z0(im-3:im)
+!    &,' flag_iter=',flag_iter(im),' z1=',z1(im)
 !!
-C
-C  COMPUTE STABILITY DEPENDENT EXCHANGE COEFFICIENTS
-C
-C  THIS PORTION OF THE CODE IS PRESENTLY SUPPRESSED
-C
-      DO I=1,IM
+!  compute stability dependent exchange coefficients
+!  this portion of the code is presently suppressed
+!
+      do i=1,im
        if(flag_iter(i)) then 
-        IF(SLIMSK(I).EQ.0.) THEN
-          USTAR(I) = SQRT(G * Z0(I) / CHARNOCK)
-        ENDIF
-C
-C  COMPUTE STABILITY INDICES (RB AND HLINF)
-C
-        Z0MAX(I) = MIN(Z0(I),1. * Z1(I))
+        if(islimsk(i) == 0) then
+          ustar(i) = sqrt(grav * z0(i) / charnock)
+        endif
+!
+!  compute stability indices (rb and hlinf)
+!
+        z0max(i) = min(z0(i),z1(i))
+
+        if (islimsk(i) /= 0) then
+!** xubin's new z0
+          tem1 = 1.0 - shdmax(i)
+          tem2 = tem1 * tem1
+          tem1 = 1.0  - tem2
+          
+          if (vegtype(i) == 7) then
+            z0max(i) = exp( tem2*log01 + tem1*log07 )
+          elseif (vegtype(i) == 8) then
+            z0max(i) = exp( tem2*log01 + tem1*log05 )
+          elseif (vegtype(i) == 9) then
+!           z0max(i) = exp( tem2*log01 + tem1*log01 )
+            z0max(i) = 0.01
+          elseif (vegtype(i) == 11) then
+!           z0max(i) = exp( tem2*log01 + tem1*log01 )
+            z0max(i) = 0.01
+          else
+            z0max(i) = exp( tem2*log01 + tem1*log(z0max(i)) )
+          endif
+        endif
+
+! fei's canopy height dependance of czil
+        czilc = 10.0 ** ( -0.40 * ( z0(i) / 0.07 ) )
+
+        ztmax(i) = z0max(i)*exp( - ((1.-sigmaf(i))**2)
+     &             *czilc*ca*sqrt(ustar(i)*0.01/(1.5e-05)))
 
 !**  test xubin's new z0
-        IF (SLIMSK(I) .NE. 0.) THEN
-          Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
-     &       (1-((1.-SHDMAX(I))**2))*LOG(Z0MAX(I)) )
-          if (VEGTYPE(I) == 7) then
-            Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
-     &       (1-((1.-SHDMAX(I))**2))*LOG(0.07) )
-          endif
-          if (VEGTYPE(I) == 8) then
-            Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
-     &        (1-((1.-SHDMAX(I))**2))*LOG(0.05) )
-          endif
-          if (VEGTYPE(I) == 9) then
-            Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
-     &       (1-((1.-SHDMAX(I))**2))*LOG(0.01) )
-          endif
-          if (VEGTYPE(I) == 11) then
-          Z0MAX(I) = exp( ((1.-SHDMAX(I))**2)*LOG(0.01)+
-     &       (1-((1.-SHDMAX(I))**2))*LOG(0.01) )
-          endif
-        ENDIF
 
-        ZTMAX(I) = Z0MAX(I)*exp( - ((1.-SIGMAF(I))**2)
-     &             *0.8*CA*sqrt(USTAR(I)*0.01/(1.5E-05)))
+!       ztmax(i) = z0max(i)
 
-!**  test xubin's new z0
-
-!       ZTMAX(I) = Z0MAX(I)
-
-        IF(SLIMSK(I).EQ.0.) THEN
-          RESTAR   = USTAR(I) * Z0MAX(I) / VIS
-          RESTAR   = MAX(RESTAR,.000001)
-c         RESTAR   = LOG(RESTAR)
-c         RESTAR   = MIN(RESTAR,5.)
-c         RESTAR   = MAX(RESTAR,-5.)
-c         RAT(I)   = AA1 + BB1 * RESTAR + CC1 * RESTAR ** 2
-c         RAT(I)   = RAT(I) / (1. + BB2 * RESTAR
-c    &                       + CC2 * RESTAR ** 2)
-c  Rat taken from Zeng, Zhao and Dickinson 1997
-          RAT(I)   = 2.67 * restar ** .25 - 2.57
-          RAT(I)   = min(RAT(I),7.)
-          ZTMAX(I) = Z0MAX(I) * EXP(-RAT(I))
-        ENDIF
+        if(islimsk(i) == 0) then
+          restar   = ustar(i) * z0max(i) / vis
+          restar   = max(restar,.000001)
+!         restar   = log(restar)
+!         restar   = min(restar,5.)
+!         restar   = max(restar,-5.)
+!         rat(i)   = aa1 + bb1 * restar + cc1 * restar ** 2
+!         rat(i)   = rat(i) / (1. + bb2 * restar
+!    &                       + cc2 * restar ** 2)
+!  rat taken from zeng, zhao and dickinson 1997
+          rat(i)   = 2.67 * restar ** .25 - 2.57
+          rat(i)   = min(rat(i),7.)
+          ztmax(i) = z0max(i) * exp(-rat(i))
+        endif
        endif
-      ENDDO
-C##DG  IF(LAT.EQ.LATD) THEN
-C##DG    PRINT *, ' z0max, ztmax, restar, RAT(I) =', 
-C##DG &   z0max, ztmax, restar, RAT(I)
-C##DG  ENDIF
-      DO I = 1, IM
+      enddo
+!##dg  if(lat.eq.latd) then
+!##dg    print *, ' z0max, ztmax, restar, rat(i) =', 
+!##dg &   z0max, ztmax, restar, rat(i)
+!##dg  endif
+      do i = 1, im
        if(flag_iter(i)) then 
-        DTV(I)   = THV1(I) - TVS(I)
-        ADTV     = ABS(DTV(I))
-        ADTV     = MAX(ADTV,.001)
-        DTV(I)   = SIGN(1.,DTV(I)) * ADTV
-        RB(I)    = G * DTV(I) * Z1(I) / (.5 * (THV1(I) + TVS(I))
-     &           * WIND(I) * WIND(I))
-        RB(I)    = MAX(RB(I),-5000.)
-        FM(I)    = LOG((Z0MAX(I)+Z1(I)) / Z0MAX(I))
-        FH(I)    = LOG((ZTMAX(I)+Z1(I)) / ZTMAX(I))
-        HLINF(I) = RB(I) * FM(I) * FM(I) / FH(I)
-        FM10(I)  = LOG((Z0MAX(I)+10.) / Z0MAX(I))
-        FH2(I)   = LOG((ZTMAX(I)+2.) / ZTMAX(I))
+        dtv(i)   = thv1(i) - tvs(i)
+        adtv     = abs(dtv(i))
+        adtv     = max(adtv,.001)
+        dtv(i)   = sign(1.,dtv(i)) * adtv
+        rb(i)    = grav * dtv(i) * z1(i) / (.5 * (thv1(i) + tvs(i))
+     &           * wind(i) * wind(i))
+        rb(i)    = max(rb(i),-5000.)
+        fm(i)    = log((z0max(i)+z1(i)) / z0max(i))
+        fh(i)    = log((ztmax(i)+z1(i)) / ztmax(i))
+        hlinf(i) = rb(i) * fm(i) * fm(i) / fh(i)
+        fm10(i)  = log((z0max(i)+10.) / z0max(i))
+        fh2(i)   = log((ztmax(i)+2.) / ztmax(i))
        endif
-      ENDDO
-C##DG  IF(LAT.EQ.LATD) THEN
-C##DG    PRINT *, ' DTV, RB(I), FM(I), FH(I), HLINF =',
-C##DG &   dtv, rb, FM(I), FH(I), hlinf
-C##DG  ENDIF
-C
-C  STABLE CASE
-C
-      DO I = 1, IM
+      enddo
+!##dg  if(lat.eq.latd) then
+!##dg    print *, ' dtv, rb(i), fm(i), fh(i), hlinf =',
+!##dg &   dtv, rb, fm(i), fh(i), hlinf
+!##dg  endif
+!
+!  stable case
+!
+      do i = 1, im
        if(flag_iter(i)) then 
-        IF(DTV(I).GE.0.) THEN
-          HL1(I) = HLINF(I)
-        ENDIF
-        IF(DTV(I).GE.0..AND.HLINF(I).GT..25) THEN
-          HL0INF = Z0MAX(I) * HLINF(I) * Z1I(I)
-          HLTINF = ZTMAX(I) * HLINF(I) * Z1I(I)
-          AA     = SQRT(1. + 4. * ALPHA * HLINF(I))
-          AA0    = SQRT(1. + 4. * ALPHA * HL0INF)
-          BB     = AA
-          BB0    = SQRT(1. + 4. * ALPHA * HLTINF)
-          PM(I)  = AA0 - AA + LOG((AA + 1.) / (AA0 + 1.))
-          PH(I)  = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
-          FMS    = FM(I) - PM(I)
-          FHS    = FH(I) - PH(I)
-          HL1(I) = FMS * FMS * RB(I) / FHS
-        ENDIF
+        if(dtv(i) >= 0.0) then
+          hl1(i) = hlinf(i)
+        endif
+        if(dtv(i) >= 0.0 .and.hlinf(i) > .25) then
+          hl0inf = z0max(i) * hlinf(i) * z1i(i)
+          hltinf = ztmax(i) * hlinf(i) * z1i(i)
+          aa     = sqrt(1. + 4. * alpha * hlinf(i))
+          aa0    = sqrt(1. + 4. * alpha * hl0inf)
+          bb     = aa
+          bb0    = sqrt(1. + 4. * alpha * hltinf)
+          pm(i)  = aa0 - aa + log((aa + 1.) / (aa0 + 1.))
+          ph(i)  = bb0 - bb + log((bb + 1.) / (bb0 + 1.))
+          fms    = fm(i) - pm(i)
+          fhs    = fh(i) - ph(i)
+          hl1(i) = fms * fms * rb(i) / fhs
+        endif
        endif
-      ENDDO
-C
-C  SECOND ITERATION
-C
-      DO I = 1, IM
+      enddo
+!
+!  second iteration
+!
+      do i = 1, im
        if(flag_iter(i)) then 
-        IF(DTV(I).GE.0.) THEN
-          HL0     = Z0MAX(I) * HL1(I) * Z1I(I)
-          HLT     = ZTMAX(I) * HL1(I) * Z1I(I)
-          AA      = SQRT(1. + 4. * ALPHA * HL1(I))
-          AA0     = SQRT(1. + 4. * ALPHA * HL0)
-          BB      = AA
-          BB0     = SQRT(1. + 4. * ALPHA * HLT)
-          PM(I)   = AA0 - AA + LOG((AA + 1.) / (AA0 + 1.))
-          PH(I)   = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
-          HL110   = HL1(I) * 10. * Z1I(I)
-          AA      = SQRT(1. + 4. * ALPHA * HL110)
-          PM10(I) = AA0 - AA + LOG((AA + 1.) / (AA0 + 1.))
-          HL12(I) = HL1(I) * 2. * Z1I(I)
-C         AA      = SQRT(1. + 4. * ALPHA * HL12(I))
-          BB      = SQRT(1. + 4. * ALPHA * HL12(I))
-          PH2(I)  = BB0 - BB + LOG((BB + 1.) / (BB0 + 1.))
-        ENDIF
+        if(dtv(i) >= 0.0) then
+          hl0     = z0max(i) * hl1(i) * z1i(i)
+          hlt     = ztmax(i) * hl1(i) * z1i(i)
+          aa      = sqrt(1. + 4. * alpha * hl1(i))
+          aa0     = sqrt(1. + 4. * alpha * hl0)
+          bb      = aa
+          bb0     = sqrt(1. + 4. * alpha * hlt)
+          pm(i)   = aa0 - aa + log((aa + 1.) / (aa0 + 1.))
+          ph(i)   = bb0 - bb + log((bb + 1.) / (bb0 + 1.))
+          hl110   = hl1(i) * 10. * z1i(i)
+          aa      = sqrt(1. + 4. * alpha * hl110)
+          pm10(i) = aa0 - aa + log((aa + 1.) / (aa0 + 1.))
+          hl12(i) = hl1(i) * 2. * z1i(i)
+!         aa      = sqrt(1. + 4. * alpha * hl12(i))
+          bb      = sqrt(1. + 4. * alpha * hl12(i))
+          ph2(i)  = bb0 - bb + log((bb + 1.) / (bb0 + 1.))
+        endif
        endif
-      ENDDO
+      enddo
 !!
-C##DG  IF(LAT.EQ.LATD) THEN
-C##DG    PRINT *, ' HL1(I), PM, PH =',
-C##DG &   HL1(I),  pm, ph
-C##DG  ENDIF
-C
-C  UNSTABLE CASE
-C
-C
-C  CHECK FOR UNPHYSICAL OBUKHOV LENGTH
-C
-      DO I=1,IM
+!##dg  if(lat.eq.latd) then
+!##dg    print *, ' hl1(i), pm, ph =',
+!##dg &   hl1(i),  pm, ph
+!##dg  endif
+!
+!  unstable case
+!
+!
+!  check for unphysical obukhov length
+!
+      do i=1,im
        if(flag_iter(i)) then 
-        IF(DTV(I).LT.0.) THEN
-          OLINF = Z1(I) / HLINF(I)
-          IF(ABS(OLINF).LE.50. * Z0MAX(I)) THEN
-            HLINF(I) = -Z1(I) / (50. * Z0MAX(I))
-          ENDIF
-        ENDIF
+        if(dtv(i) < 0.0) then
+          olinf = z1(i) / hlinf(i)
+          if(abs(olinf) <= 50. * z0max(i)) then
+            hlinf(i) = -z1(i) / (50. * z0max(i))
+          endif
+        endif
        endif
-      ENDDO
-C
-C  GET PM AND PH
-C
-      DO I = 1, IM
+      enddo
+!
+!  get pm and ph
+!
+      do i = 1, im
        if(flag_iter(i)) then 
-        IF(DTV(I).LT.0..AND.HLINF(I).GE.-.5) THEN
-          HL1(I)  = HLINF(I)
-          PM(I)   = (A0 + A1 * HL1(I)) * HL1(I)
-     &            / (1. + B1 * HL1(I) + B2 * HL1(I) * HL1(I))
-          PH(I)   = (A0P + A1P * HL1(I)) * HL1(I)
-     &            / (1. + B1P * HL1(I) + B2P * HL1(I) * HL1(I))
-          HL110   = HL1(I) * 10. * Z1I(I)
-          PM10(I) = (A0 + A1 * HL110) * HL110
-     &            / (1. + B1 * HL110 + B2 * HL110 * HL110)
-          HL12(I) = HL1(I) * 2. * Z1I(I)
-          PH2(I)  = (A0P + A1P * HL12(I)) * HL12(I)
-     &            / (1. + B1P * HL12(I) + B2P * HL12(I) * HL12(I))
-        ENDIF
-        IF(DTV(I).LT.0.AND.HLINF(I).LT.-.5) THEN
-          HL1(I)  = -HLINF(I)
-          PM(I)   = LOG(HL1(I)) + 2. * HL1(I) ** (-.25) - .8776
-          PH(I)   = LOG(HL1(I)) + .5 * HL1(I) ** (-.5) + 1.386
-          HL110   = HL1(I) * 10. * Z1I(I)
-          PM10(I) = LOG(HL110) + 2. * HL110 ** (-.25) - .8776
-          HL12(I) = HL1(I) * 2. * Z1I(I)
-          PH2(I)  = LOG(HL12(I)) + .5 * HL12(I) ** (-.5) + 1.386
-        ENDIF
+        if(dtv(i) < 0.0 .and. hlinf(i) >= -0.5) then
+          hl1(i)  = hlinf(i)
+          pm(i)   = (a0 + a1 * hl1(i)) * hl1(i)
+     &            / (1. + b1 * hl1(i) + b2 * hl1(i) * hl1(i))
+          ph(i)   = (a0p + a1p * hl1(i)) * hl1(i)
+     &            / (1. + b1p * hl1(i) + b2p * hl1(i) * hl1(i))
+          hl110   = hl1(i) * 10. * z1i(i)
+          pm10(i) = (a0 + a1 * hl110) * hl110
+     &            / (1. + b1 * hl110 + b2 * hl110 * hl110)
+          hl12(i) = hl1(i) * 2. * z1i(i)
+          ph2(i)  = (a0p + a1p * hl12(i)) * hl12(i)
+     &            / (1. + b1p * hl12(i) + b2p * hl12(i) * hl12(i))
+        endif
+        if(dtv(i) < 0.0 .and. hlinf(i) < -0.5) then
+          hl1(i)  = -hlinf(i)
+          pm(i)   = log(hl1(i)) + 2. * hl1(i) ** (-.25) - .8776
+          ph(i)   = log(hl1(i)) + .5 * hl1(i) ** (-.5) + 1.386
+          hl110   = hl1(i) * 10. * z1i(i)
+          pm10(i) = log(hl110) + 2. * hl110 ** (-.25) - .8776
+          hl12(i) = hl1(i) * 2. * z1i(i)
+          ph2(i)  = log(hl12(i)) + .5 * hl12(i) ** (-.5) + 1.386
+        endif
        endif
-      ENDDO
-C
-C  FINISH THE EXCHANGE COEFFICIENT COMPUTATION TO PROVIDE FM AND FH
-C
-      DO I = 1, IM
+      enddo
+!
+!  finish the exchange coefficient computation to provide fm and fh
+!
+      do i = 1, im
        if(flag_iter(i)) then 
-        FM(I) = FM(I) - PM(I)
-        FH(I) = FH(I) - PH(I)
-        FM10(I) = FM10(I) - PM10(I)
-        FH2(I) = FH2(I) - PH2(I)
-        CM(I) = CA * CA / (FM(I) * FM(I))
-        CH(I) = CA * CA / (FM(I) * FH(I))
-        CQ = CH(I)
-        STRESS(I) = CM(I) * WIND(I) * WIND(I)
-        USTAR(I)  = SQRT(STRESS(I))
-!       USTAR(I) = SQRT(CM(I) * WIND(I) * WIND(I))
+        fm(i) = fm(i) - pm(i)
+        fh(i) = fh(i) - ph(i)
+        fm10(i) = fm10(i) - pm10(i)
+        fh2(i) = fh2(i) - ph2(i)
+        cm(i) = ca * ca / (fm(i) * fm(i))
+        ch(i) = ca * ca / (fm(i) * fh(i))
+        cq = ch(i)
+        stress(i) = cm(i) * wind(i) * wind(i)
+        ustar(i)  = sqrt(stress(i))
        endif
-      ENDDO
-C##DG  IF(LAT.EQ.LATD) THEN
-C##DG    PRINT *, ' FM, FH, CM, CH(I), USTAR =',
-C##DG &   FM, FH, CM, ch, USTAR
-C##DG  ENDIF
-C
-C  UPDATE Z0 OVER OCEAN
-C
-      DO I = 1, IM
+      enddo
+!##dg  if(lat.eq.latd) then
+!##dg    print *, ' fm, fh, cm, ch(i), ustar =',
+!##dg &   fm, fh, cm, ch, ustar
+!##dg  endif
+!
+!  update z0 over ocean
+!
+      do i = 1, im
        if(flag_iter(i)) then 
-        IF(SLIMSK(I).EQ.0.) THEN
-C          Z0(I) = (CHARNOCK / G) * USTAR(I) ** 2
-           Z0(I) = (CHARNOCK / G) * USTAR(I) * USTAR(I)
-C MBEK -- TOGA-COARE FLUX ALGORITHM
-!         Z0(I) = (CHARNOCK / G) * USTAR(I)*USTAR(I) +  ARNU/USTAR(I)
-C  NEW IMPLEMENTATION OF Z0
-C         CC = USTAR(I) * Z0 / RNU
-C         PP = CC / (1. + CC)
-C         FF = G * ARNU / (CHARNOCK * USTAR(I) ** 3)
-C         Z0 = ARNU / (USTAR(I) * FF ** PP)
-          Z0(I) = MIN(Z0(I),.1)
-          Z0(I) = MAX(Z0(I),1.E-7)
-          Z0RL(I) = 100. * Z0(I)
-        ENDIF
+        if(islimsk(i) == 0) then
+          z0(i) = (charnock / grav) * ustar(i) * ustar(i)
+! mbek -- toga-coare flux algorithm
+!         z0(i) = (charnock / grav) * ustar(i)*ustar(i) +  arnu/ustar(i)
+!  new implementation of z0
+!         cc = ustar(i) * z0 / rnu
+!         pp = cc / (1. + cc)
+!         ff = grav * arnu / (charnock * ustar(i) ** 3)
+!         z0 = arnu / (ustar(i) * ff ** pp)
+          if (redrag) then
+            z0(i) = min(z0(i),z0s_max)
+          else
+            z0(i) = min(z0(i),.1)
+          endif
+          z0(i) = max(z0(i),1.e-7)
+          z0rl(i) = 100. * z0(i)
+        endif
        endif
-      ENDDO
+      enddo
 
-      RETURN
-      END
+      return
+      end

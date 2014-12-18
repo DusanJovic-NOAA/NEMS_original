@@ -92,9 +92,9 @@
                                          ,KOUNT_R2D                     &
                                          ,KOUNT_LOG
 !
-      INTEGER,DIMENSION(:,:),ALLOCATABLE :: LENGTH_DATA_I1D               &
-                                         ,LENGTH_DATA_R1D               &
-                                         ,LENGTH_DATA_R2D
+      INTEGER,DIMENSION(:,:),ALLOCATABLE :: LENGTH_DATA_I1D             &
+                                           ,LENGTH_DATA_R1D             &
+                                           ,LENGTH_DATA_R2D
 !
       INTEGER,DIMENSION(:),ALLOCATABLE :: LENGTH_SUM_I1D                &
                                          ,LENGTH_SUM_R1D                &
@@ -175,9 +175,11 @@
 !***  POST flags 
 !-----------------------------------------
 !
-      LOGICAL :: WRITE_DOPOST
+      LOGICAL                :: WRITE_DOPOST
       CHARACTER(ESMF_MAXSTR) :: POST_GRIBVERSION
-      LOGICAL :: GOCART_AER2POST
+      LOGICAL                :: GOCART_AER2POST
+      integer                :: nlunit             ! post namelist unit number - Moorthi
+      character(80)          :: post_namelist
  
 !-----------------------------------------------------------------------
 !

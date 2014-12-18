@@ -40,9 +40,10 @@ fi
  export SLG=_SLG_
  echo SLG=$SLG
 
- export NGRID_A2OI=41
+# GSM export fields
+ export NGRID_A2OI=_NGRID_A2OI_
  export NGRID_A2OI=${NGRID_A2OI:-41}
-#export A2OI_OUT=.true.
+ export A2OI_OUT=_A2OI_OUT_
  export A2OI_OUT=${A2OI_OUT:-.false.}
  export CPLFLX=.true.
  export CPLFLX=${CPLFLX:-.false.}
@@ -69,8 +70,11 @@ fi
  export SIGIO_IN=_SIGIOIN_
  export SIGIO_OUT=_SIGIOOUT_
  export SFCIO_OUT=_SFCIOOUT_
+
  export MACHINE_ID=_MACHINE_ID_
  export SCHEDULER=_SCHEDULER_
+
+ export machine=$MACHINE_ID
 
  export SIGIO_IN=${SIGIO_IN:-.true.}
  export SIGIO_OUT=${SIGIO_OUT:-.true.}
@@ -117,6 +121,8 @@ NST_SPINUP=${NST_SPINUP:-.false.}
 # export FHROT=_FHROT_
 # restart file output frequency
  export FHRES=_FHRES_
+ export FHOUT=_FHOUT_
+ export FHZER=_FHZER_
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
 # export SFCPRESS_ID=2
@@ -190,7 +196,7 @@ export POST_GRIBVERSION=_postgrbvs_
 export GOCART_AER2POST=_aer2post_
 export liope=.false.
 if [[ $QUILTING = .true. ]] ; then export liope=.true. ; fi
-if [ $SLG = .true. ] ; then export liope=.true. ; fi
+#if [ $SLG = .true. ] ; then export liope=.true. ; fi
 #
 export NTHREADS=_THRDS_
 export MP_STDOUTMODE=ordered
@@ -254,10 +260,10 @@ export ntrc=3  ; export varid=21  ; export numcld=1
 #
 #
 export fmax=$nhours
-export fout=3  
-export fzer=6  
-export fcyc=0 
-export fdfi=_FDFI_ 
+export fout=3
+export fzer=6
+export fcyc=0
+export fdfi=_FDFI_
 #
 #    Forecast model : horizontal truncation  and vertical levels
 #                     ---------------------
@@ -285,6 +291,9 @@ export lsm=${lsm:-1}
 
 ## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
  export IAER=_IAER_
+ export IALB=_IALB_
+
+grid_aldata=_CP2_
 #
 #   Control for post and time averaging  If "YES" then run
 #   -- Defaults to "NO" 
@@ -295,54 +304,24 @@ if [ $SLG = .true. ] ; then
    export gfsio_in=.false.
    export gfsio_out=.false.
    export out_virttemp=.false.
-fi
-#
-if [ $SLG = .true. ] ; then
-    export ZFLXTVD=.false.
-    export SHUFF_LATS_A=.false.
-    export SHUFF_LATS_R=.false.
+   export zflxtvd=.false.
+   export shuff_lats_a=.false.
+   export shuff_lats_r=.false.
 else
-    export ZFLXTVD=.true.
-    export SHUFF_LATS_A=.true.
-    export SHUFF_LATS_R=.true.
+   export zflxtvd=.true.
+   export shuff_lats_a=.true.
+   export shuff_lats_r=.true.
 fi
-#export DYNVARS="liope=.F."
-export DYNVARS=liope=$liope,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sigio_out=$SIGIO_OUT,zflxtvd=$ZFLXTVD,shuff_lats_a=$SHUFF_LATS_A,hdif_fac=1.0,hdif_fac2=1.0,ldfi_spect=$LDFI_SPECT
-#jw bkgd_vdif_s=1.0
 
-grid_aldata=_CP2_
-# export PHYVARS="liope=$liope,ras=$ras,zhao_mic=$zhao_mic,lsm=$lsm,\
-#             old_monin=$old_monin,sashal=$sashal,newsas=$newsas,\
-#             shal_cnv=$shal_cnv,shuff_lats_r=$shuff_lats_r,\
-#             ialb=$ialb,pre_rad=.false.,random_clds=$random_clds,\
-#             iovr_lw=1,iovr_sw=1,\
-#             ISOL=$ISOL, ICO2=$ICO2, IAER=$IAER,ictm=$ictm, nsout=$nsout,\
-#             ldiag3d=$ldiag3d, ncw=$ncw,crtrh=$crtrh,flgmin=$flgmin,\
-#             cnvgwd=.false.,ctei_rm=$ctei_rm,mstrat=$mstrat,ccnorm=$ccnorm,\
-#             mom4ice=.false.,NST_FCST=$NST_FCST,NST_SPINUP=$NST_SPINUP,\
-#             lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,\
-#             CCWF=$ccwf,dlqf=$dlqf,psautco=$psautco,prautco=$prautco,evpco=$evpco,\
-#             bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,\
-#             bkgd_vdif_s=$bkgd_vdif_s,hdif_fac=$hdif_fac,grid_aldata=$grid_aldata"
-#export PHYVARS="liope=.F.,grid_aldata=$grid_aldata,NST_FCST=$NST_FCST,NST_SPINUP=$NST_SPINUP"
-export PHYVARS=liope=$liope,grid_aldata=$grid_aldata,ras=.false.,zhao_mic=.true.,lsm=1,old_monin=.false.,sashal=.true.,newsas=.true.,shal_cnv=.true.,shuff_lats_r=$SHUFF_LATS_R,ialb=0,pre_rad=.false.,random_clds=.false.,iovr_lw=1,iovr_sw=1,IEMS=$IEMS,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=0,nsout=0,ldiag3d=.false.,sfcio_out=$SFCIO_OUT,ncw=20,120,crtrh=0.85,0.85,0.85,flgmin=0.200,0.300,cnvgwd=.false.,ctei_rm=,mstrat=.false.,ccnorm=.false.,mom4ice=.false.,A2OI_OUT=$A2OI_OUT,CPLFLX=$CPLFLX,NGRID_A2OI=$NGRID_A2OI,NST_FCST=0,NST_SPINUP=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,bkgd_vdif_m=3.0,bkgd_vdif_h=1.0,bkgd_vdif_s=0.2,climate=$CLIMATE,psautco=4.0e-4,4.0e-4,prautco=1.0e-4,1.0e-4,evpco=2.0e-5,wminco=1.0e-5,1.0e-5,CCWF=1.0,1.0,dlqf=0.0,0.0,shal_cnv=.true.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,cdmbgwd=1.0,1.0,grid_aldata=.false.
-
- export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
-#
-#export NGPTC=12
-export NGPTC=8
-if [ $SLG = .true. ] ; then
-    export NGPTC=15
-fi
-export NGPTC=${NGPTC:-$((wave/10))}
-export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
- srcdir=_PATHTR_
- export FCSTSCRIPT=$srcdir/tests/exglobal_fcst.sh.sms_nems
- export FCSTEXEC=$srcdir/exe/NEMS.x
-#
+srcdir=_PATHTR_
+export FCSTSCRIPT=$srcdir/tests/exglobal_fcst.sh.sms_nems
+export FCSTEXEC=$srcdir/exe/NEMS.x
+
+export CONFIG=${GSM_CONFIG:-$srcdir/tests/gsm_config}
+set -a;. $CONFIG;set +a
 #
 # ***************************************************************
 #    Below here no change needed most of the time
@@ -354,11 +333,12 @@ cd $RUNDIR
  export COMOUT=$RUNDIR
 #
 if [ $SCHEDULER = 'moab' ]; then
-   export FIXGLOBAL=${FIXGLOBAL}
-   export FCST_LAUNCHER=aprun
+   export FIXGLOBAL=${FIXGLOBAL:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para/fix/fix_am}
+   export FCST_LAUNCHER='aprun -n _TASKS_'
 elif [ $SCHEDULER = 'pbs' ]; then
 #  export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
    export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am}
+
    export OMP_NUM_THREADS=$NTHREADS
    mpiexec=`which mpiexec_mpt`
    if [ $NTHREADS -eq 1 ] ; then
@@ -367,9 +347,6 @@ elif [ $SCHEDULER = 'pbs' ]; then
     export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -np $PE1 omplace -nt $NTHREADS"
    fi
 elif [ $SCHEDULER = 'lsf' ]; then
-   if [ $SLG = .true. ] ; then
-      export FIXGLOBAL=/nems/save/Weiyu.Yang/gfs.trunk.21242/data.for.eddy/fix_am
-   fi
    export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am}
    export FCST_LAUNCHER=mpirun.lsf
 fi
@@ -385,73 +362,9 @@ fi
  export POSTGPEXEC=$POSTGPDIR/global_postgp
  export POSTGPSH=/nwprod/ush/global_postgp.sh
 #
- export LANDICE_OPT=1
- export CLIMO_FIELDS_OPT=2
-#
-if [[ $wave -eq 62 ]] ; then
-  export LONF=192 ; export LATG=94 ; export LONR=192 ; export LATR=94
-  export im=$LONR ; export jm=$LATR ; export iop=144 ; export jop=73
-  if [[ $lm -eq 64 ]] ; then
-    export DELTIM=${DELTIM:-900}
-  fi
-  if [[ $lm -eq 150 ]] ; then
-    export DELTIM=${DELTIM:-180}
-  fi
-
-elif [[ $wave -eq 126 ]] ; then
-  export LONF=384 ; export LATG=190 ; export LONR=384 ; export LATR=190
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-600}
-
-elif [[ $wave -eq 170 ]] ; then
-  export LONF=512 ; export LATG=256 ; export LONR=512 ; export LATR=256
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-450}
-
-elif [[ $wave -eq 190 ]] ; then
-  export LONF=576 ; export LATG=288 ; export LONR=576 ; export LATR=288
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-300}
-
-elif [[ $wave -eq 254 ]] ; then
-  export LONF=768 ; export LATG=384 ; export LONR=768 ; export LATR=384
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-300}
-
-elif [[ $wave -eq 382 ]] ; then
-  export LONF=1152 ; export LATG=576 ; export LONR=1152 ; export LATR=576
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-180}
-
-elif [[ $wave -eq 574 ]] ; then
-#For Semi-Lagrangian test, WY.
-#-----------------------------
-if [ $SLG = .true. ] ; then
-  export LONF=1152 ; export LATG=576 ; export LONR=1152 ; export LATR=576
-  export DELTIM=${DELTIM:-600}
-else
-  export LONF=1760 ; export LATG=880 ; export LONR=1760 ; export LATR=880
-  export DELTIM=${DELTIM:-120}
-fi
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-
-elif [[ $wave -eq 852 ]] ; then
-  export LONF=2560 ; export LATG=1280 ; export LONR=2560 ; export LATR=1280
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-90}
-
-fi
 #
 # ------------------------ initial condition ----------------
 #
-  export JCAP=$wave
-  export LEVS=$lm
-  export LONB=$im
-  export LATB=$jm
-  export VERBOSE=YES
-
-#
-  export FHROT=00
   if [ -f $RUNDIR/grdr1 -a -f $RUNDIR/grdr2 -a -f $RUNDIR/sigr1 -a -f $RUNDIR/sigr2 -a -f $RUNDIR/sfcr ]; then
     export GRDI=$RUNDIR/grdr1
     export GRDI2=$RUNDIR/grdr2
@@ -492,11 +405,10 @@ if [[ $WRITE_DOPOST = '.true.' ]] then
  if [ $SCHEDULER = 'loadleveler' ]; then
    cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
  elif [ $SCHEDULER = 'pbs' ]; then
-  cp _RTPWD_/data_POST/eta_micro_lookup.dat ./eta_micro_lookup.dat
+   cp _RTPWD_/data_POST/eta_micro_lookup.dat ./eta_micro_lookup.dat
  elif [ $SCHEDULER = 'lsf' ]; then
    cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
  fi
-
 fi
 
 #
@@ -507,8 +419,8 @@ if [[ $nhourb -lt $nhours ]] ; then
   export FNTSFA=
   export FNACNA=
 #
-  export FHOUT=$fout
-  export FHZER=$fzer
+  export FHOUT=${FHOUT:-$fout}
+  export FHZER=${FHZER:-$fzer}
   export FHCYC=$fcyc
   export FHDFI=$fdfi
   export FHLWR=${FHLWR:-3600}

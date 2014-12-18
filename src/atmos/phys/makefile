@@ -109,6 +109,8 @@ MODULES_GFSF=                                \
 	           moninp.o                  \
 	           moninp1.o                 \
 	           moninq.o                  \
+	           moninedmf.o               \
+	           mfpbl.o                   \
 	           gwdps.o                   \
 	           gwdc.o                    \
 	           rayleigh_damp.o           \
@@ -122,7 +124,9 @@ MODULES_GFSF=                                \
 	           shalcnv.o                 \
 	           lrgsclr.o                 \
 	           gscond.o                  \
+	           gscondp.o                 \
 	           precpd.o                  \
+	           precpdp.o                 \
 	           mstadb.o                  \
 	           mstadbtn.o                \
 	           mstcnv.o                  \

@@ -7,7 +7,7 @@
 !  ---  inputs:                                                         !
 !          ( im, km, ps, u1, v1, t1, q1, soiltyp, vegtype, sigmaf,      !
 !            sfcemis, dlwflx, dswsfc, snet, delt, tg3, cm, ch,          !
-!            prsl1, prslki, zf, slimsk, ddvel, slopetyp,                !
+!            prsl1, prslki, zf, islimsk, ddvel, slopetyp,               !
 !            shdmin, shdmax, snoalb, sfalb, flag_iter, flag_guess,      !
 !  ---  in/outs:                                                        !
 !            weasd, snwdph, tskin, tprcp, srflag, smc, stc, slc,        !
@@ -15,7 +15,7 @@
 !  ---  outputs:                                                        !
 !            sncovr1, qsurf, gflux, drain, evap, hflx, ep, runoff,      !
 !            cmm, chh, evbs, evcw, sbsno, snowc, stm, snohf,            !
-!            smcwlt2, smcref2, wet1 )                                   !
+!            smcwlt2, smcref2, zorl, wet1 )                             !
 !                                                                       !
 !                                                                       !
 !  subprogram called:  sflx                                             !
@@ -28,7 +28,7 @@
 !                     effect on lw radiation. replaced the comfussing   !
 !                     slrad (net sw + dlw) with sfc net sw snet=dsw-usw !
 !    sep  2009  -- s. moorthi modification to remove rcl and unit change!
-!    nov  2011  -- sarah lu    corrected wet1 calculation               !
+!    nov  2011  -- sarah lu    corrected wet1 calculation
 !                                                                       !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
@@ -53,7 +53,7 @@
 !     prsl1    - real, sfc layer 1 mean pressure (pa)              im   !
 !     prslki   - real,                                             im   !
 !     zf       - real, height of bottom layer (m)                  im   !
-!     slimsk   - real, sea/land/ice mask (=0/1/2)                  im   !
+!     islimsk  - integer, sea/land/ice mask (=0/1/2)               im   !
 !     ddvel    - real,                                             im   !
 !     slopetyp - integer, class of sfc slope (integer index)       im   !
 !     shdmin   - real, min fractional coverage of green veg        im   !
@@ -95,6 +95,7 @@
 !     snohf    - real, snow/freezing-rain latent heat flux (w/m**2)im   !
 !     smcwlt2  - real, dry soil moisture threshold                 im   !
 !     smcref2  - real, soil moisture threshold                     im   !
+!     zorl     - real, surface roughness                           im   !
 !     wet1     - real, normalized soil wetness                     im   !
 !                                                                       !
 !  ====================    end of description    =====================  !
@@ -105,7 +106,7 @@
 !  ---  inputs:
      &     ( im, km, ps, u1, v1, t1, q1, soiltyp, vegtype, sigmaf,      &
      &       sfcemis, dlwflx, dswsfc, snet, delt, tg3, cm, ch,          &
-     &       prsl1, prslki, zf, slimsk, ddvel, slopetyp,                &
+     &       prsl1, prslki, zf, islimsk, ddvel, slopetyp,               &
      &       shdmin, shdmax, snoalb, sfalb, flag_iter, flag_guess,      &
 !  ---  in/outs:
      &       weasd, snwdph, tskin, tprcp, srflag, smc, stc, slc,        &
@@ -113,7 +114,7 @@
 !  ---  outputs:
      &       sncovr1, qsurf, gflux, drain, evap, hflx, ep, runoff,      &
      &       cmm, chh, evbs, evcw, sbsno, snowc, stm, snohf,            &
-     &       smcwlt2, smcref2, wet1                                     &
+     &       smcwlt2, smcref2, zorl, wet1                               &
      &     )
 !
       use machine ,   only : kind_phys
@@ -128,7 +129,7 @@
       real(kind=kind_phys), parameter :: hvapi   = 1.0/con_hvap
       real(kind=kind_phys), parameter :: elocp   = con_hvap/con_cp
       real(kind=kind_phys), parameter :: rhoh2o  = 1000.0
-      real(kind=kind_phys), parameter :: convrad = con_jcal*1.e4/60.0
+!     real(kind=kind_phys), parameter :: convrad = con_jcal*1.e4/60.0
       real(kind=kind_phys), parameter :: a2      = 17.2693882
       real(kind=kind_phys), parameter :: a3      = 273.16
       real(kind=kind_phys), parameter :: a4      = 35.86
@@ -144,9 +145,10 @@
 
       real (kind=kind_phys), dimension(im), intent(in) :: ps, u1, v1,   &
      &       t1, q1, sigmaf, sfcemis, dlwflx, dswsfc, snet, tg3, cm,    &
-     &       ch, prsl1, prslki, slimsk, ddvel, shdmin, shdmax,          &
+     &       ch, prsl1, prslki, ddvel, shdmin, shdmax,                  &
      &       snoalb, sfalb, zf
 
+      integer, dimension(im), intent(in) :: islimsk
       real (kind=kind_phys),  intent(in) :: delt
 
       logical, dimension(im), intent(in) :: flag_iter, flag_guess
@@ -162,7 +164,7 @@
       real (kind=kind_phys), dimension(im), intent(out) :: sncovr1,     &
      &       qsurf, gflux, drain, evap, hflx, ep, runoff, cmm, chh,     &
      &       evbs, evcw, sbsno, snowc, stm, snohf, smcwlt2, smcref2,    &
-     &       wet1
+     &       zorl, wet1
     
 !  ---  locals:
       real (kind=kind_phys), dimension(im) :: rch, rho,                 &
@@ -183,7 +185,7 @@
      &       sfcems, sheat, shdfac, shdmin1d, shdmax1d, smcwlt,         &
      &       smcdry, smcref, smcmax, sneqv, snoalb1d, snowh,            &
      &       snomlt, sncovr, soilw, soilm, ssoil, tsea, th2, tbot,      &
-     &       xlai, zlvl, swdn, tem
+     &       xlai, zlvl, swdn, tem,z0
 
       integer :: couple, ice, nsoil, nroot, slope, stype, vtype 
       integer :: i, k
@@ -196,9 +198,8 @@
 !  --- ...  set flag for land points
 
       do i = 1, im
-        flag(i) = (slimsk(i) == 1.0)
+        flag(i) = (islimsk(i) == 1)
       enddo
-
 
 !  --- ...  save land-related prognostic fields for guess run
 
@@ -402,8 +403,8 @@
      &       edir, et, ett, esnow, drip, dew, beta, etp, ssoil,         &
      &       flx1, flx2, flx3, runoff1, runoff2, runoff3,               &
      &       snomlt, sncovr, rc, pc, rsmin, xlai, rcs, rct, rcq,        &
-     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax       &
-     &     )
+     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax,      &
+     &       z0 )
 
 !  --- ...  noah: prepare variables for return to parent mode
 !   6. output (o):
@@ -439,8 +440,7 @@
             smc(i,k) = smsoil(k)
             slc(i,k) = slsoil(k)
           enddo
-
-          WET1(I) = SMSOIL(1) / SMCMAX !Sarah Lu added 09/09/2010 (for GOCART)
+          wet1(i) = smsoil(1) / smcmax !Sarah Lu added 09/09/2010 (for GOCART)
 
 !  --- ...  unit conversion (from m s-1 to mm s-1)
           runoff(i)  = runoff1 * 1000.0
@@ -451,6 +451,8 @@
           snwdph(i)  = snowh * 1000.0
           weasd(i)   = sneqv * 1000.0
           sncovr1(i) = sncovr
+!  ---- ... outside sflx, roughness uses cm as unit
+          zorl(i) = z0*100.
 
 !  --- ...  do not return the following output fields to parent model
 !    ec      - canopy water evaporation (m s-1)
@@ -491,7 +493,7 @@
 !    nroot   - number of root layers, a function of veg type, determined
 !              in subroutine redprm.
 
-         endif  !end if flag_iter
+        endif   ! end if_flag_iter_and_flag_block
       enddo   ! end do_i_loop
 
 !   --- ...  compute qsurf (specific humidity at sfc)

@@ -1,76 +1,48 @@
-      SUBROUTINE CALPRECIPTYPE(kdt,nrcm,im,ix,lm,lp1,randomno,  &
-                           xlat,xlon, &
-                           gt0,gq0,prsl,prsi,PREC, & !input
-                           phii,num_p3d,TSKIN,SR,phy_f3d,  & !input
-			   DOMR,DOMZR,DOMIP,DOMS)  !output
-!      SUBROUTINE CALPRECIPTYPE(nrcm,randomno,im,lm,lp1,T,Q,PMID,PINT,PREC, & !input
-!                           ZINT,num_p3d,TSKIN,SR,F_RimeF,  & !input
-!			   DOMR,DOMZR,DOMIP,DOMS)  !output
-!$$$  SUBPROGRAM DOCUMENTATION BLOCK
+      subroutine calpreciptype(kdt,nrcm,im,ix,lm,lp1,randomno,      &
+                               xlat,xlon,                           &
+                               gt0,gq0,prsl,prsi,prec,              & !input
+                               phii,n3dfercld,tskin,sr,phy_f3d,     & !input
+                               domr,domzr,domip,doms)  !output
+
+!$$$  subprogram documentation block
 !                .      .    .     
-! SUBPROGRAM:    CALPRECIPTYPE      COMPUTE DOMINANT PRECIP TYPE
-!   PRGRMMR: CHUANG         ORG: W/NP2      DATE: 2008-05-28
+! subprogram:    calpreciptype      compute dominant precip type
+!   prgrmmr: chuang         org: w/np2      date: 2008-05-28
 !          
 !     
-! ABSTRACT:
-!     THIS ROUTINE COMPUTES PRECIPITATION TYPE.
-!   . It is adopted from post but was made into a column to used by GFS model    
+! abstract:
+!     this routine computes precipitation type.
+!   . it is adopted from post but was made into a column to used by gfs model    
 !     
-!
-!      use vrbls3d   
-!      use vrbls2d   
-!      use soil
-!      use masks
-!      use params_mod
-!      use ctlblk_mod
-!      use rqstfld_mod
-      USE FUNCPHYS, ONLY : fpvs,FTDP,fpkap,ftlcl,stma,fthe
-      USE PHYSCONS
+!  --------------------------------------------------------------------
+      use funcphys, only : fpvs,ftdp,fpkap,ftlcl,stma,fthe
+      use physcons
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !
-!      INCLUDE "mpif.h"
+      real,   parameter :: pthresh = 0.0, oneog = 1.0/con_g
+      integer,parameter :: nalg    = 5
 !     
-!     IN NGM SUBROUTINE OUTPUT WE FIND THE FOLLOWING COMMENT.
-!     "IF THE FOLLOWING THRESHOLD VALUES ARE CHANGED, CONTACT
-!     TDL/SYNOPTIC-SCALE TECHNIQUES BRANCH (PAUL DALLAVALLE
-!     AND JOHN JENSENIUS).  THEY MAY BE USING IT IN ONE OF 
-!     THEIR PACKING CODES."  THE THRESHOLD VALUE IS 0.01 INCH
-!     OR 2.54E-4 METER.  PRECIPITATION VALUES LESS THAN THIS
-!     THRESHOLD ARE SET TO MINUS ONE TIMES THIS THRESHOLD.
-      real,PARAMETER :: PTHRESH = 0.0
+!     declare variables.
 !     
-!     SET CELCIUS TO KELVIN AND SECOND TO HOUR CONVERSION.
-      integer,PARAMETER :: NALG    = 5
-!     
-!     DECLARE VARIABLES.
-!     
-      integer,intent(in) :: kdt,nrcm,im,ix,lm,lp1,num_p3d
-      real,intent(in) :: xlat(im),xlon(im) 
-      real(kind=kind_phys),dimension(im),intent(in) :: PREC,SR,TSKIN
-      real,intent(in) :: randomno(ix,nrcm)
-      real(kind=kind_phys),dimension(ix,LM),intent(in) :: gt0,gq0,prsl,phy_f3d
-      real(kind=kind_phys),dimension(ix,lp1),intent(in) :: prsi,phii
+      integer,intent(in) :: kdt,nrcm,im,ix,lm,lp1,n3dfercld
+      real,intent(in)    :: xlat(im),xlon(im)
+      real,intent(in)    :: randomno(ix,nrcm)
+      real(kind=kind_phys),dimension(im),    intent(in)  :: prec,sr,tskin
+      real(kind=kind_phys),dimension(ix,lm), intent(in)  :: gt0,gq0,prsl,phy_f3d
+      real(kind=kind_phys),dimension(ix,lp1),intent(in)  :: prsi,phii
+      real(kind=kind_phys),dimension(im),    intent(out) :: domr,domzr,domip,doms
       
-!      real(kind=kind_phys),dimension(im,LM),intent(in) :: T,Q,PMID,F_RimeF
-!      real(kind=kind_phys),dimension(im,lp1),intent(in) :: pint,zint
-      real(kind=kind_phys),dimension(im),intent(out) :: DOMR,DOMZR,DOMIP,DOMS
-      
-      INTEGER IWX1,IWX4,IWX5
-      REAL IWX2,IWX3
-      REAL(kind=kind_phys) ES,QC,PV
-      REAL SLEET(NALG),RAIN(NALG),FREEZR(NALG),SNOW(NALG)
-      real(kind=kind_phys),dimension(LM) :: T,Q,PMID,F_RimeF
-      real(kind=kind_phys),dimension(lp1) :: pint,zint
-      REAL(kind=kind_phys), ALLOCATABLE :: TWET(:),RH(:),TD(:)
-!     REAL DOMS(IM,JM),DOMR(IM,JM),DOMIP(IM,JM),DOMZR(IM,JM) 
+      integer,             dimension(nalg) :: sleet,rain,freezr,snow
+      real(kind=kind_phys),dimension(lm)   :: t,q,pmid,f_rimef
+      real(kind=kind_phys),dimension(lp1)  :: pint,zint
+      real(kind=kind_phys), allocatable    :: twet(:),rh(:),td(:)
 !
-      integer I,J,L,IWX,ISNO,IIP,IZR,IRAIN,k,k1
-      real(kind=kind_phys) tdpd,pr,tr,pk,tlcl,thelcl,qwet,               &
-           time_vert,time_ncep,time_ramer,time_bourg,time_revised,time_dominant &
-      ,btim,timef
-!      real RDTPHS,TLOW,TSFCK,QSAT,DTOP,DBOT,SNEQV,RRNUM,SFCPRS,SFCQ,     &
-!           RC,SFCTMP,SNCOVR,FACTRS,SOLAR
+      integer i,iwx,isno,iip,izr,irain,k,k1
+      real(kind=kind_phys) es,qc,pv,tdpd,pr,tr,pk,tlcl,thelcl,qwet,               &
+                           time_vert,time_ncep,time_ramer,time_bourg,time_revised,&
+                           time_dominant,btim,timef,ranl(2)
+
 !     
 !     computes wet bulb here since two algorithms use it
 !      lp1=lm+1
@@ -78,64 +50,64 @@
 !      do l=1,lp1
 !        zint(l)=zint(l)/con_g
 !      end do
-! DON'T FORGET TO FLIP 3D ARRAYS AROUND BECAUSE GFS COUNTS FROM BOTTOM UP      
-      	    
-      ALLOCATE ( TWET(LM),RH(LM),TD(LM) )
-!      print*,'debug calpreciptype: ', &
-!      im,lm,lp1,nrcm
+! don't forget to flip 3d arrays around because gfs counts from bottom up      
 
-      time_vert    = 0.
-      time_ncep    = 0.
-      time_ramer   = 0.
-      time_bourg   = 0.
-      time_revised = 0.
+      allocate ( twet(lm),rh(lm),td(lm) )
+
+!      print*,'debug calpreciptype: ', im,lm,lp1,nrcm
+
+!     time_vert    = 0.
+!     time_ncep    = 0.
+!     time_ramer   = 0.
+!     time_bourg   = 0.
+!     time_revised = 0.
 
       do i=1,im
-!       if(kdt>15. and. kdt<20) btim = timef()
-        do k=1,lm
-	  k1          = lm-k+1
-	  t(k1)       = gt0(i,k)
-	  q(k1)       = gq0(i,k)
-	  pmid(k1)    = prsl(i,k) * 1000.0
-	  f_rimef(k1) = phy_f3d(i,k) 
+        if (prec(i) > pthresh) then
+          do k=1,lm
+            k1          = lm-k+1
+            t(k1)       = gt0(i,k)
+            q(k1)       = gq0(i,k)
+            pmid(k1)    = prsl(i,k)                      ! pressure in pascals
+            f_rimef(k1) = phy_f3d(i,k) 
 !
-! Compute wet bulb
-!        do l=1,lm
-	   pv     = pmid(k1)*q(k1)/(con_eps-con_epsm1*q(k1))
-	   td(k1) = ftdp(pv)
-           tdpd   = t(k1)-td(k1)
-           if(pmid(k1)>=50000.)then ! only compute twet below 500mb to save time
-             if(tdpd.gt.0.) then
-               pr     = pmid(k1)
-               tr     = t(k1)
-               pk     = fpkap(pr)
-               tlcl   = ftlcl(tr,tdpd)
-               thelcl = fthe(tlcl,pk*tlcl/tr)
-               call stma(thelcl,pk,twet(k1),qwet)
-             else
-               twet(k1)=t(k1)
-             endif
-	   endif 
-           ES     = FPVS(T(k1))
-	   ES     = MIN(ES,PMID(k1))
-	   QC     = CON_EPS*ES/(PMID(k1)+CON_EPSM1*ES)
-           RH(k1) = MAX(con_epsq,Q(k1))/QC
-	  
-	   k1       = lp1-k+1
-	   pint(k1) = prsi(i,k) * 1000.0
-	   zint(k1) = phii(i,k)/con_g
+!         compute wet bulb temperature
+!
+            pv     = pmid(k1)*q(k1)/(con_eps-con_epsm1*q(k1))
+            td(k1) = ftdp(pv)
+            tdpd   = t(k1)-td(k1)
+!           if (pmid(k1) >= 50000.) then ! only compute twet below 500mb to save time
+              if (tdpd > 0.) then
+                pr     = pmid(k1)
+                tr     = t(k1)
+                pk     = fpkap(pr)
+                tlcl   = ftlcl(tr,tdpd)
+                thelcl = fthe(tlcl,pk*tlcl/tr)
+                call stma(thelcl,pk,twet(k1),qwet)
+              else
+                twet(k1) = t(k1)
+              endif
+!           endif 
+            es     = min(fpvs(t(k1)), pmid(k1))
+            qc     = con_eps*es / (pmid(k1)+con_epsm1*es)
+            rh(k1) = max(con_epsq,q(k1)) / qc
+  
+            k1       = lp1-k+1
+            pint(k1) = prsi(i,k)
+            zint(k1) = phii(i,k) * oneog
 
-	 enddo
-	 pint(1) = prsi(i,lp1) * 1000.0
-	 zint(1) = phii(i,lp1)/con_g
-
+          enddo
+          pint(1) = prsi(i,lp1)
+          zint(1) = phii(i,lp1) * oneog
+ 
+!-------------------------------------------------------------------------------
 !	 if(kdt>15.and.kdt<20) time_vert = time_vert + (timef() - btim)
 ! debug print statement
 !	if (abs(xlon(i)*57.29578-114.0) .lt. 0.2  .and. &
 !	   abs(xlat(i)*57.29578-40.0) .lt. 0.2)then
-!         print*,'debug in calpreciptype: i,im,lm,lp1,xlon,xlat,prec,tskin,sr,nrcm,randomno,num_p3d ', &
+!         print*,'debug in calpreciptype: i,im,lm,lp1,xlon,xlat,prec,tskin,sr,nrcm,randomno,n3dfercld ', &
 !         i,im,lm,lp1,xlon(i)*57.29578,xlat(i)*57.29578,prec(i),tskin(i),sr(i),  &
-!	 nrcm,randomno(i,1:nrcm),num_p3d
+!	 nrcm,randomno(i,1:nrcm),n3dfercld
 !         do l=1,lm
 !          print*,'debug in calpreciptype: l,t,q,p,pint,z,twet', &
 !	  l,t(l),q(l), &
@@ -144,819 +116,713 @@
 !	 print*,'debug in calpreciptype: lp1,pint,z ', lp1,pint(lp1),zint(lp1)
 !        end if  
 ! end debug print statement		
-!        CALL WETBULB(lm,con_rocp,con_epsq,T,Q,PMID,TWET)       
-!     INSTANTANEOUS PRECIPITATION TYPE.
+!        call wetbulb(lm,con_rocp,con_epsq,t,q,pmid,twet)       
 !        if(kdt>10.and.kdt<20)btim = timef() 
+!-------------------------------------------------------------------------------
+!
+!     instantaneous precipitation type.
 
-        CALL CALWXT(lm,lp1,T(1),Q(1),PMID(1),PINT(1),PREC(i),  &
-                    PTHRESH,con_fvirt,con_rog,con_epsq,   &
-                    ZINT(1),IWX1,TWET(1))
-!        if(kdt>10.and.kdt<20)time_ncep=time_ncep+(timef() - btim)
-        IWX       = IWX1
-        ISNO      = MOD(IWX,2)
-        IIP       = MOD(IWX,4)/2
-        IZR       = MOD(IWX,8)/4
-        IRAIN     = IWX/8
-        SNOW(1)   = ISNO*1.0
-        SLEET(1)  = IIP*1.0
-        FREEZR(1) = IZR*1.0
-        RAIN(1)   = IRAIN*1.0
+        call calwxt(lm,lp1,t,q,pmid,pint,con_fvirt,con_rog,con_epsq,zint,iwx,twet)
+        snow(1)   = mod(iwx,2)
+        sleet(1)  = mod(iwx,4)/2
+        freezr(1) = mod(iwx,8)/4
+        rain(1)   = iwx/8
 
+!     dominant precipitation type
 
-!     DOMINANT PRECIPITATION TYPE
-!GSM  IF DOMINANT PRECIP TYPE IS REQUESTED, 4 MORE ALGORITHMS
-!GSM    WILL BE CALLED.  THE TALLIES ARE THEN SUMMED IN
-!GSM    CALWXT_DOMINANT
+!gsm  if dominant precip type is requested, 4 more algorithms
+!gsm    will be called.  the tallies are then summed in calwxt_dominant
 
-!  RAMER ALGORITHM
-!        ALLOCATE ( RH(LM),TD(LM) )
-!        DO L=1,LM
-!HC: use RH and TD consistent with GFS ice physics
-!          ES=FPVS(T(L))
-!	  ES=MIN(ES,PMID(L))
-!	  QC=CON_EPS*ES/(PMID(L)+CON_EPSM1*ES)
-!          RH(L)=MAX(con_epsq,Q(L))/QC
-!	  PV   = PMID(L)*Q(L)/(CON_EPS-CON_EPSM1*Q(L))
-!	  TD(L)=FTDP(PV)
-!        END DO	
+!  ramer algorithm
+!        allocate ( rh(lm),td(lm) )
+!        do l=1,lm
+!hc: use rh and td consistent with gfs ice physics
+!          es=fpvs(t(l))
+!	  es=min(es,pmid(l))
+!	  qc=con_eps*es/(pmid(l)+con_epsm1*es)
+!          rh(l)=max(con_epsq,q(l))/qc
+!	  pv   = pmid(l)*q(l)/(con_eps-con_epsm1*q(l))
+!	  td(l)=ftdp(pv)
+!        end do	
 !        if(kdt>10.and.kdt<20)btim = timef()
 
-        CALL CALWXT_RAMER(lm,lp1,T(1),Q(1),PMID(1),RH(1),TD(1), &
-	                  PINT(1),PREC(i),PTHRESH,IWX2)
+!     write(0,*)' i=',i,' lm=',lm,' lp1=',lp1,' t=',t(1),q(1),pmid(1) &
+!    &,' pint=',pint(1),' prec=',prec(i),' pthresh=',pthresh
 
-!	if(kdt>10.and.kdt<20)time_ramer=time_ramer+(timef() - btim)
-!        deallocate(RH,TD)         
-!
-!     DECOMPOSE IWX2 ARRAY
-!
-        IWX       = NINT(IWX2)
-        ISNO      = MOD(IWX,2)
-        IIP       = MOD(IWX,4)/2
-        IZR       = MOD(IWX,8)/4
-        IRAIN     = IWX/8
-        SNOW(2)   = ISNO*1.0
-        SLEET(2)  = IIP*1.0
-        FREEZR(2) = IZR*1.0
-        RAIN(2)   = IRAIN*1.0
-
-! BOURGOUIN ALGORITHM
-!      ISEED=44641*(INT(SDAT(1)-1)*24*31+INT(SDAT(2))*24+IHRST)+   &
-!     &  MOD(IFHR*60+IFMIN,44641)+4357
-!        if(kdt>10.and.kdt<20)btim = timef()
-        CALL CALWXT_BOURG(LM,LP1,randomno(i,1),con_g,PTHRESH,           &
-     &                        T(1),Q(1),PMID(1),PINT(1),PREC(i),ZINT(1),IWX3)
-!          print *,'in SURFCE,me=',me,'IWX3=',IWX3(1:30,JSTA),'PTHRESH=',PTHRESH
-!        if(kdt>10.and.kdt<20)time_bourg=time_bourg+(timef() - btim)
-!
-!     DECOMPOSE IWX3 ARRAY
-!
-        IWX       = NINT(IWX3)
-        ISNO      = MOD(IWX,2)
-        IIP       = MOD(IWX,4)/2
-        IZR       = MOD(IWX,8)/4
-        IRAIN     = IWX/8
-        SNOW(3)   = ISNO*1.0
-        SLEET(3)  = IIP*1.0
-        FREEZR(3) = IZR*1.0
-        RAIN(3)   = IRAIN*1.0
+        call calwxt_ramer(lm,lp1,t,q,pmid,rh,td,pint,iwx)
 
 !
-! REVISED NCEP ALGORITHM
-!
-!        if(kdt>10.and.kdt<20)btim = timef()
+        snow(2)   = mod(iwx,2)
+        sleet(2)  = mod(iwx,4)/2
+        freezr(2) = mod(iwx,8)/4
+        rain(2)   = iwx/8
 
-        CALL CALWXT_REVISED(LM,LP1,T(1),Q(1),PMID(1),PINT(1),PREC(i),PTHRESH,  &
-                            con_fvirt,con_rog,con_epsq,ZINT(1),TWET(1),IWX4)
+! bourgouin algorithm
+!      iseed=44641*(int(sdat(1)-1)*24*31+int(sdat(2))*24+ihrst)+   &
+!     &  mod(ifhr*60+ifmin,44641)+4357
 
-!	if(kdt>10.and.kdt<20)time_revised=time_revised+(timef() - btim)	
-!          print *,'in SURFCE,me=',me,'IWX4=',IWX4(1:30,JSTA)
+        ranl = randomno(i,1:2)
+        call calwxt_bourg(lm,lp1,ranl,con_g,pthresh,                    &
+     &                    t,q,pmid,pint,zint(1),iwx)
+
 !
-!     DECOMPOSE IWX2 ARRAY
+        snow(3)   = mod(iwx,2)
+        sleet(3)  = mod(iwx,4)/2
+        freezr(3) = mod(iwx,8)/4
+        rain(3)   = iwx/8
 !
-        IWX       = IWX4
-        ISNO      = MOD(IWX,2)
-        IIP       = MOD(IWX,4)/2
-        IZR       = MOD(IWX,8)/4
-        IRAIN     = IWX/8
-        SNOW(4)   = ISNO*1.0
-        SLEET(4)  = IIP*1.0
-        FREEZR(4) = IZR*1.0
-        RAIN(4)   = IRAIN*1.0
-              
-! EXPLICIT ALGORITHM (UNDER 18 NOT ADMITTED WITHOUT PARENT 
-!     OR GUARDIAN)
+! revised ncep algorithm
+!
+
+        call calwxt_revised(lm,lp1,t,q,pmid,pint,                       &
+                            con_fvirt,con_rog,con_epsq,zint,twet,iwx)
+
+!
+        snow(4)   = mod(iwx,2)
+        sleet(4)  = mod(iwx,4)/2
+        freezr(4) = mod(iwx,8)/4
+        rain(4)   = iwx/8
+
+!
+! explicit algorithm (under 18 not admitted without parent or guardian)
  
-        IF(num_p3d == 3) then ! Ferrier's scheme
-          CALL CALWXT_EXPLICIT(LM,PTHRESH,                           &
-	  TSKIN(i),PREC(i),SR(i),F_RimeF(1),IWX5)
+        if(n3dfercld == 3) then ! ferrier's scheme
+          call calwxt_explicit(lm, tskin(i),,sr(i),f_rimef,iwx)
+          snow(5)   = mod(iwx,2)
+          sleet(5)  = mod(iwx,4)/2
+          freezr(5) = mod(iwx,8)/4
+          rain(5)   = iwx/8
         else
-          IWX5 = 0
+          snow(5)   = 0
+          sleet(5)  = 0
+          freezr(5) = 0
+          rain(5)   = 0
         endif
-!     DECOMPOSE IWX2 ARRAY
-!
-        IWX       = IWX5
-        ISNO      = MOD(IWX,2)
-        IIP       = MOD(IWX,4)/2
-        IZR       = MOD(IWX,8)/4
-        IRAIN     = IWX/8
-        SNOW(5)   = ISNO*1.0
-        SLEET(5)  = IIP*1.0
-        FREEZR(5) = IZR*1.0
-        RAIN(5)   = IRAIN*1.0
 !               
-!        if(kdt>10.and.kdt<20)btim = timef()
 
-        CALL CALWXT_DOMINANT(NALG,PREC(i),PTHRESH,RAIN(1),FREEZR(1),SLEET(1), &
-                            SNOW(1),DOMR(i),DOMZR(i),DOMIP(i),DOMS(i))
+         call calwxt_dominant(nalg,rain(1),freezr(1),sleet(1),         &
+                            snow(1),domr(i),domzr(i),domip(i),doms(i))
 
-!	if(kdt>10.and.kdt<20)time_dominant=time_dominant+(timef() - btim)       
-!debug print statement
-!        if (abs(xlon(i)*57.29578-114.0) .lt. 0.2  .and. &
-!	   abs(xlat(i)*57.29578-40.0) .lt. 0.2) &
-!         print*,'debug in calpreciptype: DOMR,DOMZR,DOMIP,DOMS ', &
-!	  DOMR(i),DOMZR(i),DOMIP(i),DOMS(i)
-! end of debug print statement      
 
+        else     !  prec < pthresh
+          domr(i)  = 0.
+          domzr(i) = 0.
+          domip(i) = 0.
+          doms(i)  = 0.
+        end if
       enddo ! end loop for i
 
-!      if(kdt>10.and.kdt<20)print*, &
-!      'time_vert,time_ncep,time_ramer,time_bourg,time_revised,time_dominant='&
-!      ,time_vert,time_ncep,time_ramer,time_bourg,time_revised,time_dominant
-
-      DEALLOCATE (TWET,RH,TD)        
-      RETURN
-      END
+      deallocate (twet,rh,td)        
+      return
+      end
 !
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !
-       SUBROUTINE CALWXT(lm,lp1,T,Q,PMID,PINT,PREC,  &
-                 PTHRESH,D608,ROG,EPSQ,    &
-		 ZINT,IWX,TWET)
+       subroutine calwxt(lm,lp1,t,q,pmid,pint,              &
+                         d608,rog,epsq,zint,iwx,twet)
 ! 
-!     FILE: CALWXT.f
-!     WRITTEN: 11 NOVEMBER 1993, MICHAEL BALDWIN
-!     REVISIONS:
-!               30 SEPT 1994-SETUP NEW DECISION TREE (M BALDWIN)
-!               12 JUNE 1998-CONVERSION TO 2-D (T BLACK)
-!     01-10-25  H CHUANG - MODIFIED TO PROCESS HYBRID MODEL OUTPUT
-!     02-01-15  MIKE BALDWIN - WRF VERSION
+!     file: calwxt.f
+!     written: 11 november 1993, michael baldwin
+!     revisions:
+!               30 sept 1994-setup new decision tree (m baldwin)
+!               12 june 1998-conversion to 2-d (t black)
+!     01-10-25  h chuang - modified to process hybrid model output
+!     02-01-15  mike baldwin - wrf version
 !                              
 !
-!     ROUTINE TO COMPUTE PRECIPITATION TYPE USING A DECISION TREE
-!     APPROACH THAT USES VARIABLES SUCH AS INTEGRATED WET BULB TEMP
-!     BELOW FREEZING AND LOWEST LAYER TEMPERATURE
+!     routine to compute precipitation type using a decision tree
+!     approach that uses variables such as integrated wet bulb temp
+!     below freezing and lowest layer temperature
 !
-!     SEE BALDWIN AND CONTORNO PREPRINT FROM 13TH WEATHER ANALYSIS
-!     AND FORECASTING CONFERENCE FOR MORE DETAILS
-!     (OR BALDWIN ET AL, 10TH NWP CONFERENCE PREPRINT)
+!     see baldwin and contorno preprint from 13th weather analysis
+!     and forecasting conference for more details
+!     (or baldwin et al, 10th nwp conference preprint)
 ! 
-!      use params_mod
-!      use ctlblk_mod
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !
-!    INPUT:
-!      T,Q,PMID,HTM,LMH,PREC,ZINT
+!    input:
+!      t,q,pmid,htm,lmh,zint
 !
-      integer,intent(in):: lm,lp1
-!      real,intent(in):: pthresh
-      real,dimension(LM),intent(in) :: T,Q,PMID,TWET
-      real,dimension(LP1),intent(in) :: ZINT,PINT
-      integer,intent(out)  :: IWX
-      real,intent(in) :: PREC,PTHRESH,D608,ROG,EPSQ
-!      real,intent(out)  :: ZWET
+      integer,intent(in)             :: lm,lp1
+      real,dimension(lm),intent(in)  :: t,q,pmid,twet
+      real,dimension(lp1),intent(in) :: zint,pint
+      integer,intent(out)            :: iwx
+      real,intent(in)                :: d608,rog,epsq
 
 
-!    OUTPUT:
-!      IWX - INSTANTANEOUS WEATHER TYPE.
-!        ACTS LIKE A 4 BIT BINARY
-!          1111 = RAIN/FREEZING RAIN/ICE PELLETS/SNOW
-!          WHERE THE ONE'S DIGIT IS FOR SNOW
-!                THE TWO'S DIGIT IS FOR ICE PELLETS
-!                THE FOUR'S DIGIT IS FOR FREEZING RAIN
-!            AND THE EIGHT'S DIGIT IS FOR RAIN
+!    output:
+!      iwx - instantaneous weather type.
+!        acts like a 4 bit binary
+!          1111 = rain/freezing rain/ice pellets/snow
+!          where the one's digit is for snow
+!                the two's digit is for ice pellets
+!                the four's digit is for freezing rain
+!            and the eight's digit is for rain
 !
-!    INTERNAL:
+!    internal:
 !
-!      REAL, ALLOCATABLE :: TWET(:)
-      real, parameter :: D00=0.0 
-      integer KARR,LICEE
-      real TCOLD,TWARM
+!     real, allocatable :: twet(:)
+      real, parameter :: d00=0.0 
+      integer karr,licee
+      real    tcold,twarm
 
-!    SUBROUTINES CALLED:
-!     WETBULB
+!    subroutines called:
+!     wetbulb
 !     
 !
-!     INITIALIZE WEATHER TYPE ARRAY TO ZERO (IE, OFF).
-!     WE DO THIS SINCE WE WANT IWX TO REPRESENT THE
-!     INSTANTANEOUS WEATHER TYPE ON RETURN.
+!     initialize weather type array to zero (ie, off).
+!     we do this since we want iwx to represent the
+!     instantaneous weather type on return.
 !     
 !
-!     ALLOCATE LOCAL STORAGE
+!     allocate local storage
 !
 
-      integer I,J,L,LMHK,LICE,IFREL,IWRML,IFRZL
-      real PSFCK,TDCHK,A,TDKL,TDPRE,TLMHK,TWRMK,AREAS8,AREAP4,   &
-           SURFW,SURFC,DZKL,AREA1,PINTK1,PINTK2,PM150,PKL,TKL,QKL
+      integer l,lice,iwrml,ifrzl
+      real    psfck,tdchk,a,tdkl,tdpre,tlmhk,twrmk,areas8,areap4,       &
+              surfw,surfc,dzkl,area1,pintk1,pintk2,pm150,pkl,tkl,qkl
 
-!      ALLOCATE ( TWET(LM) )
+!      allocate ( twet(lm) )
 !
-!!$omp  parallel do
-      IWX = 0
-!      ZWET=SPVAL
+      iwx = 0
 !
-!!$omp  parallel do
-!!$omp& private(a,lmhk,pkl,psfck,qkl,tdchk,tdkl,tdpre,tkl)
+!   find coldest and warmest temps in saturated layer between
+!   70 mb above ground and 500 mb
+!   also find highest saturated layer in that range
+!
+!meb
+      psfck = pint(lm+1)
+!meb
+      tdchk = 2.0
+  760 tcold = t(lm)
+      twarm = t(lm)
+      licee = lm
+!
+      do l=1,lm
+        qkl = q(l)
+        qkl = max(epsq,qkl)
+        tkl = t(l)
+        pkl = pmid(l)
+!
+!       skip past this if the layer is not between 70 mb above ground and 500 mb
+!
+        if (pkl < 50000.0 .or. pkl > psfck-7000.0) cycle
+        a    = log(qkl*pkl/(6.1078*(0.378*qkl+0.622)))
+        tdkl = (237.3*a) / (17.269-a) + 273.15
+        tdpre = tkl - tdkl
+        if (tdpre < tdchk .and. tkl < tcold) tcold = tkl
+        if (tdpre < tdchk .and. tkl > twarm) twarm = tkl
+        if (tdpre < tdchk .and.   l < licee) licee = l
+      enddo
+!
+!    if no sat layer at dew point dep=tdchk, increase tdchk
+!     and start again (but don't make tdchk > 6)
+!
+      if (tcold == t(lm) .and. tdchk < 6.0) then
+        tdchk = tdchk + 2.0
+        goto 760
+      endif
+!
+!    lowest layer t
+!
+      karr = 0
+      tlmhk = t(lm)
+!
+!      decision tree time
+!
+      if (tcold > 269.15) then
+        if (tlmhk <= 273.15) then
 
-!
-!   SKIP THIS POINT IF NO PRECIP THIS TIME STEP 
-!
-      IF (PREC.LE.PTHRESH) GOTO 800
-!
-!   FIND COLDEST AND WARMEST TEMPS IN SATURATED LAYER BETWEEN
-!   70 MB ABOVE GROUND AND 500 MB
-!   ALSO FIND HIGHEST SATURATED LAYER IN THAT RANGE
-!
-!meb
-      PSFCK=PINT(LM+1)
-!meb
-      TDCHK=2.0
-  760 TCOLD=T(LM)
-      TWARM=T(LM)
-      LICEE=LM
-!
-      DO 775 L=1,LM
-        QKL=Q(L)
-        QKL=AMAX1(EPSQ,QKL)
-        TKL=T(L)
-        PKL=PMID(L)
-!
-!   SKIP PAST THIS IF THE LAYER IS NOT BETWEEN 70 MB ABOVE GROUND
-!       AND 500 MB
-!
-        IF (PKL.LT.50000.0.OR.PKL.GT.PSFCK-7000.0) GOTO 775
-        A=ALOG(QKL*PKL/(6.1078*(0.378*QKL+0.622)))
-        TDKL=(237.3*A)/(17.269-A)+273.15
-        TDPRE=TKL-TDKL
-        IF (TDPRE.LT.TDCHK.AND.TKL.LT.TCOLD) TCOLD=TKL
-        IF (TDPRE.LT.TDCHK.AND.TKL.GT.TWARM) TWARM=TKL
-        IF (TDPRE.LT.TDCHK.AND.L.LT.LICEE) LICEE=L
-  775 CONTINUE
-!
-!    IF NO SAT LAYER AT DEW POINT DEP=TDCHK, INCREASE TDCHK
-!     AND START AGAIN (BUT DON'T MAKE TDCHK > 6)
-!
-      IF (TCOLD==T(LM).AND.TDCHK<6.0) THEN
-        TDCHK=TDCHK+2.0
-        GOTO 760
-      ENDIF
-  800 CONTINUE
-!
-!    LOWEST LAYER T
-!
-      KARR=0
-      IF (PREC.LE.PTHRESH) GOTO 850
-      TLMHK=T(LM)
-!
-!    DECISION TREE TIME
-!
-      IF (TCOLD>269.15) THEN
-          IF (TLMHK.LE.273.15) THEN
-!             TURN ON THE FLAG FOR
-!             FREEZING RAIN = 4
-!             IF ITS NOT ON ALREADY
-!             IZR=MOD(IWX(I,J),8)/4
-!             IF (IZR.LT.1) IWX(I,J)=IWX(I,J)+4
-            IWX=IWX+4
-            GOTO 850
-          ELSE
-!             TURN ON THE FLAG FOR
-!             RAIN = 8
-!             IF ITS NOT ON ALREADY
-!             IRAIN=IWX(I,J)/8
-!             IF (IRAIN.LT.1) IWX(I,J)=IWX(I,J)+8
-            IWX=IWX+8
-            GOTO 850
-          ENDIF
-      ENDIF
-      KARR=1
-  850 CONTINUE
-!
-!   COMPUTE WET BULB ONLY AT POINTS THAT NEED IT
-!
-!      CALL WETBULB(lm,T,Q,PMID,KARR,TWET)
-!      CALL WETFRZLVL(TWET,ZWET)
-!
-!!$omp  parallel do
-!!$omp& private(area1,areap4,areas8,dzkl,ifrzl,iwrml,lice,
-!!$omp&         lmhk,pintk1,pintk2,pm150,psfck,surfc,surfw,
-!!$omp&         tlmhk,twrmk)
+!             turn on the flag for freezing rain = 4 if its not on already
+!             izr=mod(iwx(i,j),8)/4
+!             if (izr.lt.1) iwx(i,j)=iwx(i,j)+4
 
-      IF(KARR.GT.0)THEN
-        LICE=LICEE
+            iwx = iwx + 4
+            goto 850
+        else
+!             turn on the flag for rain = 8
+!             if its not on already
+!             irain=iwx(i,j)/8
+!             if (irain.lt.1) iwx(i,j)=iwx(i,j)+8
+
+            iwx = iwx + 8
+            goto 850
+        endif
+      endif
+      karr = 1
+  850 continue
+!
+!   compute wet bulb only at points that need it
+!
+!      call wetbulb(lm,t,q,pmid,karr,twet)
+!      call wetfrzlvl(twet,zwet)
+!
+      if (karr > 0) then
+        lice=licee
 !meb
-        PSFCK=PINT(LM+1)
+        psfck = pint(lm+1)
 !meb
-        TLMHK=T(LM)
-        TWRMK=TWARM
+        tlmhk = t(lm)
+        twrmk = twarm
 !
-!    TWET AREA VARIABLES
-!     CALCULATE ONLY WHAT IS NEEDED
-!      FROM GROUND TO 150 MB ABOVE SURFACE
-!      FROM GROUND TO TCOLD LAYER
-!      AND FROM GROUND TO 1ST LAYER WHERE WET BULB T < 0.0
+!    twet area variables calculate only what is needed
+!    from ground to 150 mb above surface from ground to tcold layer
+!    and from ground to 1st layer where wet bulb t < 0.0
 !
-!     PINTK1 IS THE PRESSURE AT THE BOTTOM OF THE LAYER
-!     PINTK2 IS THE PRESSURE AT THE TOP OF THE LAYER
+!     pintk1 is the pressure at the bottom of the layer
+!     pintk2 is the pressure at the top of the layer
 !
-!     AREAP4 IS THE AREA OF TWET ABOVE -4 C BELOW HIGHEST SAT LYR 
+!     areap4 is the area of twet above -4 c below highest sat lyr 
 !
-        AREAS8=D00
-        AREAP4=D00
-        SURFW =D00
-        SURFC =D00
+        areas8 = d00
+        areap4 = d00
+        surfw  = d00
+        surfc  = d00
 !
-        DO 1945 L=LM,LICE,-1
-        DZKL=ZINT(L)-ZINT(L+1)
-        AREA1=(TWET(L)-269.15)*DZKL
-        IF (TWET(L).GE.269.15) AREAP4=AREAP4+AREA1
- 1945   CONTINUE
+        do l=lm,lice,-1
+          area1 = (twet(l)-269.15) * (zint(l)-zint(l+1))
+          if (twet(l) >= 269.15) areap4 = areap4 + area1
+        enddo
 !
-        IF (AREAP4.LT.3000.0) THEN
-!             TURN ON THE FLAG FOR
-!             SNOW = 1
-!             IF ITS NOT ON ALREADY
-!             ISNO=MOD(IWX(I,J),2)
-!             IF (ISNO.LT.1) IWX(I,J)=IWX(I,J)+1
-          IWX=IWX+1
-          GO TO 1900
-        ENDIF
+        if (areap4 < 3000.0) then
+!             turn on the flag for snow = 1
+!             if its not on already
+!             isno=mod(iwx(i,j),2)
+!             if (isno.lt.1) iwx(i,j)=iwx(i,j)+1
+
+          iwx = iwx + 1
+          return
+        endif
 !
-!     AREAS8 IS THE NET AREA OF TWET W.R.T. FREEZING IN LOWEST 150MB
+!     areas8 is the net area of twet w.r.t. freezing in lowest 150mb
 !
-        PINTK1=PSFCK
-        PM150=PSFCK-15000.
+        pintk1 = psfck
+        pm150  = psfck - 15000.
 !
-        DO 1955 L=LM,1,-1
-        PINTK2=PINT(L)
-        IF(PINTK1.LT.PM150)GO TO 1950
-        DZKL=ZINT(L)-ZINT(L+1)
+        do l=lm,1,-1
+          pintk2 = pint(l)
+          if (pintk1 >= pm150)  then
+            dzkl = zint(l)-zint(l+1)
+!                                        sum partial layer if in 150 mb agl layer
+            if (pintk2 < pm150)                                      &
+              dzkl   = t(l)*(q(l)*d608+1.0)*rog*log(pintk1/pm150)
+              area1  = (twet(l)-273.15)*dzkl
+              areas8 = areas8 + area1
+          endif
+          pintk1 = pintk2
+        enddo
 !
-!    SUM PARTIAL LAYER IF IN 150 MB AGL LAYER
+!     surfw is the area of twet above freezing between the ground
+!       and the first layer above ground below freezing
+!     surfc is the area of twet below freezing between the ground
+!       and the warmest sat layer
 !
-        IF(PINTK2.LT.PM150)                                      &
-          DZKL=T(L)*(Q(L)*D608+1.0)*ROG*ALOG(PINTK1/PM150)
-        AREA1=(TWET(L)-273.15)*DZKL
-        AREAS8=AREAS8+AREA1
- 1950   PINTK1=PINTK2
- 1955   CONTINUE
+        ifrzl = 0
+        iwrml = 0
 !
-!     SURFW IS THE AREA OF TWET ABOVE FREEZING BETWEEN THE GROUND
-!       AND THE FIRST LAYER ABOVE GROUND BELOW FREEZING
-!     SURFC IS THE AREA OF TWET BELOW FREEZING BETWEEN THE GROUND
-!       AND THE WARMEST SAT LAYER
+        do l=lm,1,-1
+          if (ifrzl == 0 .and. t(l) < 273.15) ifrzl = 1
+          if (iwrml == 0 .and. t(l) >= twrmk) iwrml = 1
 !
-        IFRZL=0
-        IWRML=0
+          if (iwrml == 0 .or. ifrzl == 0) then
+!  	    if(pmid(l) < 50000.)print*,'need twet above 500mb'
+            dzkl  = zint(l)-zint(l+1)
+            area1 = (twet(l)-273.15)*dzkl
+            if(ifrzl == 0 .and. twet(l) >= 273.15) surfw = surfw + area1
+            if(iwrml == 0 .and. twet(l) <= 273.15) surfc = surfc + area1
+          endif
+        enddo
+        if(surfc < -3000.0 .or. (areas8 < -3000.0 .and. surfw < 50.0)) then
+!             turn on the flag for ice pellets = 2 if its not on already
+!             iip=mod(iwx(i,j),4)/2
+!             if (iip.lt.1) iwx(i,j)=iwx(i,j)+2
+          iwx = iwx + 2
 !
-        DO 2050 L=LM,1,-1
-        IF (IFRZL.EQ.0.AND.T(L).LT.273.15) IFRZL=1
-        IF (IWRML.EQ.0.AND.T(L).GE.TWRMK) IWRML=1
-!
-        IF (IWRML.EQ.0.OR.IFRZL.EQ.0) THEN
-!	  if(pmid(l) < 50000.)print*,'need twet above 500mb'
-          DZKL=ZINT(L)-ZINT(L+1)
-          AREA1=(TWET(L)-273.15)*DZKL
-          IF(IFRZL.EQ.0.AND.TWET(L).GE.273.15)SURFW=SURFW+AREA1
-          IF(IWRML.EQ.0.AND.TWET(L).LE.273.15)SURFC=SURFC+AREA1
-        ENDIF
- 2050   CONTINUE
-        IF(SURFC.LT.-3000.0.OR.   &
-          (AREAS8.LT.-3000.0.AND.SURFW.LT.50.0)) THEN
-!             TURN ON THE FLAG FOR
-!             ICE PELLETS = 2
-!             IF ITS NOT ON ALREADY
-!             IIP=MOD(IWX(I,J),4)/2
-!             IF (IIP.LT.1) IWX(I,J)=IWX(I,J)+2
-          IWX=IWX+2
-          GOTO 1900
-        ENDIF
-!
-        IF(TLMHK.LT.273.15) THEN
-!             TURN ON THE FLAG FOR
-!             FREEZING RAIN = 4
-!             IF ITS NOT ON ALREADY
-!             IZR=MOD(IWX(K),8)/4
-!             IF (IZR.LT.1) IWX(K)=IWX(K)+4
-          IWX=IWX+4
-        ELSE
-!             TURN ON THE FLAG FOR
-!             RAIN = 8
-!             IF ITS NOT ON ALREADY
-!             IRAIN=IWX(K)/8
-!             IF (IRAIN.LT.1) IWX(K)=IWX(K)+8
-          IWX=IWX+8
-        ENDIF
-      ENDIF
- 1900 CONTINUE
+        elseif(tlmhk < 273.15) then
+!             turn on the flag for freezing rain = 4 if its not on already
+!             izr=mod(iwx(k),8)/4
+!             if (izr.lt.1) iwx(k)=iwx(k)+4
+          iwx = iwx + 4
+        else
+!             turn on the flag for rain = 8 if its not on already
+!             irain=iwx(k)/8
+!             if (irain.lt.1) iwx(k)=iwx(k)+8
+          iwx = iwx + 8
+        endif
+      endif
 !---------------------------------------------------------
-!      DEALLOCATE (TWET)
+!      deallocate (twet)
 
-      RETURN
-      END
+      return
+      end
 !
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-! DoPhase is a subroutine written and provided by Jim Ramer at NOAA/FSL
+! dophase is a subroutine written and provided by jim ramer at noaa/fsl
 !
-!    Ramer, J, 1993: An empirical technique for diagnosing precipitation
-!           type from model output.  Preprints, 5th Conf. on Aviation
-!           Weather Systems, Vienna, VA, Amer. Meteor. Soc., 227-230.
+!    ramer, j, 1993: an empirical technique for diagnosing precipitation
+!           type from model output.  preprints, 5th conf. on aviation
+!           weather systems, vienna, va, amer. meteor. soc., 227-230.
 !
-!   CODE ADAPTED FOR WRF POST  24 AUGUST 2005    G MANIKIN
+!   code adapted for wrf post  24 august 2005    g manikin
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !
-      SUBROUTINE CALWXT_RAMER(lm,lp1,      &
-                          T,Q,PMID,RH,TD,PINT,PREC,PTHRESH,PTYP)
+      subroutine calwxt_ramer(lm,lp1,t,q,pmid,rh,td,pint,ptyp)
 
-!      SUBROUTINE dophase(pq,   !  input pressure sounding mb
-!     +    t,   !  input temperature sounding K
+!      subroutine dophase(pq,   !  input pressure sounding mb
+!     +    t,   !  input temperature sounding k
 !     +    pmid,   !  input pressure
 !     +    pint,   !  input interface pressure
 !     +    q,   !  input spec humidityfraction
 !     +    lmh,   !  input number of levels in sounding
-!     +    prec,      ! input amount of precipitation
-!     +    ptyp) !  output(2) phase 2=Rain, 3=Frzg, 4=Solid,
-!                                               6=IP     JC  9/16/99
+!     +    ptyp) !  output(2) phase 2=rain, 3=frzg, 4=solid,
+!                                               6=ip     jc  9/16/99
 !      use params_mod
-!      use CTLBLK_mod 
+!      use ctlblk_mod 
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !
-      real,PARAMETER :: LECP=1572.5
-      real,PARAMETER :: twice=266.55,rhprcp=0.80,deltag=1.02,prcpmin=0.3, &
-     &             emelt=0.045,rlim=0.04,slim=0.85
-      real,PARAMETER :: twmelt=273.15,tz=273.15,efac=1.0 ! specify in params now 
+      real,parameter :: twice=266.55,rhprcp=0.80,deltag=1.02,             &
+     &                  emelt=0.045,rlim=0.04,slim=0.85
+      real,parameter :: twmelt=273.15,tz=273.15,efac=1.0 ! specify in params now 
 !
-      INTEGER*4 i, k1, lll, k2, toodry
+      integer*4 i, k1, lll, k2, toodry
 !
-      REAL xxx ,mye, icefrac,flg
+      real xxx ,mye, icefrac
       integer,intent(in) :: lm,lp1
-      real,DIMENSION(LM),intent(in) :: T,Q,PMID,RH,TD
-      real,DIMENSION(LP1),intent(in) :: PINT
-      real,intent(in) :: PREC,PTHRESH
-      real,intent(out) :: PTYP
+      real,dimension(lm),intent(in) :: t,q,pmid,rh,td
+      real,dimension(lp1),intent(in) :: pint
+      real,intent(out) :: ptyp
 !
-      real,DIMENSION(LM) :: P,TQ,QQ,PQ,RHQ
-      real,DIMENSION(LM) :: tqtmp,pqtmp,rhqtmp
-      real,DIMENSION(LM) :: TWQ
+      real,dimension(lm) :: tq,pq,rhq
+      real,dimension(lm) :: twq
 !
-      integer J,L,LEV,LNQ,ii
-      real RHMAX,TWMAX,PTOP,dpdrh,twtop,rhtop,wgt1,wgt2,    &
-           rhavg,dtavg,dpk,ptw,rate,pbot,qc, b,qtmp
+      integer j,l,lev,ii
+      real    rhmax,twmax,ptop,dpdrh,twtop,rhtop,wgt1,wgt2,    &
+              rhavg,dtavg,dpk,ptw,pbot
+!     real b,qtmp,rate,qc
       real,external :: xmytw
 !
-!  Initialize.
+!  initialize.
       icefrac = -9999.
 !
 
-      PTYP = 0
-      DO 88 L = 1,LM
-        LEV=LM-L+1
-!        P(L)=PMID(L)
-!        QC=PQ0/P(L) * EXP(A2*(T(L)-A3)/(T(L)-A4))
-!GSM forcing Q (QTMP) to be positive to deal with negative Q values
+      ptyp = 0
+      do l = 1,lm
+        lev = lp1 - l
+!        p(l)=pmid(l)
+!        qc=pq0/p(l) * exp(a2*(t(l)-a3)/(t(l)-a4))
+!gsm forcing q (qtmp) to be positive to deal with negative q values
 !       causing problems later in this subroutine
-!        QTMP=AMAX1(H1M12,Q(L))	
-!        RHQTMP(LEV)=QTMP/QC
-	RHQ(LEV)=RH(L)
-        PQ(LEV)=PMID(L)/100.
-        TQ(LEV)=T(L)
-   88 CONTINUE
+!        qtmp=max(h1m12,q(l))	
+!        rhqtmp(lev)=qtmp/qc
+	rhq(lev) = rh(l)
+        pq(lev)  = pmid(l) * 0.01
+        tq(lev)  = t(l)
+      enddo
 
-!      do 92 L=1,LM 
-!         TQ(L)=TQTMP(L)
-!         PQ(L)=PQTMP(L)
-!         RHQ(L)=RHQTMP(L)
-!   92 continue
-
-!  BIG LOOP
-!      DO 800 J=JSTA,JEND
-!      DO 800 I=1,IM
-!
-!   SKIP THIS POINT IF NO PRECIP THIS TIME STEP
-!
-      IF (PREC.LE.PTHRESH) GOTO 800
 
 !
+!cc   rate restriction removed by john cortinas 3/16/99
 !
-!CC   RATE RESTRICTION REMOVED BY JOHN CORTINAS 3/16/99
-!
-!     Construct wet-bulb sounding, locate generating level.
+!     construct wet-bulb sounding, locate generating level.
       twmax = -999.0
       rhmax = 0.0
       k1 = 0    !  top of precip generating layer
       k2 = 0    !  layer of maximum rh
 !
-      IF (rhq(1).lt.rhprcp) THEN
-          toodry = 1
-      ELSE
-          toodry = 0
-      END IF
+      if (rhq(1) < rhprcp) then
+        toodry = 1
+      else
+        toodry = 0
+      end if
 !
       pbot = pq(1)
-!      NQ=LM
-      DO 10 L = 1, lm
-!          xxx = tdofesat(esat(tq(L))*rhq(L))
-	  xxx = td(l) !HC: use TD consistent with GFS ice physics
-	  if (xxx .lt. -500.) goto 800
-          twq(L) = xmytw(tq(L),xxx,pq(L))
-          twmax = amax1(twq(L),twmax)
-          IF (pq(L).ge.400.0) THEN
-              IF (rhq(L).gt.rhmax) THEN
-                  rhmax = rhq(L)
-                  k2 = i
-              END IF
+!      nq=lm
+      do l = 1, lm
+!       xxx = tdofesat(esat(tq(l))*rhq(l))
+        xxx = td(l)            !hc: use td consistent with gfs ice physics
+        if (xxx < -500.) return
+        twq(l) = xmytw(tq(l),xxx,pq(l))
+        twmax = max(twq(l),twmax)
+        if (pq(l) >= 400.0) then
+          if (rhq(l) > rhmax) then
+            rhmax = rhq(l)
+            k2    = l
+          end if
 !
-              IF (L.ne.1) THEN
-                 IF (rhq(L).ge.rhprcp.or.toodry.eq.0) THEN
-                  IF (toodry.ne.0) THEN
-                    dpdrh = alog(pq(L)/pq(L-1)) /              &
-                           (rhq(L)-RHQ(L-1))
-                    pbot = exp(alog(pq(L))+(rhprcp-rhq(L))*dpdrh)
+          if (l /= 1) then
+            if (rhq(l) >= rhprcp .or. toodry == 0) then
+              if (toodry /= 0) then
+                 dpdrh = log(pq(l)/pq(l-1)) / (rhq(l)-rhq(l-1))
+                 pbot  = exp(log(pq(l))+(rhprcp-rhq(l))*dpdrh)
 !
-                    ptw = pq(L)
-                    toodry = 0
-                    ELSE IF (rhq(L).ge.rhprcp) THEN
-                      ptw = pq(L)
-                    ELSE
-                      toodry = 1
-                      dpdrh = alog(pq(L)/pq(L-1)) /                 &
-                          (rhq(L)-rhq(L-1))
-                      ptw = exp(alog(pq(L))+(rhprcp-rhq(L))*dpdrh)
-!lin                dpdrh=(Pq(i)-Pq(i-1))/(Rhq(i)-Rhq(i-1))
-!lin                ptw=Pq(i)+(rhprcp-Rhq(i))*dpdrh
-!
-                      END IF
-!
-                      IF (pbot/ptw.ge.deltag) THEN
-!lin                      If (pbot-ptw.lt.deltag) Goto 2003
-                          k1 = L
-                          ptop = ptw
-                      END IF
-                  END IF
-              END IF
-          END IF
-!
-   10 CONTINUE
+                 ptw = pq(l)
+                 toodry = 0
+              else if (rhq(l)>= rhprcp) then
+                 ptw = pq(l)
+              else
+                 toodry = 1
+                 dpdrh  = log(pq(l)/pq(l-1)) / (rhq(l)-rhq(l-1))
+                   ptw  = exp(log(pq(l))+(rhprcp-rhq(l))*dpdrh)
 
+!lin             dpdrh  = (pq(i)-pq(i-1))/(rhq(i)-rhq(i-1))
+!lin             ptw    = pq(i)+(rhprcp-rhq(i))*dpdrh
 !
-!     Gross checks for liquid and solid precip which dont require generating level.
+              end if
 !
-      IF (twq(1).ge.273.15+2.0) THEN
-          ptyp = 8   ! liquid
-          icefrac = 0.0
-          goto 800 
-      END IF
+              if (pbot/ptw >= deltag) then
+!lin            if (pbot-ptw.lt.deltag) goto 2003
+                k1   = l
+                ptop = ptw
+              end if
+            end if
+          end if
+        end if
+      enddo
 !
-      IF (twmax.le.twice) THEN
-          icefrac = 1.0
-          ptyp = 1   !  solid
-          goto 800 
-      END IF
+!     gross checks for liquid and solid precip which dont require generating level.
 !
-!     Check to see if we had no success with locating a generating level.
+      if (twq(1) >= 273.15+2.0) then
+         ptyp    = 8   ! liquid
+         icefrac = 0.0
+         return
+      end if
 !
-      IF (k1.eq.0) goto 800
+      if (twmax <= twice) then
+         icefrac = 1.0
+         ptyp    = 1   !  solid
+         return
+      end if
 !
-      IF (ptop.eq.pq(k1)) THEN
-          twtop = twq(k1)
-          rhtop = rhq(k1)
-          k2 = k1
-          k1 = k1 - 1
-      ELSE
-          k2 = k1
-          k1 = k1 - 1
-          wgt1 = alog(ptop/pq(k2)) / alog(pq(k1)/pq(k2))
-          wgt2 = 1.0 - wgt1
-          twtop = twq(k1) * wgt1 + twq(k2) * wgt2
-          rhtop = rhq(k1) * wgt1 + rhq(k2) * wgt2
-      END IF
+!     check to see if we had no success with locating a generating level.
 !
+      if (k1 == 0) return
+!
+      if (ptop == pq(k1)) then
+        twtop = twq(k1)
+        rhtop = rhq(k1)
+        k2    = k1
+        k1    = k1 - 1
+      else
+        k2    = k1
+        k1    = k1 - 1
+        wgt1  = log(ptop/pq(k2)) / log(pq(k1)/pq(k2))
+        wgt2  = 1.0 - wgt1
+        twtop = twq(k1) * wgt1 + twq(k2) * wgt2
+        rhtop = rhq(k1) * wgt1 + rhq(k2) * wgt2
+      end if
+!
+!     calculate temp and wet-bulb ranges below precip generating level.
+      do l = 1, k1
+        twmax = max(twq(l),twmax)
+      enddo
+!
+!     gross check for solid precip, initialize ice fraction.
+!     if (i.eq.1.and.j.eq.1) write (*,*) 'twmax=',twmax,twice,'twtop=',twtop
 
-!     Calculate temp and wet-bulb ranges below precip generating level.
-      DO 20 L = 1, k1
-          twmax = amax1(twq(l),twmax)
-   20 CONTINUE
+      if (twtop <= twice) then
+        icefrac = 1.0
+        if (twmax <= twmelt) then    ! gross check for solid precip.
+           ptyp = 1                  ! solid precip
+           return
+        end if
+        lll = 0
+      else
+        icefrac = 0.0
+        lll = 1
+      end if
 !
-!     Gross check for solid precip, initialize ice fraction.
-      IF (i.eq.1.and.j.eq.1) WRITE (*,*) 'twmax=',twmax,twice,'twtop=',twtop
-      IF (twtop.le.twice) THEN
-          icefrac = 1.0
-          IF (twmax.le.twmelt) THEN     ! gross check for solid precip.
-              ptyp = 1       !   solid precip
-              goto 800 
-          END IF
-          lll = 0
-      ELSE
-          icefrac = 0.0
-          lll = 1
-      END IF
+!     loop downward through sounding from highest precip generating level.
+   30 continue
 !
-!     Loop downward through sounding from highest precip generating level.
-   30 CONTINUE
+      if (icefrac >= 1.0) then  !  starting as all ice
+        if (twq(k1) < twmelt) go to 40       ! cannot commence melting
+        if (twq(k1) == twtop) go to 40        ! both equal twmelt, nothing h
+        wgt1  = (twmelt-twq(k1)) / (twtop-twq(k1))
+        rhavg = rhq(k1) + wgt1 * (rhtop-rhq(k1)) * 0.5
+        dtavg = (twmelt-twq(k1)) * 0.5
+        dpk   = wgt1 * log(pq(k1)/ptop)        !lin   dpk=wgt1*(pq(k1)-ptop)
+!       mye=emelt*(1.0-(1.0-rhavg)*efac)
+        mye = emelt * rhavg ** efac
+        icefrac = icefrac + dpk * dtavg / mye
+      else if (icefrac <= 0.0) then     !  starting as all liquid
+        lll = 1
+!       goto 1020
+        if (twq(k1) > twice) go to 40        ! cannot commence freezing
+        if (twq(k1) == twtop) then
+            wgt1 = 0.5
+        else
+            wgt1 = (twice-twq(k1)) / (twtop-twq(k1))
+        end if
+        rhavg   = rhq(k1) + wgt1 * (rhtop-rhq(k1)) * 0.5
+        dtavg   = twmelt - (twq(k1)+twice) * 0.5
+        dpk     = wgt1 * log(pq(k1)/ptop)      !lin  dpk=wgt1*(pq(k1)-ptop)
+!       mye     = emelt*(1.0-(1.0-rhavg)*efac)
+        mye     = emelt * rhavg ** efac
+        icefrac = icefrac + dpk * dtavg / mye
+      else if ((twq(k1) <= twmelt).and.(twq(k1) < twmelt)) then ! mix
+        rhavg   = (rhq(k1)+rhtop) * 0.5
+        dtavg   = twmelt - (twq(k1)+twtop) * 0.5
+        dpk     = log(pq(k1)/ptop)       !lin   dpk=pq(k1)-ptop
+!       mye     = emelt*(1.0-(1.0-rhavg)*efac)
+        mye     = emelt * rhavg ** efac
+        icefrac = icefrac + dpk * dtavg / mye           
+      else                 ! mix where tw curve crosses twmelt in layer
+        if (twq(k1) == twtop) go to 40   ! both equal twmelt, nothing h
+        wgt1    = (twmelt-twq(k1)) / (twtop-twq(k1))
+        wgt2    = 1.0 - wgt1
+        rhavg   = rhtop + wgt2 * (rhq(k1)-rhtop) * 0.5
+        dtavg   = (twmelt-twtop) * 0.5
+        dpk     = wgt2 * log(pq(k1)/ptop)     !lin   dpk=wgt2*(pq(k1)-ptop)
+!       mye     = emelt*(1.0-(1.0-rhavg)*efac)
+        mye     = emelt * rhavg ** efac
+        icefrac = icefrac + dpk * dtavg / mye
+        icefrac = min(1.0,max(icefrac,0.0))   
+        if (icefrac <= 0.0) then
+!           goto 1020
+            if (twq(k1) > twice) go to 40    ! cannot commence freezin
+            wgt1 = (twice-twq(k1)) / (twtop-twq(k1))
+            dtavg = twmelt - (twq(k1)+twice) * 0.5
+        else
+            dtavg = (twmelt-twq(k1)) * 0.5
+        end if
+        rhavg   = rhq(k1) + wgt1 * (rhtop-rhq(k1)) * 0.5
+        dpk     = wgt1 * log(pq(k1)/ptop)     !lin  dpk=wgt1*(pq(k1)-ptop)
+!       mye     = emelt*(1.0-(1.0-rhavg)*efac)
+        mye     = emelt * rhavg ** efac
+        icefrac = icefrac + dpk * dtavg / mye
+      end if
 !
-      IF (icefrac.ge.1.0) THEN  !  starting as all ice
-          IF (twq(k1).lt.twmelt) GO TO 40       ! cannot commence melting
-          IF (twq(k1).eq.twtop) GO TO 40        ! both equal twmelt, nothing h
-          wgt1 = (twmelt-twq(k1)) / (twtop-twq(k1))
-          rhavg = rhq(k1) + wgt1 * (rhtop-rhq(k1)) / 2
-          dtavg = (twmelt-twq(k1)) / 2
-          dpk = wgt1 * alog(pq(k1)/ptop)        !lin   dpk=wgt1*(Pq(k1)-Ptop)
-!         mye=emelt*(1.0-(1.0-Rhavg)*efac)
-          mye = emelt * rhavg ** efac
-          icefrac = icefrac + dpk * dtavg / mye
-      ELSE IF (icefrac.le.0.0) THEN     !  starting as all liquid
-          lll = 1
-!         Goto 1020
-          IF (twq(k1).gt.twice) GO TO 40        ! cannot commence freezing
-          IF (twq(k1).eq.twtop) THEN
-              wgt1 = 0.5
-          ELSE
-              wgt1 = (twice-twq(k1)) / (twtop-twq(k1))
-          END IF
-          rhavg = rhq(k1) + wgt1 * (rhtop-rhq(k1)) / 2
-          dtavg = twmelt - (twq(k1)+twice) / 2
-          dpk = wgt1 * alog(pq(k1)/ptop)      !lin  dpk=wgt1*(Pq(k1)-Ptop)
-!         mye=emelt*(1.0-(1.0-Rhavg)*efac)
-          mye = emelt * rhavg ** efac
-          icefrac = icefrac + dpk * dtavg / mye
-      ELSE IF ((twq(k1).le.twmelt).and.(twq(k1).lt.twmelt)) THEN ! mix
-          rhavg = (rhq(k1)+rhtop) / 2
-          dtavg = twmelt - (twq(k1)+twtop) / 2
-          dpk = alog(pq(k1)/ptop)       !lin   dpk=Pq(k1)-Ptop
-!         mye=emelt*(1.0-(1.0-Rhavg)*efac)
-          mye = emelt * rhavg ** efac
-          icefrac = icefrac + dpk * dtavg / mye           
-      ELSE      ! mix where Tw curve crosses twmelt in layer
-          IF (twq(k1).eq.twtop) GO TO 40   ! both equal twmelt, nothing h
-          wgt1 = (twmelt-twq(k1)) / (twtop-twq(k1))
-          wgt2 = 1.0 - wgt1
-          rhavg = rhtop + wgt2 * (rhq(k1)-rhtop) / 2
-          dtavg = (twmelt-twtop) / 2
-          dpk = wgt2 * alog(pq(k1)/ptop)     !lin   dpk=wgt2*(Pq(k1)-Ptop)
-!         mye=emelt*(1.0-(1.0-Rhavg)*efac)
-          mye = emelt * rhavg ** efac
-          icefrac = icefrac + dpk * dtavg / mye
-          icefrac = amin1(1.0,amax1(icefrac,0.0))   
-          IF (icefrac.le.0.0) THEN
-!             Goto 1020
-              IF (twq(k1).gt.twice) GO TO 40    ! cannot commence freezin
-              wgt1 = (twice-twq(k1)) / (twtop-twq(k1))
-              dtavg = twmelt - (twq(k1)+twice) / 2
-          ELSE
-              dtavg = (twmelt-twq(k1)) / 2
-          END IF
-          rhavg = rhq(k1) + wgt1 * (rhtop-rhq(k1)) / 2
-          dpk = wgt1 * alog(pq(k1)/ptop)     !lin  dpk=wgt1*(Pq(k1)-Ptop)
-!         mye=emelt*(1.0-(1.0-Rhavg)*efac)
-          mye = emelt * rhavg ** efac
-          icefrac = icefrac + dpk * dtavg / mye
-      END IF
+      icefrac = min(1.0,max(icefrac,0.0))
+
+!     if (i.eq.1.and.j.eq.1) write (*,*) 'new icefrac:', icefrac, icefrac
 !
-      icefrac = amin1(1.0,amax1(icefrac,0.0))
-      IF (i.eq.1.and.j.eq.1) WRITE (*,*) 'NEW ICEFRAC:', icefrac, icefrac
+!     get next level down if there is one, loop back.
+   40 continue
+      if (k1 > 1) then
+        twtop = twq(k1)
+        ptop  = pq(k1)
+        rhtop = rhq(k1)
+        k1    = k1 - 1
+        go to 30
+      end if
 !
-!     Get next level down if there is one, loop back.
-   40 IF (k1.gt.1) THEN
-          twtop = twq(k1)
-          ptop = pq(k1)
-          rhtop = rhq(k1)
-          k1 = k1 - 1
-          GO TO 30
-      END IF
+!     determine precip type based on snow fraction and surface wet-bulb.
 !
-!
-!     Determine precip type based on snow fraction and surface wet-bulb.
-!
-!
-      IF (icefrac.ge.slim) THEN
-          IF (lll.ne.0) THEN
-              ptyp = 2       ! Ice Pellets   JC 9/16/99
-          ELSE
-              ptyp = 1       !  Snow
-          END IF
-      ELSE IF (icefrac.le.rlim) THEN
-          IF (twq(1).lt.tz) THEN
-              ptyp = 4       !  Freezing Precip
-          ELSE
-              ptyp = 8       !  Rain
-          END IF
-      ELSE
-          IF (twq(1).lt.tz) THEN
-!GSM not sure what to do when 'mix' is predicted;   In previous
-!GSM   versions of this code for which I had to have an answer,
-!GSM   I chose sleet.  Here, though, since we have 4 other
-!GSM   algorithms to provide an answer, I will not declare a
-!GSM   type from the Ramer in this situation and allow the
-!GSM   other algorithms to make the call.
+      if (icefrac >= slim) then
+        if (lll /= 0) then
+          ptyp = 2       ! ice pellets   jc 9/16/99
+        else
+          ptyp = 1       !  snow
+        end if
+      else if (icefrac <= rlim) then
+        if (twq(1).lt.tz) then
+          ptyp = 4       !  freezing precip
+        else
+          ptyp = 8       !  rain
+        end if
+      else
+        if (twq(1) < tz) then
+!gsm not sure what to do when 'mix' is predicted;   in previous
+!gsm   versions of this code for which i had to have an answer,
+!gsm   i chose sleet.  here, though, since we have 4 other
+!gsm   algorithms to provide an answer, i will not declare a
+!gsm   type from the ramer in this situation and allow the
+!gsm   other algorithms to make the call.
       
-              ptyp = 0       !  don't know 
-!              ptyp = 5       !  Mix
-          ELSE
-!              ptyp = 5       !  Mix
-              ptyp = 0       !  don't know 
-          END IF
-      END IF
- 800  CONTINUE 
+           ptyp = 0       !  don't know 
+!          ptyp = 5       !  mix
+        else
+!          ptyp = 5       !  mix
+           ptyp = 0       !  don't know 
+        end if
+      end if
 
-      RETURN
+      return
 !
-      END
+      end
 !
 !
 !--------------------------------------------------------------------------
-!      REAL*4 FUNCTION mytw(t,td,p)
-      FUNCTION xmytw(t,td,p)
+      function xmytw(t,td,p)
 !
-      IMPLICIT NONE
+      implicit none
 !
-      INTEGER*4 cflag, l
-!     REAL*4 f, c0, c1, c2, k, kd, kw, ew, t, td, p, ed, fp, s,        &
-      REAL   f, c0, c1, c2, k, kd, kw, ew, t, td, p, ed, fp, s,        &
+      integer*4 cflag, l
+      real   f, c0, c1, c2, k, kd, kw, ew, t, td, p, ed, fp, s,        &
      &          de, xmytw
-      DATA f, c0, c1, c2 /0.0006355, 26.66082, 0.0091379024, 6106.3960/
-!
+      data f, c0, c1, c2 /0.0006355, 26.66082, 0.0091379024, 6106.3960/
 !
       xmytw = (t+td) / 2
-      IF (td.ge.t) RETURN
+      if (td >= t) return
 !
-      IF (t.lt.100.0) THEN
-          k = t + 273.15
+      if (t < 100.0) then
+          k  = t  + 273.15
           kd = td + 273.15
-          IF (kd.ge.k) RETURN
+          if (kd >= k) return
           cflag = 1
-      ELSE
-          k = t
-          kd = td
+      else
+          k     = t
+          kd    = td
           cflag = 0
-      END IF
+      end if
 !
       ed = c0 - c1 * kd - c2 / kd
-      IF (ed.lt.-14.0.or.ed.gt.7.0) RETURN
+      if (ed < -14.0 .or. ed > 7.0) return
       ed = exp(ed)
       ew = c0 - c1 * k - c2 / k
-      IF (ew.lt.-14.0.or.ew.gt.7.0) RETURN
+      if (ew < -14.0 .or. ew > 7.0) return
       ew = exp(ew)
       fp = p * f
       s = (ew-ed) / (k-kd)
       kw = (k*fp+kd*s) / (fp+s)
 !
-      DO 10 l = 1, 5
-          ew = c0 - c1 * kw - c2 / kw
-          IF (ew.lt.-14.0.or.ew.gt.7.0) RETURN
-          ew = exp(ew)
-          de = fp * (k-kw) + ed - ew
-          IF (abs(de/ew).lt.1E-5) GO TO 20
-          s = ew * (c1-c2/(kw*kw)) - fp
-          kw = kw - de / s
-   10 CONTINUE
-   20 CONTINUE
+      do l = 1, 5
+         ew = c0 - c1 * kw - c2 / kw
+         if (ew < -14.0 .or. ew > 7.0) return
+         ew = exp(ew)
+         de = fp * (k-kw) + ed - ew
+         if (abs(de/ew) < 1e-5) exit
+         s  = ew * (c1-c2/(kw*kw)) - fp
+         kw = kw - de / s
+      enddo
 !
 !      print *, 'kw ', kw
-      IF (cflag.ne.0) THEN
+      if (cflag /= 0) then
           xmytw = kw - 273.15
-      ELSE
+      else
           xmytw = kw
-      END IF
+      end if
 !
-      RETURN
-      END
+      return
+      end
 !
 !
-!$$$  Subprogram documentation block
+!$$$  subprogram documentation block
 !
-! Subprogram: calwxt_bourg    Calculate precipitation type (Bourgouin)
-!   Prgmmr: Baldwin      Org: np22        Date: 1999-07-06
+! subprogram: calwxt_bourg    calculate precipitation type (bourgouin)
+!   prgmmr: baldwin      org: np22        date: 1999-07-06
 !
-! Abstract: This routine computes precipitation type
+! abstract: this routine computes precipitation type
 !    using a decision tree approach that uses the so-called
-!    "energy method" of Bourgouin of AES (Canada) 1992
+!    "energy method" of bourgouin of aes (canada) 1992
 !
-! Program history log:
-!   1999-07-06  M Baldwin
-!   1999-09-20  M Baldwin  make more consistent with bourgouin (1992)
-!   2005-08-24  G Manikin  added to wrf post
-!   2007-06-19  M Iredell  mersenne twister, best practices
-!   2008-03-03  G Manikin  added checks to prevent stratospheric warming
+! program history log:
+!   1999-07-06  m baldwin
+!   1999-09-20  m baldwin  make more consistent with bourgouin (1992)
+!   2005-08-24  g manikin  added to wrf post
+!   2007-06-19  m iredell  mersenne twister, best practices
+!   2008-03-03  g manikin  added checks to prevent stratospheric warming
 !                           episodes from being seen as "warm" layers
 !                           impacting precip type
 !
-! Usage:    call calwxt_bourg(im,jm,jsta_2l,jend_2u,jsta,jend,lm,lp1,   &
-!    &                        iseed,g,pthresh,                          &
-!    &                        t,q,pmid,pint,lmh,prec,zint,ptype)
-!   Input argument list:
+! usage:    call calwxt_bourg(im,jm,jsta_2l,jend_2u,jsta,jend,lm,lp1,   &
+!    &                        iseed,g,                                  &
+!    &                        t,q,pmid,pint,lmh,zint,ptype)
+!   input argument list:
 !     im       integer i dimension
 !     jm       integer j dimension
 !     jsta_2l  integer j dimension start point (including haloes)
@@ -968,14 +834,13 @@
 !     iseed    integer random number seed
 !     g        real gravity (m/s**2)
 !     pthresh  real precipitation threshold (m)
-!     t        real(im,jsta_2l:jend_2u,lm) mid layer temp (K)
+!     t        real(im,jsta_2l:jend_2u,lm) mid layer temp (k)
 !     q        real(im,jsta_2l:jend_2u,lm) specific humidity (kg/kg)
-!     pmid     real(im,jsta_2l:jend_2u,lm) mid layer pressure (Pa)
-!     pint     real(im,jsta_2l:jend_2u,lp1) interface pressure (Pa)
+!     pmid     real(im,jsta_2l:jend_2u,lm) mid layer pressure (pa)
+!     pint     real(im,jsta_2l:jend_2u,lp1) interface pressure (pa)
 !     lmh      real(im,jsta_2l:jend_2u) max number of layers
-!     prec     real(im,jsta_2l:jend_2u) precipitation (m)
 !     zint     real(im,jsta_2l:jend_2u,lp1) interface height (m)
-!   Output argument list:
+!   output argument list:
 !     ptype    real(im,jm) instantaneous weather type ()
 !              acts like a 4 bit binary
 !                1111 = rain/freezing rain/ice pellets/snow
@@ -989,76 +854,56 @@
 !                ptype=4 freezing rain/mix with freezing rain
 !                ptype=8 rain
 !
-! Modules used:
+! modules used:
 !   mersenne_twister pseudo-random number generator
 !
-! Subprograms called:
+! subprograms called:
 !   random_number    pseudo-random number generator
 !
-! Attributes:
-!   Language: Fortran 90
+! attributes:
+!   language: fortran 90
 !
-! Remarks: vertical order of arrays must be layer   1 = top
+! remarks: vertical order of arrays must be layer   1 = top
 !                                       and layer lmh = bottom
 !
 !$$$
-      subroutine calwxt_bourg(lm,lp1,rn,g,pthresh,      &
-     &                        t,q,pmid,pint,prec,zint,ptype)
+      subroutine calwxt_bourg(lm,lp1,rn,g,            &
+     &                        t,q,pmid,pint,zint,ptype)
 !      use mersenne_twister
       implicit none
 !
 !    input:
-      integer,intent(in):: lm,lp1
-!      integer,intent(in):: iseed
-      real,intent(in):: g,pthresh,rn(2)
-      real,intent(in):: t(lm)
-      real,intent(in):: q(lm)
-      real,intent(in):: pmid(lm)
-      real,intent(in):: pint(lp1)
-      real,intent(in):: prec
-      real,intent(in):: zint(lp1)
+      integer,intent(in)              :: lm,lp1
+      real,intent(in)                 :: g,rn(2)
+      real,intent(in), dimension(lm)  :: t, q, pmid
+      real,intent(in), dimension(lp1) :: pint, zint
 !
 !    output:
-      real,intent(out):: ptype
+      real,intent(out)                :: ptype
 !
-      integer ifrzl,iwrml,l,lhiwrm,lmhk
-      real pintk1,areane,tlmhk,areape,pintk2,surfw,area1,dzkl,psfck
-      real r1,r2
+      integer ifrzl,iwrml,l,lhiwrm
+      real    pintk1,areane,tlmhk,areape,pintk2,surfw,area1,dzkl,psfck,r1,r2
 !
 !     initialize weather type array to zero (ie, off).
 !     we do this since we want ptype to represent the
 !     instantaneous weather type on return.
 !     
-!!$omp  parallel do
-
       ptype = 0
+      psfck = pint(lm+1)
 
-!
-!      call random_number(rn,iseed)
-!
-!!$omp  parallel do
-!!$omp& private(a,lmhk,tlmhk,iwrml,psfck,lhiwrm,pintk1,pintk2,area1,
-!!$omp&         areape,dzkl,surfw,r1,r2)
-
-      psfck=pint(lm+1)
-!
-!   skip this point if no precip this time step 
-!
-      if (prec.le.pthresh) return
 !     find the depth of the warm layer based at the surface
 !     this will be the cut off point between computing
 !     the surface based warm air and the warm air aloft
-!
 !
 !     lowest layer t
 !
       tlmhk = t(lm)
       iwrml = lm + 1
-      if (tlmhk.ge.273.15) then
+      if (tlmhk >= 273.15) then
         do l = lm, 2, -1
-         if (t(l).ge.273.15.and.t(l-1).lt.273.15.and.           &
-     &            iwrml.eq.lm+1) iwrml = l
-          end do
+          if (t(l) >= 273.15 .and. t(l-1) < 273.15 .and.           &
+     &            iwrml == lm+1) iwrml = l
+        end do
       end if
 !
 !     now find the highest above freezing level
@@ -1067,7 +912,7 @@
       do l = lm, 1, -1
 ! gsm  added 250 mb check to prevent stratospheric warming situations
 !       from counting as warm layers aloft      
-          if (t(l).ge.273.15 .and. pmid(l).gt.25000.) lhiwrm = l
+          if (t(l) >= 273.15 .and. pmid(l) > 25000.) lhiwrm = l
       end do
 
 !     energy variables
@@ -1087,594 +932,485 @@
 !     a below freezing layer
 !
       pintk1 = psfck
-      ifrzl = 0
+      ifrzl  = 0
       areane = 0.0
       areape = 0.0
-      surfw = 0.0                                         
+      surfw  = 0.0                                         
 
       do l = lm, 1, -1
-          if (ifrzl.eq.0.and.t(l).le.273.15) ifrzl = 1
-          pintk2=pint(l)
-          dzkl=zint(l)-zint(l+1)
-          area1 = alog(t(l)/273.15) * g * dzkl
-          if (t(l).ge.273.15.and. pmid(l).gt.25000.) then
-              if (l.lt.iwrml) areape = areape + area1
-              if (l.ge.iwrml) surfw = surfw + area1
-          else
-              if (l.gt.lhiwrm) areane = areane + abs(area1)
-          end if
-          pintk1 = pintk2
+         if (ifrzl == 0 .and. t(l) <= 273.15) ifrzl = 1
+         pintk2 = pint(l)
+         dzkl   = zint(l)-zint(l+1)
+         area1  = log(t(l)/273.15) * g * dzkl
+         if (t(l) >= 273.15 .and. pmid(l) > 25000.) then
+            if (l < iwrml)  areape = areape + area1
+            if (l >= iwrml) surfw  = surfw  + area1
+         else
+            if (l > lhiwrm) areane = areane + abs(area1)
+         end if
+         pintk1 = pintk2
       end do
       
 !
 !     decision tree time
 !
-      if (areape.lt.2.0) then
-!         very little or no positive energy aloft, check for
-!         positive energy just above the surface to determine rain vs. snow
-          if (surfw.lt.5.6) then
-!             not enough positive energy just above the surface
-!             snow = 1
+      if (areape < 2.0) then  ! very little or no positive energy aloft, check for
+                              ! positive energy just above the surface to determine rain vs. snow
+        if (surfw < 5.6) then !   not enough positive energy just above the surface  snow = 1
+           ptype = 1
+        else if (surfw > 13.2) then ! enough positive energy just above the surface  rain = 8
+           ptype = 8
+        else                        ! transition zone, assume equally likely rain/snow
+                                    ! picking a random number, if <=0.5 snow
+           r1 = rn(1)
+           if (r1 <= 0.5) then !                 snow = 1
               ptype = 1
-          else if (surfw.gt.13.2) then
-!             enough positive energy just above the surface
-!             rain = 8
+           else                !                 rain = 8
               ptype = 8
-          else
-!             transition zone, assume equally likely rain/snow
-!             picking a random number, if <=0.5 snow
-              r1 = rn(1)
-              if (r1.le.0.5) then
-!                 snow = 1
-                  ptype = 1
-              else
-!                 rain = 8
-                  ptype = 8
-              end if
-          end if
+           end if
+        end if
 !
-      else
-!         some positive energy aloft, check for enough negative energy
-!         to freeze and make ice pellets to determine ip vs. zr
-          if (areane.gt.66.0+0.66*areape) then
+      else !   some positive energy aloft, check for enough negative energy
+           !   to freeze and make ice pellets to determine ip vs. zr
+
+        if (areane > 66.0+0.66*areape) then
 !             enough negative area to make ip,
 !             now need to check if there is enough positive energy
 !             just above the surface to melt ip to make rain
-              if (surfw.lt.5.6) then
-!                 not enough energy at the surface to melt ip
-!                 ice pellets = 2
-                  ptype = 2
-              else if (surfw.gt.13.2) then
-!                 enough energy at the surface to melt ip
-!                 rain = 8
-                  ptype = 8
-              else
-!                 transition zone, assume equally likely ip/rain
-!                 picking a random number, if <=0.5 ip
-                  r1 = rn(1)
-                  if (r1.le.0.5) then
-!                     ice pellets = 2
-                      ptype = 2
-                  else
-!                     rain = 8
-                      ptype = 8
-                  end if
-              end if
-          else if (areane.lt.46.0+0.66*areape) then
-!             not enough negative energy to refreeze, check surface temp
-!             to determine rain vs. zr
-              if (tlmhk.lt.273.15) then
-!                 freezing rain = 4
-                  ptype = 4
-              else
-!                 rain = 8
-                  ptype = 8
-              end if
-          else
-!             transition zone, assume equally likely ip/zr
-!             picking a random number, if <=0.5 ip
-              r1 = rn(1)
-              if (r1.le.0.5) then
-!                 still need to check positive energy
-!                 just above the surface to melt ip vs. rain
-                  if (surfw.lt.5.6) then
-!                     ice pellets = 2
-                      ptype = 2
-                  else if (surfw.gt.13.2) then
-!                     rain = 8
-                      ptype = 8
-                  else
-!                     transition zone, assume equally likely ip/rain
-!                     picking a random number, if <=0.5 ip
-                      r2 = rn(2)
-                      if (r2.le.0.5) then
-!                         ice pellets = 2
-                          ptype = 2
-                      else
-!                         rain = 8
-                          ptype = 8
-                      end if
-                  end if
-              else
-!                 not enough negative energy to refreeze, check surface temp
-!                 to determine rain vs. zr
-                  if (tlmhk.lt.273.15) then
-!                     freezing rain = 4
-                      ptype = 4
-                  else
-!                     rain = 8
-                      ptype = 8
-                  end if
-              end if
+          if (surfw < 5.6) then !  not enough energy at the surface to melt ip ice pellets = 2
+            ptype = 2
+          elseif (surfw > 13.2) then   ! enough energy at the surface to melt ip  rain = 8
+            ptype = 8
+          else ! transition zone, assume equally likely ip/rain picking a random number, if <=0.5 ip
+            r1 = rn(1)
+            if (r1 <= 0.5) then         !                     ice pellets = 2
+              ptype = 2
+            else                        !                     rain = 8
+              ptype = 8
+            end if
           end if
+        elseif (areane < 46.0+0.66*areape) then
+!    not enough negative energy to refreeze, check surface temp to determine rain vs. zr
+          if (tlmhk < 273.15) then      !                     freezing rain = 4
+             ptype = 4
+          else                          !                     rain = 8
+             ptype = 8
+          end if
+        else
+!    transition zone, assume equally likely ip/zr picking a random number, if <=0.5 ip
+          r1 = rn(1)
+          if (r1 <= 0.5) then
+!    still need to check positive energy just above the surface to melt ip vs. rain
+            if (surfw < 5.6) then       !                     ice pellets = 2
+              ptype = 2
+            else if (surfw > 13.2) then !                     rain = 8
+              ptype = 8
+            else
+!    transition zone, assume equally likely ip/rain picking a random number, if <=0.5 ip
+              r2 = rn(2)
+              if (r2 <= 0.5) then       !                     ice pellets = 2
+                 ptype = 2
+              else                      !                     rain = 8
+                 ptype = 8
+              end if
+            end if
+          else
+!    not enough negative energy to refreeze, check surface temp to determine rain vs. zr
+            if (tlmhk < 273.15) then    !                     freezing rain = 4
+               ptype = 4
+            else                        !                     rain = 8
+               ptype = 8
+            end if
+          end if
+        end if
       end if
-!      end do
-!      end do
+!
       return
       end
 !
 !
-       SUBROUTINE CALWXT_REVISED(LM,LP1,T,Q,PMID,PINT,PREC,  &
-                 PTHRESH,D608,ROG,EPSQ,    &
-     &             ZINT,TWET,IWX)
+       subroutine calwxt_revised(lm,lp1,t,q,pmid,pint,         &
+                                 d608,rog,epsq,zint,twet,iwx)
 ! 
-!     FILE: CALWXT.f
-!     WRITTEN: 11 NOVEMBER 1993, MICHAEL BALDWIN
-!     REVISIONS:
-!               30 SEPT 1994-SETUP NEW DECISION TREE (M BALDWIN)
-!               12 JUNE 1998-CONVERSION TO 2-D (T BLACK)
-!     01-10-25  H CHUANG - MODIFIED TO PROCESS HYBRID MODEL OUTPUT
-!     02-01-15  MIKE BALDWIN - WRF VERSION
-!     05-07-07  BINBIN ZHOU  - ADD PREC FOR RSM
-!     05-08-24  GEOFF MANIKIN - MODIFIED THE AREA REQUIREMENTS
-!                TO MAKE AN ALTERNATE ALGORITHM 
+!     file: calwxt.f
+!     written: 11 november 1993, michael baldwin
+!     revisions:
+!               30 sept 1994-setup new decision tree (m baldwin)
+!               12 june 1998-conversion to 2-d (t black)
+!     01-10-25  h chuang - modified to process hybrid model output
+!     02-01-15  mike baldwin - wrf version
+!     05-07-07  binbin zhou  - add prec for rsm
+!     05-08-24  geoff manikin - modified the area requirements
+!                to make an alternate algorithm 
 !                              
 !
-!     ROUTINE TO COMPUTE PRECIPITATION TYPE USING A DECISION TREE
-!     APPROACH THAT USES VARIABLES SUCH AS INTEGRATED WET BULB TEMP
-!     BELOW FREEZING AND LOWEST LAYER TEMPERATURE
+!     routine to compute precipitation type using a decision tree
+!     approach that uses variables such as integrated wet bulb temp
+!     below freezing and lowest layer temperature
 !
-!     SEE BALDWIN AND CONTORNO PREPRINT FROM 13TH WEATHER ANALYSIS
-!     AND FORECASTING CONFERENCE FOR MORE DETAILS
-!     (OR BALDWIN ET AL, 10TH NWP CONFERENCE PREPRINT)
+!     see baldwin and contorno preprint from 13th weather analysis
+!     and forecasting conference for more details
+!     (or baldwin et al, 10th nwp conference preprint)
 !
-!     SINCE THE ORIGINAL VERSION OF THE ALGORITHM HAS A HIGH BIAS
-!      FOR FREEZING RAIN AND SLEET, THE GOAL IS TO BALANCE THAT BIAS
-!      WITH A VERSION MORE LIKELY TO PREDICT SNOW
+!     since the original version of the algorithm has a high bias
+!      for freezing rain and sleet, the goal is to balance that bias
+!      with a version more likely to predict snow
 !
 !     use params_mod
 !     use ctlblk_mod
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !
-!  LIST OF VARIABLES NEEDED
-!    PARAMETERS:
-!      D608,ROG,H1,D00
-!HC       PARAMETER(D608=0.608,ROG=287.04/9.8,H1=1.0,D00=0.0)
+!  list of variables needed
+!    parameters:
+!      d608,rog,h1,d00
+!hc       parameter(d608=0.608,rog=287.04/9.8,h1=1.0,d00=0.0)
 !
-!    INPUT:
-!      T,Q,PMID,HTM,LMH,PREC,ZINT
-      integer,intent(in):: lm,lp1
-      REAL,dimension(LM),intent(in) ::  T,Q,PMID,TWET
-      REAL,dimension(LP1),intent(in) ::  PINT,ZINT 
-      REAL,intent(in) ::  PREC,PTHRESH,D608,ROG,EPSQ
-!    OUTPUT:
-!      IWX - INSTANTANEOUS WEATHER TYPE.
-!        ACTS LIKE A 4 BIT BINARY
-!          1111 = RAIN/FREEZING RAIN/ICE PELLETS/SNOW
-!          WHERE THE ONE'S DIGIT IS FOR SNOW
-!                THE TWO'S DIGIT IS FOR ICE PELLETS
-!                THE FOUR'S DIGIT IS FOR FREEZING RAIN
-!            AND THE EIGHT'S DIGIT IS FOR RAIN
-      integer, intent(out) ::  IWX
-!    INTERNAL:
-!
-      real, parameter :: D00=0.0  
-      integer KARR,LICEE
-      real TCOLD,TWARM
-!
-      integer I,J,L,LMHK,LICE,IFREL,IWRML,IFRZL
-      real PSFCK,TDCHK,A,TDKL,TDPRE,TLMHK,TWRMK,AREAS8,AREAP4,AREA1,  &
-           SURFW,SURFC,DZKL,PINTK1,PINTK2,PM150,QKL,TKL,PKL,AREA0,    &
-           AREAP0
+!    input:
+!      t,q,pmid,htm,lmh,zint
 
-!    SUBROUTINES CALLED:
-!     WETBULB
+      integer,intent(in)             :: lm,lp1
+      real,dimension(lm),intent(in)  ::  t,q,pmid,twet
+      real,dimension(lp1),intent(in) ::  pint,zint 
+      real,intent(in)                ::  d608,rog,epsq
+!    output:
+!      iwx - instantaneous weather type.
+!        acts like a 4 bit binary
+!          1111 = rain/freezing rain/ice pellets/snow
+!          where the one's digit is for snow
+!                the two's digit is for ice pellets
+!                the four's digit is for freezing rain
+!            and the eight's digit is for rain
+      integer, intent(out) ::  iwx
+!    internal:
+!
+      real, parameter :: d00=0.0  
+      integer karr,licee
+      real    tcold,twarm
+!
+      integer l,lmhk,lice,iwrml,ifrzl
+      real    psfck,tdchk,a,tdkl,tdpre,tlmhk,twrmk,areas8,areap4,area1,   &
+              surfw,surfc,dzkl,pintk1,pintk2,pm150,qkl,tkl,pkl,area0,areap0
+
+!    subroutines called:
+!     wetbulb
 !     
 !
-!     INITIALIZE WEATHER TYPE ARRAY TO ZERO (IE, OFF).
-!     WE DO THIS SINCE WE WANT IWX TO REPRESENT THE
-!     INSTANTANEOUS WEATHER TYPE ON RETURN.
+!     initialize weather type array to zero (ie, off).
+!     we do this since we want iwx to represent the
+!     instantaneous weather type on return.
 !     
 !
-!     ALLOCATE LOCAL STORAGE
+!     allocate local storage
 !
 !
-!!$omp  parallel do
-      IWX = 0
-
-!!$omp  parallel do
-!!$omp& private(a,lmhk,pkl,psfck,qkl,tdchk,tdkl,tdpre,tkl)
-
-      LMHK=LM
+      iwx = 0
+      lmhk=lm
 !
-!   SKIP THIS POINT IF NO PRECIP THIS TIME STEP 
-!
-      IF (PREC.LE.PTHRESH) GOTO 800
-!
-!   FIND COLDEST AND WARMEST TEMPS IN SATURATED LAYER BETWEEN
-!   70 MB ABOVE GROUND AND 500 MB
-!   ALSO FIND HIGHEST SATURATED LAYER IN THAT RANGE
+!   find coldest and warmest temps in saturated layer between
+!   70 mb above ground and 500 mb
+!   also find highest saturated layer in that range
 !
 !meb
-      PSFCK=PINT(LP1)
+        psfck = pint(lp1)
 !meb
-      TDCHK=2.0
-  760 TCOLD=T(LMHK)
-      TWARM=T(LMHK)
-      LICEE=LMHK
+        tdchk = 2.0
+  760   tcold = t(lmhk)
+        twarm = t(lmhk)
+        licee = lmhk
 !
-      DO 775 L=1,LMHK
-      QKL=Q(L)
-      QKL=AMAX1(EPSQ,QKL)
-      TKL=T(L)
-      PKL=PMID(L)
+        do l=1,lmhk
+          qkl = q(l)
+          qkl = max(epsq,qkl)
+          tkl = t(l)
+          pkl = pmid(l)
 !
-!   SKIP PAST THIS IF THE LAYER IS NOT BETWEEN 70 MB ABOVE GROUND
-!       AND 500 MB
+!   skip past this if the layer is not between 70 mb above ground
+!       and 500 mb
 !
-      IF (PKL.LT.50000.0.OR.PKL.GT.PSFCK-7000.0) GOTO 775
-      A=ALOG(QKL*PKL/(6.1078*(0.378*QKL+0.622)))
-      TDKL=(237.3*A)/(17.269-A)+273.15
-      TDPRE=TKL-TDKL
-      IF (TDPRE.LT.TDCHK.AND.TKL.LT.TCOLD) TCOLD=TKL
-      IF (TDPRE.LT.TDCHK.AND.TKL.GT.TWARM) TWARM=TKL
-      IF (TDPRE.LT.TDCHK.AND.L.LT.LICEE) LICEE=L
-  775 CONTINUE
+          if (pkl < 50000.0 .or. pkl > psfck-7000.0) cycle
+          a     = log(qkl*pkl/(6.1078*(0.378*qkl+0.622)))
+          tdkl  = (237.3*a)/(17.269-a)+273.15
+          tdpre = tkl-tdkl
+          if (tdpre < tdchk .and. tkl < tcold) tcold = tkl
+          if (tdpre < tdchk .and. tkl > twarm) twarm = tkl
+          if (tdpre < tdchk .and. l   < licee) licee = l
+        enddo
 !
-!    IF NO SAT LAYER AT DEW POINT DEP=TDCHK, INCREASE TDCHK
-!     AND START AGAIN (BUT DON'T MAKE TDCHK > 6)
+!    if no sat layer at dew point dep=tdchk, increase tdchk
+!     and start again (but don't make tdchk > 6)
 !
-      IF (TCOLD.EQ.T(LMHK).AND.TDCHK.LT.6.0) THEN
-        TDCHK=TDCHK+2.0
-        GOTO 760
-      ENDIF
-  800 CONTINUE
+        if (tcold == t(lmhk) .and. tdchk < 6.0) then
+          tdchk = tdchk + 2.0
+          goto 760
+        endif
 !
-!    LOWEST LAYER T
+!    lowest layer t
 !
-      KARR=0
-      IF (PREC.LE.PTHRESH) GOTO 850
-      LMHK=LM
-      TLMHK=T(LMHK)
+      karr = 0
+      lmhk  = lm
+      tlmhk = t(lmhk)
 !
-!    DECISION TREE TIME
+!    decision tree time
 !
-      IF (TCOLD.GT.269.15) THEN
-          IF (TLMHK.LE.273.15) THEN
-!             TURN ON THE FLAG FOR
-!             FREEZING RAIN = 4
-!             IF ITS NOT ON ALREADY
-!             IZR=MOD(IWX,8)/4
-!             IF (IZR.LT.1) IWX=IWX+4
-              IWX=IWX+4
-            GOTO 850
-          ELSE
-!             TURN ON THE FLAG FOR
-!             RAIN = 8
-!             IF ITS NOT ON ALREADY
-!             IRAIN=IWX/8
-!             IF (IRAIN.LT.1) IWX=IWX+8
-              IWX=IWX+8
-            GOTO 850
-          ENDIF
-      ENDIF
-      KARR=1
-  850 CONTINUE
+      if (tcold > 269.15) then
+        if (tlmhk <= 273.15) then
+!           turn on the flag for freezing rain = 4 if its not on already
+!           izr=mod(iwx,8)/4
+!           if (izr.lt.1) iwx=iwx+4
+            iwx = iwx + 4
+            goto 850
+        else
+!           turn on the flag for rain = 8 if its not on already
+!           irain=iwx/8
+!           if (irain.lt.1) iwx=iwx+8
+            iwx = iwx + 8
+            goto 850
+        endif
+      endif
+      karr = 1
+  850 continue
 !
-!!$omp  parallel do
-!!$omp& private(area1,areap4,areap0,areas8,dzkl,ifrzl,iwrml,lice,
-!!$omp&         lmhk,pintk1,pintk2,pm150,psfck,surfc,surfw,
-!!$omp&         tlmhk,twrmk)
-
-      IF(KARR.GT.0)THEN
-        LMHK=LM
-        LICE=LICEE
+      if (karr > 0)then
+        lmhk = lm
+        lice = licee
 !meb
-        PSFCK=PINT(LP1)
+        psfck = pint(lp1)
 !meb
-        TLMHK=T(LMHK)
-        TWRMK=TWARM
+        tlmhk = t(lmhk)
+        twrmk = twarm
 !
-!    TWET AREA VARIABLES
-!     CALCULATE ONLY WHAT IS NEEDED
-!      FROM GROUND TO 150 MB ABOVE SURFACE
-!      FROM GROUND TO TCOLD LAYER
-!      AND FROM GROUND TO 1ST LAYER WHERE WET BULB T < 0.0
+!    twet area variables
+!     calculate only what is needed
+!      from ground to 150 mb above surface
+!      from ground to tcold layer
+!      and from ground to 1st layer where wet bulb t < 0.0
 !
-!     PINTK1 IS THE PRESSURE AT THE BOTTOM OF THE LAYER
-!     PINTK2 IS THE PRESSURE AT THE TOP OF THE LAYER
+!     pintk1 is the pressure at the bottom of the layer
+!     pintk2 is the pressure at the top of the layer
 !
-!     AREAP4 IS THE AREA OF TWET ABOVE -4 C BELOW HIGHEST SAT LYR 
-!     AREAP0 IS THE AREA OF TWET ABOVE 0 C BELOW HIGHEST SAT LYR
+!     areap4 is the area of twet above -4 c below highest sat lyr 
+!     areap0 is the area of twet above 0 c below highest sat lyr
 !
-        AREAS8=D00
-        AREAP4=D00
-	AREAP0=D00
-        SURFW =D00
-        SURFC =D00
+        areas8 = d00
+        areap4 = d00
+        areap0 = d00
+        surfw  = d00
+        surfc  = d00
         
 !
-        DO 1945 L=LMHK,LICE,-1
-        DZKL=ZINT(L)-ZINT(L+1)
-        AREA1=(TWET(L)-269.15)*DZKL
-        AREA0=(TWET(L)-273.15)*DZKL
-        IF (TWET(L).GE.269.15) AREAP4=AREAP4+AREA1
-        IF (TWET(L).GE.273.15) AREAP0=AREAP0+AREA0
- 1945   CONTINUE
+        do l=lmhk,lice,-1
+          dzkl  = zint(l)-zint(l+1)
+          area1 = (twet(l)-269.15)*dzkl
+          area0 = (twet(l)-273.15)*dzkl
+          if (twet(l) >= 269.15) areap4 = areap4 + area1
+          if (twet(l) >= 273.15) areap0 = areap0 + area0
+        enddo
 !
-!        IF (AREAP4.LT.3000.0) THEN
-!             TURN ON THE FLAG FOR
-!             SNOW = 1
-!             IF ITS NOT ON ALREADY
-!             ISNO=MOD(IWX,2)
-!             IF (ISNO.LT.1) IWX=IWX+1
-!          IWX=IWX+1
-!          GO TO 1900
-!        ENDIF
-        IF (AREAP0.LT.350.0) THEN
-!             TURN ON THE FLAG FOR
-!             SNOW = 1
-              IWX=IWX+1
-            GOTO 1900
-       ENDIF
+!        if (areap4.lt.3000.0) then turn on the flag for snow = 1 if its not on already
+!             isno=mod(iwx,2)
+!             if (isno.lt.1) iwx=iwx+1
+!         iwx=iwx+1
+!         go to 1900
+!       endif
+        if (areap0 < 350.0) then !             turn on the flag for  snow = 1
+          iwx = iwx + 1
+          return
+        endif
 !
-!     AREAS8 IS THE NET AREA OF TWET W.R.T. FREEZING IN LOWEST 150MB
+!     areas8 is the net area of twet w.r.t. freezing in lowest 150mb
 !
-        PINTK1=PSFCK
-        PM150=PSFCK-15000.
+        pintk1 = psfck
+        pm150  = psfck - 15000.
 !
-        DO 1955 L=LMHK,1,-1
-        PINTK2=PINT(L)
-        IF(PINTK1.LT.PM150)GO TO 1950
-        DZKL=ZINT(L)-ZINT(L+1)
+        do l=lmhk,1,-1
+          pintk2 = pint(l)
+          if(pintk1 >= pm150) then
+            dzkl = zint(l)-zint(l+1)
 !
-!    SUM PARTIAL LAYER IF IN 150 MB AGL LAYER
+!    sum partial layer if in 150 mb agl layer
 !
-        IF(PINTK2.LT.PM150)                                   &
-          DZKL=T(L)*(Q(L)*D608+1.0)*ROG*               &
-               ALOG(PINTK1/PM150)
-        AREA1=(TWET(L)-273.15)*DZKL
-        AREAS8=AREAS8+AREA1
- 1950   PINTK1=PINTK2
- 1955   CONTINUE
+            if(pintk2 < pm150) dzkl = t(l)*(q(l)*d608+1.0)*rog*        &
+                                      log(pintk1/pm150)
+            area1  = (twet(l)-273.15)*dzkl
+            areas8 = areas8 + area1
+          endif
+          pintk1=pintk2
+        enddo
 !
-!     SURFW IS THE AREA OF TWET ABOVE FREEZING BETWEEN THE GROUND
-!       AND THE FIRST LAYER ABOVE GROUND BELOW FREEZING
-!     SURFC IS THE AREA OF TWET BELOW FREEZING BETWEEN THE GROUND
-!       AND THE WARMEST SAT LAYER
+!     surfw is the area of twet above freezing between the ground
+!       and the first layer above ground below freezing
+!     surfc is the area of twet below freezing between the ground
+!       and the warmest sat layer
 !
-        IFRZL=0
-        IWRML=0
+        ifrzl = 0
+        iwrml = 0
 !
-        DO 2050 L=LMHK,1,-1
-        IF (IFRZL.EQ.0.AND.T(L).LT.273.15) IFRZL=1
-        IF (IWRML.EQ.0.AND.T(L).GE.TWRMK) IWRML=1
+        do l=lmhk,1,-1
+          if (ifrzl == 0 .and. t(l) < 273.15) ifrzl = 1
+          if (iwrml == 0 .and. t(l) >= twrmk) iwrml = 1
 !
-        IF (IWRML.EQ.0.OR.IFRZL.EQ.0) THEN
-!	  if(pmid(l) .lt. 50000.)print*,'twet needed above 500mb'
-          DZKL=ZINT(L)-ZINT(L+1)
-          AREA1=(TWET(L)-273.15)*DZKL
-          IF(IFRZL.EQ.0.AND.TWET(L).GE.273.15)SURFW=SURFW+AREA1
-          IF(IWRML.EQ.0.AND.TWET(L).LE.273.15)SURFC=SURFC+AREA1
-        ENDIF
- 2050   CONTINUE
-        IF(SURFC.LT.-3000.0.OR.                                    &
-     &    (AREAS8.LT.-3000.0.AND.SURFW.LT.50.0)) THEN
-!             TURN ON THE FLAG FOR
-!             ICE PELLETS = 2
-!             IF ITS NOT ON ALREADY
-!             IIP=MOD(IWX,4)/2
-!             IF (IIP.LT.1) IWX=IWX+2
-          IWX=IWX+2
-          GOTO 1900
-        ENDIF
+          if (iwrml == 0 .or. ifrzl == 0) then
+!  	  if(pmid(l) .lt. 50000.)print*,'twet needed above 500mb'
+            dzkl  = zint(l)-zint(l+1)
+            area1 = (twet(l)-273.15)*dzkl
+            if(ifrzl == 0 .and. twet(l) >= 273.15) surfw = surfw + area1
+            if(iwrml == 0 .and. twet(l) <= 273.15) surfc = surfc + area1
+          endif
+        enddo
+        if (surfc  < -3000.0 .or.                                    &
+     &     (areas8 < -3000.0 .and. surfw < 50.0)) then
+!            turn on the flag for ice pellets = 2 if its not on already
+!            iip=mod(iwx,4)/2
+!            if (iip.lt.1) iwx=iwx+2
+          iwx = iwx + 2
+          return
+        endif
 !
-        IF(TLMHK.LT.273.15) THEN
-!             TURN ON THE FLAG FOR
-!             FREEZING RAIN = 4
-!             IF ITS NOT ON ALREADY
-!             IZR=MOD(IWX(K),8)/4
-!             IF (IZR.LT.1) IWX(K)=IWX(K)+4
-          IWX=IWX+4
-        ELSE
-!             TURN ON THE FLAG FOR
-!             RAIN = 8
-!             IF ITS NOT ON ALREADY
-!             IRAIN=IWX(K)/8
-!             IF (IRAIN.LT.1) IWX(K)=IWX(K)+8
-          IWX=IWX+8
-        ENDIF
-      ENDIF
- 1900 CONTINUE
-!      print *, 'revised check ', IWX(500,800)
+        if (tlmhk < 273.15) then
+!            turn on the flag for freezing rain = 4 if its not on already
+!            izr=mod(iwx(k),8)/4
+!            if (izr.lt.1) iwx(k)=iwx(k)+4
+          iwx = iwx + 4
+        else
+!            turn on the flag for rain = 8 if its not on already
+!            irain=iwx(k)/8
+!            if (irain.lt.1) iwx(k)=iwx(k)+8
+          iwx = iwx + 8
+        endif
+!       print *, 'revised check ', iwx(500,800)
+      endif
 
-      RETURN
-      END
+      return
+      end
 !
 !
-      SUBROUTINE CALWXT_EXPLICIT(LM,PTHRESH,TSKIN,PREC,SR,F_RIMEF,IWX)
+      subroutine calwxt_explicit(lm,tskin,sr,f_rimef,iwx)
 ! 
-!     FILE: CALWXT.f
-!     WRITTEN: 24 AUGUST 2005, G MANIKIN and B FERRIER 
+!     file: calwxt.f
+!     written: 24 august 2005, g manikin and b ferrier 
 !
-!     ROUTINE TO COMPUTE PRECIPITATION TYPE USING EXPLICIT FIELDS
-!       FROM THE MODEL MICROPHYSICS
+!     routine to compute precipitation type using explicit fields
+!       from the model microphysics
 
-!      use params_mod
-!      use ctlblk_mod
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !
-!  LIST OF VARIABLES NEEDED
-!    PARAMETERS:
+!  list of variables needed
+!    parameters:
 !
-!    INPUT:
-      integer, intent(in):: lm
-      real,intent(in)::  TSKIN, PREC, SR,PTHRESH
-      REAL,intent(in):: F_RimeF(LM)
-      integer,intent(out) :: IWX
-      integer I,J,LMHK
-      real PSFC,SNOW
+!    input:
+      integer, intent(in) :: lm
+      real,intent(in)     ::  tskin, sr
+      real,intent(in)     :: f_rimef(lm)
+      integer,intent(out) :: iwx
+      real snow
+!     real psfc
 !
-!     ALLOCATE LOCAL STORAGE
+!     allocate local storage
 !
-!!$omp  parallel do
-      IWX = 0
+      iwx = 0
 
-!GSM  THE RSM IS CURRENTLY INCOMPATIBLE WITH THIS ROUTINE
-!GSM   ACCORDING TO B FERRIER, THERE MAY BE A WAY TO WRITE
-!GSM   A VERSION OF THIS ALGORITHM TO WORK WITH THE RSM
-!GSM   MICROPHYSICS, BUT IT DOESN'T EXIST AT THIS TIME
-!!$omp  parallel do
-!!$omp& private(lmhk,psfc,tskin)
+!gsm  the rsm is currently incompatible with this routine
+!gsm   according to b ferrier, there may be a way to write
+!gsm   a version of this algorithm to work with the rsm
+!gsm   microphysics, but it doesn't exist at this time
 
-!   SKIP THIS POINT IF NO PRECIP THIS TIME STEP 
-!
-      IF (PREC.LE.PTHRESH) GOTO 800
-!
-!  A SNOW RATIO LESS THAN 0.5 ELIMINATES SNOW AND SLEET
-!   USE THE SKIN TEMPERATURE TO DISTINGUISH RAIN FROM FREEZING RAIN
-!   NOTE THAT 2-M TEMPERATURE MAY BE A BETTER CHOICE IF THE MODEL
-!   HAS A COLD BIAS FOR SKIN TEMPERATURE
+!  a snow ratio less than 0.5 eliminates snow and sleet
+!   use the skin temperature to distinguish rain from freezing rain
+!   note that 2-m temperature may be a better choice if the model
+!   has a cold bias for skin temperature
 ! 
-      IF (SR.LT.0.5) THEN
-!        SURFACE (SKIN) POTENTIAL TEMPERATURE AND TEMPERATURE.
-!         PSFC=PMID(LM)
-!         TSKIN=THS*(PSFC/P1000)**CAPA 
+      if (sr < 0.5) then
+!        surface (skin) potential temperature and temperature.
+!        psfc=pmid(lm)
+!        tskin=ths*(psfc/p1000)**capa 
 
-         IF (TSKIN.LT.273.15) THEN
-!          FREEZING RAIN = 4
-           IWX=IWX+4
-         ELSE
-!          RAIN = 8
-           IWX=IWX+8
-         ENDIF
-      ELSE
+         if (tskin < 273.15) then !          freezing rain = 4
+           iwx = iwx + 4
+         else                     !          rain = 8
+           iwx = iwx + 8
+         endif
+      else
 !  
-!  DISTINGUISH SNOW FROM SLEET WITH THE RIME FACTOR
+!  distinguish snow from sleet with the rime factor
 ! 
-        IF(F_RimeF(LM).GE.10) THEN
-!          SLEET = 2
-           IWX=IWX+2
-        ELSE
-           SNOW = 1
-           IWX=IWX+1 
-        ENDIF
-      ENDIF
- 800  CONTINUE
- 810  RETURN 
-      END
+        if(f_rimef(lm) >= 10) then !          sleet = 2
+           iwx = iwx + 2
+        else
+           snow = 1
+           iwx  = iwx + 1 
+        endif
+      endif
+      end
 !
 !
-       SUBROUTINE CALWXT_DOMINANT(NALG,PREC,PTHRESH,RAIN,FREEZR,SLEET,SNOW,     &
-     &         DOMR,DOMZR,DOMIP,DOMS)
+       subroutine calwxt_dominant(nalg,rain,freezr,sleet,snow, &
+     &                            domr,domzr,domip,doms)
 !
-!     WRITTEN: 24 AUGUST 2005, G MANIKIN 
+!     written: 24 august 2005, g manikin 
 !      
-!     THIS ROUTINE TAKES THE PRECIP TYPE SOLUTIONS FROM DIFFERENT
-!       ALGORITHMS AND SUMS THEM UP TO GIVE A DOMINANT TYPE
+!     this routine takes the precip type solutions from different
+!       algorithms and sums them up to give a dominant type
 !
-!      use params_mod
-!      use ctlblk_mod
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 !
-!    INPUT:
-      integer,intent(in) :: NALG
-      REAL, intent(in) :: PREC,PTHRESH
-      real,intent(out) ::  DOMS,DOMR,DOMZR,DOMIP
-      real,DIMENSION(NALG),intent(in) ::  RAIN,SNOW,SLEET,FREEZR
-      integer I,J,L
-      real TOTSN,TOTIP,TOTR,TOTZR
+!    input:
+      integer,intent(in)                 :: nalg
+      real,intent(out)                   :: doms,domr,domzr,domip
+      integer,dimension(nalg),intent(in) :: rain,snow,sleet,freezr
+      integer l
+      real totsn,totip,totr,totzr
 !--------------------------------------------------------------------------
 !      print* , 'into dominant'
-!!$omp  parallel do
-      DOMR = 0.
-      DOMS = 0.
-      DOMZR = 0.
-      DOMIP = 0.
+      domr  = 0.
+      doms  = 0.
+      domzr = 0.
+      domip = 0.
 !
-!!$omp  parallel do
-!!$omp& private(totsn,totip,totr,totzr)
-!   SKIP THIS POINT IF NO PRECIP THIS TIME STEP
-      IF (PREC.LE.PTHRESH) GOTO 800
-      TOTSN = 0
-      TOTIP = 0
-      TOTR  = 0
-      TOTZR = 0 
-!   LOOP OVER THE NUMBER OF DIFFERENT ALGORITHMS THAT ARE USED
-      DO 820 L = 1, NALG
-        IF (RAIN(L).GT. 0) THEN
-           TOTR = TOTR + 1
-           GOTO 830
-        ENDIF
+      totsn = 0
+      totip = 0
+      totr  = 0
+      totzr = 0 
+!   loop over the number of different algorithms that are used
+      do l = 1, nalg
+        if (rain(l)       > 0) then
+           totr  = totr  + 1
+        elseif (snow(l)   > 0) then
+           totsn = totsn + 1
+        elseif (sleet(l)  > 0) then
+           totip = totip + 1
+        elseif (freezr(l) > 0) then
+           totzr = totzr + 1
+        endif
+      enddo
 
-        IF (SNOW(L).GT. 0) THEN
-           TOTSN = TOTSN + 1
-           GOTO 830
-        ENDIF
-
-        IF (SLEET(L).GT. 0) THEN
-           TOTIP = TOTIP + 1
-           GOTO 830
-        ENDIF
-
-        IF (FREEZR(L).GT. 0) THEN
-           TOTZR = TOTZR + 1
-           GOTO 830
-        ENDIF
- 830    CONTINUE
- 820  CONTINUE
-
-!   TIES ARE BROKEN TO FAVOR THE MOST DANGEROUS FORM OF PRECIP
-!     FREEZING RAIN > SNOW > SLEET > RAIN 
-      IF (TOTSN .GT. TOTIP) THEN
-        IF (TOTSN .GT. TOTZR) THEN
-          IF (TOTSN .GE. TOTR) THEN
-           DOMS = 1
-           GOTO 800 
-          ELSE
-           DOMR = 1 
-           GOTO 800 
-          ENDIF
-        ELSE IF (TOTZR .GE. TOTR) THEN
-          DOMZR = 1
-          GOTO 800 
-        ELSE
-          DOMR = 1
-          GOTO 800 
-        ENDIF 
-      ELSE IF (TOTIP .GT. TOTZR) THEN
-        IF (TOTIP .GE. TOTR) THEN
-          DOMIP = 1
-          GOTO 800 
-        ELSE
-          DOMR = 1
-          GOTO 800 
-        ENDIF
-      ELSE IF (TOTZR .GE. TOTR) THEN
-         DOMZR = 1
-         GOTO 800 
-      ELSE
-          DOMR = 1
-          GOTO 800 
-      ENDIF
- 800  CONTINUE 
-      RETURN
-      END
-
-      
-            
-      
-      
+!   ties are broken to favor the most dangerous form of precip
+!     freezing rain > snow > sleet > rain 
+      if (totsn > totip) then
+        if (totsn > totzr) then
+          if (totsn >= totr) then
+            doms = 1
+          else
+            domr = 1 
+          endif
+        elseif (totzr >= totr) then
+          domzr = 1
+        else
+          domr = 1
+        endif 
+      else if (totip > totzr) then
+        if (totip >= totr) then
+          domip = 1
+        else
+          domr = 1
+        endif
+      else if (totzr >= totr) then
+         domzr = 1
+      else
+          domr = 1
+      endif
+!
+      return
+      end

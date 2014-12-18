@@ -1,10 +1,11 @@
       subroutine shalcnv(im,ix,km,jcap,delt,delp,prslp,psp,phil,ql,
-     &     q1,t1,u1,v1,rn,kbot,ktop,kcnv,slimsk,
-     &     dot,ncloud,hpbl,heat,evap,ud_mf,dt_mf)
-!    &     q1,t1,u1,v1,rcs,rn,kbot,ktop,kcnv,slimsk,
-!    &     dot,ncloud,hpbl,heat,evap,ud_mf,dt_mf,me)
+     &                   q1,t1,u1,v1,rn,kbot,ktop,kcnv,islimsk,
+     &                   dot,ncloud,hpbl,heat,evap,ud_mf,dt_mf,
+     &                   cnvw,cnvc)
+!    &                   q1,t1,u1,v1,rcs,rn,kbot,ktop,kcnv,islimsk,
+!    &                   dot,ncloud,hpbl,heat,evap,ud_mf,dt_mf,me)
 !
-      use machine , only : kind_phys
+      use machine  , only : kind_phys
       use funcphys , only : fpvs
       use physcons, grav => con_g, cp => con_cp, hvap => con_hvap
      &,             rv => con_rv, fv => con_fvirt, t0c => con_t0c
@@ -21,18 +22,20 @@
      &                     ql(ix,km,2),q1(ix,km),   t1(ix,km),
      &                     u1(ix,km),  v1(ix,km),
 !    &                     u1(ix,km),  v1(ix,km),   rcs(im),
-     &                     rn(im),     slimsk(im), 
+     &                     rn(im),      
      &                     dot(ix,km), phil(ix,km), hpbl(im),
-     &                     heat(im),   evap(im)
+     &                     heat(im),   evap(im),    cnvw(ix,km),
+     &                     cnvc(ix,km)
 ! hchuang code change mass flux output
      &,                    ud_mf(im,km),dt_mf(im,km)
 !
-      integer              i,j,indx, jmn, k, kk, latd, lond, km1
+      integer              i,j,indx, k, kk, km1
       integer              kpbl(im)
+      integer, dimension(im), intent(in) :: islimsk
 !
-      real(kind=kind_phys) c0,      cpoel,   dellat,  delta,
-     &                     desdt,   deta,    detad,   dg,
-     &                     dh,      dhh,     dlnsig,  dp,
+      real(kind=kind_phys) c0,      dellat,  delta,
+     &                     desdt,   
+     &                     dp,
      &                     dq,      dqsdp,   dqsdt,   dt,
      &                     dt2,     dtmax,   dtmin,   dv1h,
      &                     dv1q,    dv2h,    dv2q,    dv1u,
@@ -45,8 +48,8 @@
      &                     fact2,   factor,  fjcap,
      &                     g,       gamma,   pprime,  betaw,
      &                     qlk,     qrch,    qs,      c1,
-     &                     rain,    rfact,   shear,   tem1,
-     &                     tem2,    terr,    val,     val1,
+     &                     rfact,   shear,   tem1,
+     &                     val,     val1,
      &                     val2,    w1,      w1l,     w1s,
      &                     w2,      w2l,     w2s,     w3,
      &                     w3l,     w3s,     w4,      w4l,
@@ -72,9 +75,9 @@ c
 cc
 c  physical parameters
       parameter(g=grav)
-      parameter(cpoel=cp/hvap,elocp=hvap/cp,
+      parameter(elocp=hvap/cp,
      &          el2orc=hvap*hvap/(rv*cp))
-      parameter(terr=0.,c0=.002,c1=5.e-4,delta=fv)
+      parameter(c0=.002,c1=5.e-4,delta=fv)
       parameter(fact1=(cvap-cliq)/rv,fact2=hvap/rv-fact1*t0c)
       parameter(cincrmax=180.,cincrmin=120.,dthk=25.)
       parameter(h1=0.33333333)
@@ -89,8 +92,9 @@ c  cloud water
      &                     dellah(im,km),  dellaq(im,km),
      &                     dellau(im,km),  dellav(im,km), hcko(im,km),
      &                     ucko(im,km),    vcko(im,km),   qcko(im,km),
-     &                     eta(im,km),     zi(im,km),     pwo(im,km),
-     &                     tx1(im)
+     &                     qrcko(im,km),   eta(im,km),
+     &                     zi(im,km),      pwo(im,km),
+     &                     tx1(im),        cnvwt(im,km)
 !
       logical totflg, cnvflg(im), flg(im)
 !
@@ -100,7 +104,7 @@ c  cloud water
 c-----------------------------------------------------------------------
 !
 !************************************************************************
-!     convert input Pa terms to Cb terms  -- Moorthi
+!     convert input pa terms to cb terms  -- moorthi
       ps   = psp   * 0.001
       prsl = prslp * 0.001
       del  = delp  * 0.001
@@ -162,8 +166,8 @@ c     evef    = 0.07
       evfact  = 0.3
       evfactl = 0.3
 !
-!     pgcon   = 0.7     ! Gregory et al. (1997, QJRMS)
-      pgcon   = 0.55    ! Zhang & Wu (2003,JAS)
+!     pgcon   = 0.7     ! gregory et al. (1997, qjrms)
+      pgcon   = 0.55    ! zhang & wu (2003,jas)
       fjcap   = (float(jcap) / 126.) ** 2
       val     =           1.
       fjcap   = max(fjcap,val)
@@ -242,6 +246,7 @@ c
             eta(i,k)  = 1.
             hcko(i,k) = 0.
             qcko(i,k) = 0.
+            qrcko(i,k)= 0.
             ucko(i,k) = 0.
             vcko(i,k) = 0.
             dbyo(i,k) = 0.
@@ -253,6 +258,7 @@ c
             vo(i,k)   = v1(i,k)
 !           uo(i,k)   = u1(i,k) * rcs(i)
 !           vo(i,k)   = v1(i,k) * rcs(i)
+            cnvwt(i,k) = 0.
           endif
         enddo
       enddo
@@ -390,12 +396,12 @@ c
       do i=1,im
         if(cnvflg(i)) then
 !         pdot(i)  = 10.* dot(i,kbcon(i))
-          pdot(i)  = 0.01 * dot(i,kbcon(i)) ! Now dot is in Pa/s
+          pdot(i)  = 0.01 * dot(i,kbcon(i)) ! now dot is in pa/s
         endif
       enddo
       do i=1,im
         if(cnvflg(i)) then
-          if(slimsk(i).eq.1.) then
+          if(islimsk(i) == 1) then
             w1 = w1l
             w2 = w2l
             w3 = w3l
@@ -597,6 +603,7 @@ c
         if (cnvflg(i)) then
           aa1(i) = 0.
           qcko(i,kb(i)) = qo(i,kb(i))
+          qrcko(i,kb(i)) = qo(i,kb(i))
         endif
       enddo
       do k = 2, km1
@@ -613,6 +620,7 @@ cj
               factor = 1. + tem - tem1
               qcko(i,k) = ((1.-tem1)*qcko(i,k-1)+tem*0.5*
      &                     (qo(i,k)+qo(i,k-1)))/factor
+              qrcko(i,k) = qcko(i,k)
 cj
               dq = eta(i,k) * (qcko(i,k) - qrch)
 c
@@ -632,6 +640,7 @@ c
                 aa1(i) = aa1(i) - dz * g * qlk
                 qcko(i,k)= qlk + qrch
                 pwo(i,k) = etah * c0 * dz * qlk
+                cnvwt(i,k) = etah * qlk * g / dp
               endif
             endif
           endif
@@ -724,6 +733,7 @@ cj
               factor = 1. + tem - tem1
               qcko(i,k) = ((1.-tem1)*qcko(i,k-1)+tem*0.5*
      &                     (qo(i,k)+qo(i,k-1)))/factor
+              qrcko(i,k) = qcko(i,k)
 cj
               dq = eta(i,k) * (qcko(i,k) - qrch)
 c
@@ -740,6 +750,7 @@ c
                 endif
                 qcko(i,k) = qlk + qrch
                 pwo(i,k) = etah * c0 * dz * qlk
+                cnvwt(i,k) = etah * qlk * g / dp
               endif
             endif
           endif
@@ -859,7 +870,7 @@ cj
               dellaq(i,k) = dellaq(i,k) +
      &     ( eta(i,k)*dv1q - eta(i,k-1)*dv3q
      &    -  tem*eta(i,k-1)*dv2q*dz
-     &    +  tem1*eta(i,k-1)*.5*(qcko(i,k)+qcko(i,k-1))*dz
+     &    +  tem1*eta(i,k-1)*.5*(qrcko(i,k)+qcko(i,k-1))*dz
      &         ) *g/dp
 cj
               dellau(i,k) = dellau(i,k) +
@@ -908,7 +919,7 @@ c
       enddo
 c
 c  mass flux at cloud base for shallow convection
-c  (Grant, 2001)
+c  (grant, 2001)
 c
       do i= 1, im
         if(cnvflg(i)) then
@@ -1010,9 +1021,9 @@ c
             endif
             if(flg(i).and.k.lt.ktcon(i)) then
               evef = edt(i) * evfact
-              if(slimsk(i).eq.1.) evef=edt(i) * evfactl
-!             if(slimsk(i).eq.1.) evef=.07
-c             if(slimsk(i).ne.1.) evef = 0.
+              if(islimsk(i) == 1) evef=edt(i) * evfactl
+!             if(islimsk(i) == 1) evef=.07
+c             if(islimsk(i) == 1) evef = 0.
               qcond(i) = evef * (q1(i,k) - qeso(i,k))
      &                 / (1. + el2orc * qeso(i,k) / t1(i,k)**2)
               dp = 1000. * del(i,k)
@@ -1068,6 +1079,34 @@ cj
           kcnv(i) = 0
         endif
       enddo
+c
+c  convective cloud water
+c
+      do k = 1, km
+        do i = 1, im
+          if (cnvflg(i) .and. rn(i).gt.0.) then
+            if (k.ge.kbcon(i).and.k.lt.ktcon(i)) then
+              cnvw(i,k) = cnvwt(i,k) * xmb(i) * dt2
+            endif
+          endif
+        enddo
+      enddo
+
+c
+c  convective cloud cover
+c
+      do k = 1, km
+        do i = 1, im
+          if (cnvflg(i) .and. rn(i).gt.0.) then
+            if (k.ge.kbcon(i).and.k.lt.ktcon(i)) then
+              cnvc(i,k) = 0.04 * log(1. + 675. * eta(i,k) * xmb(i))
+              cnvc(i,k) = min(cnvc(i,k), 0.2)
+              cnvc(i,k) = max(cnvc(i,k), 0.0)
+            endif
+          endif
+        enddo
+      enddo
+
 c
 c  cloud water
 c

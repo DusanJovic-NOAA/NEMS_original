@@ -1,7 +1,7 @@
       subroutine sascnvn(im,ix,km,jcap,delt,delp,prslp,psp,phil,ql,
-     &     q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,slimsk,
-     &     dot,ncloud,ud_mf,dd_mf,dt_mf,triggerpert)
-!    &     q1,t1,u1,v1,rcs,cldwrk,rn,kbot,ktop,kcnv,slimsk,
+     &     q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,islimsk,
+     &     dot,ncloud,ud_mf,dd_mf,dt_mf,cnvw,cnvc)
+!    &     q1,t1,u1,v1,rcs,cldwrk,rn,kbot,ktop,kcnv,islimsk,
 !    &     dot,ncloud,ud_mf,dd_mf,dt_mf,me)
 !
       use machine , only : kind_phys
@@ -21,20 +21,24 @@
      &                     ql(ix,km,2),q1(ix,km),   t1(ix,km),
      &                     u1(ix,km),  v1(ix,km),
 !    &                     u1(ix,km),  v1(ix,km),   rcs(im),
-     &                     cldwrk(im), rn(im),      slimsk(im), 
-     &                     dot(ix,km), phil(ix,km), triggerpert(im),
+     &                     cldwrk(im), rn(im),       
+     &                     dot(ix,km), phil(ix,km), 
+     &                     cnvw(ix,km), cnvc(ix,km),
 ! hchuang code change mass flux output
      &                     ud_mf(im,km),dd_mf(im,km),dt_mf(im,km)
 !
-      integer              i, j, indx, jmn, k, kk, latd, lond, km1
+      integer              i, indx, jmn, k, kk, km1
+      integer, dimension(im), intent(in) :: islimsk
+!     integer              latd,lond
 !
       real(kind=kind_phys) clam, cxlamu, xlamde, xlamdd
 ! 
+!     real(kind=kind_phys) detad
       real(kind=kind_phys) adw,     aup,     aafac,
      &                     beta,    betal,   betas,
-     &                     c0,      cpoel,   dellat,  delta,
-     &                     desdt,   deta,    detad,   dg,
-     &                     dh,      dhh,     dlnsig,  dp,
+     &                     c0,      dellat,  delta,
+     &                     desdt,   dg,
+     &                     dh,      dhh,     dp,
      &                     dq,      dqsdp,   dqsdt,   dt,
      &                     dt2,     dtmax,   dtmin,   dv1h,
      &                     dv1q,    dv2h,    dv2q,    dv1u,
@@ -48,7 +52,7 @@
      &                     g,       gamma,   pprime,
      &                     qlk,     qrch,    qs,      c1,
      &                     rain,    rfact,   shear,   tem1,
-     &                     tem2,    terr,    val,     val1,
+     &                     val,     val1,
      &                     val2,    w1,      w1l,     w1s,
      &                     w2,      w2l,     w2s,     w3,
      &                     w3l,     w3s,     w4,      w4l,
@@ -80,15 +84,16 @@ cj
 cj
 c  physical parameters
       parameter(g=grav)
-      parameter(cpoel=cp/hvap,elocp=hvap/cp,
+      parameter(elocp=hvap/cp,
      &          el2orc=hvap*hvap/(rv*cp))
-      parameter(terr=0.,c0=.002,c1=.002,delta=fv)
+      parameter(c0=.002,c1=.002,delta=fv)
       parameter(fact1=(cvap-cliq)/rv,fact2=hvap/rv-fact1*t0c)
       parameter(cthk=150.,cincrmax=180.,cincrmin=120.,dthk=25.)
 c  local variables and arrays
       real(kind=kind_phys) pfld(im,km),    to(im,km),     qo(im,km),
      &                     uo(im,km),      vo(im,km),     qeso(im,km)
 c  cloud water
+!     real(kind=kind_phys) tvo(im,km)
       real(kind=kind_phys) qlko_ktcon(im), dellal(im,km), tvo(im,km),
      &                     dbyo(im,km),    zo(im,km),     xlamue(im,km),
      &                     fent1(im,km),   fent2(im,km),  frh(im,km),
@@ -97,8 +102,9 @@ c  cloud water
      &                     dellau(im,km),  dellav(im,km), hcko(im,km),
      &                     ucko(im,km),    vcko(im,km),   qcko(im,km),
      &                     eta(im,km),     etad(im,km),   zi(im,km),
-     &                     qrcdo(im,km),   pwo(im,km),    pwdo(im,km),
-     &                     tx1(im),        sumx(im)
+     &                     qrcko(im,km),   qrcdo(im,km),
+     &                     pwo(im,km),     pwdo(im,km),
+     &                     tx1(im),        sumx(im),      cnvwt(im,km)
 !    &,                    rhbar(im)
 !
       logical totflg, cnvflg(im), flg(im)
@@ -118,7 +124,7 @@ c    &            .743,.813,.886,.947,1.138,1.377,1.896/
 c-----------------------------------------------------------------------
 !
 !************************************************************************
-!     convert input Pa terms to Cb terms  -- Moorthi
+!     convert input pa terms to cb terms  -- moorthi
       ps   = psp   * 0.001
       prsl = prslp * 0.001
       del  = delp  * 0.001
@@ -157,6 +163,13 @@ c
         xpwev(i)= 0.
         vshear(i) = 0.
       enddo
+      do k = 1, km
+        do i = 1, im
+          cnvw(i,k) = 0.
+          cnvc(i,k) = 0.
+        enddo
+      enddo
+
 ! hchuang code change
       do k = 1, km
         do i = 1, im
@@ -192,8 +205,8 @@ c     evef    = 0.07
       xlamde  = 1.0e-4
       xlamdd  = 1.0e-4
 !
-!     pgcon   = 0.7     ! Gregory et al. (1997, QJRMS)
-      pgcon   = 0.55    ! Zhang & Wu (2003,JAS)
+!     pgcon   = 0.7     ! gregory et al. (1997, qjrms)
+      pgcon   = 0.55    ! zhang & wu (2003,jas)
       fjcap   = (float(jcap) / 126.) ** 2
       val     =           1.
       fjcap   = max(fjcap,val)
@@ -259,6 +272,7 @@ c
             frh(i,k)  = 0.
             hcko(i,k) = 0.
             qcko(i,k) = 0.
+            qrcko(i,k)= 0.
             ucko(i,k) = 0.
             vcko(i,k) = 0.
             etad(i,k) = 1.
@@ -278,6 +292,7 @@ c
             vo(i,k)   = v1(i,k)
 !           uo(i,k)   = u1(i,k) * rcs(i)
 !           vo(i,k)   = v1(i,k) * rcs(i)
+            cnvwt(i,k)= 0.
           endif
         enddo
       enddo
@@ -412,12 +427,12 @@ c
       do i=1,im
         if(cnvflg(i)) then
 !         pdot(i)  = 10.* dot(i,kbcon(i))
-          pdot(i)  = 0.01 * dot(i,kbcon(i)) ! Now dot is in Pa/s
+          pdot(i)  = 0.01 * dot(i,kbcon(i)) ! now dot is in pa/s
         endif
       enddo
       do i=1,im
         if(cnvflg(i)) then
-          if(slimsk(i).eq.1.) then
+          if(islimsk(i) == 1) then
             w1 = w1l
             w2 = w2l
             w3 = w3l
@@ -443,8 +458,6 @@ c
           tem1= .5*(cincrmax-cincrmin)
           cincr = cincrmax - tem * tem1
           pbcdif(i) = pfld(i,kb(i)) - pfld(i,kbcon(i))
-! perturb convective trigger
-          cincr = cincr + triggerpert(i)
           if(pbcdif(i).gt.cincr) then
              cnvflg(i) = .false.
           endif
@@ -480,7 +493,7 @@ c
       enddo
 c
 c  functions rapidly decreasing with height, mimicking a cloud ensemble
-c    (Bechtold et al., 2008)
+c    (bechtold et al., 2008)
 c
       do k = 2, km1
         do i=1,im
@@ -495,7 +508,7 @@ c
 c
 c  final entrainment rate as the sum of turbulent part and organized entrainment
 c    depending on the environmental relative humidity
-c    (Bechtold et al., 2008)
+c    (bechtold et al., 2008)
 c
       do k = 2, km1
         do i=1,im
@@ -691,6 +704,7 @@ c
         if (cnvflg(i)) then
           aa1(i) = 0.
           qcko(i,kb(i)) = qo(i,kb(i))
+          qrcko(i,kb(i)) = qo(i,kb(i))
 !         rhbar(i) = 0.
         endif
       enddo
@@ -708,6 +722,7 @@ cj
               factor = 1. + tem - tem1
               qcko(i,k) = ((1.-tem1)*qcko(i,k-1)+tem*0.5*
      &                     (qo(i,k)+qo(i,k-1)))/factor
+              qrcko(i,k) = qcko(i,k)
 cj
               dq = eta(i,k) * (qcko(i,k) - qrch)
 c
@@ -728,6 +743,8 @@ c
                 qcko(i,k) = qlk + qrch
                 pwo(i,k) = etah * c0 * dz * qlk
                 pwavo(i) = pwavo(i) + pwo(i,k)
+!               cnvwt(i,k) = (etah*qlk + pwo(i,k)) * g / dp
+                cnvwt(i,k) = etah * qlk * g / dp
               endif
             endif
           endif
@@ -826,6 +843,7 @@ cj
               factor = 1. + tem - tem1
               qcko(i,k) = ((1.-tem1)*qcko(i,k-1)+tem*0.5*
      &                     (qo(i,k)+qo(i,k-1)))/factor
+              qrcko(i,k) = qcko(i,k)
 cj
               dq = eta(i,k) * (qcko(i,k) - qrch)
 c
@@ -843,6 +861,8 @@ c
                 qcko(i,k) = qlk + qrch
                 pwo(i,k) = etah * c0 * dz * qlk
                 pwavo(i) = pwavo(i) + pwo(i,k)
+!               cnvwt(i,k) = (etah*qlk + pwo(i,k)) * g / dp
+                cnvwt(i,k) = etah * qlk * g / dp
               endif
             endif
           endif
@@ -939,7 +959,7 @@ c
       enddo
       do i = 1, im
         beta = betas
-        if(slimsk(i).eq.1.) beta = betal
+        if(islimsk(i) == 1) beta = betal
         if(cnvflg(i)) then
           dz  = (sumx(i)+zi(i,1))/float(kbcon(i))
           tem = 1./float(kbcon(i))
@@ -972,7 +992,7 @@ c
           jmn = jmin(i)
           hcdo(i,jmn) = heo(i,jmn)
           qcdo(i,jmn) = qo(i,jmn)
-          qrcdo(i,jmn)= qeso(i,jmn)
+          qrcdo(i,jmn)= qo(i,jmn)
           ucdo(i,jmn) = uo(i,jmn)
           vcdo(i,jmn) = vo(i,jmn)
           pwevo(i) = 0.
@@ -1021,7 +1041,7 @@ cj
                  tem1 = 0.5 * (xlamd(i)+xlamdd) * dz
               endif
               factor = 1. + tem - tem1
-              qcdo(i,k) = ((1.-tem1)*qcdo(i,k+1)+tem*0.5*
+              qcdo(i,k) = ((1.-tem1)*qrcdo(i,k+1)+tem*0.5*
      &                     (qo(i,k)+qo(i,k+1)))/factor
 cj
 !             pwdo(i,k)  = etad(i,k+1) * qcdo(i,k+1) -
@@ -1029,8 +1049,7 @@ cj
 !             pwdo(i,k)  = pwdo(i,k) - detad *
 !    &                    .5 * (qrcdo(i,k) + qrcdo(i,k+1))
 cj
-              pwdo(i,k)  = etad(i,k+1) * (qcdo(i,k) - qrcdo(i,k))
-              qcdo(i,k)  = qrcdo(i,k)
+              pwdo(i,k)  = etad(i,k) * (qcdo(i,k) - qrcdo(i,k))
               pwevo(i)   = pwevo(i) + pwdo(i,k)
           endif
         enddo
@@ -1042,7 +1061,7 @@ c--- evaporate (pwev)
 c
       do i = 1, im
         edtmax = edtmaxl
-        if(slimsk(i).eq.0.) edtmax = edtmaxs
+        if(islimsk(i) == 0) edtmax = edtmaxs
         if(cnvflg(i)) then
           if(pwevo(i).lt.0.) then
             edto(i) = -edto(i) * pwavo(i) / pwevo(i)
@@ -1103,7 +1122,7 @@ c
           dp = 1000. * del(i,1)
           dellah(i,1) = edto(i) * etad(i,1) * (hcdo(i,1)
      &                   - heo(i,1)) * g / dp
-          dellaq(i,1) = edto(i) * etad(i,1) * (qcdo(i,1)
+          dellaq(i,1) = edto(i) * etad(i,1) * (qrcdo(i,1)
      &                   - qo(i,1)) * g / dp
           dellau(i,1) = edto(i) * etad(i,1) * (ucdo(i,1)
      &                   - uo(i,1)) * g / dp
@@ -1160,8 +1179,8 @@ cj
      &     ((aup*eta(i,k)-adw*edto(i)*etad(i,k))*dv1q
      &    - (aup*eta(i,k-1)-adw*edto(i)*etad(i,k-1))*dv3q
      &    - (aup*tem*eta(i,k-1)+adw*edto(i)*ptem*etad(i,k))*dv2q*dz
-     &    +  aup*tem1*eta(i,k-1)*.5*(qcko(i,k)+qcko(i,k-1))*dz
-     &    +  adw*edto(i)*ptem1*etad(i,k)*.5*(qrcdo(i,k)+qrcdo(i,k-1))*dz
+     &    +  aup*tem1*eta(i,k-1)*.5*(qrcko(i,k)+qcko(i,k-1))*dz
+     &    +  adw*edto(i)*ptem1*etad(i,k)*.5*(qrcdo(i,k)+qcdo(i,k-1))*dz
      &         ) *g/dp
 cj
               dellau(i,k) = dellau(i,k) +
@@ -1394,7 +1413,7 @@ c
           jmn = jmin(i)
           hcdo(i,jmn) = heo(i,jmn)
           qcdo(i,jmn) = qo(i,jmn)
-          qrcd(i,jmn) = qeso(i,jmn)
+          qrcd(i,jmn) = qo(i,jmn)
           xpwev(i) = 0.
         endif
       enddo
@@ -1436,7 +1455,7 @@ cj
                  tem1 = 0.5 * (xlamd(i)+xlamdd) * dz
               endif
               factor = 1. + tem - tem1
-              qcdo(i,k) = ((1.-tem1)*qcdo(i,k+1)+tem*0.5*
+              qcdo(i,k) = ((1.-tem1)*qrcd(i,k+1)+tem*0.5*
      &                     (qo(i,k)+qo(i,k+1)))/factor
 cj
 !             xpwd     = etad(i,k+1) * qcdo(i,k+1) -
@@ -1444,8 +1463,7 @@ cj
 !             xpwd     = xpwd - detad *
 !    &                 .5 * (qrcd(i,k) + qrcd(i,k+1))
 cj
-              xpwd     = etad(i,k+1) * (qcdo(i,k) - qrcd(i,k))
-              qcdo(i,k)= qrcd(i,k)
+              xpwd     = etad(i,k) * (qcdo(i,k) - qrcd(i,k))
               xpwev(i) = xpwev(i) + xpwd
           endif
         enddo
@@ -1453,7 +1471,7 @@ cj
 c
       do i = 1, im
         edtmax = edtmaxl
-        if(slimsk(i).eq.0.) edtmax = edtmaxs
+        if(islimsk(i) == 0) edtmax = edtmaxs
         if(cnvflg(i)) then
           if(xpwev(i).ge.0.) then
             edtx(i) = 0.
@@ -1506,7 +1524,7 @@ c
       enddo
       do i = 1, im
         if(cnvflg(i)) then
-          if(slimsk(i).eq.1.) then
+          if(islimsk(i) == 1) then
             w1 = w1l
             w2 = w2l
             w3 = w3l
@@ -1680,9 +1698,9 @@ c
             endif
             if(flg(i).and.k.lt.ktcon(i)) then
               evef = edt(i) * evfact
-              if(slimsk(i).eq.1.) evef=edt(i) * evfactl
-!             if(slimsk(i).eq.1.) evef=.07
-c             if(slimsk(i).ne.1.) evef = 0.
+              if(islimsk(i) == 1) evef=edt(i) * evfactl
+!             if(islimsk(i) == 1) evef=.07
+c             if(islimsk(i) == 1) evef = 0.
               qcond(i) = evef * (q1(i,k) - qeso(i,k))
      &                 / (1. + el2orc * qeso(i,k) / t1(i,k)**2)
               dp = 1000. * del(i,k)
@@ -1744,6 +1762,33 @@ c
           endif
         endif
       enddo
+c
+c  convective cloud water
+c
+      do k = 1, km
+        do i = 1, im
+          if (cnvflg(i) .and. rn(i).gt.0.) then
+            if (k.ge.kbcon(i).and.k.lt.ktcon(i)) then
+              cnvw(i,k) = cnvwt(i,k) * xmb(i) * dt2
+            endif
+          endif
+        enddo
+      enddo
+c
+c  convective cloud cover
+c
+      do k = 1, km
+        do i = 1, im
+          if (cnvflg(i) .and. rn(i).gt.0.) then
+            if (k.ge.kbcon(i).and.k.lt.ktcon(i)) then
+              cnvc(i,k) = 0.04 * log(1. + 675. * eta(i,k) * xmb(i)) 
+              cnvc(i,k) = min(cnvc(i,k), 0.6)
+              cnvc(i,k) = max(cnvc(i,k), 0.0)
+            endif
+          endif
+        enddo
+      enddo
+
 c
 c  cloud water
 c

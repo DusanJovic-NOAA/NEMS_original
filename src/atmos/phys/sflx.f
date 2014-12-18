@@ -13,8 +13,8 @@
      &       edir, et, ett, esnow, drip, dew, beta, etp, ssoil,         &
      &       flx1, flx2, flx3, runoff1, runoff2, runoff3,               &
      &       snomlt, sncovr, rc, pc, rsmin, xlai, rcs, rct, rcq,        &
-     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax       &
-     &     )
+     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax,      &
+     &       z0)
 
 ! ===================================================================== !
 !  description:                                                         !
@@ -170,7 +170,7 @@
 
       integer,               parameter :: nsold   = 4           ! max soil layers
 
-      real (kind=kind_phys), parameter :: gs      = con_g       ! con_g   =9.80665
+!     real (kind=kind_phys), parameter :: gs      = con_g       ! con_g   =9.80665
       real (kind=kind_phys), parameter :: gs1     = 9.8         ! con_g in sfcdif
       real (kind=kind_phys), parameter :: gs2     = 9.81        ! con_g in snowpack, frh2o
       real (kind=kind_phys), parameter :: tfreez  = con_t0c     ! con_t0c =275.15
@@ -178,17 +178,17 @@
       real (kind=kind_phys), parameter :: lsubf   = 3.335e5     ! con_hfus=3.3358e+5
       real (kind=kind_phys), parameter :: lsubs   = 2.83e+6     ! ? in sflx, snopac
       real (kind=kind_phys), parameter :: elcp    = 2.4888e+3   ! ? in penman
-      real (kind=kind_phys), parameter :: rd      = con_rd      ! con_rd  =287.05
+!     real (kind=kind_phys), parameter :: rd      = con_rd      ! con_rd  =287.05
       real (kind=kind_phys), parameter :: rd1     = 287.04      ! con_rd in sflx, penman, canres
       real (kind=kind_phys), parameter :: cp      = con_cp      ! con_cp  =1004.6
       real (kind=kind_phys), parameter :: cp1     = 1004.5      ! con_cp in sflx, canres
       real (kind=kind_phys), parameter :: cp2     = 1004.0      ! con_cp in htr
-      real (kind=kind_phys), parameter :: cph2o   = con_cliq    ! con_cliq=4.1855e+3
+!     real (kind=kind_phys), parameter :: cph2o   = con_cliq    ! con_cliq=4.1855e+3
       real (kind=kind_phys), parameter :: cph2o1  = 4.218e+3    ! con_cliq in penman, snopac
       real (kind=kind_phys), parameter :: cph2o2  = 4.2e6       ! con_cliq in hrt *unit diff!
       real (kind=kind_phys), parameter :: cpice   = con_csol    ! con_csol=2.106e+3
       real (kind=kind_phys), parameter :: cpice1  = 2.106e6     ! con_csol in hrt *unit diff!
-      real (kind=kind_phys), parameter :: sigma   = con_sbc     ! con_sbc=5.6704e-8
+!     real (kind=kind_phys), parameter :: sigma   = con_sbc     ! con_sbc=5.6704e-8
       real (kind=kind_phys), parameter :: sigma1  = 5.67e-8     ! con_sbc in penman, nopac, snopac
 
 !  ---  inputs:
@@ -214,8 +214,9 @@
      &       smcmax
 
 !  ---  locals:
+!     real (kind=kind_phys) ::  df1h,
       real (kind=kind_phys) ::  bexp, cfactr, cmcmax, csoil, czil,      &
-     &       df1, df1h, df1a, dksat, dwsat, dsoil, dtot, frcsno,        &
+     &       df1, df1a, dksat, dwsat, dsoil, dtot, frcsno,              &
      &       frcsoi, epsca, fdown, f1, fxexp, frzx, hs, kdt, prcp1,     &
      &       psisat, quartz, rch, refkdt, rr, rgl, rsmax, sndens,       &
      &       sncond, sbeta, sn_new, slope, snup, salp, soilwm, soilww,  &
@@ -527,7 +528,7 @@
 !  --- ...  determine surface roughness over snowpack using snow condition
 !           from the previous timestep.
 
-      if (couple == 0) then            ! uncoupled mode
+!     if (couple == 0) then            ! uncoupled mode
         if (sncovr > 0.0) then
 
           call snowz0
@@ -537,7 +538,7 @@
 !            z0 )                                                       !
 
         endif
-      endif
+!     endif
 
 !  --- ...  calc virtual temps and virtual potential temps needed by
 !           subroutines sfcdif and penman.
@@ -2139,7 +2140,7 @@
 !    &       flx1, flx3, esnow, smc(nsoil)
 
 !  ---  locals:
-      real (kind=kind_phys):: denom, dsoil, dtot, eta, etp1, ssoil1,    &
+      real (kind=kind_phys):: denom, dsoil, dtot, etp1, ssoil1,         &
      &       snoexp, ex, t11, t12, t12a, t12b, yy, zz1, seh, t14,       &
      &       ec1, edir1, ett1, etns, etns1, esnow1, esnow2, etanrg,     &
      &       et1(nsoil)
@@ -3344,7 +3345,6 @@
 !  ---  parameter constants:
       real (kind=kind_phys), parameter :: c1 = 0.01
       real (kind=kind_phys), parameter :: c2 = 21.0
-      real (kind=kind_phys), parameter :: kn = 4000.0
 
 !  ---  inputs:
       real (kind=kind_phys), intent(in) :: esd, dtsec, tsnow, tsoil
