@@ -41,7 +41,7 @@ elif [ $MACHINE_ID = gaea ]; then
   export SCHEDULER=moab
 elif [ $MACHINE_ID = zeus ]; then
   source /usr/share/Modules/init/sh
-  export ACCNR=cmp
+  export ACCNR=nems
   export QUEUE=batch
 # export QUEUE=debug
   export dprefix1=/scratch1/portfolios/NCEPDEV
