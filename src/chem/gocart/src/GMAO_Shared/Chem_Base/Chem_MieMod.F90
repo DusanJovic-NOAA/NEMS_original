@@ -1,4 +1,6 @@
-! $Id: Chem_MieMod.F90,v 1.38 2009/02/18 19:32:14 stassi Exp $
+! $Id: Chem_MieMod.F90,v 1.48.2.1.12.1.16.1 2014-02-20 19:26:14 mathomp4 Exp $
+
+#include "MAPL_Exceptions.h"
 
 !-------------------------------------------------------------------------
 !      NASA/GSFC, Global Modeling & Assimilation Office, Code 900.3      !
@@ -17,29 +19,32 @@
 
    use Chem_MieTableMod
    use Chem_RegistryMod
+   use m_chars, only : uppercase
    use m_die, only: die
    use m_inpak90
 
-!#if defined(GEOS5)
-   use ESMF_Mod
+#if defined(GEOS5)
+   use ESMF
    use MAPL_Mod
-!#endif
+#endif
 
    implicit none
 
 ! !PUBLIC TYPES:
 !
    private
-   public  Chem_Mie        ! Holds Mie Lookup Tables
+   public  Chem_Mie                ! Holds Mie Lookup Tables
                            
 !
 ! !PUBLIC MEMBER FUNCTIONS:
 !
-   public  Chem_MieCreate  ! Constructor 
-   public  Chem_MieDestroy ! Destructor
-   public  Chem_MieQuery   ! Query the Mie table to return parameters (qname interface)
-   public  Chem_MieQueryTauList
-   public  Chem_MieQueryIdx  ! Query the index of the mie table given the qname
+   public  Chem_MieCreate          ! Constructor 
+   public  Chem_MieDestroy         ! Destructor
+   public  Chem_MieQuery           ! Query the Mie table to return parameters (qname interface)
+   public  Chem_MieQueryTauList    
+   public  Chem_MieQueryAllBand3D
+   public  Chem_MieQueryAllBand4D
+   public  Chem_MieQueryIdx        ! Query the index of the mie table given the qname
 
 !
 ! !DESCRIPTION:
@@ -60,6 +65,8 @@
   type Chem_Mie
 !     private
      integer :: nch                               ! number of channels
+     integer :: nMom=0                            ! number of moments (phase function)
+     integer :: nPol=0                            ! number of moments (phase function)
      real, pointer    :: channels(:)              ! wavelengths
 
      character(len=255) :: rcfile
@@ -68,6 +75,7 @@
      character(len=255) :: bc_optics_file
      character(len=255) :: oc_optics_file
      character(len=255) :: su_optics_file
+     character(len=255) :: sm_optics_file
 
                                            ! mie tables -- dim(nch,nrh,nbin)
      type(Chem_MieTable), pointer :: mie_DU => null()
@@ -75,6 +83,7 @@
      type(Chem_MieTable), pointer :: mie_BC => null()
      type(Chem_MieTable), pointer :: mie_OC => null()
      type(Chem_MieTable), pointer :: mie_SU => null()
+     type(Chem_MieTable), pointer :: mie_SM => null()
 
      integer :: nq                                ! number of tracers
      character(len=255), pointer  :: vname(:)  => null()
@@ -108,13 +117,14 @@ contains
 ! !INTERFACE:
 !
 
-  Function Chem_MieCreateFromRC ( rcfile, rc ) result(this)
+  Function Chem_MieCreateFromRC ( rcfile, rc, chemReg ) result(this)
 
   implicit none
 
 ! !INPUT PARAMETERS:
 
-   character(len=*) :: rcfile  ! Mie table file name
+   character(len=*), intent(in)            :: rcfile  ! Mie table file name
+   type(Chem_Registry), target, optional, intent(in) :: chemReg ! Optional chemReg
 
 ! !OUTPUT PARAMETERS:
 
@@ -122,12 +132,15 @@ contains
                                           !  0 - all is well
                                           !  1 - 
 
-! !DESCRIPTION:
-!
+! !DESCRIPTION: Creates a Mie object. It reads Mie Tables and associates 
+!               with a regulr Chem Registry describing aerosol mixing
+!  ratios. Then chemReg is not specified, "Chem_MieRegistry.rc" or
+!  "Chem_Registry.rc" are in, if available.
 !
 ! !REVISION HISTORY:
 !
 !  09Mar2005 da Silva  API, prologues.
+!  21Mar2010 da Silva  Added optional argument chemReg.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -135,7 +148,7 @@ contains
    character(len=*), parameter ::  myname = 'Chem_MieCreate'
 
    type(Chem_Mie) :: this
-   type(Chem_Registry) :: reg
+   type(Chem_Registry), pointer :: reg
    integer        :: ios, n, iq
    real, pointer  :: rh_table(:), lambda_table(:), &
                      bext(:,:,:), bsca(:,:,:), reff(:,:)
@@ -148,13 +161,18 @@ contains
 
 !  Get the Chem Registry: optionally, uses a private name: Chem_MieRegistry
 
-   inquire ( file='Chem_MieRegistry.rc', exist=fexists )
-   if ( fexists ) then
-        reg = Chem_RegistryCreate(rc,rcfile='Chem_MieRegistry.rc')
-        if ( rc /= 0 ) call die(myname, 'Cannot read Chem_MieRegistry.rc' )
+   if ( present(chemReg) ) then
+      reg => ChemReg
    else
-        reg = Chem_RegistryCreate(rc,rcfile='Chem_Registry.rc')
-        if ( rc /= 0 ) call die(myname, 'Cannot read Chem_Registry.rc' )
+      allocate(reg)
+      inquire ( file='Chem_MieRegistry.rc', exist=fexists )
+      if ( fexists ) then
+         reg = Chem_RegistryCreate(rc,rcfile='Chem_MieRegistry.rc')
+         if ( rc /= 0 ) call die(myname, 'Cannot read Chem_MieRegistry.rc' )
+      else
+         reg = Chem_RegistryCreate(rc,rcfile='Chem_Registry.rc')
+         if ( rc /= 0 ) call die(myname, 'Cannot read Chem_Registry.rc' )
+      end if
    end if
 
 !  Set up the hash table to map the Chem Registry to the
@@ -186,6 +204,16 @@ contains
     else
      this%nch = i90_gint ( ios )
      if ( ios /= 0 ) call die(myname,'could not parse number of channels')
+    end if
+
+!   Set the number of moments
+!   -------------------------
+    call i90_label ( 'n_moments:', ios )
+    if ( ios /= 0 ) then
+     this%nmom = 0
+    else
+     this%nmom = i90_gint ( ios )
+     if ( ios /= 0 ) call die(myname,'could not parse number of moments')
     end if
 
 !   Set the channels to calculate over
@@ -267,16 +295,18 @@ contains
    this%mie_BC = Chem_MieTableCreate(this%bc_optics_file, rc)
    if ( rc /= 0 ) call die(myname, 'could not create table for black carbon')
 
-   call Chem_MieTableRead(this%mie_DU,this%nch,this%channels,rc)
+   call Chem_MieTableRead(this%mie_DU,this%nch,this%channels,rc,nmom=this%nmom)
    if ( rc /= 0 ) call die(myname, 'could not read table for dust')
-   call Chem_MieTableRead(this%mie_SS,this%nch,this%channels,rc)
+   call Chem_MieTableRead(this%mie_SS,this%nch,this%channels,rc,nmom=this%nmom)
    if ( rc /= 0 ) call die(myname, 'could not read table for sea salt')
-   call Chem_MieTableRead(this%mie_SU,this%nch,this%channels,rc)
+   call Chem_MieTableRead(this%mie_SU,this%nch,this%channels,rc,nmom=this%nmom)
    if ( rc /= 0 ) call die(myname, 'could not read table for sulfates')
-   call Chem_MieTableRead(this%mie_OC,this%nch,this%channels,rc)
+   call Chem_MieTableRead(this%mie_OC,this%nch,this%channels,rc,nmom=this%nmom)
    if ( rc /= 0 ) call die(myname, 'could not read table for organic carbon')
-   call Chem_MieTableRead(this%mie_BC,this%nch,this%channels,rc)
+   call Chem_MieTableRead(this%mie_BC,this%nch,this%channels,rc,nmom=this%nmom)
    if ( rc /= 0 ) call die(myname, 'could not read table for black carbon')
+
+   this%nPol = this%mie_DU%nPol
 
 !  Now map the mie tables to the hash table for the registry
 !  This part is hard-coded for now!
@@ -313,9 +343,11 @@ contains
 
 !  All done
 !  --------
-   call Chem_RegistryDestroy(reg,rc)
-   if ( rc /= 0 ) return
-   
+   if ( .not. present(chemReg) ) then
+      call Chem_RegistryDestroy(reg,rc)
+      if ( rc /= 0 ) return
+   end if
+
    return 
 
  end Function Chem_MieCreateFromRC
@@ -331,7 +363,7 @@ contains
 ! !INTERFACE:
 !
 
-  function Chem_MieCreateFromCF ( cf, rc ) result(this)
+  function Chem_MieCreateFromCF ( cf, rc, chemReg ) result(this)
 
 #if !defined(GEOS5)
 
@@ -344,6 +376,7 @@ contains
 ! !INPUT PARAMETERS:
 
    type(ESMF_Config) :: cf  ! Mie table file name
+   type(Chem_Registry), target, optional, intent(in) :: chemReg ! Optional chemReg
 
 ! !OUTPUT PARAMETERS:
 
@@ -355,6 +388,8 @@ contains
 !     This routine creates a LUT object from an ESMF configuration
 !  attribute CF. This routine is usually called from GEOS-5.
 !
+!  IMPORTANT: Does not yet handle the phase function!!!!
+!
 ! !REVISION HISTORY:
 !
 !  09Mar2005 da Silva  API, prologues.
@@ -362,32 +397,35 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-   character(len=*), parameter :: Iam = 'Chem_MieCreate'
-
-
-
-   type(Chem_Registry) :: reg
+   type(Chem_Registry), pointer :: reg
    integer        :: iq, rcs(32)
-   integer        :: i
+   integer        :: i, itick, iiq
    real, pointer  :: rh_table(:), lambda_table(:), &
                      bext(:,:,:), bsca(:,:,:), reff(:,:)
    character(len=255) :: reg_filename
    logical :: fexists
 
+                      __Iam__('Chem_MieCreateFromCF')
 
 
 !  We need a Chem Registry to map a variable name into 
-!  the relevant Mie Table, mostly for efficient reason.
-!  ----------------------------------------------------
-   call ESMF_ConfigGetAttribute( CF, reg_filename, Label="CHEM_REGISTRY_FILENAME:" , &
-                                 default='Chem_MieRegistry.rc', &
-                                 RC=rc)
-   if ( rc/=0 ) return 
+!  the relevant Mie Table, mostly for efficiency reasons.
+!  ------------------------------------------------------
+   if ( present(chemReg) ) then
 
-!  Load the Chem Registry
-!  ----------------------
-   reg = Chem_RegistryCreate(rc,rcfile=reg_filename)
-   if ( rc /= 0 ) return 
+      reg => chemReg ! User supplied registry
+
+!  Load the Chem Registry from Chem_MieRegistry.rc
+!  -----------------------------------------------
+   else
+
+      allocate(reg,__STAT__)
+      call ESMF_ConfigGetAttribute( CF, reg_filename, Label="CHEM_REGISTRY_FILENAME:" , &
+                                    default='Chem_MieRegistry.rc', __RC__ )
+      reg = Chem_RegistryCreate(rc,rcfile=reg_filename)
+      if ( rc /= 0 ) return 
+
+   end if
 
 !  Set up the hash table to map the variable names to the
 !  corresponding Mie Table
@@ -406,35 +444,27 @@ contains
 !  -------------------------------------
    call ESMF_ConfigGetAttribute( CF, this%du_optics_file, Label="DU_OPTICS:" , &
                                  default='ExtData/g5chem/x/opticsBands_DU.nc4', &
-                                 RC=rc)
-   if ( rc /= 0 ) return 
+                                 __RC__ )
    call ESMF_ConfigGetAttribute( CF, this%ss_optics_file, Label="SS_OPTICS:" , &
                                  default='ExtData/g5chem/x/opticsBands_SS.nc4', &
-                                 RC=rc)
-   if ( rc /= 0 ) return 
+                                 __RC__ )
    call ESMF_ConfigGetAttribute( CF, this%su_optics_file, Label="SU_OPTICS:" , &
                                  default='ExtData/g5chem/x/opticsBands_SU.nc4', &
-                                 RC=rc)
-   if ( rc /= 0 ) return 
+                                 __RC__ )
    call ESMF_ConfigGetAttribute( CF, this%oc_optics_file, Label="OC_OPTICS:" , &
                                  default='ExtData/g5chem/x/opticsBands_OC.nc4', &
-                                 RC=rc)
-   if ( rc /= 0 ) return 
+                                 __RC__ )
    call ESMF_ConfigGetAttribute( CF, this%bc_optics_file, Label="BC_OPTICS:" , &
                                  default='ExtData/g5chem/x/opticsBands_BC.nc4', &
-                                 RC=rc)
-   if ( rc /= 0 ) return 
+                                 __RC__ )
    call ESMF_ConfigGetAttribute( CF, this%nch           , Label= "NUM_BANDS:" , &
-                                 default=18,                                                    &
-                                 RC=rc) 
-   if ( rc /= 0 ) return 
+                                 default=18, __RC__)
 
    allocate ( this%channels(this%nch), stat=rc )
    if ( rc /= 0 ) return 
 
    call ESMF_ConfigGetAttribute( CF, this%channels       , Label= "BANDS:" , &
-                                 count=this%nch,                                &
-                                 RC=rc)
+                                 count=this%nch, rc=rc )
 
 !  If there is no BAND definition on CF, make something up
 !  -------------------------------------------------------
@@ -448,24 +478,17 @@ contains
             this%mie_BC, this%mie_OC, stat=rc)
    if ( rc /= 0 ) return 
 
-   rcs = 0;                                                           i = 1
-   this%mie_DU = Chem_MieTableCreate(this%du_optics_file, RC=rcs(i)); i=i+1
-   this%mie_SS = Chem_MieTableCreate(this%ss_optics_file, RC=rcs(i)); i=i+1
-   this%mie_SU = Chem_MieTableCreate(this%su_optics_file, RC=rcs(i)); i=i+1
-   this%mie_OC = Chem_MieTableCreate(this%oc_optics_file, RC=rcs(i)); i=i+1
-   this%mie_BC = Chem_MieTableCreate(this%bc_optics_file, RC=rcs(i)); i=i+1
+   this%mie_DU = Chem_MieTableCreate(this%du_optics_file, __RC__ )
+   this%mie_SS = Chem_MieTableCreate(this%ss_optics_file, __RC__ )
+   this%mie_SU = Chem_MieTableCreate(this%su_optics_file, __RC__ )
+   this%mie_OC = Chem_MieTableCreate(this%oc_optics_file, __RC__ )
+   this%mie_BC = Chem_MieTableCreate(this%bc_optics_file, __RC__ )
 
-   if(any(rcs/=0)) return 
-
-   rcs = 0;                                                           i = 1
-   call Chem_MieTableRead(this%mie_DU,this%nch,this%channels,rcs(i)); i=i+1
-   call Chem_MieTableRead(this%mie_SS,this%nch,this%channels,rcs(i)); i=i+1
-   call Chem_MieTableRead(this%mie_SU,this%nch,this%channels,rcs(i)); i=i+1
-   call Chem_MieTableRead(this%mie_OC,this%nch,this%channels,rcs(i)); i=i+1
-   call Chem_MieTableRead(this%mie_BC,this%nch,this%channels,rcs(i)); i=i+1
-
-   if(any(rcs/=0)) return 
-
+   call Chem_MieTableRead(this%mie_DU,this%nch,this%channels, __RC__)
+   call Chem_MieTableRead(this%mie_SS,this%nch,this%channels, __RC__)
+   call Chem_MieTableRead(this%mie_SU,this%nch,this%channels, __RC__)
+   call Chem_MieTableRead(this%mie_OC,this%nch,this%channels, __RC__)
+   call Chem_MieTableRead(this%mie_BC,this%nch,this%channels, __RC__)
 
 !  Now map the mie tables to the hash table for the registry
 !  This part is hard-coded for now!
@@ -496,15 +519,23 @@ contains
     enddo
    endif
    if(reg%doing_SU) then
-    iq = reg%i_SU + 2     ! sulfate only
-    this%vindex(iq) = 1
-    this%vtable(iq)  = this%mie_SU
+    itick = 0
+    do iq = reg%i_SU, reg%j_SU
+     iiq = iq - reg%i_SU + 1    ! count sulfur species from 1
+     if(modulo(iiq,4) .eq. 3) then
+      itick = itick + 1
+      this%vindex(iq) = itick
+      this%vtable(iq)  = this%mie_SU
+     endif
+    enddo
    endif
 
 !  All done
 !  --------
-   call Chem_RegistryDestroy(reg,rc)
-   if ( rc /= 0 ) return 
+   if ( .not. present(chemReg) ) then
+      call Chem_RegistryDestroy(reg,__RC__)
+      deallocate(reg)
+   end if
 
 #endif
    
@@ -630,7 +661,7 @@ end subroutine Chem_MieDestroy
 
       idx = -1
       do iq = 1, this%nq
-       if(NAME .eq. trim(this%vname(iq))) then
+       if(uppercase(trim((NAME))) .eq. uppercase(trim(this%vname(iq)))) then
         idx = this%vindex(iq)
         this%vtableUse => this%vtable(iq)
         exit
@@ -660,7 +691,8 @@ end subroutine Chem_MieDestroy
 ! !INTERFACE:
 !
    subroutine Chem_MieQueryByInt ( this, idx, channel, q_mass, rh,     &
-                                   tau, ssa, gasym, bext, bsca, bbck, rc )
+                                   tau, ssa, gasym, bext, bsca, bbck,  &
+                                   reff, pmom, p11, p22, rc )
 
 ! !INPUT PARAMETERS:
 
@@ -675,9 +707,13 @@ end subroutine Chem_MieDestroy
    real,    optional,      intent(out) :: tau   ! aerol extinction optical depth
    real,    optional,      intent(out) :: ssa   ! single scattering albedo
    real,    optional,      intent(out) :: gasym ! asymmetry parameter
-   real,    optional,      intent(out) :: bext
-   real,    optional,      intent(out) :: bsca
-   real,    optional,      intent(out) :: bbck
+   real,    optional,      intent(out) :: bext  ! mass extinction efficiency [m2 (kg dry mass)-1]
+   real,    optional,      intent(out) :: bsca  ! mass scattering efficiency [m2 (kg dry mass)-1]
+   real,    optional,      intent(out) :: bbck  ! mass backscatter efficiency [m2 (kg dry mass)-1]
+   real,    optional,      intent(out) :: reff  ! effective radius (micron)
+   real,    optional,      intent(out) :: pmom(:,:)
+   real,    optional,      intent(out) :: p11   ! P11 phase function at backscatter
+   real,    optional,      intent(out) :: p22   ! P22 phase function at backscatter
    integer, optional,      intent(out) :: rc    ! error code
 
 ! !DESCRIPTION:
@@ -699,7 +735,7 @@ end subroutine Chem_MieDestroy
       integer                      :: ICHANNEL, TYPE, iq
       integer                      :: irh, irhp1, isnap
       real                         :: rhUse, arh
-      real                         :: bextIn, bscaIn, bbckIn, gasymIn
+      real                         :: bextIn, bscaIn, bbckIn, gasymIn, p11In, p22In
       type(Chem_MieTable), pointer :: TABLE
 
       character(len=*), parameter  :: Iam = 'Chem_MieQueryByInt'
@@ -728,23 +764,44 @@ end subroutine Chem_MieDestroy
 !     channel; rh is the relative humidity.
 
       if(present(bext) .or. present(tau) .or. present(ssa) ) then
-         bextIn =   TABLE%bext(ichannel,irh,TYPE) * (1.-arh) &
-                  + TABLE%bext(ichannel,irhp1,TYPE) * arh
+         bextIn =   TABLE%bext(irh  ,ichannel,TYPE) * (1.-arh) &
+                  + TABLE%bext(irhp1,ichannel,TYPE) * arh
       endif
 
       if(present(bsca) .or. present(ssa) ) then
-         bscaIn =   TABLE%bsca(ichannel,irh,TYPE) * (1.-arh) &
-                  + TABLE%bsca(ichannel,irhp1,TYPE) * arh
+         bscaIn =   TABLE%bsca(irh  ,ichannel,TYPE) * (1.-arh) &
+                  + TABLE%bsca(irhp1,ichannel,TYPE) * arh
       endif
 
       if(present(bbck)) then
-         bbckIn =   TABLE%bbck(ichannel,irh,TYPE) * (1.-arh) &
-                  + TABLE%bbck(ichannel,irhp1,TYPE) * arh
+         bbckIn =   TABLE%bbck(irh  ,ichannel,TYPE) * (1.-arh) &
+                  + TABLE%bbck(irhp1,ichannel,TYPE) * arh
       endif
 
       if(present(gasym)) then
-         gasymIn =  TABLE%g(ichannel,irh,TYPE) * (1.-arh) &
-                  + TABLE%g(ichannel,irhp1,TYPE) * arh
+         gasymIn =  TABLE%g(irh  ,ichannel,TYPE) * (1.-arh) &
+                  + TABLE%g(irhp1,ichannel,TYPE) * arh
+      endif
+
+      if(present(rEff) ) then
+         rEff =     TABLE%rEff(irh  ,TYPE) * (1.-arh) &
+                  + TABLE%rEff(irhp1,TYPE) * arh
+         rEff = 1.E6 * rEff ! convert to microns
+      endif
+
+      if(present(pmom)) then
+         pmom(:,:) = TABLE%pmom(irh  ,ichannel,TYPE,:,:) * (1.-arh) &
+                   + TABLE%pmom(irhp1,ichannel,TYPE,:,:) * arh
+      endif
+
+      if(present(p11) ) then
+         p11In =   TABLE%pback(irh  ,ichannel,TYPE,1) * (1.-arh) &
+                 + TABLE%pback(irhp1,ichannel,TYPE,1) * arh
+      endif
+
+      if(present(p22) ) then
+         p22In =   TABLE%pback(irh  ,ichannel,TYPE,5) * (1.-arh) &
+                 + TABLE%pback(irhp1,ichannel,TYPE,5) * arh
       endif
 
 !     Fill the requested outputs
@@ -755,6 +812,8 @@ end subroutine Chem_MieDestroy
       if(present(bsca )) bsca  = bscaIn
       if(present(bbck )) bbck  = bbckIn
       if(present(gasym)) gasym = gasymIn
+      if(present(p11  )) p11   = p11In
+      if(present(p22  )) p22   = p22In
 
 !  All Done
 !----------
@@ -805,8 +864,8 @@ end subroutine Chem_MieDestroy
 
          if(irhp1 .gt. TABLE%nrh) irhp1 = TABLE%nrh
 
-         tau(i) = (  TABLE%bext(ichannel,irh  ,idx ) * (1.-arh) &
-                  +  TABLE%bext(ichannel,irhp1,idx ) *     arh  )*q_mass(i)
+         tau(i) = (  TABLE%bext(irh  ,ichannel,idx ) * (1.-arh) &
+                  +  TABLE%bext(irhp1,ichannel,idx ) *     arh  )*q_mass(i)
       enddo
 
 !  All Done
@@ -817,9 +876,9 @@ end subroutine Chem_MieDestroy
     end subroutine Chem_MieQueryTauList
 
 
-
    subroutine Chem_MieQueryByChar( this, idx, channel, q_mass, rh,     &
-                                   tau, ssa, gasym, bext, bsca, bbck, rc )
+                                   tau, ssa, gasym, bext, bsca, bbck,  &
+                                   rEff, pmom, p11, p22, rc )
 
 !  ! INPUT parameters
    type(Chem_Mie), target, intent(in ) :: this     
@@ -832,9 +891,13 @@ end subroutine Chem_MieDestroy
    real,    optional,      intent(out) :: tau   ! aerol extinction optical depth
    real,    optional,      intent(out) :: ssa   ! single scattering albedo
    real,    optional,      intent(out) :: gasym ! asymmetry parameter
-   real,    optional,      intent(out) :: bext
-   real,    optional,      intent(out) :: bsca
-   real,    optional,      intent(out) :: bbck
+   real,    optional,      intent(out) :: bext  ! mass extinction efficiency [m2 (kg dry mass)-1]
+   real,    optional,      intent(out) :: bsca  ! mass scattering efficiency [m2 (kg dry mass)-1]
+   real,    optional,      intent(out) :: bbck  ! mass backscatter efficiency [m2 (kg dry mass)-1]
+   real,    optional,      intent(out) :: reff  ! effective radius (micron)
+   real,    optional,      intent(out) :: pmom(:,:)
+   real,    optional,      intent(out) :: p11   ! P11 phase function at backscatter
+   real,    optional,      intent(out) :: p22   ! P22 phase function at backscatter
    integer, optional,      intent(out) :: rc    ! error code
 
    integer :: iq, i
@@ -853,14 +916,208 @@ end subroutine Chem_MieDestroy
    end if
 
    do iq = 1, this%nq
-      if(trim(NAME) == trim(this%vname(iq))) then
+      if( uppercase(trim(NAME)) == uppercase(trim(this%vname(iq)))) then
          call  Chem_MieQueryByInt( this, iq, channel, q_mass, rh,     &
-                             tau, ssa, gasym, bext, bsca, bbck, rc=rc )
+                             tau, ssa, gasym, bext, bsca, bbck, &
+                             rEff, pmom, p11, p22, rc=rc )
          if ( rc /= 0 ) return
       endif
    enddo
 
  end subroutine Chem_MieQueryByChar
+
+   subroutine Chem_MieQueryAllBand3D  ( this, idx, nbands, offset, q_mass, rh, &
+                                        tau, ssa, asy, rc )
+
+
+   type(Chem_Mie), target, intent(in ) :: this     
+   integer,                intent(in ) :: idx     ! variable index on Chem_Mie
+   integer,                intent(in ) :: nbands  ! number of bands
+   integer,                intent(in ) :: offset  ! offset of bands
+   real,                   intent(in ) :: q_mass(:,:)  ! aerosol mass [kg/m2],
+   real,                   intent(in ) :: rh(:,:)      ! relative humidity
+   real,                   intent(out) :: tau(:,:,:)   ! aerosol optical depth
+   real,                   intent(out) :: ssa(:,:,:)   ! single scattering albedo
+   real,                   intent(out) :: asy(:,:,:)   ! asymmetry parameter
+   integer, optional,      intent(out) :: rc    ! error code
+
+!-------------------------------------------------------------------------
+
+      integer                      :: ICHANNEL, i, j, k, STATUS
+      integer                      :: irh, irhp1, isnap
+      real                         :: arh
+      type(Chem_MieTable), pointer :: TABLE
+      integer                      :: II, JJ, KK
+      real                         :: bextIn, bscaIn, bbckIn, gasymIn
+
+      real, allocatable            :: bext_band(:)
+      real, allocatable            :: bsca_band(:)
+      real, allocatable            :: gasy_band(:)
+
+      character(len=*), parameter  :: Iam = 'Chem_MieQueryAllBand3D'
+
+      if ( present(rc) ) rc = 0
+
+      TABLE => this%vtableUse
+
+      II = size(rh,1)
+      KK = size(rh,2)
+
+      allocate(bext_band(TABLE%nrh), source=0.0, __STAT__)
+      allocate(bsca_band(TABLE%nrh), source=0.0, __STAT__)
+      allocate(gasy_band(TABLE%nrh), source=0.0, __STAT__)
+
+!     Now map the input RH to the high resolution hash table for RH
+
+      do ichannel=1,nbands
+
+         bext_band = TABLE%bext(:,ichannel+offset,idx)
+         bsca_band = TABLE%bsca(:,ichannel+offset,idx)
+         gasy_band =    TABLE%g(:,ichannel+offset,idx)
+
+         do k=1,KK
+            do i=1,II
+
+               arh = rh(i,k)
+               arh = max(arh,0.0)
+               arh = min(arh,0.99)
+      
+               isnap = int((arh+0.001)*1000.)
+               if(isnap .lt. 1) isnap = 1
+      
+               arh   = TABLE%rha( isnap )
+               irh   = TABLE%rhi( isnap )
+               irhp1 = irh+1
+      
+               if(irhp1 .gt. TABLE%nrh) irhp1 = TABLE%nrh
+
+               bextIn  = bext_band(irh  ) * (1.-arh) &
+                       + bext_band(irhp1) *     arh
+      
+               bscaIn  = bsca_band(irh  ) * (1.-arh) &
+                       + bsca_band(irhp1) *     arh
+         
+               gasymIn = gasy_band(irh  ) * (1.-arh) &
+                       + gasy_band(irhp1) *     arh
+      
+!              Fill the requested outputs
+
+               tau(i,k,ichannel) = bextIn * q_mass(i,k)
+               ssa(i,k,ichannel) = bscaIn/bextIn
+               asy(i,k,ichannel) = gasymIn
+
+            enddo
+         enddo
+      enddo
+
+      deallocate(bext_band)
+      deallocate(bsca_band)
+      deallocate(gasy_band)
+
+!  All Done
+!----------
+
+      return
+
+    end subroutine Chem_MieQueryAllBand3D
+
+   subroutine Chem_MieQueryAllBand4D  ( this, idx, nbands, offset, q_mass, rh, &
+                                        tau, ssa, asy, rc )
+
+
+   type(Chem_Mie), target, intent(in ) :: this     
+   integer,                intent(in ) :: idx     ! variable index on Chem_Mie
+   integer,                intent(in ) :: nbands  ! number of bands
+   integer,                intent(in ) :: offset  ! offset of bands
+   real,                   intent(in ) :: q_mass(:,:,:)  ! aerosol mass [kg/m2],
+   real,                   intent(in ) :: rh(:,:,:)      ! relative humidity
+   real,                   intent(out) :: tau(:,:,:,:)   ! aerosol optical depth
+   real,                   intent(out) :: ssa(:,:,:,:)   ! single scattering albedo
+   real,                   intent(out) :: asy(:,:,:,:)   ! asymmetry parameter
+   integer, optional,      intent(out) :: rc    ! error code
+
+!-------------------------------------------------------------------------
+
+      integer                      :: ICHANNEL, i, j, k, STATUS
+      integer                      :: irh, irhp1, isnap
+      real                         :: arh
+      type(Chem_MieTable), pointer :: TABLE
+      integer                      :: II, JJ, KK
+      real                         :: bextIn, bscaIn, bbckIn, gasymIn
+
+      real, allocatable            :: bext_band(:)
+      real, allocatable            :: bsca_band(:)
+      real, allocatable            :: gasy_band(:)
+
+      character(len=*), parameter  :: Iam = 'Chem_MieQueryAllBand4D'
+
+      if ( present(rc) ) rc = 0
+
+      TABLE => this%vtableUse
+
+      II = size(rh,1)
+      JJ = size(rh,2)
+      KK = size(rh,3)
+
+      allocate(bext_band(TABLE%nrh), source=0.0, __STAT__)
+      allocate(bsca_band(TABLE%nrh), source=0.0, __STAT__)
+      allocate(gasy_band(TABLE%nrh), source=0.0, __STAT__)
+
+!     Now map the input RH to the high resolution hash table for RH
+
+      do ichannel=1,nbands
+
+         bext_band = TABLE%bext(:,ichannel+offset,idx)
+         bsca_band = TABLE%bsca(:,ichannel+offset,idx)
+         gasy_band =    TABLE%g(:,ichannel+offset,idx)
+
+         do k=1,KK
+            do j=1,JJ
+               do i=1,II
+
+                  arh = rh(i,j,k)
+                  arh = max(arh,0.0)
+                  arh = min(arh,0.99)
+         
+                  isnap = int((arh+0.001)*1000.)
+                  if(isnap .lt. 1) isnap = 1
+         
+                  arh   = TABLE%rha( isnap )
+                  irh   = TABLE%rhi( isnap )
+                  irhp1 = irh+1
+         
+                  if(irhp1 .gt. TABLE%nrh) irhp1 = TABLE%nrh
+
+                  bextIn  = bext_band(irh  ) * (1.-arh) &
+                          + bext_band(irhp1) *     arh
+         
+                  bscaIn  = bsca_band(irh  ) * (1.-arh) &
+                          + bsca_band(irhp1) *     arh
+            
+                  gasymIn = gasy_band(irh  ) * (1.-arh) &
+                          + gasy_band(irhp1) *     arh
+         
+!                 Fill the requested outputs
+
+                  tau(i,j,k,ichannel) = bextIn * q_mass(i,j,k)
+                  ssa(i,j,k,ichannel) = bscaIn/bextIn
+                  asy(i,j,k,ichannel) = gasymIn
+
+               enddo
+            enddo
+         enddo
+      enddo
+
+      deallocate(bext_band)
+      deallocate(bsca_band)
+      deallocate(gasy_band)
+
+!  All Done
+!----------
+
+      return
+
+    end subroutine Chem_MieQueryAllBand4D
 
  end module Chem_MieMod
 

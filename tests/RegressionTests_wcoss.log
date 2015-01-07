@@ -1,4 +1,4 @@
-Mon Dec 22 18:08:29 EST 2014
+Tue Jan  6 16:21:04 UTC 2015
 Start Regression test
 
 
@@ -728,32 +728,4 @@ Checking test 40 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 40 passed 
-Test 41 gfs_dfi_post GFS with POST
-Test 41
-GFS with POST
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 41 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Test 41 passed 
 REGRESSION TEST WAS SUCCESSFUL

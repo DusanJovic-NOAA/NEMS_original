@@ -11,7 +11,7 @@
 # 26apr2005  da Silva  MADE BOPT=O the default
 # 08Jun2006  Stassi    Added Check Environment section
 # 26Jun2006  da SIlva  Removed Assert.pl related staff; see Assert.mk instead
-# 27Nov2012  Lu        Revert zeus-related code changes
+# 17Aug2012  Purnendu  Added PDFLATEX, MKINDX; flags -b -f to PROTEX_FLAGS
 #
 #--------------------------------------------------------------------------
 
@@ -50,6 +50,7 @@ endif
   ESMAETC = $(ESMADIR)/$(ARCH)/etc
   ESMADOC = $(ESMADIR)/$(ARCH)/doc
   ESMACFG = $(ESMADIR)/$(ARCH)/Config
+  ESMATST = $(ESMAETC)/testsuites
 
 # Base Libraries and utilities
 # ----------------------------
@@ -87,7 +88,7 @@ ACG         = $(ESMABIN)/mapl_acg.pl
 ACG_FLAGS   = -v
 F90SPLIT    = $(ESMABIN)/f90split.x  # split f90 file by procedure
 F90AIB      = $(ESMABIN)/f90aib.x    # automatic interface block
-F2PY        = f2py   # python fortran extension builder
+F2PY        = /usr/bin/f2py   # python fortran extension builder
 DLLEXT      = so     # extension for shared libraries
 F2PYEXT     = so     # extension for python extensions
 
@@ -96,8 +97,10 @@ F2PYEXT     = so     # extension for python extensions
 #                     ----------------------
 
 PROTEX       = $(ESMABIN)/protex
-PROTEX_FLAGS = -g
+PROTEX_FLAGS = -g -b -f
 LATEX        = latex
+PDFLATEX     = pdflatex
+MKINDX       = makeindex
 DVIPS        = dvips -Ppdf -G0 -f 
 PS2PDF       = ps2pdf
 
@@ -119,16 +122,31 @@ LIB_SCI =
 LIB_SYS =
 
 DIR_HDF5 = $(BASEDIR)/$(ARCH)
-INC_HDF5 = $(DIR_HDF5)/include/hdf
+INC_HDF5 = $(DIR_HDF5)/include/hdf5
 LIB_HDF5 = $(wildcard $(foreach lib,hdf5_hl hdf5 z sz gpfs,\
            $(BASELIB)/lib$(lib).a) )
 
 DIR_NETCDF = $(BASEDIR)/$(ARCH)
 INC_NETCDF = $(DIR_NETCDF)/include/netcdf
-ifeq ($(wildcard $(BASEBIN)/nc-config), )
-    LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
+
+ifneq ($(wildcard $(BASEBIN)/nf-config), )
+    LIB_NETCDF := $(shell $(BASEBIN)/nf-config --flibs)
 else
-    LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
+  ifneq ($(wildcard $(BASEBIN)/nc-config), )
+      LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
+  else
+      LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
+  endif
+endif
+
+ifneq ($(wildcard $(BASEBIN)/ncxx4-config), )
+    LIB_NETCDF_CXX := $(shell $(BASEBIN)/ncxx4-config --libs)
+else
+  ifneq ($(wildcard $(BASELIB)/libnetcdf_c++.a), )
+    LIB_NETCDF_CXX := -L$(BASELIB) -lnetcdf_c++ -lnetcdff -lnetcdf
+  else
+    LIB_NETCDF_CXX := 
+  endif
 endif
 
 DIR_HDF = $(BASEDIR)/$(ARCH)
@@ -141,13 +159,20 @@ ifeq ($(ESMA_SDF),hdf)
    LIB_SDF = $(LIB_HDF)
 else
    INC_SDF = $(INC_NETCDF)
-   LIB_SDF = $(LIB_NETCDF)
+   LIB_SDF = $(LIB_NETCDF_CXX) $(LIB_NETCDF)
    ifneq ($(wildcard $(INC_SDF)/netcdf.inc), )
      ifneq ($(shell grep -c netcdf4 $(INC_SDF)/netcdf.inc),0)
         DEF_SDF += $(D)HAS_NETCDF4
      endif
      ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
         DEF_SDF += $(D)HAS_NETCDF3
+     endif
+     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
+        DEF_SDF += $(D)H5_HAVE_PARALLEL
+        F2PY += --f77exec=$(FC) --f90exec=$(FC)
+     endif
+     ifneq ($(wildcard $(INC_SDF)/netcdf_par.h), )
+        DEF_SDF += $(D)NETCDF_NEED_NF_MPIIO
      endif
    endif
 endif
@@ -190,7 +215,6 @@ endif
 CC        = gcc
 CXX       = g++
 CPP       = cpp
-PP        = -$(CPP)
 
 CFLAGS    = $(CDEFS) $(CINCS) $(COPT) $(USER_CFLAGS)
 CXXFLAGS  = $(CDEFS) $(CINCS) $(COPT) $(USER_CFLAGS)
@@ -231,6 +255,10 @@ endif
 FINT4       = 
 FINT8       = -i8
 FINT        = $(FINT4)
+
+ifdef FDEF1
+      USER_FDEFS += $(D)$(FDEF1)
+endif
 
 FDEFS     = $(D)sys$(ARCH) $(D)ESMA$(BPREC) $(DEF_SDF) $(USER_FDEFS)
 FINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_FINCS)

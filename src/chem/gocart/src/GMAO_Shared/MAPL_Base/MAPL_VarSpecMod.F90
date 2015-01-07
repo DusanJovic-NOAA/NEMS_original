@@ -1,4 +1,4 @@
-!  $Id: MAPL_VarSpecMod.F90,v 1.16.20.1 2009/12/16 21:33:47 dasilva Exp $
+!  $Id: MAPL_VarSpecMod.F90,v 1.27.12.5 2014-06-23 14:27:32 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -13,9 +13,10 @@ module MAPL_VarSpecMod
 
 ! !USES:
 
-use ESMF_Mod
+use ESMF
 use MAPL_BaseMod
 use MAPL_IOMod
+use MAPL_CommsMod, only: MAPL_AM_I_ROOT
 
 ! !PUBLIC MEMBER FUNCTIONS:
 
@@ -29,6 +30,7 @@ public MAPL_VarSpecAddToList
 public MAPL_VarSpecSet
 public MAPL_VarSpecGet
 public MAPL_VarSpecPrint
+public MAPL_VarSpecPrintCSV
 public MAPL_VarSpecDestroy
 public MAPL_VarSpecAddChildName
 public MAPL_VarSpecReconnect
@@ -38,6 +40,8 @@ public MAPL_VarIsConnected
 public MAPL_VarIsListed
 public MAPL_ConnCheckUnused
 public MAPL_ConnCheckReq
+public MAPL_VarSpecSamePrec
+
 ! !OVERLOADED INTERFACES:
 
 public operator(.eq.)
@@ -61,13 +65,13 @@ interface MAPL_VarSpecGetIndex
 end interface
 
 interface MAPL_VarSpecGet
-   module procedure MAPL_VarSpecGet_
+   module procedure MAPL_VarSpecGetRegular
    module procedure MAPL_VarSpecGetFieldPtr
    module procedure MAPL_VarSpecGetBundlePtr
 end interface
 
 interface MAPL_VarSpecSet
-   module procedure MAPL_VarSpecSet_
+   module procedure MAPL_VarSpecSetRegular
    module procedure MAPL_VarSpecSetFieldPtr
    module procedure MAPL_VarSpecSetBundlePtr
 end interface
@@ -83,7 +87,7 @@ interface MAPL_VarIsConnected
 end interface
 
 interface MAPL_VarSpecPrint
-   module procedure MAPL_VarSpecPrint_
+   module procedure MAPL_VarSpecPrintOne
    module procedure MAPL_VarSpecPrintMany
 end interface
 
@@ -110,6 +114,7 @@ type MAPL_VarSpecType
   character(len=ESMF_MAXSTR), pointer      :: ATTR_RNAMES(:)
   integer,                    pointer      :: ATTR_IVALUES(:)
   real,                       pointer      :: ATTR_RVALUES(:)
+  integer,                    pointer      :: UNGRIDDED_DIMS(:)
   integer                                  :: DIMS
   integer                                  :: LOCATION
   integer                                  :: NUM_SUBTILES
@@ -119,7 +124,11 @@ type MAPL_VarSpecType
   integer                                  :: LABEL
   integer                                  :: HALOWIDTH
   integer                                  :: PRECISION
-  logical                                  :: NORESTART
+  integer                                  :: FIELD_TYPE
+  logical                                  :: RESTART
+  logical                                  :: defaultProvided
+  logical                                  :: doNotAllocate
+  logical                                  :: alwaysAllocate ! meant for export specs
   real                                     :: DEFAULT
   type(ESMF_Field), pointer                :: FIELD
   type(ESMF_FieldBundle), pointer          :: BUNDLE
@@ -153,9 +162,11 @@ contains
                              STAT, ACCMLT_INTERVAL, COUPLE_INTERVAL,   &
                              DEFAULT, FRIENDLYTO, &
                              HALOWIDTH, PRECISION, &
-                             NORESTART, &
+                             RESTART, &
                              ATTR_RNAMES, ATTR_INAMES, &
                              ATTR_RVALUES, ATTR_IVALUES, &
+                             UNGRIDDED_DIMS, &
+                             FIELD_TYPE, &
                              GRID, &
                                                                    RC  )
 
@@ -175,11 +186,13 @@ contains
     type(ESMF_FieldBundle)  , optional   , intent(IN), target :: BUNDLE
     integer            , optional   , intent(IN)      :: HALOWIDTH
     integer            , optional   , intent(IN)      :: PRECISION
-    logical            , optional   , intent(IN)      :: NORESTART
+    logical            , optional   , intent(IN)      :: RESTART
     character (len=*)  , optional   , intent(IN)      :: ATTR_INAMES(:)
     character (len=*)  , optional   , intent(IN)      :: ATTR_RNAMES(:)
     integer            , optional   , intent(IN)      :: ATTR_IVALUES(:)
     real               , optional   , intent(IN)      :: ATTR_RVALUES(:)
+    integer            , optional   , intent(IN)      :: UNGRIDDED_DIMS(:)
+    integer            , optional   , intent(IN)      :: FIELD_TYPE
     type(ESMF_Grid)    , optional   , intent(IN)      :: GRID
     integer            , optional   , intent(OUT)     :: RC
 
@@ -197,7 +210,8 @@ contains
     integer                    :: usableNUM_SUBTILES
     integer                    :: usableHALOWIDTH
     integer                    :: usablePRECISION
-    logical                    :: usableNORESTART
+    integer                    :: usableFIELD_TYPE
+    logical                    :: usableRESTART
     character(len=ESMF_MAXSTR) :: usableLONG
     character(len=ESMF_MAXSTR) :: usableUNIT
     character(len=ESMF_MAXSTR) :: usableFRIENDLYTO
@@ -205,6 +219,7 @@ contains
     character(len=ESMF_MAXSTR), pointer :: usableATTR_RNAMES(:) => NULL()
     integer                   , pointer :: usableATTR_IVALUES(:) => NULL()
     real                      , pointer :: usableATTR_RVALUES(:) => NULL()
+    integer                   , pointer :: usableUNGRIDDED_DIMS(:)
     real                       :: usableDEFAULT
     type(ESMF_Grid)            :: usableGRID
     type(ESMF_Field), pointer  :: usableFIELD
@@ -212,6 +227,8 @@ contains
 
     INTEGER :: I
     integer :: szINAMES, szRNAMES, szIVALUES, szRVALUES
+    integer :: szUNGRD
+    logical :: defaultProvided
 
       if(associated(SPEC)) then
        if(MAPL_VarSpecGetIndex(SPEC, SHORT_NAME)/=-1) then
@@ -280,17 +297,25 @@ contains
       endif
 
       if(present(DEFAULT)) then
-       usableDEFAULT=DEFAULT
+         defaultProvided=.true.
+         usableDEFAULT=DEFAULT
       else
-       usableDEFAULT=0.0 ! ALT: this could be NaN
-!       usableDEFAULT=Z'7F800001' ! DSK: set to NaN, dies in FV Init
-!       usableDEFAULT=-999. ! DSK
+         defaultProvided=.false.
+         usableDEFAULT=0.0 ! ALT: this could be NaN
+!         usableDEFAULT=Z'7F800001' ! DSK: set to NaN, dies in FV Init
+!         usableDEFAULT=-999. ! DSK
+      endif
+
+      if (present(FIELD_TYPE)) then
+         usableFIELD_TYPE=FIELD_TYPE
+      else
+         usableFIELD_TYPE=MAPL_ScalarField 
       endif
 
       if(present(GRID)) then
          usableGRID=GRID
       else
-         usableGRID = ESMF_GridCreateEmpty(RC=STATUS)
+         usableGRID = ESMF_GridEmptyCreate(RC=STATUS)
          VERIFY_(STATUS)
          call ESMF_GridDestroy(usableGRID) !ALT we do not need RC
       endif
@@ -300,7 +325,7 @@ contains
       else
          allocate(usableFIELD, STAT=STATUS)
          VERIFY_(STATUS)
-         usableFIELD = ESMF_FieldCreateEmpty(NAME=SHORT_NAME,RC=STATUS)
+         usableFIELD = ESMF_FieldEmptyCreate(NAME=SHORT_NAME,RC=STATUS)
          VERIFY_(STATUS)
          call ESMF_FieldDestroy(usableFIELD) !ALT we do not need RC
       endif
@@ -321,10 +346,10 @@ contains
        usableHALOWIDTH=0
       endif
 
-      if(present(NORESTART)) then
-       usableNORESTART=NORESTART
+      if(present(RESTART)) then
+       usableRESTART=RESTART
       else
-       usableNORESTART=.false. ! default
+       usableRESTART=.true. ! default
       endif
 
       if(present(PRECISION)) then
@@ -373,6 +398,16 @@ contains
       ASSERT_(szIVALUES == szINAMES)
       ASSERT_(szRVALUES == szRNAMES)
 
+      szUNGRD = 0
+      if (present(UNGRIDDED_DIMS)) then
+         szUNGRD = size(UNGRIDDED_DIMS)
+         allocate(usableUNGRIDDED_DIMS(szUNGRD), stat=status)
+         VERIFY_(STATUS)
+         usableUNGRIDDED_DIMS = UNGRIDDED_DIMS
+      else
+         NULLIFY(usableUNGRIDDED_DIMS)
+      end if
+
       I = size(SPEC)
 
       allocate(TMP(I+1),stat=STATUS)
@@ -395,17 +430,42 @@ contains
       TMP(I+1)%SPECPtr%COUPLE_INTERVAL  =  usableCOUPLE
       TMP(I+1)%SPECPtr%LABEL      =  0
       TMP(I+1)%SPECPtr%DEFAULT    =  usableDEFAULT
+      TMP(I+1)%SPECPtr%defaultProvided = defaultProvided
       TMP(I+1)%SPECPtr%FIELD      => usableFIELD
       TMP(I+1)%SPECPtr%BUNDLE     => usableBUNDLE
       TMP(I+1)%SPECPtr%GRID       =  usableGRID
       TMP(I+1)%SPECPtr%FRIENDLYTO =  usableFRIENDLYTO
       TMP(I+1)%SPECPtr%HALOWIDTH  =  usableHALOWIDTH
-      TMP(I+1)%SPECPtr%NORESTART  =  usableNORESTART
+      TMP(I+1)%SPECPtr%RESTART    =  usableRESTART
       TMP(I+1)%SPECPtr%PRECISION  =  usablePRECISION
-      TMP(I+1)%SPECPtr%ATTR_INAMES  =>  usableATTR_INAMES
-      TMP(I+1)%SPECPtr%ATTR_RNAMES  =>  usableATTR_RNAMES
-      TMP(I+1)%SPECPtr%ATTR_IVALUES  =>  usableATTR_IVALUES
-      TMP(I+1)%SPECPtr%ATTR_RVALUES  =>  usableATTR_RVALUES
+      TMP(I+1)%SPECPtr%FIELD_TYPE =  usableFIELD_TYPE
+      TMP(I+1)%SPECPtr%doNotAllocate    =  .false.
+      TMP(I+1)%SPECPtr%alwaysAllocate   =  .false.
+      if(associated(usableATTR_IVALUES)) then
+         TMP(I+1)%SPECPtr%ATTR_IVALUES  =>  usableATTR_IVALUES
+      else
+         NULLIFY(TMP(I+1)%SPECPtr%ATTR_IVALUES)
+      endif
+      if(associated(usableATTR_RVALUES)) then
+         TMP(I+1)%SPECPtr%ATTR_RVALUES  =>  usableATTR_RVALUES
+      else
+         NULLIFY(TMP(I+1)%SPECPtr%ATTR_RVALUES)
+      endif
+      if(associated(usableUNGRIDDED_DIMS)) then
+         TMP(I+1)%SPECPtr%UNGRIDDED_DIMS  =>  usableUNGRIDDED_DIMS
+      else
+         NULLIFY(TMP(I+1)%SPECPtr%UNGRIDDED_DIMS)
+      endif
+      if(associated(usableATTR_RNAMES)) then
+         TMP(I+1)%SPECPtr%ATTR_RNAMES=>  usableATTR_RNAMES
+      else
+         NULLIFY(TMP(I+1)%SPECPtr%ATTR_RNAMES)
+      endif
+      if(associated(usableATTR_INAMES)) then
+         TMP(I+1)%SPECPtr%ATTR_INAMES=>  usableATTR_INAMES
+      else
+         NULLIFY(TMP(I+1)%SPECPtr%ATTR_INAMES)
+      endif
 
       SPEC => TMP
 
@@ -664,12 +724,14 @@ contains
                                    FIELD           = ITEM%SPECPTR%FIELD,             &
                                    BUNDLE          = ITEM%SPECPTR%BUNDLE,            &
                                    HALOWIDTH       = ITEM%SPECPTR%HALOWIDTH,         &
-                                   NORESTART       = ITEM%SPECPTR%NORESTART,         &
+                                   RESTART         = ITEM%SPECPTR%RESTART,           &
                                    PRECISION       = ITEM%SPECPTR%PRECISION,         &
                                    ATTR_INAMES     = ITEM%SPECPTR%ATTR_INAMES,       &
                                    ATTR_RNAMES     = ITEM%SPECPTR%ATTR_RNAMES,       &
                                    ATTR_IVALUES    = ITEM%SPECPTR%ATTR_IVALUES,      &
                                    ATTR_RVALUES    = ITEM%SPECPTR%ATTR_RVALUES,      &
+                                   UNGRIDDED_DIMS  = ITEM%SPECPTR%UNGRIDDED_DIMS,    &
+                                   FIELD_TYPE      = ITEM%SPECPTR%FIELD_TYPE,        &
                                    GRID            = ITEM%SPECPTR%GRID,              &
                                                                           RC=STATUS  )     
      VERIFY_(STATUS)
@@ -740,12 +802,15 @@ contains
    end subroutine MAPL_VarSpecDestroy1
 
 
-  subroutine MAPL_VarSpecSet_(SPEC, SHORT_NAME, LONG_NAME, UNITS,       &
+  subroutine MAPL_VarSpecSetRegular(SPEC, SHORT_NAME, LONG_NAME, UNITS,       &
                              Dims, VLocation, FIELD, BUNDLE,           &
                              STAT, ACCMLT_INTERVAL, COUPLE_INTERVAL,   &
                              LABEL,                                    &
                              FRIENDLYTO,                               &
+                             FIELD_TYPE,                               &
                              GRID,                                     &
+                             doNotAllocate,                            &
+                             alwaysAllocate,                            &
                                                                     RC )
 
     type (MAPL_VarSpec ),             intent(INOUT)   :: SPEC
@@ -761,7 +826,10 @@ contains
     type(ESMF_Field)   , optional   , intent(IN)      :: FIELD
     type(ESMF_FieldBundle)  , optional   , intent(IN)      :: BUNDLE
     character(len=*)   , optional   , intent(IN)      :: FRIENDLYTO
+    integer            , optional   , intent(in)      :: FIELD_TYPE
     type(ESMF_Grid)    , optional   , intent(IN)      :: GRID
+    logical            , optional   , intent(IN)      :: doNotAllocate
+    logical            , optional   , intent(IN)      :: alwaysAllocate
     integer            , optional   , intent(OUT)     :: RC
 
 
@@ -823,9 +891,22 @@ contains
       if(present(GRID)) then
          SPEC%SPECPtr%GRID = GRID
       endif
+
+      if(present(FIELD_TYPE)) then
+         SPEC%SPECPtr%FIELD_TYPE = FIELD_TYPE
+      endif
+
+      if(present(doNotAllocate)) then
+         SPEC%SPECPtr%doNotAllocate = doNotAllocate
+      endif
+
+      if(present(alwaysAllocate)) then
+         SPEC%SPECPtr%alwaysAllocate = alwaysAllocate
+      endif
+
       RETURN_(ESMF_SUCCESS)
 
-  end subroutine MAPL_VarSpecSet_
+  end subroutine MAPL_VarSpecSetRegular
 
 
   subroutine MAPL_VarSpecSetFieldPtr(SPEC, FIELDPTR, RC )
@@ -870,17 +951,21 @@ contains
 
 
 
-  subroutine MAPL_VarSpecGet_(SPEC, SHORT_NAME, LONG_NAME, UNITS,       &
+  subroutine MAPL_VarSpecGetRegular(SPEC, SHORT_NAME, LONG_NAME, UNITS,       &
                              Dims, VLocation, FIELD, BUNDLE, NUM_SUBTILES,      &
                              STAT, ACCMLT_INTERVAL, COUPLE_INTERVAL,   &
-                             LABEL, DEFAULT,                           &
+                             LABEL, DEFAULT, defaultProvided,          &
                              FRIENDLYTO,                               &
-                             NORESTART,                                &
+                             RESTART,                                  &
                              HALOWIDTH,                                &
                              PRECISION,                                &
                              ATTR_RNAMES, ATTR_INAMES,                 &
                              ATTR_RVALUES, ATTR_IVALUES,               &
+                             UNGRIDDED_DIMS,                           &
+                             FIELD_TYPE,                               &
                              GRID,                                     &
+                             doNotAllocate,                            &
+                             alwaysAllocate,                           &
                                                                     RC )
 
     type (MAPL_VarSpec ),             intent(IN )     :: SPEC
@@ -895,17 +980,22 @@ contains
     integer            , optional   , intent(OUT)     :: STAT
     integer            , optional   , intent(OUT)     :: LABEL
     real               , optional   , intent(OUT)     :: DEFAULT
+    logical            , optional   , intent(OUT)     :: defaultProvided
     type(ESMF_Field)   , optional   , intent(OUT)     :: FIELD
     type(ESMF_FieldBundle)  , optional   , intent(OUT)     :: BUNDLE
     character(len=*)   , optional   , intent(OUT)     :: FRIENDLYTO
     integer            , optional   , intent(OUT)     :: HALOWIDTH
     integer            , optional   , intent(OUT)     :: PRECISION
-    logical            , optional   , intent(OUT)     :: NORESTART
+    logical            , optional   , intent(OUT)     :: RESTART
     character(len=ESMF_MAXSTR), optional, pointer     :: ATTR_INAMES(:)
     character(len=ESMF_MAXSTR), optional, pointer     :: ATTR_RNAMES(:)
     integer,                    optional, pointer     :: ATTR_IVALUES(:)
     real,                       optional, pointer     :: ATTR_RVALUES(:)
+    integer,                    optional, pointer     :: UNGRIDDED_DIMS(:)
+    integer,                    optional              :: FIELD_TYPE
     type(ESMF_Grid)    , optional   , intent(OUT)     :: GRID
+    logical            , optional   , intent(OUT)     :: doNotAllocate
+    logical            , optional   , intent(OUT)     :: alwaysAllocate
     integer            , optional   , intent(OUT)     :: RC
 
 
@@ -964,6 +1054,10 @@ contains
        DEFAULT = SPEC%SPECPtr%DEFAULT
       endif
 
+      if(present(defaultProvided)) then
+         defaultProvided= SPEC%SPECPtr%defaultProvided
+      endif
+
       if(present(FIELD)) then
        FIELD = SPEC%SPECPtr%FIELD
       endif
@@ -980,8 +1074,8 @@ contains
        PRECISION = SPEC%SPECPtr%PRECISION
       endif
 
-      if(present(NORESTART)) then
-       NORESTART = SPEC%SPECPtr%NORESTART
+      if(present(RESTART)) then
+       RESTART = SPEC%SPECPtr%RESTART
       endif
 
       if(present(ATTR_INAMES)) then
@@ -1000,12 +1094,29 @@ contains
        ATTR_RVALUES => SPEC%SPECPtr%ATTR_RVALUES
       endif
 
+      if(present(UNGRIDDED_DIMS)) then
+       UNGRIDDED_DIMS => SPEC%SPECPtr%UNGRIDDED_DIMS
+      endif
+
+      if(present(FIELD_TYPE)) then
+       FIELD_TYPE = SPEC%SPECPtr%FIELD_TYPE
+      endif
+
       if(present(GRID)) then
        GRID = SPEC%SPECPtr%GRID
       endif
+
+      if(present(doNotAllocate)) then
+         doNotAllocate = SPEC%SPECPtr%doNotAllocate
+      endif
+
+      if(present(alwaysAllocate)) then
+         alwaysAllocate = SPEC%SPECPtr%alwaysAllocate
+      endif
+
       RETURN_(ESMF_SUCCESS)
 
-  end subroutine MAPL_VarSpecGet_
+  end subroutine MAPL_VarSpecGetRegular
 
   subroutine MAPL_VarSpecGetFieldPtr(SPEC, FIELDPTR, RC )
 
@@ -1136,6 +1247,7 @@ contains
 
       if (S1%SPECPtr%SHORT_NAME      /= S2%SPECPtr%SHORT_NAME      ) RETURN
 !ALT: for now we do not compare LONG_NAME nor UNITS
+!BMA: we also are not comparing FIELD_TYPE i.e. vector or scalar
       if (S1%SPECPtr%DIMS            /= S2%SPECPtr%DIMS            ) RETURN
       if (S1%SPECPtr%LOCATION        /= S2%SPECPtr%LOCATION        ) RETURN
       if (S1%SPECPtr%HALOWIDTH       /= S2%SPECPtr%HALOWIDTH       ) RETURN
@@ -1156,6 +1268,18 @@ contains
       MAPL_VarSpecEQ = .TRUE.
       RETURN
     end function MAPL_VarSpecEQ
+    
+    function MAPL_VarSpecSamePrec(s1, s2)
+      type (MAPL_VarSpec ), intent(in) :: s1, s2
+      logical                          :: MAPL_VarSpecSamePrec
+
+      MAPL_VarSpecSamePrec = .FALSE.
+
+      if (S1%SPECPtr%PRECISION /= S2%SPECPtr%PRECISION       ) RETURN
+
+      MAPL_VarSpecSamePrec = .TRUE.
+      RETURN
+    end function MAPL_VarSpecSamePrec
     
   subroutine MAPL_VarConnCreate(CONN, SHORT_NAME, TO_NAME, &
        FROM_IMPORT, FROM_EXPORT, TO_IMPORT, TO_EXPORT, RC  )
@@ -1460,7 +1584,7 @@ contains
   end function MAPL_VarIsListed
 
 
-  subroutine MAPL_VarSpecPrint_(SPEC, RC )
+  subroutine MAPL_VarSpecPrintOne(SPEC, RC )
 
     type (MAPL_VarSpec ),             intent(IN )     :: SPEC
     integer            , optional   , intent(OUT)     :: RC
@@ -1490,7 +1614,7 @@ contains
 !    CALL WRITE_PARALLEL(trim(string))
 
     RETURN_(ESMF_SUCCESS)
-  end subroutine MAPL_VarSpecPrint_
+  end subroutine MAPL_VarSpecPrintOne
 
   subroutine MAPL_VarSpecPrintMany(SPEC, RC )
 
@@ -1513,6 +1637,51 @@ contains
 
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_VarSpecPrintMany
+
+
+  subroutine MAPL_VarSpecPrint1CSV(SPEC, compName, RC )
+
+    type (MAPL_VarSpec ),             intent(IN )     :: SPEC
+    character(len=*),                 intent(IN )     :: compName
+    integer            , optional   , intent(OUT)     :: RC
+
+
+    character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecPrint1CSV"
+    integer                               :: STATUS
+    character(len=3)                      :: dimensions
+    character(len=ESMF_MAXSTR)            :: specInfo
+
+    if(.not.associated(SPEC%SPECPtr)) then
+       RETURN_(ESMF_FAILURE)
+    endif
+
+    write(dimensions,'(i3)') spec%specptr%dims
+    specInfo = '  '//trim(compName)//", " // &
+                        trim(SPEC%SPECPtr%SHORT_NAME) // ", " // &
+                        trim(SPEC%SPECPtr%LONG_NAME)//", "// &
+                        trim(SPEC%SPECPtr%UNITS)//", "// dimensions
+    if (MAPL_AM_I_ROOT()) write(6,'(a)') trim(specInfo)
+    RETURN_(ESMF_SUCCESS)
+  end subroutine MAPL_VarSpecPrint1CSV
+
+  subroutine MAPL_VarSpecPrintCSV(SPEC, compName, RC )
+
+    type (MAPL_VarSpec ),             intent(IN )     :: SPEC(:)
+    character(len=*),                 intent(IN )     :: compName
+    integer            , optional   , intent(OUT)     :: RC
+
+
+    character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecPrintCSV"
+    integer                               :: STATUS
+    integer                               :: I
+
+    DO I = 1, size(SPEC)
+       call MAPL_VarSpecPrint1CSV(Spec(I), compName, RC=status)
+       VERIFY_(STATUS)
+    END DO
+
+    RETURN_(ESMF_SUCCESS)
+  end subroutine MAPL_VarSpecPrintCSV
 
   logical function MAPL_ConnCheckUnused(CONN)
     type (MAPL_VarConn ),             pointer   :: CONN(:)

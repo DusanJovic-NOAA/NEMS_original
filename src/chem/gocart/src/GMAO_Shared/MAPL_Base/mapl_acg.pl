@@ -320,7 +320,7 @@ EOF
 
      if ( "$stat" ne "" ) {
         print FILE <<EOF;
-        STAT               = $stat,    &
+        DATATYPE               = $stat,    &
 EOF
      }
 
@@ -424,15 +424,27 @@ EOF
 EOF
       }
 
+     $norst = $r{norestart};
+     if ( "$norst" eq "x" ) {
+        print FILE <<EOF;
+        RESTART            = .FALSE.,   &
+EOF
+      }
+
      $friends = $r{friendlyto};
      if ( "$friends" ne "" ) {
-        $friends .= ":";
-        $friends =~ s/,/:/g;
-        $friends =~ s/D:/DYNAMICS:/i;
-        $friends =~ s/T:/TURBULENCE:/i;
-        $friends =~ s/C:/MOIST:/i;
-        $friends =~ s/:$//;
-        $friends = "'" . $friends . "'";        
+        if ( $friends ne "S" ) {
+           $friends .= ":";
+           $friends =~ s/,/:/g;
+           $friends =~ s/D:/DYNAMICS:/i;
+           $friends =~ s/T:/TURBULENCE:/i;
+           $friends =~ s/C:/MOIST:/i;
+           $friends =~ s/:$//;
+           $friends = "'" . $friends . "'";
+        } 
+        else {
+           $friends = "trim(COMP_NAME)";
+        }
 
         print FILE <<EOF;
         FRIENDLYTO         = $friends,    &
@@ -1028,7 +1040,7 @@ sub gcF90code {
 !
 ! !USES:
 !
-   use ESMF_Mod
+   use ESMF
    use MAPL_Mod
 
    Implicit NONE
@@ -1111,9 +1123,9 @@ CONTAINS
 
 !   Set the Initialize, Run, Finalize entry points
 !   ----------------------------------------------
-    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  Initialize_,  __RC__ )
-    call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETRUN,   Run_,        __RC__ )
-    call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETFINAL, Finalize_,   __RC__ )
+    call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE,  Initialize_,  __RC__ )
+    call MAPL_GridCompSetEntryPoint ( GC,  ESMF_METHOD_RUN,   Run_,        __RC__ )
+    call MAPL_GridCompSetEntryPoint ( GC,  ESMF_METHOD_FINAL, Finalize_,   __RC__ )
 
 !   Wrap internal legacy state for storing in GC
 !   --------------------------------------------

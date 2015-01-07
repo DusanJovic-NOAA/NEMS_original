@@ -1,6 +1,4 @@
-#ifdef GEOS5
 #include "MAPL_Generic.h"
-#endif
 
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
@@ -16,20 +14,21 @@
 
 ! !USES:
 
-#ifdef GEOS5
-   USE ESMF_Mod
+   USE ESMF
    USE MAPL_Mod
-#endif
 
    use Chem_Mod              ! Chemistry Base Class
    use Chem_StateMod         ! Chemistry State
-   use Chem_DepositionMod    ! Aerosol Deposition
    use Chem_ConstMod, only: grav, von_karman, cpd, &
                             undefval => undef         ! Constants !
    use Chem_UtilMod          ! I/O
    use Chem_MieMod           ! Aerosol LU Tables, calculator
    use m_inpak90             ! Resource file management
    use m_die, only: die
+   use Chem_SettlingMod      ! Settling
+   use DryDepositionMod      ! Dry Deposition
+   use WetRemovalMod         ! Large-scale Wet Removal
+   use ConvectionMod         ! Offline convective mixing/scavenging
 
    implicit none
 
@@ -55,8 +54,6 @@
 !
 !  16Sep2003 da Silva  First crack.
 !  13Mar2013 Lu        Add NEMS option
-!  30Sep2014 Lu        Remove doing_scav option
-
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -74,18 +71,21 @@
         real :: eBiofuel             ! Emission factor of Biofuel to BC aerosol
         real :: eBiomassBurning      ! Emission factor of Biomass Burning to BC
         integer :: nymd   ! date of last emissions/prodction
+        integer :: doing_scav        ! compute tracer scavenging for NEMS
         character(len=255) :: bb_srcfilen
         character(len=255) :: bf_srcfilen
         character(len=255) :: ebcant1_srcfilen
         character(len=255) :: ebcant2_srcfilen
-	character(len=255) :: bc_ship_srcfilen
-        integer :: nymd_bf
-        integer :: nymd_ebcant1
-        integer :: nymd_ebcant2
-	integer :: nymd_bc_ship
+        character(len=255) :: bc_ship_srcfilen
+        integer :: nymd_bb      = 0
+        integer :: nymd_bf      = 0
+        integer :: nymd_ebcant1 = 0
+        integer :: nymd_ebcant2 = 0
+        integer :: nymd_bc_ship = 0
   end type BC_GridComp
 
   real, parameter :: OCEAN=0.0, LAND = 1.0, SEA_ICE = 2.0
+  real, parameter :: radToDeg = 57.2957795
 
 CONTAINS
 
@@ -108,13 +108,13 @@ CONTAINS
 
 ! !INPUT PARAMETERS:
 
-   type(Chem_Bundle), intent(inout) :: w_c        ! Chemical tracer fields      
+   type(Chem_Bundle), intent(inout) :: w_c     ! Chemical tracer fields      
    integer, intent(in) :: nymd, nhms           ! time
    real, intent(in) :: cdt                     ! chemistry timestep (secs)
 
 ! !OUTPUT PARAMETERS:
 
-   type(BC_GridComp), intent(inout) :: gcBC   ! Grid Component
+   type(BC_GridComp), intent(inout) :: gcBC     ! Grid Component
    type(ESMF_State), intent(inout)  :: impChem  ! Import State
    type(ESMF_State), intent(inout)  :: expChem  ! Export State
    integer, intent(out) ::  rc                  ! Error return code:
@@ -136,12 +136,12 @@ CONTAINS
 
    character(len=255) :: rcfilen = 'BC_GridComp.rc'
    integer :: ios, n
-   integer :: i1, i2, im, j1, j2, jm, nbins, nbeg, nend, nbins_rc
+   integer :: i1, i2, im, j1, j2, jm, nbins, n1, n2, nbins_rc
+   integer :: idoing_scav  ! NEMS option to re-activate convective removal
    integer :: nTimes, begTime, incSecs
    integer, allocatable :: ier(:)
    real, allocatable :: buffer(:,:)
    real :: qmax, qmin
-
 
    gcBC%name = 'BC Constituent Package'
 
@@ -151,8 +151,8 @@ CONTAINS
    i1 = w_c%grid%i1; i2 = w_c%grid%i2; im = w_c%grid%im
    j1 = w_c%grid%j1; j2 = w_c%grid%j2; jm = w_c%grid%jm
    nbins = w_c%reg%n_BC
-   nbeg  = w_c%reg%i_BC
-   nend  = w_c%reg%j_BC
+   n1  = w_c%reg%i_BC
+   n2  = w_c%reg%j_BC
 
    call init_()
    if ( rc /= 0 ) return
@@ -280,13 +280,102 @@ CONTAINS
 !  ---------------
    call i90_label ( 'fscav:', ier(1) )
    do n = 1, nbins
-      w_c%reg%fscav(nbeg+n-1) = i90_gfloat ( ier(n+1) )
+      w_c%reg%fscav(n1+n-1) = i90_gfloat ( ier(n+1) )
    end do
    if ( any(ier(1:nbins+1) /= 0) ) then
       call final_(50)
       return
    end if
+! 
+!  NEMS Option to compute convective rainout/washout in GOCART
+!  ---------------
 
+   gcBC%doing_scav = 0     ! Default is to compute convective
+!                          ! rainout/washout in GFS physics
+#ifdef NEMS
+   call i90_label ( 'doing_scav:', ier(1) )
+   idoing_scav                 = i90_gint ( ier(2) )
+   gcBC%doing_scav             = idoing_scav
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
+
+!  invoke the option to compute convective removal in GOCART
+!  set fscav (scav used in GFS RAS) to 0.
+   if ( gcBC%doing_scav == 1 ) then
+     do n = 1, nbins
+      w_c%reg%fscav(nbeg+n-1)   = 0.
+      w_c%qa(nbeg+n-1)%fscav    = 0.
+     end do
+   endif
+#endif
+
+!                          -------
+
+!  Particle density
+!  To be used in droplet activation code
+!  ---------------
+   call i90_label ( 'particle_density:', ier(1) )
+   do n = 1, nbins
+      w_c%reg%rhop(n1+n-1)  = i90_gfloat ( ier(n+1) )
+   end do
+   if ( any(ier(1:nbins+1) /= 0) ) then
+      call final_(50)
+      return
+   end if
+!                          -------
+
+!  Number median radius
+!  To be used in droplet activation code
+!  ---------------
+   call i90_label ( 'particle_radius_number:', ier(1) )
+   do n = 1, nbins
+      w_c%reg%rmed(n1+n-1)  = i90_gfloat ( ier(n+1) ) * 1e-6
+   end do
+   if ( any(ier(1:nbins+1) /= 0) ) then
+      call final_(50)
+      return
+   end if
+!                          -------
+
+!  Sigma (lognormal mode width)
+!  To be used in droplet activation code
+!  ---------------
+   call i90_label ( 'sigma:', ier(1) )
+   do n = 1, nbins
+      w_c%reg%sigma(n1+n-1)  = i90_gfloat ( ier(n+1) )
+   end do
+   if ( any(ier(1:nbins+1) /= 0) ) then
+      call final_(50)
+      return
+   end if
+!                          -------
+
+!  Number to mass conversion factor
+!  To be used in droplet activation code
+!  ---------------
+   call i90_label ( 'fnum:', ier(1) )
+   do n = 1, nbins
+      w_c%reg%fnum(n1+n-1)  = i90_gfloat ( ier(n+1) )
+   end do
+   if ( any(ier(1:nbins+1) /= 0) ) then
+      call final_(50)
+      return
+   end if
+!                          -------
+
+!  Molecular weight
+!  To be used in droplet activation code
+!  ---------------
+   call i90_label ( 'molecular_weight:', ier(1) )
+   do n = 1, nbins
+      w_c%reg%molwght(n1+n-1)  = i90_gfloat ( ier(n+1) )
+   end do
+   if ( any(ier(1:nbins+1) /= 0) ) then
+      call final_(50)
+      return
+   end if
 !                          -------
 
 !  Check initial date of inventory emission/oxidant files
@@ -294,19 +383,32 @@ CONTAINS
 !  The intent here is that these files are valid for a particular
 !  YYYY or YYYYMMDD (if 1x year in file).  We need to request
 !  the correct date
-   call Chem_UtilGetTimeInfo( gcBC%bf_srcfilen, gcBC%nymd_bf, &
-                              begTime, nTimes, incSecs )
-   call Chem_UtilGetTimeInfo( gcBC%ebcant1_srcfilen, gcBC%nymd_ebcant1, &
-                              begTime, nTimes, incSecs )
-   call Chem_UtilGetTimeInfo( gcBC%ebcant2_srcfilen, gcBC%nymd_ebcant2, &
-                              begTime, nTimes, incSecs )
-   call Chem_UtilGetTimeInfo( gcBC%bc_ship_srcfilen, gcBC%nymd_bc_ship, &
-                              begTime, nTimes, incSecs )
-   ier(1) = gcBC%nymd_bf
-   ier(2) = gcBC%nymd_ebcant1
-   ier(3) = gcBC%nymd_ebcant2
-   ier(4) = gcBC%nymd_bc_ship
-   if( any(ier(1:4) < 0 ) ) then
+   if( index(gcBC%bb_srcfilen,'%') .le. 0) then
+    call Chem_UtilGetTimeInfo( gcBC%bb_srcfilen, gcBC%nymd_bb, &
+                               begTime, nTimes, incSecs )
+   endif
+   if( index(gcBC%bf_srcfilen,'%') .le. 0) then
+    call Chem_UtilGetTimeInfo( gcBC%bf_srcfilen, gcBC%nymd_bf, &
+                               begTime, nTimes, incSecs )
+   endif
+   if( index(gcBC%ebcant1_srcfilen,'%') .le. 0) then
+    call Chem_UtilGetTimeInfo( gcBC%ebcant1_srcfilen, gcBC%nymd_ebcant1, &
+                               begTime, nTimes, incSecs )
+   endif
+   if( index(gcBC%ebcant2_srcfilen,'%') .le. 0) then
+    call Chem_UtilGetTimeInfo( gcBC%ebcant2_srcfilen, gcBC%nymd_ebcant2, &
+                               begTime, nTimes, incSecs )
+   endif
+   if( index(gcBC%bc_ship_srcfilen,'%') .le. 0) then
+    call Chem_UtilGetTimeInfo( gcBC%bc_ship_srcfilen, gcBC%nymd_bc_ship, &
+                               begTime, nTimes, incSecs )
+   endif
+   ier(1) = gcBC%nymd_bb
+   ier(2) = gcBC%nymd_bf
+   ier(3) = gcBC%nymd_ebcant1
+   ier(4) = gcBC%nymd_ebcant2
+   ier(5) = gcBC%nymd_bc_ship
+   if( any(ier(1:5) < 0 ) ) then
      call final_(60)
      return
    endif
@@ -315,110 +417,6 @@ CONTAINS
 !  Initialize date for BCs
 !  -----------------------
    gcBC%nymd = -1   ! nothing read yet
-
-#ifndef GEOS5
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-!  Set which fvGCM fields are needed
-!  ---------------------------------
-   call Chem_StateSetNeeded ( impChem, iFRACLAKE, .true., ier(1) )
-   call Chem_StateSetNeeded ( impChem, iGWETTOP,  .true., ier(2) )
-   call Chem_StateSetNeeded ( impChem, iORO,      .true., ier(3) )
-   call Chem_StateSetNeeded ( impChem, iU10M,     .true., ier(4) )
-   call Chem_StateSetNeeded ( impChem, iV10M,     .true., ier(5) )
-   call Chem_StateSetNeeded ( impChem, iLAI,      .true., ier(6) )
-   call Chem_StateSetNeeded ( impChem, iUSTAR,    .true., ier(7) )
-   call Chem_StateSetNeeded ( impChem, iPRECC,    .true., ier(8) )
-   call Chem_StateSetNeeded ( impChem, iPRECL,    .true., ier(9) )
-   call Chem_StateSetNeeded ( impChem, iDQCOND,   .true., ier(10) )
-   call Chem_StateSetNeeded ( impChem, iT,        .true., ier(11) )
-   call Chem_StateSetNeeded ( impChem, iAIRDENS,  .true., ier(12) )
-   call Chem_StateSetNeeded ( impChem, iU,        .true., ier(13) )
-   call Chem_StateSetNeeded ( impChem, iV,        .true., ier(14) )
-   call Chem_StateSetNeeded ( impChem, iPBLH,     .true., ier(15) )
-   call Chem_StateSetNeeded ( impChem, iSHFX,     .true., ier(16) )
-   call Chem_StateSetNeeded ( impChem, iZ0H,      .true., ier(17) )
-   call Chem_StateSetNeeded ( impChem, iHSURF,    .true., ier(18) )
-   call Chem_StateSetNeeded ( impChem, iHGHTE,    .true., ier(19) )
-
-   if ( any(ier(1:19) /= 0) ) then
-        call final_(60)
-        return
-   endif
-
-!  Select fields to be produced in the export state
-!  ------------------------------------------------
-   n = nbins
-
-!  Emission Flux
-   if(n>0) call Chem_StateSetNeeded ( expChem, iBCEM001, .true., ier(1) )
-   if(n>1) call Chem_StateSetNeeded ( expChem, iBCEM002, .true., ier(2) )
-   if(n>2) call Chem_StateSetNeeded ( expChem, iBCEM003, .true., ier(3) )
-   if(n>3) call Chem_StateSetNeeded ( expChem, iBCEM004, .true., ier(4) )
-   if(n>4) call Chem_StateSetNeeded ( expChem, iBCEM005, .true., ier(5) )
-   if(n>5) call Chem_StateSetNeeded ( expChem, iBCEM006, .true., ier(6) )
-   if(n>6) call Chem_StateSetNeeded ( expChem, iBCEM007, .true., ier(7) )
-   if(n>7) call Chem_StateSetNeeded ( expChem, iBCEM008, .true., ier(8) )
-   if(n>8) ier(9) = 1 ! not enough bins - need to change mod_diag.F
-
-   if ( any(ier(1:9) /= 0) ) then
-        call final_(70)
-        return
-   endif
-
-!  Dry Deposition Flux
-   if(n>0) call Chem_StateSetNeeded ( expChem, iBCDP001, .true., ier(1) )
-   if(n>1) call Chem_StateSetNeeded ( expChem, iBCDP002, .true., ier(2) )
-   if(n>2) call Chem_StateSetNeeded ( expChem, iBCDP003, .true., ier(3) )
-   if(n>3) call Chem_StateSetNeeded ( expChem, iBCDP004, .true., ier(4) )
-   if(n>4) call Chem_StateSetNeeded ( expChem, iBCDP005, .true., ier(5) )
-   if(n>5) call Chem_StateSetNeeded ( expChem, iBCDP006, .true., ier(6) )
-   if(n>6) call Chem_StateSetNeeded ( expChem, iBCDP007, .true., ier(7) )
-   if(n>7) call Chem_StateSetNeeded ( expChem, iBCDP008, .true., ier(8) )
-   if(n>8) ier(9) = 1 ! not enough bins - need to change mod_diag.F
-
-   if ( any(ier(1:9) /= 0) ) then
-        call final_(70)
-        return
-   endif
-
-!  Wet Deposition Flux
-   if(n>0) call Chem_StateSetNeeded ( expChem, iBCWT001, .true., ier(1) )
-   if(n>1) call Chem_StateSetNeeded ( expChem, iBCWT002, .true., ier(2) )
-   if(n>2) call Chem_StateSetNeeded ( expChem, iBCWT003, .true., ier(3) )
-   if(n>3) call Chem_StateSetNeeded ( expChem, iBCWT004, .true., ier(4) )
-   if(n>4) call Chem_StateSetNeeded ( expChem, iBCWT005, .true., ier(5) )
-   if(n>5) call Chem_StateSetNeeded ( expChem, iBCWT006, .true., ier(6) )
-   if(n>6) call Chem_StateSetNeeded ( expChem, iBCWT007, .true., ier(7) )
-   if(n>7) call Chem_StateSetNeeded ( expChem, iBCWT008, .true., ier(8) )
-   if(n>8) ier(9) = 1 ! not enough bins - need to change mod_diag.F
-
-   if ( any(ier(1:9) /= 0) ) then
-        call final_(70)
-        return
-   endif
-
-
-!  Other diagnostics
-   call Chem_StateSetNeeded ( expChem, iBCSMASS, .true., ier(1) )
-   call Chem_StateSetNeeded ( expChem, iBCCMASS, .true., ier(2) )
-   call Chem_StateSetNeeded ( expChem, iBCMASS, .true., ier(3) )
-   call Chem_StateSetNeeded ( expChem, iBCEXTTAU, .true., ier(4) )
-   call Chem_StateSetNeeded ( expChem, iBCSCATAU, .true., ier(5) )
-   call Chem_StateSetNeeded ( expChem, iBCEMAN, .true., ier(6))
-   call Chem_StateSetNeeded ( expChem, iBCEMBB, .true., ier(7))
-   call Chem_StateSetNeeded ( expChem, iBCEMBF, .true., ier(8))
-   call Chem_StateSetNeeded ( expChem, iBCHYPHIL, .true., ier(9))
-
-   if ( any(ier(1:9) /= 0) ) then
-        call final_(70)
-        return
-   endif
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
 
 
 !  All done
@@ -503,28 +501,43 @@ CONTAINS
    character(len=*), parameter :: myname = 'BC_GridCompRun'
    character(len=*), parameter :: Iam = myname
 
-   integer :: ier(20), idiag
-   integer :: i1, i2, im, j1, j2, jm, nbins, nbeg, nend, km, n, ios
+   integer :: ier(32), idiag
+   integer :: i1, i2, im, j1, j2, jm, nbins, n1, n2, km, n, ios
    integer :: i, j, k, nymd1, nhms1, ijl, ijkl
    real :: qmax, qmin
    real :: qUpdate, delq
-   real, pointer :: BC_radius(:), BC_rhop(:)
-
+   real, pointer :: dqa(:,:), drydepositionfrequency(:,:)
+   type(Chem_Array), pointer :: fluxout
 
 !  Input fields from fvGCM
 !  -----------------------
-   real, pointer, dimension(:,:) :: fraclake, gwettop, oro, u10m, v10m, &
-                                    xlai, ustar, precc, precl,          &
-                                    pblh, shflux, z0h, hsurf
-   real, pointer, dimension(:,:,:) ::  dqcond, tmpu, rhoa, u, v, hghte
+   real, pointer, dimension(:,:)   :: frlake, frocean, frseaice, &
+                                      oro, u10m, v10m, &
+                                      ustar, precc, precl,                &
+                                      pblh, shflux, z0h, hsurf
+   real, pointer, dimension(:,:,:) :: dqcond, tmpu, rhoa, u, v, hghte, ple
 
-#ifdef GEOS5 
+!  Additional needs for GOCART convective diagnostic
+   real, pointer, dimension(:,:,:)       ::  cmfmc, qccu, dtrain
+   real, pointer, dimension(:,:)         ::  area
+   real*8, allocatable, dimension(:,:,:) ::  cmfmc_, qccu_, dtrain_, &
+                                             airmass_, airmol_, vud_, &
+                                             delz_, delp_
+   real*8, allocatable                   ::  tc_(:,:,:,:), bcnv_(:,:,:)
+   real*8, allocatable                   ::  area_(:,:), frlake_(:,:), &
+                                             frocean_(:,:), frseaice_(:,:)
+   integer*4                             ::  icdt
+
+   real, pointer    :: BC_radius(:), BC_rhop(:)
+   integer          :: rhFlag
 
 #define EXPORT     expChem
 
 #define ptrBCWT       BC_wet
+#define ptrBCSV       BC_conv
 #define ptrBCEM       BC_emis
 #define ptrBCDP       BC_dep
+#define ptrBCSD       BC_set
 
 #define ptrBCMASS     BC_mass
 #define ptrBCEMAN     BC_emisAN
@@ -535,25 +548,19 @@ CONTAINS
 #define ptrBCCMASS    BC_colmass
 #define ptrBCEXTTAU   BC_exttau
 #define ptrBCSCATAU   BC_scatau
+#define ptrBCCONC     BC_conc
+#define ptrBCEXTCOEF  BC_extcoef
+#define ptrBCSCACOEF  BC_scacoef
+#define ptrBCANGSTR   BC_angstrom
+#define ptrBCFLUXU    BC_fluxu
+#define ptrBCFLUXV    BC_fluxv
 
+
+   
    integer :: STATUS
 
 #include "BC_GetPointer___.h"
 
-#else
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-!  Quantities to be exported
-!  -------------------------
-   type(Chem_Array), pointer :: BC_emis(:), BC_dep(:), BC_wet(:), &
-                                BC_sfcmass, BC_colmass, BC_mass, BC_exttau, &
-                                BC_scatau, BC_emisAN, BC_emisBB, BC_emisBF, &
-                                BC_toHydrophilic
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
 
 !  Initialize local variables
 !  --------------------------
@@ -563,8 +570,8 @@ CONTAINS
 
    km = w_c%grid%km
    nbins = w_c%reg%n_BC
-   nbeg  = w_c%reg%i_BC
-   nend  = w_c%reg%j_BC
+   n1  = w_c%reg%i_BC
+   n2  = w_c%reg%j_BC
 
    ijl  = ( i2 - i1 + 1 ) * ( j2 - j1 + 1 )
    ijkl = ijl * km
@@ -577,7 +584,6 @@ CONTAINS
 
 !   Biomass Burning -- select on known inventories
 !   ----------------------------------------------
-
 !   Daily files (e.g., MODIS) or GFED v.2 (1997 - 2005 valid)
     if (  index(gcBC%bb_srcfilen,'%') .gt. 0 .or. &
           index(gcBC%bb_srcfilen,'gfed') .gt. 0 ) then  
@@ -586,8 +592,7 @@ CONTAINS
 
 !   Assume GFED climatology or Martin (Duncan) climatology
     else                                            
-       nymd1 = 1971*10000 + mod ( nymd, 10000 )  ! assumes 1971
-!       nymd1 = nymd
+       nymd1 = (gcBC%nymd_bb/10000)*10000 + mod ( nymd, 10000 )
        nhms1 = 120000
     end if
 
@@ -599,34 +604,32 @@ CONTAINS
 
 !   Biofuel and anthropogenic emissions (inventories)
 !   -------------------------------------------------
-    nymd1 = (gcBC%nymd_bf/10000)*10000 + mod ( nymd, 10000 )
+!    nymd1 = (gcBC%nymd_bf/10000)*10000 + mod ( nymd, 10000 )
+    nymd1 = nymd
     nhms1 = 120000
     call Chem_UtilMPread ( gcBC%bf_srcfilen, 'biofuel', nymd1, nhms1, &
                            i1, i2, 0, im, j1, j2, 0, jm, 0, &
                            var2d=gcBC%biofuel_src, cyclic=.true., &
                            grid = w_c%grid_esmf  )
 
-    nymd1 = gcBC%nymd_ebcant1
+!    nymd1 = gcBC%nymd_ebcant1
+    nymd1 = nymd
     nhms1 = 120000
     call Chem_UtilMPread ( gcBC%ebcant1_srcfilen, 'antebc1', nymd1, nhms1, &
                            i1, i2, 0, im, j1, j2, 0, jm, 0, &
                            var2d=gcBC%ebcant1_src, cyclic=.true., &
                            grid = w_c%grid_esmf  )
 
-!   Functionality for only a single layer of emissions
-    if( index(gcBC%ebcant2_srcfilen,'--') .gt. 0) then
-     gcBC%ebcant2_src(i1:i2,j1:j2) = 0.
-    else
-     nymd1 = gcBC%nymd_ebcant2
-     nhms1 = 120000
-     call Chem_UtilMPread ( gcBC%ebcant2_srcfilen, 'antebc2', nymd1, nhms1, &
-                            i1, i2, 0, im, j1, j2, 0, jm, 0, &
-                            var2d=gcBC%ebcant2_src, grid = w_c%grid_esmf  )
-
-    endif
+!    nymd1 = gcBC%nymd_ebcant2
+    nymd1 = nymd
+    nhms1 = 120000
+    call Chem_UtilMPread ( gcBC%ebcant2_srcfilen, 'antebc2', nymd1, nhms1, &
+                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                           var2d=gcBC%ebcant2_src, grid = w_c%grid_esmf  )
 
 !   Ship based BC emissions
-    nymd1 = gcBC%nymd_bc_ship
+!    nymd1 = gcBC%nymd_bc_ship
+    nymd1 = nymd
     nhms1 = 120000
     call Chem_UtilMPread ( gcBC%bc_ship_srcfilen, 'bc_ship', nymd1, nhms1, &
                            i1, i2, 0, im, j1, j2, 0, jm, 0, &
@@ -670,60 +673,40 @@ CONTAINS
 !  ---------------------------------
    if ( w_c%diurnal_bb ) then
       call Chem_BiomassDiurnal ( gcBC%biomass_src, gcBC%biomass_src_,   &
-                                 w_c%grid%lon(:), w_c%grid%lat(:), nhms, cdt )      
+                                 w_c%grid%lon(:,:)*radToDeg, &
+                                 w_c%grid%lat(:,:)*radToDeg, nhms, cdt )      
    end if
 
-#ifndef GEOS5
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-!  Work space for holding bc output
-!  ----------------------------------
-   allocate ( BC_emis(nbins),  BC_dep(nbins), BC_wet(nbins), &
-              BC_sfcmass, BC_colmass, BC_mass, BC_exttau, BC_scatau, &
-              BC_emisAN, BC_emisBB, BC_emisBF, BC_toHydrophilic, &
-              stat = ios )
-   if ( ios /= 0 ) then
-      rc = 1
-      return
-   end if
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
 
 #ifdef DEBUG
-   do n = nbeg, nend
+   do n = n1, n2
       call pmaxmin ( 'BC: q_beg', w_c%qa(n)%data3d(i1:i2,j1:j2,1:km), qmin, qmax, &
                    ijl, km, 1. )
    end do
 #endif
 
-!  BC particle radius [m] and density [kg m-3]
-!  ---------------------------------------------
-!  For now these are dummy values and unused below
-   allocate( BC_radius(nbins), BC_rhop(nbins) )
-   BC_radius(:) = 0.5e-6
-   BC_rhop(:)   = 1000.
+   allocate( fluxout )
+   allocate( fluxout%data2d(i1:i2,j1:j2), dqa(i1:i2,j1:j2), &
+             drydepositionfrequency(i1:i2,j1:j2), stat=STATUS)
+   VERIFY_(STATUS)
 
-
-#ifdef GEOS5
 
 !  Get 2D Imports
 !  --------------
-   call MAPL_GetPointer ( impChem, fraclake, 'FRLAKE',  rc=ier(1) )
-   call MAPL_GetPointer ( impChem, gwettop,  'WET1',    rc=ier(2) )
-   call MAPL_GetPointer ( impChem, oro,      'LWI',     rc=ier(3) )
-   call MAPL_GetPointer ( impChem, u10m,     'U10M',    rc=ier(4) )
-   call MAPL_GetPointer ( impChem, v10m,     'V10M',    rc=ier(5) )
-   call MAPL_GetPointer ( impChem, xlai,     'LAI',     rc=ier(6) )
-   call MAPL_GetPointer ( impChem, ustar,    'USTAR',   rc=ier(7) )
-   call MAPL_GetPointer ( impChem, precc,    'CN_PRCP', rc=ier(8) )
-   call MAPL_GetPointer ( impChem, precl,    'NCN_PRCP',   rc=ier(9) )
-   call MAPL_GetPointer ( impChem, pblh,     'ZPBL',    rc=ier(10) )
-   call MAPL_GetPointer ( impChem, shflux,   'SH',      rc=ier(11) )
-   call MAPL_GetPointer ( impChem, z0h,      'Z0H',     rc=ier(12) )
-   ier(13) = 0 ! see below for hsurf
+   ier = 0
+   call MAPL_GetPointer ( impChem, frlake,   'FRLAKE',  rc=ier(1) )
+   call MAPL_GetPointer ( impChem, oro,      'LWI',     rc=ier(2) )
+   call MAPL_GetPointer ( impChem, u10m,     'U10M',    rc=ier(3) )
+   call MAPL_GetPointer ( impChem, v10m,     'V10M',    rc=ier(4) )
+   call MAPL_GetPointer ( impChem, ustar,    'USTAR',   rc=ier(5) )
+   call MAPL_GetPointer ( impChem, precc,    'CN_PRCP', rc=ier(6) )
+   call MAPL_GetPointer ( impChem, precl,    'NCN_PRCP',rc=ier(7) )
+   call MAPL_GetPointer ( impChem, pblh,     'ZPBL',    rc=ier(8) )
+   call MAPL_GetPointer ( impChem, shflux,   'SH',      rc=ier(9) )
+   call MAPL_GetPointer ( impChem, z0h,      'Z0H',     rc=ier(10) )
+   call MAPL_GetPointer ( impChem, area,     'AREA',    rc=ier(11) )
+   call MAPL_GetPointer ( impChem, frocean,  'FROCEAN', rc=ier(12) )
+   call MAPL_GetPointer ( impChem, frseaice, 'FRACI',   rc=ier(13) )
 
 !  Get 3D Imports
 !  --------------
@@ -733,75 +716,35 @@ CONTAINS
    call MAPL_GetPointer ( impChem, u,      'U',       rc=ier(17) )
    call MAPL_GetPointer ( impChem, v,      'V',       rc=ier(18) )
    call MAPL_GetPointer ( impChem, hghte,  'ZLE',     rc=ier(19) )
+   call MAPL_GetPointer ( impChem, ple,    'PLE',     rc=ier(20) )
+   call MAPL_GetPointer ( impChem, qccu,   'CNV_QC',  rc=ier(21) )
+   call MAPL_GetPointer ( impChem, cmfmc,  'CNV_MFC', rc=ier(22) )
+   call MAPL_GetPointer ( impChem, dtrain, 'CNV_MFD', rc=ier(23) )
 
 !  Unlike GEOS-4 hghte is defined for km+1
 !  ---------------------------------------
    hsurf => hghte(i1:i2,j1:j2,km) ! Recall: GEOS-5 has edges with k in [0,km]
     
 
-   if ( .not. associated(gwettop) ) &
-        call write_parallel('gwettop NOT associated')
-
-#else
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-!  Get input fvGCM 2D diagnostics
-!  ------------------------------
-   call Chem_StateGetArray2D ( impChem, iFRACLAKE, fraclake, ier(1) )
-   call Chem_StateGetArray2D ( impChem, iGWETTOP,  gwettop,  ier(2) )
-   call Chem_StateGetArray2D ( impChem, iORO,      oro,      ier(3) )
-   call Chem_StateGetArray2D ( impChem, iU10M,     u10m,     ier(4) )
-   call Chem_StateGetArray2D ( impChem, iV10M,     v10m,     ier(5) )
-   call Chem_StateGetArray2D ( impChem, iLAI,      xlai,     ier(6) )
-   call Chem_StateGetArray2D ( impChem, iUSTAR,    ustar,    ier(7) )
-   call Chem_StateGetArray2D ( impChem, iPRECC,    precc,    ier(8) )
-   call Chem_StateGetArray2D ( impChem, iPRECL,    precl,    ier(9) )
-   call Chem_StateGetArray2D ( impChem, iPBLH,     pblh,     ier(10) )
-   call Chem_StateGetArray2D ( impChem, iSHFX,     shflux,   ier(11) )
-   call Chem_StateGetArray2D ( impChem, iZ0H,      z0h,      ier(12) )
-   call Chem_StateGetArray2D ( impChem, iHSURF,    hsurf,      ier(13) )
-
-!  Get input fvGCM 3D diagnostics
-!  ------------------------------
-   call Chem_StateGetArray3D ( impChem, iDQCOND,   dqcond,   ier(14) )
-   call Chem_StateGetArray3D ( impChem, iT,        tmpu,     ier(15) )
-   call Chem_StateGetArray3D ( impChem, iAIRDENS,  rhoa,     ier(16) )
-   call Chem_StateGetArray3D ( impChem, iU,        u,        ier(17) )
-   call Chem_StateGetArray3D ( impChem, iV,        v,        ier(18) )
-   call Chem_StateGetArray3D ( impChem, iHGHTE,    hghte,    ier(19) )
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
-
-   if ( any(ier(1:19) /= 0) ) then
+   if ( any(ier(1:23) /= 0) ) then
         rc = 10 
         return
    end if
-
-   if ( any(ier(1:19) /= 0) ) then
-        rc = 10 
-        return
-   end if
-
-!  Make sure LAI has values over ocean
-!  -----------------------------------
-   where ( oro /= LAND  )  xlai = 0.0
 
 #ifdef DEBUG
 
-   call pmaxmin('BC: fraclake   ', fraclake, qmin, qmax, ijl,1, 1. )
-   call pmaxmin('BC: gwtop      ', gwettop , qmin, qmax, ijl,1, 1. )
+   call pmaxmin('BC: frlake     ', frlake  , qmin, qmax, ijl,1, 1. )
+   call pmaxmin('BC: frocean    ', frocean , qmin, qmax, ijl,1, 1. )
+   call pmaxmin('BC: frseaice   ', frseaice, qmin, qmax, ijl,1, 1. )
+   call pmaxmin('BC: area       ', area    , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: oro        ', oro     , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: u10m       ', u10m    , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: v10m       ', v10m    , qmin, qmax, ijl,1, 1. )
-   call pmaxmin('BC: xlai       ', xlai    , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: ustar      ', ustar   , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: precc      ', precc   , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: precl      ', precl   , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: pblh       ', pblh    , qmin, qmax, ijl,1, 1. )
-   call pmaxmin('BC: shfflux    ', shflux  , qmin, qmax, ijl,1, 1. )
+   call pmaxmin('BC: shflux     ', shflux  , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: z0h        ', z0h     , qmin, qmax, ijl,1, 1. )
    call pmaxmin('BC: hsurf      ', hsurf   , qmin, qmax, ijl,1, 1. )
 
@@ -811,110 +754,11 @@ CONTAINS
    call pmaxmin('BC: u          ', u       , qmin, qmax, ijkl,1, 1. )
    call pmaxmin('BC: v          ', v       , qmin, qmax, ijkl,1, 1. )
    call pmaxmin('BC: hghte      ', hghte   , qmin, qmax, ijkl,1, 1. )
+   call pmaxmin('BC: qccu       ', qccu    , qmin, qmax, ijkl,1, 1. )
+   call pmaxmin('BC: cmfmc      ', cmfmc   , qmin, qmax, ijkl,1, 1. )
+   call pmaxmin('BC: dtrain     ', dtrain  , qmin, qmax, ijkl,1, 1. )
 
 #endif
-
-#ifndef GEOS5
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-
-!  Get pointers to export state
-!  ----------------------------
-   do n = 1, nbins
-      idiag = iBCEM001 + n - 1
-      call Chem_StateGetArray2D ( expChem, idiag, BC_emis(n)%data2d, ier(n) )
-   end do
-   if ( any(ier(1:nbins) /= 0) ) then
-        rc = 15 
-        return
-   end if
-
-   do n = 1, nbins
-      idiag = iBCDP001 + n - 1
-      call Chem_StateGetArray2D ( expChem, idiag, BC_dep(n)%data2d, ier(n) )
-   end do
-   if ( any(ier(1:nbins) /= 0) ) then
-        rc = 15 
-        return
-   end if
-
-   do n = 1, nbins
-      idiag = iBCWT001 + n - 1
-      call Chem_StateGetArray2D ( expChem, idiag, BC_wet(n)%data2d, ier(n) )
-   end do
-   if ( any(ier(1:nbins) /= 0) ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCSMASS
-   call Chem_StateGetArray2D ( expChem, idiag, BC_sfcmass%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCCMASS
-   call Chem_StateGetArray2D ( expChem, idiag, BC_colmass%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCMASS
-   call Chem_StateGetArray3D ( expChem, idiag, BC_mass%data3d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCEXTTAU
-   call Chem_StateGetArray2D ( expChem, idiag, BC_exttau%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCSCATAU
-   call Chem_StateGetArray2D ( expChem, idiag, BC_scatau%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCEMAN
-   call Chem_StateGetArray2D ( expChem, idiag, BC_emisAN%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCEMBF
-   call Chem_StateGetArray2D ( expChem, idiag, BC_emisBF%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCEMBB
-   call Chem_StateGetArray2D ( expChem, idiag, BC_emisBB%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iBCHYPHIL
-   call Chem_StateGetArray2D ( expChem, idiag, BC_toHydrophilic%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
-
 
 !  BC Source
 !  -----------
@@ -923,7 +767,7 @@ CONTAINS
                       BC_emisAN, BC_emisBB, BC_emisBF, rc )
 
 #ifdef DEBUG
-   do n = nbeg, nend
+   do n = n1, n2
       call pmaxmin('BC: q_emi', w_c%qa(n)%data3d(i1:i2,j1:j2,1:km), &
                     qmin, qmax, ijl, km, 1. )
    end do
@@ -938,11 +782,11 @@ CONTAINS
    do k = 1, km
     do j = j1, j2
      do i = i1, i2
-      qUpdate = w_c%qa(nbeg)%data3d(i,j,k)*exp(-4.63e-6*cdt)
+      qUpdate = w_c%qa(n1)%data3d(i,j,k)*exp(-4.63e-6*cdt)
       qUpdate = max(qUpdate,1e-32)
-      delq = max(0.,w_c%qa(nbeg)%data3d(i,j,k)-qUpdate)
-      w_c%qa(nbeg)%data3d(i,j,k) = qUpdate
-      w_c%qa(nend)%data3d(i,j,k) = w_c%qa(nend)%data3d(i,j,k)+delq
+      delq = max(0.,w_c%qa(n1)%data3d(i,j,k)-qUpdate)
+      w_c%qa(n1)%data3d(i,j,k) = qUpdate
+      w_c%qa(n2)%data3d(i,j,k) = w_c%qa(n2)%data3d(i,j,k)+delq
       if(associated(BC_toHydrophilic%data2d)) &
        BC_toHydrophilic%data2d(i,j) = BC_toHydrophilic%data2d(i,j) &
         + delq*w_c%delp(i,j,k)/grav/cdt
@@ -950,40 +794,127 @@ CONTAINS
     end do
    end do
 
+!  BC Settling
+!  -----------
+   allocate( BC_radius(nbins), BC_rhop(nbins) )
+   BC_radius(:) = 0.35e-6  ! radius for settling [m]
+   BC_rhop(:)   = 1800.    ! density for setting [kg m-3]
+   rhFlag       = 0        ! settle like dry particles
+   call Chem_Settling ( i1, i2, j1, j2, km, n1, n2, nbins, rhFlag, &
+                        BC_radius, BC_rhop, cdt, w_c, tmpu, rhoa, hsurf,    &
+                        hghte, BC_set, rc )
+   deallocate( BC_radius, BC_rhop)
+
 !  BC Deposition
 !  -----------
-   call Chem_Deposition( i1, i2, j1, j2, km, nbeg, nend, nbins, cdt, w_c, &
-                         BC_radius, BC_rhop, tmpu, rhoa, hsurf, hghte, oro, ustar, &
-                         u10m, v10m, fraclake, gwettop, pblh, shflux, z0h, BC_dep, rc )
+   drydepositionfrequency = 0.
+   call DryDepositionGOCART( i1, i2, j1, j2, km, &
+                             tmpu, rhoa, hghte, oro, ustar, &
+                             pblh, shflux, z0h, drydepositionfrequency, rc )
+    
+   do n = 1, nbins
+    dqa = 0.
+    dqa = max(0.0, w_c%qa(n1+n-1)%data3d(:,:,km)*(1.-exp(-drydepositionfrequency*cdt)))
+    w_c%qa(n1+n-1)%data3d(:,:,km) = &
+            w_c%qa(n1+n-1)%data3d(:,:,km) - dqa
+    if( associated(BC_dep(n)%data2d) ) &
+     BC_dep(n)%data2d = dqa*w_c%delp(:,:,km)/grav/cdt
+   end do
 
-!  BC Wet Removal
-!  -----------
-   call BC_Wet_Removal ( i1, i2, j1, j2, km, nbins, cdt, rhoa, gcBC, w_c, &
-                         precc, precl, dqcond, tmpu, BC_wet, rc )
+#ifdef DEBUG
+   do n = n1, n2
+      call pmaxmin('BC: q_dry', w_c%qa(n)%data3d(i1:i2,j1:j2,1:km), qmin, qmax, &
+                    ijl, km, 1. )
+   end do
+#endif
+
+
+!  BC Large-scale Wet Removal
+!  --------------------------
+!  Hydrophobic mode (first tracer) is not removed
+   if(associated(BC_wet(1)%data2d)) BC_wet(1)%data2d = 0.
+!  Hydrophilic mode (second tracer) is removed
+   do n = nbins, nbins
+    w_c%qa(n1+n-1)%fwet = 1.
+    call WetRemovalGOCART(i1, i2, j1, j2, km, n1+n-1, n1+n-1, cdt, &
+                          w_c%qa, ple, tmpu, rhoa, dqcond, precc, precl, &
+                          fluxout, rc )
+    if(associated(BC_wet(n)%data2d)) BC_wet(n)%data2d = fluxout%data2d
+   end do
+
+#ifdef DEBUG
+   do n = n1, n2
+      call pmaxmin('BC: q_wet', w_c%qa(n)%data3d(i1:i2,j1:j2,1:km), qmin, qmax, &
+                    ijl, km, 1. )
+   end do
+#endif
+
+!  Black Carbon Convective-scale Mixing and Wet Removal
+!  ----------------------------------------------------
+   icdt = cdt
+   allocate(cmfmc_(i1:i2,j1:j2,km+1), qccu_(i1:i2,j1:j2,km), &
+            dtrain_(i1:i2,j1:j2,km), airmass_(i1:i2,j1:j2,km), &
+            delz_(i1:i2,j1:j2,km), vud_(i1:i2,j1:j2,km), &
+            tc_(i1:i2,j1:j2,km,n1:n2), delp_(i1:i2,j1:j2,km), &
+            airmol_(i1:i2,j1:j2,km), bcnv_(i1:i2,j1:j2,n1:n2), &
+            area_(i1:i2,j1:j2), frlake_(i1:i2,j1:j2), &
+            frocean_(i1:i2,j1:j2), frseaice_(i1:i2,j1:j2), __STAT__ )
+
+   area_            = area
+   frlake_          = frlake
+   frocean_         = frocean
+   frseaice_        = frseaice
+   do k = 1, km+1
+    cmfmc_(:,:,k)   = cmfmc(:,:,km-k+1)
+   end do
+   do k = 1, km
+    dtrain_(:,:,k)  = dtrain(:,:,km-k+1)
+    qccu_(:,:,k)    = qccu(:,:,km-k+1)
+    delp_(:,:,k)    = w_c%delp(:,:,km-k+1)/100.
+    airmass_(:,:,k) = w_c%delp(:,:,km-k+1)/grav*area_
+    airmol_(:,:,k)  = airmass_(:,:,k)*1000./28.966
+    delz_(:,:,k)    = w_c%delp(:,:,km-k+1)/grav/rhoa(:,:,km-k+1)
+   enddo
+   do n = n1, n2
+    do k = 1, km
+     tc_(:,:,k,n)   = w_c%qa(n)%data3d(:,:,km-k+1)
+    enddo
+   enddo
+   call set_vud(i1, i2, j1, j2, km, frlake_, frocean_, frseaice_, cmfmc_, qccu_, &
+                airmass_, delz_, area_, vud_)
+   call convection(i1, i2, j1, j2, km, n1, n2, icdt, 'carbon', &
+                   tc_, cmfmc_, dtrain_, area_, delz_, delp_, vud_, &
+                   airmass_, airmol_, &
+                   bcnv_)
+!  Return adjusted tracer to mixing ratio
+   do n = n1, n2
+    do k = 1, km
+     w_c%qa(n)%data3d(:,:,km-k+1) = tc_(:,:,k,n)
+    enddo
+   enddo
+
+!  Note GOCART returns bcnv_ as negative, recast for my diagnostic
+   if(associated(BC_conv(1)%data2d)) BC_conv(1)%data2d = 0.0
+   if(associated(BC_conv(2)%data2d)) BC_conv(2)%data2d = -bcnv_(:,:,n2)/area_/icdt
+
+   deallocate(cmfmc_, qccu_, dtrain_, tc_, airmass_, &
+              delz_, vud_, delp_, airmol_, bcnv_, &
+              area_, frlake_, frocean_, frseaice_, __STAT__ )
 
 !  Compute the desired output diagnostics here
 !  Ideally this will go where chemout is called in fvgcm.F since that
 !  will reflect the distributions after transport, etc.
 !  ------------------------------------------------------------------
-   call BC_Compute_Diags(i1, i2, j1, j2, km, nbins, gcBC, w_c, tmpu, rhoa, &
+   call BC_Compute_Diags(i1, i2, j1, j2, km, nbins, gcBC, w_c, tmpu, rhoa, u, v, &
                          BC_sfcmass, BC_colmass, BC_mass, BC_exttau, &
-                         BC_scatau, rc)
+                         BC_scatau, BC_conc, BC_extcoef, BC_scacoef, BC_angstrom, &
+                         BC_fluxu, BC_fluxv, rc)
+
 
 !  Clean up
 !  --------
-   deallocate(BC_radius, BC_rhop, stat=ios)
-
-#ifndef GEOS5
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-   deallocate(BC_emis, BC_dep, BC_wet, BC_sfcmass, BC_colmass, BC_mass, &
-              BC_emisAN, BC_emisBB, BC_emisBF, BC_toHydrophilic, &
-              BC_exttau, BC_scatau, stat=ios)
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
+   deallocate(fluxout%data2d)
+   deallocate(fluxout, dqa, drydepositionfrequency, stat=ios )
 
    return
 
@@ -1164,7 +1095,7 @@ K_LOOP: do k = km, 1, -1
       srcBiofuel(i,j) = f100 *eBiofuel*gcBC%biofuel_src(i,j)
       srcAnthro(i,j)  = f100 *         gcBC%ebcant1_src(i,j) &
                       + f500 *         gcBC%ebcant2_src(i,j) &
-		      + f100 *         gcBC%bc_ship_src(i,j)
+                      + f100 *         gcBC%bc_ship_src(i,j)
       srcBiomass(i,j) = fPblh*eBiomass*gcBC%biomass_src(i,j)
 
       srcAll = srcBiofuel(i,j) + srcAnthro(i,j) + srcBiomass(i,j)
@@ -1175,21 +1106,15 @@ K_LOOP: do k = km, 1, -1
 !     ------------------------------
       p0(i,j) = p1
 
-#ifndef GEOS5
-      maxAll = max( maxAll, max( srcHydrophobic(i,j), srcHydrophilic(i,j)))
-#endif
-
      end do ! i
     end do  ! j
 
-#ifdef GEOS5
 !   Determine global max/min
 !   ------------------------
     call pmaxmin ( 'BC: Phobic ', srcHydrophobic, qmin, qmax, ijl, 1, 0. )
     maxAll = abs(qmax) + abs(qmin)
     call pmaxmin ( 'BC: Philic ', srcHydrophilic, qmin, qmax, ijl, 1, 0. )
     maxAll = max ( maxAll, abs(qmax) + abs(qmin) )
-#endif
 
 !   If emissions are zero at this level (globally), we are done
 !   -----------------------------------------------------------
@@ -1235,369 +1160,14 @@ K_LOOP: do k = km, 1, -1
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE:  BC_Wet_Removal - Removal of dust by precipitation
-!  NOTE: For the removal term, fluxout is the sum of the in-cloud
-!        convective and large-scale washout and the total flux across
-!        the surface due to below-cloud (rainout) convective and
-!        large-scale precipitation reaching the surface.  The fluxout
-!        is initialized to zero at the beginning and then at each i, j
-!        grid point it is added to.
-!        
-!
-! !INTERFACE:
-!
-
-   subroutine BC_Wet_Removal ( i1, i2, j1, j2, km, nbins, cdt, rhoa,gcBC, w_c, &
-                               precc, precl, dqcond, tmpu, fluxout, rc )
-
-! !USES:
-
-  implicit NONE
-
-! !INPUT PARAMETERS:
-
-   integer, intent(in) :: i1, i2, j1, j2, km, nbins
-   real, intent(in)    :: cdt
-   type(BC_GridComp), intent(in)   :: gcBC  ! BC Grid Component
-   real, pointer, dimension(:,:)   :: precc ! total convective precip [mm day-1]
-   real, pointer, dimension(:,:)   :: precl ! total large-scale prec. [mm day-1]
-   real, pointer, dimension(:,:,:) :: dqcond  ! change in q due to moist
-                                              ! processes [kg kg-1 s-1] 
-   real, pointer, dimension(:,:,:) :: tmpu    ! temperature [K]
-   real, pointer, dimension(:,:,:) :: rhoa    ! air density [kg m-3]
-
-! !OUTPUT PARAMETERS:
-
-   type(Chem_Bundle), intent(inout) :: w_c        ! Chemical tracer fields
-   type(Chem_Array), intent(inout)  :: fluxout(nbins) ! Mass lost by wet dep
-                                                      ! to surface, kg/m2/s
-   integer, intent(out)             :: rc         ! Error return code:
-                                                  !  0 - all is well
-                                                  !  1 - 
-   character(len=*), parameter :: myname = 'BC_Wet_Removal'
-
-! !DESCRIPTION: Updates the dust concentration in each vertical layer
-!               due to wet removal
-!
-! !REVISION HISTORY:
-!
-!  17Nov2003, Colarco
-!  Based on Ginoux
-!
-!EOP
-!-------------------------------------------------------------------------
-
-! !Local Variables
-   integer  ::  i, j, k, iit, n, LH, kk, ios
-   integer  ::  nbeg, nend
-   integer  ::  nHydrophilic
-   real :: pdog(i1:i2,j1:j2,km)      ! air mass factor dp/g [kg m-2]
-   real :: Td_ls, Td_cv              ! ls and cv timescales [s]
-   real :: pls, pcv, pac             ! ls, cv, tot precip [mm day-1]
-   real :: qls(km), qcv(km)          ! ls, cv portion dqcond [kg m-3 s-1]
-   real :: qmx, qd, A                ! temporary variables on moisture
-   real :: F, B, BT                  ! temporary variables on cloud, freq.
-   real, allocatable :: fd(:,:)      ! flux across layers [kg m-2]
-   real, allocatable :: DC(:)        ! scavenge change in mass mixing ratio
-
-!  Rain parameters (from where?)
-   real, parameter :: B0_ls = 1.0e-4
-   real, parameter :: F0_ls = 1.0
-   real, parameter :: XL_ls = 5.0e-4
-   real, parameter :: B0_cv = 1.5e-3
-   real, parameter :: F0_cv = 0.3
-   real, parameter :: XL_cv = 2.0e-3
-
-   rc=0
-
-!  Initialize local variables
-!  --------------------------
-   do n = 1, nbins
-    if( associated(fluxout(n)%data2d) ) fluxout(n)%data2d(i1:i2,j1:j2) = 0.0
-   end do
-
-   nbeg  = w_c%reg%i_BC
-   nend  = w_c%reg%j_BC
-   nHydrophilic = 2
-
-!  Allocate the dynamic arrays
-   allocate(fd(km,nbins),stat=ios)
-   if(ios .ne. 0) stop
-   allocate(dc(nbins),stat=ios)
-   if(ios .ne. 0) stop
-
-!  Duration of rain: ls = model timestep, cv = 1800 s (<= cdt)
-   Td_ls = cdt
-#ifdef NEMS
-   Td_cv = cdt
-#else
-   Td_cv = 1800.
-#endif
-
-!  Accumulate the 3-dimensional arrays of rhoa and pdog
-   pdog = w_c%delp/grav
-
-!  Loop over spatial indices
-   do j = j1, j2
-    do i = i1, i2
-
-!    Check for total precipitation amount
-!    Assume no precip in column if precl+precc = 0
-     pac = precl(i,j) + precc(i,j)
-     if(pac .le. 0.) goto 100
-     pls = precl(i,j)
-     pcv = precc(i,j)
-
-!    Initialize the precipitation fields
-     qls(:)  = 0.
-     qcv(:)  = 0.
-     fd(:,:) = 0.
-
-!    Find the highest model layer experiencing rainout.  Assumes no
-!    scavenging if T < 258 K
-     LH = 0
-     do k = 1, km
-      if(dqcond(i,j,k) .lt. 0. .and. tmpu(i,j,k) .gt. 258.) then
-       LH = k
-       goto 15
-      endif
-     end do
- 15  continue
-     if(LH .lt. 1) goto 100
-
-!    convert dqcond from kg water/kg air/s to kg water/m3/s and reverse
-!    sign so that dqcond < 0. (positive precip) means qls and qcv > 0.
-     do k = LH, km
-      qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
-!      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
-#ifdef NEMS
-      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
-#endif
-
-     end do
-
-!    Loop over vertical to do the scavenging!
-     do k = LH, km
-
-!-----------------------------------------------------------------------------
-!   (1) LARGE-SCALE RAINOUT:             
-!       Tracer loss by rainout = TC0 * F * exp(-B*dt)
-!         where B = precipitation frequency,
-!               F = fraction of grid box covered by precipitating clouds.
-!       We assume that tracer scavenged by rain is falling down to the
-!       next level, where a fraction could be re-evaporated to gas phase
-!       if Qls is less then 0 in that level.
-!-----------------------------------------------------------------------------
-      if (qls(k) .gt. 0.) then
-       F  = F0_ls / (1. + F0_ls*B0_ls*XL_ls/(qls(k)*cdt/Td_ls))
-       B  = B0_ls/F0_ls +1./(F0_ls*XL_ls/qls(k)) 
-       BT = B * Td_ls
-       if (BT.gt.10.) BT = 10.               !< Avoid overflow >
-!      Adjust du level:
-       do n = nHydrophilic, nHydrophilic
-        DC(n) = w_c%qa(nbeg+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
-        if (DC(n).lt.0.) DC(n) = 0.
-        w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k)-DC(n)
-        w_c%qa(nbeg+n-1)%data3d(i,j,k) = max(w_c%qa(nbeg+n-1)%data3d(i,j,k),1.e-32)
-       end do
-!      Flux down:  unit is kg m-2
-!      Formulated in terms of production in the layer.  In the revaporation step
-!      we consider possibly adding flux from above...
-       do n = nHydrophilic, nHydrophilic
-        Fd(k,n) = DC(n) * pdog(i,j,k)
-       end do
-
-      end if                                    ! if Qls > 0  >>>
-
-!-----------------------------------------------------------------------------
-! * (2) LARGE-SCALE WASHOUT:
-! *     Occurs when rain at this level is less than above.
-!-----------------------------------------------------------------------------
-      if(k .gt. LH .and. qls(k) .ge. 0.) then
-       if(qls(k) .lt. qls(k-1)) then
-!       Find a maximum F overhead until the level where Qls<0.
-        Qmx   = 0.
-        do kk = k-1,LH,-1
-         if (Qls(kk).gt.0.) then
-          Qmx = max(Qmx,Qls(kk))
-         else
-          goto 333
-         end if
-        end do
-
- 333    continue
-        F = F0_ls / (1. + F0_ls*B0_ls*XL_ls/(Qmx*cdt/Td_ls))
-        if (F.lt.0.01) F = 0.01
-!-----------------------------------------------------------------------------
-!  The following is to convert Q(k) from kgH2O/m3/sec to mm/sec in order
-!  to use the Harvard formula.  Convert back to mixing ratio by multiplying
-!  by rhoa.  Multiply by pdog gives kg/m2/s of precip.  Divide by density
-!  of water (=1000 kg/m3) gives m/s of precip and multiply by 1000 gives
-!  units of mm/s (omit the multiply and divide by 1000).
-!-----------------------------------------------------------------------------
-
-        Qd = Qmx /rhoa(i,j,k)*pdog(i,j,k)
-        if (Qd.ge.50.) then
-         B = 0.
-        else
-         B = Qd * 0.1
-        end if
-        BT = B * cdt
-        if (BT.gt.10.) BT = 10.
-
-!       Adjust du level:
-        do n = nHydrophilic, nHydrophilic
-         DC(n) = w_c%qa(nbeg+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
-         if (DC(n).lt.0.) DC(n) = 0.
-         w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k)-DC(n)
-         w_c%qa(nbeg+n-1)%data3d(i,j,k) = max(w_c%qa(nbeg+n-1)%data3d(i,j,k),1.e-32)
-         if( associated(fluxout(n)%data2d) ) then
-          fluxout(n)%data2d(i,j) = fluxout(n)%data2d(i,j)+DC(n)*pdog(i,j,k)/cdt
-         endif
-        end do
-
-       end if
-      end if                                    ! if ls washout  >>>
-
-!-----------------------------------------------------------------------------
-!  (3) CONVECTIVE RAINOUT:
-!      Tracer loss by rainout = dd0 * F * exp(-B*dt)
-!        where B = precipitation frequency,
-!              F = fraction of grid box covered by precipitating clouds.
-!-----------------------------------------------------------------------------
-
-      if (qcv(k) .gt. 0.) then
-       F  = F0_cv / (1. + F0_cv*B0_cv*XL_cv/(Qcv(k)*cdt/Td_cv))
-       B  = B0_cv
-       BT = B * Td_cv
-       if (BT.gt.10.) BT = 10.               !< Avoid overflow >
-
-!      Adjust du level: 
-       do n = nHydrophilic, nHydrophilic
-        DC(n) = w_c%qa(nbeg+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
-        if (DC(n).lt.0.) DC(n) = 0.
-        w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k)-DC(n)
-        w_c%qa(nbeg+n-1)%data3d(i,j,k) = max(w_c%qa(nbeg+n-1)%data3d(i,j,k),1.e-32)
-       end do
-
-!------  Flux down:  unit is kg. Including both ls and cv.
-       do n = nHydrophilic, nHydrophilic
-        Fd(k,n) = Fd(k,n) + DC(n)*pdog(i,j,k)
-       end do
-
-      end if                                  ! if Qcv > 0   >>>
-
-!-----------------------------------------------------------------------------
-!  (4) CONVECTIVE WASHOUT:
-!      Occurs when rain at this level is less than above.
-!-----------------------------------------------------------------------------
-
-      if (k.gt.LH .and. Qcv(k).ge.0.) then
-       if (Qcv(k).lt.Qcv(k-1)) then
-!-----  Find a maximum F overhead until the level where Qls<0.
-        Qmx   = 0.
-        do kk = k-1, LH, -1
-         if (Qcv(kk).gt.0.) then
-          Qmx = max(Qmx,Qcv(kk))
-         else
-          goto 444
-         end if
-        end do
-
- 444    continue
-        F = F0_cv / (1. + F0_cv*B0_cv*XL_cv/(Qmx*cdt/Td_cv))
-        if (F.lt.0.01) F = 0.01
-!-----------------------------------------------------------------------------
-!  The following is to convert Q(k) from kgH2O/m3/sec to mm/sec in order
-!  to use the Harvard formula.  Convert back to mixing ratio by multiplying
-!  by rhoa.  Multiply by pdog gives kg/m2/s of precip.  Divide by density
-!  of water (=1000 kg/m3) gives m/s of precip and multiply by 1000 gives
-!  units of mm/s (omit the multiply and divide by 1000).
-!-----------------------------------------------------------------------------
-
-        Qd = Qmx / rhoa(i,j,k)*pdog(i,j,k)
-        if (Qd.ge.50.) then
-         B = 0.
-        else
-         B = Qd * 0.1
-        end if
-        BT = B * cdt
-        if (BT.gt.10.) BT = 10.
-
-!       Adjust du level:
-        do n = nHydrophilic, nHydrophilic
-         DC(n) = w_c%qa(nbeg+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
-         if (DC(n).lt.0.) DC(n) = 0.
-         w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k)-DC(n)
-         w_c%qa(nbeg+n-1)%data3d(i,j,k) = max(w_c%qa(nbeg+n-1)%data3d(i,j,k),1.e-32)
-         if( associated(fluxout(n)%data2d) ) then
-          fluxout(n)%data2d(i,j) = fluxout(n)%data2d(i,j)+DC(n)*pdog(i,j,k)/cdt
-         endif
-        end do
-
-       end if
-      end if                                    ! if cv washout  >>>
-
-!-----------------------------------------------------------------------------
-!  (5) RE-EVAPORATION.  Assume that SO2 is re-evaporated as SO4 since it
-!      has been oxidized by H2O2 at the level above. 
-!-----------------------------------------------------------------------------
-!     Add in the flux from above, which will be subtracted if reevaporation occurs
-      if(k .gt. LH) then
-       do n = 1, nbins
-        Fd(k,n) = Fd(k,n) + Fd(k-1,n)
-       end do
-
-!      Is there evaporation in the currect layer?
-       if (-dqcond(i,j,k) .lt. 0.) then
-!       Fraction evaporated = H2O(k)evap / H2O(next condensation level).
-        if (-dqcond(i,j,k-1) .gt. 0.) then
-
-          A =  abs(  dqcond(i,j,k) * pdog(i,j,k)    &
-            /      ( dqcond(i,j,k-1) * pdog(i,j,k-1))  )
-          if (A .gt. 1.) A = 1.
-
-!         Adjust tracer in the level
-          do n = nHydrophilic, nHydrophilic
-           DC(n) =  Fd(k-1,n) / pdog(i,j,k) * A
-           w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k) + DC(n)
-           w_c%qa(nbeg+n-1)%data3d(i,j,k) = max(w_c%qa(nbeg+n-1)%data3d(i,j,k),1.e-32)
-!          Adjust the flux out of the bottom of the layer
-           Fd(k,n)  = Fd(k,n) - DC(n)*pdog(i,j,k)
-          end do
-
-        endif
-       endif                                   ! if -moistq < 0
-      endif
-     end do  ! k
-
-     do n = nHydrophilic, nHydrophilic
-      if( associated(fluxout(n)%data2d) ) then
-       fluxout(n)%data2d(i,j) = fluxout(n)%data2d(i,j)+Fd(km,n)/cdt
-      endif
-     end do
-
- 100 continue
-    end do   ! i
-   end do    ! j
-
-   deallocate(fd,DC,stat=ios)
-
-   end subroutine BC_Wet_Removal
-
-!-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
-!-------------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE:  BC_Compute_Diags - Calculate dust 2D diagnostics
 !
 ! !INTERFACE:
 !
 
-   subroutine BC_Compute_Diags ( i1, i2, j1, j2, km, nbins, gcBC, w_c, tmpu, &
-                                 rhoa, sfcmass, colmass, mass, exttau, scatau, &
-                                 rc )
+   subroutine BC_Compute_Diags ( i1, i2, j1, j2, km, nbins, gcBC, w_c, tmpu, rhoa, u, v, &
+                                 sfcmass, colmass, mass, exttau, scatau, &
+                                 conc, extcoef, scacoef, angstrom, fluxu, fluxv, rc )
 
 ! !USES:
 
@@ -1609,16 +1179,24 @@ K_LOOP: do k = km, 1, -1
    type(Chem_Bundle), intent(in)   :: w_c      ! Chem Bundle
    real, pointer, dimension(:,:,:) :: tmpu     ! temperature [K]
    real, pointer, dimension(:,:,:) :: rhoa     ! air density [kg m-3]
+   real, pointer, dimension(:,:,:) :: u        ! east-west wind [m s-1]
+   real, pointer, dimension(:,:,:) :: v        ! north-south wind [m s-1]
 
 ! !OUTPUT PARAMETERS:
-   type(Chem_Array), intent(inout)  :: sfcmass ! sfc mass concentration kg/m3
-   type(Chem_Array), intent(inout)  :: colmass ! col mass density kg/m2
-   type(Chem_Array), intent(inout)  :: mass    ! 3d mass mixing ratio kg/kg
-   type(Chem_Array), intent(inout)  :: exttau  ! ext. AOT at 550 nm
-   type(Chem_Array), intent(inout)  :: scatau  ! sct. AOT at 550 nm
-   integer, intent(out)             :: rc      ! Error return code:
-                                               !  0 - all is well
-                                               !  1 - 
+   type(Chem_Array), intent(inout)  :: sfcmass  ! sfc mass concentration kg/m3
+   type(Chem_Array), intent(inout)  :: colmass  ! col mass density kg/m2
+   type(Chem_Array), intent(inout)  :: mass     ! 3d mass mixing ratio kg/kg
+   type(Chem_Array), intent(inout)  :: exttau   ! ext. AOT at 550 nm
+   type(Chem_Array), intent(inout)  :: scatau   ! sct. AOT at 550 nm
+   type(Chem_Array), intent(inout)  :: conc     ! 3d mass concentration, kg/m3
+   type(Chem_Array), intent(inout)  :: extcoef  ! 3d ext. coefficient, 1/m
+   type(Chem_Array), intent(inout)  :: scacoef  ! 3d scat.coefficient, 1/m
+   type(Chem_Array), intent(inout)  :: angstrom ! 470-870 nm Angstrom parameter
+   type(Chem_Array), intent(inout)  :: fluxu    ! Column mass flux in x direction
+   type(Chem_Array), intent(inout)  :: fluxv    ! Column mass flux in y direction
+   integer, intent(out)             :: rc       ! Error return code:
+                                                !  0 - all is well
+                                                !  1 - 
 
 ! !DESCRIPTION: Calculates some simple 2d diagnostics from the BC fields
 !               Surface concentration (dry)
@@ -1636,16 +1214,46 @@ K_LOOP: do k = km, 1, -1
 
 ! !Local Variables
    character(len=*), parameter :: myname = 'BC_Compute_Diags'
-   integer :: i, j, k, n, nbeg, nend, ios, nch, idx
+   integer :: i, j, k, n, n1, n2, ios, nch, idx
    real :: tau, ssa
    character(len=255) :: qname
+   real, dimension(i1:i2,j1:j2) :: tau470, tau870
+   real    :: ilam550, ilam470, ilam870
+   logical :: do_angstrom
 
 
 !  Initialize local variables
 !  --------------------------
-   nbeg  = w_c%reg%i_BC
-   nend  = w_c%reg%j_BC
+   n1  = w_c%reg%i_BC
+   n2  = w_c%reg%j_BC
    nch   = gcBC%mie_tables%nch
+
+!  Get the wavelength indices
+!  --------------------------
+!  Must provide ilam550 for AOT calculation
+   ilam550 = 1.
+   ilam470 = 0.
+   ilam870 = 0.
+   if(nch .gt. 1) then
+    do i = 1, nch
+     if ( gcBC%mie_tables%channels(i) .ge. 5.49e-7 .and. &
+          gcBC%mie_tables%channels(i) .le. 5.51e-7) ilam550 = i
+     if ( gcBC%mie_tables%channels(i) .ge. 4.69e-7 .and. &
+          gcBC%mie_tables%channels(i) .le. 4.71e-7) ilam470 = i
+     if ( gcBC%mie_tables%channels(i) .ge. 8.69e-7 .and. &
+          gcBC%mie_tables%channels(i) .le. 8.71e-7) ilam870 = i
+    enddo
+   endif
+
+!  Determine if going to do Angstrom parameter calculation
+!  -------------------------------------------------------
+   do_angstrom = .false.
+!  If both 470 and 870 channels provided (and not the same) then
+!  possibly will do Angstrom parameter calculation
+   if(ilam470 .ne. 0. .and. &
+      ilam870 .ne. 0. .and. &
+      ilam470 .ne. ilam870) do_angstrom = .true.
+
 
 !  Calculate the diagnostic variables if requested
 !  -----------------------------------------------
@@ -1656,7 +1264,7 @@ K_LOOP: do k = km, 1, -1
       do n = 1, nbins
          sfcmass%data2d(i1:i2,j1:j2) &
               =   sfcmass%data2d(i1:i2,j1:j2) &
-              + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,km)*rhoa(i1:i2,j1:j2,km)
+              + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,km)*rhoa(i1:i2,j1:j2,km)
       end do
    endif
 
@@ -1667,8 +1275,18 @@ K_LOOP: do k = km, 1, -1
        do k = 1, km
         colmass%data2d(i1:i2,j1:j2) &
          =   colmass%data2d(i1:i2,j1:j2) &
-           + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav
        end do
+      end do
+   endif
+
+!  Calculate the total mass concentration
+   if( associated(conc%data3d) ) then
+      conc%data3d(i1:i2,j1:j2,1:km) = 0.
+      do n = 1, nbins
+       conc%data3d(i1:i2,j1:j2,1:km) &
+         =   conc%data3d(i1:i2,j1:j2,1:km) &
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,1:km)*rhoa(i1:i2,j1:j2,1:km)
       end do
    endif
 
@@ -1678,9 +1296,33 @@ K_LOOP: do k = km, 1, -1
       do n = 1, nbins
        mass%data3d(i1:i2,j1:j2,1:km) &
          =   mass%data3d(i1:i2,j1:j2,1:km) &
-           + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,1:km)
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,1:km)
       end do
    endif
+
+!  Calculate the column mass flux in x direction
+   if( associated(fluxu%data2d) ) then
+      fluxu%data2d(i1:i2,j1:j2) = 0.
+      do n = 1, nbins
+       do k = 1, km
+        fluxu%data2d(i1:i2,j1:j2) &
+         =   fluxu%data2d(i1:i2,j1:j2) &
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav*u(i1:i2,j1:j2,k)
+       end do
+      end do
+   endif   
+   
+!  Calculate the column mass flux in y direction
+   if( associated(fluxv%data2d) ) then
+      fluxv%data2d(i1:i2,j1:j2) = 0.
+      do n = 1, nbins
+       do k = 1, km
+        fluxv%data2d(i1:i2,j1:j2) &
+         =   fluxv%data2d(i1:i2,j1:j2) &
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav*v(i1:i2,j1:j2,k)
+       end do
+      end do
+   endif      
 
 !  Calculate the extinction and/or scattering AOD
    if( associated(exttau%data2d) .or. associated(scatau%data2d) ) then
@@ -1692,20 +1334,36 @@ K_LOOP: do k = km, 1, -1
        scatau%data2d(i1:i2,j1:j2) = 0.
       endif
 
+      if( associated(extcoef%data3d)) then 
+       extcoef%data3d(i1:i2,j1:j2,1:km) = 0.
+      endif
+      if( associated(scacoef%data3d)) then
+       scacoef%data3d(i1:i2,j1:j2,1:km) = 0.
+      endif 
+
       do n = 1, nbins
 
 !      Select the name for species
-       qname = trim(w_c%reg%vname(w_c%reg%i_BC+n-1))
+       qname = trim(w_c%reg%vname(n+n1-1))
        idx = Chem_MieQueryIdx(gcBC%mie_tables,qname,rc)
        if(rc .ne. 0) call die(myname, 'cannot find proper Mie table index')
 
-!      Recall -- at present need to divide RH by 100 to get to tables
        do k = 1, km
         do j = j1, j2
          do i = i1, i2
-          call Chem_MieQuery(gcBC%mie_tables, idx, 1., &
-              w_c%qa(nbeg+n-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav, &
-              w_c%rh(i,j,k)/100., tau=tau, ssa=ssa)
+          call Chem_MieQuery(gcBC%mie_tables, idx, ilam550, &
+              w_c%qa(n1+n-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav, &
+              w_c%rh(i,j,k), tau=tau, ssa=ssa)
+
+!         Calculate the total ext. and scat. coefficients
+          if( associated(extcoef%data3d) ) then
+              extcoef%data3d(i,j,k) = extcoef%data3d(i,j,k) + &
+                                      tau * (grav * rhoa(i,j,k) / w_c%delp(i,j,k))
+          endif
+          if( associated(scacoef%data3d) ) then
+              scacoef%data3d(i,j,k) = scacoef%data3d(i,j,k) + &
+                                      ssa * tau * (grav * rhoa(i,j,k) / w_c%delp(i,j,k))
+          endif
 
 !         Integrate in the vertical
           if( associated(exttau%data2d) ) then
@@ -1721,6 +1379,46 @@ K_LOOP: do k = km, 1, -1
 
       enddo  ! nbins
 
+   endif
+
+
+!  Calculate the 470-870 Angstrom parameter
+   if( associated(angstrom%data2d) .and. do_angstrom ) then
+
+      angstrom%data2d(i1:i2,j1:j2) = 0.
+!     Set tau to small number by default
+      tau470(i1:i2,j1:j2) = tiny(1.0)
+      tau870(i1:i2,j1:j2) = tiny(1.0)
+
+      do n = 1, nbins
+
+!      Select the name for species
+       qname = trim(w_c%reg%vname(n+n1-1))
+       idx = Chem_MieQueryIdx(gcBC%mie_tables,qname,rc)
+       if(rc .ne. 0) call die(myname, 'cannot find proper Mie table index')
+
+       do k = 1, km
+        do j = j1, j2
+         do i = i1, i2
+
+          call Chem_MieQuery(gcBC%mie_tables, idx, ilam470, &
+              w_c%qa(n+n1-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav, &
+              w_c%rh(i,j,k), tau=tau)
+          tau470(i,j) = tau470(i,j) + tau
+
+          call Chem_MieQuery(gcBC%mie_tables, idx, ilam870, &
+              w_c%qa(n+n1-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav, &
+              w_c%rh(i,j,k), tau=tau)
+          tau870(i,j) = tau870(i,j) + tau
+
+         enddo
+        enddo
+       enddo
+
+      enddo  ! nbins
+      angstrom%data2d(i1:i2,j1:j2) = &
+        -log(tau470(i1:i2,j1:j2)/tau870(i1:i2,j1:j2)) / &
+         log(470./870.)
    endif
 
 

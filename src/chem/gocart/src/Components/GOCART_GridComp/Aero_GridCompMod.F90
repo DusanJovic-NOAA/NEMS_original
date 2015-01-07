@@ -20,7 +20,7 @@
 
    Use Chem_UtilMod, only: pmaxmin
 
-   use O3_GridCompMod        ! Carbon monoxide
+   use O3_GridCompMod        ! Ozone
    use CO_GridCompMod        ! Carbon monoxide
    use CO2_GridCompMod       ! Carbon dioxide
    use BC_GridCompMod        ! Black Carbon
@@ -30,6 +30,7 @@
    use SU_GridCompMod        ! Sulfates
    use CFC_GridCompMod       ! CFCs
    use Rn_GridCompMod        ! Radon
+   use CH4_GridCompMod       ! Methane
 
    implicit none
 
@@ -78,6 +79,7 @@
         type(SU_GridComp)  :: gcSU
         type(CFC_GridComp) :: gcCFC
         type(Rn_GridComp)  :: gcRn
+        type(CH4_GridComp) :: gcCH4
   end type Aero_GridComp
 
 CONTAINS
@@ -150,7 +152,7 @@ CONTAINS
         end if
 !       Here we are assuming the mie tables to use
 !       In future, pass a registry file
-        gcThis%mie_tables = Chem_MieCreate ( 'Aod-550nm_Registry.rc', rc )
+        gcThis%mie_tables = Chem_MieCreate ( 'Aod_Registry.rc', rc )
         if ( rc /= 0 ) then
            if (MAPL_AM_I_ROOT()) print *, Iam//': MieCreate failed ', rc
            return
@@ -259,6 +261,9 @@ CONTAINS
            return
       end if
       gcThis%gcSU%mie_tables => gcThis%mie_tables
+      do i = 1, gcThis%gcSU%n
+         gcThis%gcSU%gcs(i)%mie_tables => gcThis%mie_tables
+      end do
    end if
 
 !  CFCs
@@ -281,6 +286,18 @@ CONTAINS
       if ( rc /= 0 ) then  
            if (MAPL_AM_I_ROOT()) print *, Iam//': Rn failed to initialize ', rc
            rc = 8500 + rc
+           return
+      end if
+   end if
+
+!  Methane
+!  -------
+   if ( w_c%reg%doing_CH4 ) then
+      call CH4_GridCompInitialize ( gcThis%gcCH4, w_c, impChem, expChem, &
+                                    nymd, nhms, cdt, rc )
+      if ( rc /= 0 ) then  
+           if (MAPL_AM_I_ROOT()) print *, Iam//': CH4 failed to initialize ', rc
+           rc = 8800 + rc
            return
       end if
    end if
@@ -473,6 +490,17 @@ CONTAINS
       end if
    end if
 
+!  Methane
+!  -------
+   if ( w_c%reg%doing_CH4 ) then
+      call CH4_GridCompRun ( gcThis%gcCH4, w_c, impChem, expChem, &
+                             nymd, nhms, cdt, rc )
+      if ( rc /= 0 ) then  
+           rc = 8800 + rc
+           return
+      end if
+   end if
+
    return
 
  end subroutine Aero_GridCompRun
@@ -639,6 +667,17 @@ CONTAINS
                                   nymd, nhms, cdt, rc )
       if ( rc /= 0 ) then  
            rc = 8500 + rc
+           return
+      end if
+   end if
+
+!  Methane
+!  -------
+   if ( w_c%reg%doing_CH4 ) then
+      call CH4_GridCompFinalize ( gcThis%gcCH4, w_c, impChem, expChem, &
+                                  nymd, nhms, cdt, rc )
+      if ( rc /= 0 ) then  
+           rc = 8800 + rc
            return
       end if
    end if

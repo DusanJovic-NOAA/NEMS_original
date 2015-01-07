@@ -1,9 +1,10 @@
 dset ^diurnal.bin
 undef 1e15
-xdef 720 linear -180 0.5
-ydef 361 linear -90 0.5
+options sequential
+xdef 288 linear   0 1.25
+ydef 181 linear -90 1.00
 zdef 1 levels 1
-tdef 24 linear 0z5feb1960 1hr
+tdef 96 linear 0z5feb1960 15mn
 vars 1
 bb 0 0 Diurnal BB
 endvars

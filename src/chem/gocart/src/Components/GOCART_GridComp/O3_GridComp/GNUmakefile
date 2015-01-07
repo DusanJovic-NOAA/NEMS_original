@@ -26,14 +26,21 @@ endif
 THIS := $(shell basename `pwd`)
 NAME := $(patsubst %_GridComp,%,$(THIS))
 
-esma_install install: $(DEPS) $(LIB_THIS) 
-	$(MKDIR) $(ESMALIB) $(ESMAETC) $(INC_CHEM) $(ESMABIN)
-	$(MAKE) lib
-	$(CP) -p *.rc        $(ESMAETC)
+  # All fvChem is a single library
+
+RCDIR = .
+
+esma_install install: $(ACGS) $(LIB_THIS) 
+	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAETC)/CMIP $(ESMAETC)/MERRA2 $(ESMAETC)/NR $(ESMAETC)/PIESA $(INC_CHEM) $(ESMABIN)
+	$(CP) -p        *.rc                       $(ESMAETC)
+	$(CP) -p   CMIP/*.rc                       $(ESMAETC)/CMIP
+	$(CP) -p MERRA2/*.rc                       $(ESMAETC)/MERRA2
+	$(CP) -p     NR/*.rc                       $(ESMAETC)/NR
+	$(CP) -p  PIESA/*.rc                       $(ESMAETC)/PIESA
 	$(CP) -p *.h *.mod   $(INC_CHEM)
 
 esma_clean clean:
-	$(RM) *~ *.[aox] *.[Mm][Oo][Dd]
+	$(RM) $(ACGS) *~ *.[aox] *.[Mm][Oo][Dd]
 
 esma_distclean distclean:
 	$(RM) $(ACGS) *~ *.[aoxd] *.[Mm][Oo][Dd]
@@ -63,33 +70,34 @@ ifeq ($(DOING_GEOS5),TRUE)
   DGEOS5 = $(D)GEOS5
 endif
 
-SRCS = O3_DataMod.F90 O3_GridCompMod.F90 
+SPMD = -DSPMD
+DEBUG = -DDEBUG
+
+SRCS := $(THIS)Mod.F90
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
+ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc
 DEPS := $(addsuffix .d, $(basename $(SRCS)))
-ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc $(NAME)_DeclarePointer___.h
 
-SPMD = $(D)SPMD
-DEBUG = $(D)DEBUG
+THIS_CFIO = MAPL_cfio_r4
 
-INC_DIRS = . $(INC_MAPL_BASE) 
-MOD_DIRS = . $(INC_ESMF) $(INC_MPEU) $(INC_PILGRIM) \
-             $(INC_DIRS) $(INC_GEOS_SHARED) $(ESMAINC)/MAPL_Base \
-             $(INC_CHEM_BASE) $(INC_CHEM_SHARED) $(INC_CHEM) 
+INC_DIRS = . $(INC_CHEM) $(INC_ESMF) $(INC_GMAO_SHARED) $(INC_MPI)
+MOD_DIRS = . $(INC_DIRS)
 
-USER_FDEFS  = $(DGEOS5) $(DEBUG) $(SPMD)
+USER_FDEFS  = $(DGEOS5) $(DEBUG)
 USER_FFLAGS = $(BIG_ENDIAN) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
 
 vpath % $(MOD_DIRS)
 
-FOPT = $(FOPT3)
+#FOPT = $(FOPT3)
+FREAL = $(FREAL4)
 
-$(LIB_THIS) lib : $(DEPS) $(ACGS) $(OBJS)
+$(LIB_THIS) lib : $(ACGS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB_THIS) $(OBJS)
 
 $(ACGS) : $(NAME)_Registry.rc $(ACG)
-	@$(ACG) $(ACG_FLAGS) -C -N GOCART $(NAME)_Registry.rc
+	@$(ACG) $(ACG_FLAGS) -B -C -N GOCART $(NAME)_Registry.rc
 
 $(DEPS) : $(ACGS)
 
@@ -98,6 +106,8 @@ $(DEPS) : $(ACGS)
   ifneq ($(findstring clean,$(MAKECMDGOALS)),clean)
     -include $(DEPS)
   endif
+
+#.
 
   -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
 

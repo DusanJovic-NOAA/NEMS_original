@@ -53,6 +53,7 @@
                                                ! following CF convention
          logical :: twoDimVar     ! True for 2D; false for 3D
          logical :: timAve        ! True for time averaging file
+         logical :: isGridSet     ! True only if grid was passed in
          character :: aveMethod   ! 'c' for center averaging for time
                                   ! [-0.5*timeInc+time, 0.5*timeInc+time]
                                   ! Default: 'c'
@@ -75,9 +76,11 @@
          integer, pointer :: varAttInts(:,:) ! User defined integer attributes
          character(len=MVARLEN) :: ordering ! (time, lev, lat, lon) (default)
                                             ! can be any combination of xyzt
-         type(iNode), pointer :: iList
-         type(rNode), pointer :: rList
-         type(cNode), pointer :: cList
+         type(iNode), pointer :: iList=>NULL()
+         type(rNode), pointer :: rList=>NULL()
+         type(cNode), pointer :: cList=>NULL()
+         integer, pointer  :: ChunkSize(:)  ! ChunkSize for each variable
+
       end type ESMF_CFIOVarInfo
 
       contains
@@ -122,6 +125,7 @@
 
       varObj%twoDimVar = .false.
       varObj%timAve = .false.
+      varObj%isGridSet = .false.
       varObj%aveMethod = 'c'
       varObj%cellMthd = 'mean'
       varObj%amiss = 1.E15
@@ -135,7 +139,7 @@
       varObj%vUnits = 'unknown'
       varObj%standardName = 'unknown'
 
-      allocate(varObj%iList, varObj%rList, varObj%cList)
+!      allocate(varObj%iList, varObj%rList, varObj%cList)
       nullify(varObj%iList)
       nullify(varObj%rList)
       nullify(varObj%cList)
@@ -161,7 +165,7 @@
                               vAttIntCnts, varAttInts, ordering,            &
                               attCharName, attChar, attRealName, attReal,   &
                               attIntName, attInt, packingRange, timAve,     &
-                              aveMethod, cellMthd, rc )
+                              aveMethod, cellMthd, ChunkSize, rc )
        implicit NONE
 
 ! !ARGUMENTS:
@@ -212,6 +216,9 @@
                                  ! User defined variable real attribute
        integer, intent(in), OPTIONAL :: attInt(:)
                                  ! User defined variable int attribute
+       integer, intent(in), OPTIONAL :: ChunkSize(:)
+                                 ! User defined Chunksize int 
+
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -240,7 +247,10 @@
        integer :: iCnt, jCnt, count, rtcode = 0
                                                                   
        if ( present(vName) ) varObj%vName = vName
-       if ( present(grid) ) varObj%grid = grid 
+       if ( present(grid) ) then
+          varObj%grid = grid 
+          varObj%isGridSet = .true.
+       end if
        if ( present(vTitle) ) varObj%vTitle = vTitle
        if ( present(vUnits) ) varObj%vUnits = vUnits
        if ( present(twoDimVar) ) varObj%twoDimVar = twoDimVar
@@ -341,6 +351,17 @@
           varObj%attIntNames = attIntNames
        end if
 
+!      set ChunkSize array
+       if( present(ChunkSize) ) then
+          allocate(varObj%ChunkSize(size(ChunkSize)), stat=rtcode)
+          if (err("can't allocate mem: ChunkSize",rtcode,-12) .lt. 0) then  
+             if ( present(rc) ) rc = rtcode
+             return
+          end if
+          varObj%ChunkSize=ChunkSize
+       end if
+
+
 !      user provides real attribute name and data. Put them into rList
        if ( present(attRealName) .and. present(attReal) ) then
           count = size(attReal)
@@ -381,7 +402,7 @@
                               attCharName, attCharCnt, attChar, attRealName,&
                               attRealCnt, attReal, attIntName, attIntCnt,   &
                               attInt, packingRange, timAve, aveMethod,      &
-                              cellMthd, rc )
+                              cellMthd, ChunkSize, rc )
        implicit NONE
 
 ! !ARGUMENTS:
@@ -442,6 +463,8 @@
                                     ! User defined  real attribute
        integer, pointer, OPTIONAL :: attInt(:)
                                     ! User defined  int attribute
+       integer, pointer, OPTIONAL :: ChunkSize(:)
+                                 ! User defined Chunksize int 
 
        integer, intent(out), OPTIONAL :: rc 
                                     ! Error return code:
@@ -564,6 +587,18 @@
           varAttInts = varObj%varAttInts  
        end if
 
+!      Get Chunk Size
+       if ( present(ChunkSize) ) then
+          if(associated(varObj%ChunkSize))  then 
+             allocate( ChunkSize(size(varObj%ChunkSize)), stat = rtcode )
+             if (err("Allocation for ChunkSize fialed", rtcode, -10) .lt. 0) then
+                if ( present(rc) ) rc = rtcode
+                return
+             end if
+             ChunkSize = varObj%ChunkSize
+          end if
+       end if
+
 !      user provides integer attribute name to get its count and data 
        if ( present(attIntName) ) then
           if ( present(attIntCnt) ) then
@@ -676,7 +711,12 @@
       if ( associated(varObj%varAttInts) ) deallocate(varObj%varAttInts,    &
                                              stat=rtcode)
 
-!      call ESMF_CFIOGridDestroy(varObj%grid, rc=rtcode)
+      if ( associated(varObj%ChunkSize ) ) deallocate(varObj%ChunkSize,       &
+                                             stat=rtcode)
+
+      if (.not. varObj%isGridSet) then
+         call ESMF_CFIOGridDestroy(varObj%grid, rc=rtcode)
+      end if
       
       if ( associated(varObj%iList) ) call iNodeDestroy(varObj%iList)
       if ( associated(varObj%rList) ) call rNodeDestroy(varObj%rList)
@@ -689,6 +729,7 @@
    subroutine iNodeDestroy(List)
      type(iNode), pointer :: List, p, q
 
+     if (.not. associated(List)) return
      q => List
      p => List%next
      do while ( associated(p) )  
@@ -709,6 +750,7 @@
    subroutine rNodeDestroy(List)
      type(rNode), pointer :: List, p, q
 
+     if (.not. associated(List)) return
      q => List
      p => List%next
      do while ( associated(p) )  
@@ -730,6 +772,7 @@
    subroutine cNodeDestroy(List)
      type(cNode), pointer :: List, p, q
 
+     if (.not. associated(List)) return
      q => List
      p => List%next
      do while ( associated(p) )  

@@ -2,54 +2,72 @@
       implicit   none
       integer    iin,jin,       iout,jout, mlev
       real   qin(iin,jin,mlev), qout(iout,jout,mlev)
-      real undef,pi,dlin,dpin,dlout,dpout
-      real dlam(iin), lons(iout*jout), lon
-      real dphi(jin), lats(iout*jout), lat
+      real undef,pi,dlin,dpin,dlout,dpout,lon,lat
+
+      real dlam_in (iin)
+      real dphi_in (jin)
+
+      real lons(iout), lons_out(iout*jout)
+      real lats(jout), lats_out(iout*jout)
+
       integer i,j,loc
 
       pi = 4.0*atan(1.0)
-      dlin = 2*pi/iin
-      dpin = pi/(jin-1)
-      dlam(:) = dlin
-      dphi(:) = dpin
+      dlin = 2*pi/ iin
+      dpin =   pi/(jin-1)
 
-      dlout = 2*pi/iout
-      dpout = pi/(jout-1)
-      
+      dlout = 2*pi/ iout
+      dpout =   pi/(jout-1)
+
+c Compute Input DLAM & DPHI
+c -------------------------
+      dlam_in(:) = dlin
+      dphi_in(:) = dpin
+
+c Compute Output Lons & Lats
+c --------------------------
+      lons(1) = -pi
+      do i=2,iout
+      lons(i) = lons(i-1) + dlout
+      enddo
+      lats(1) = -pi*0.5
+      do j=2,jout-1
+      lats(j) = lats(j-1) + dpout
+      enddo
+      lats(jout) = pi*0.5
+
       loc = 0
       do j=1,jout
       do i=1,iout
       loc = loc + 1
-      lon = -pi + (i-1)*dlout
-      lons(loc) = lon
+      lons_out(loc) = lons(i)
       enddo
       enddo
 
       loc = 0
       do j=1,jout
-      lat = -pi/2.0 + (j-1)*dpout
       do i=1,iout
       loc = loc + 1
-      lats(loc) = lat
+      lats_out(loc) = lats(j)
       enddo
       enddo
 
-      call interp_hh ( qin,iin,jin,mlev,dlam,dphi,
-     .                qout,iout*jout,lons,lats,undef, -pi )
+      call interp_hh ( qin,iin,jin,mlev,dlam_in,dphi_in,
+     .                 qout,iout*jout,lons_out,lats_out,undef, -pi )
 
       return
       end
 
 !.......................................................................................................
 
-
-      subroutine hhinterp ( qin,iin,jin,qout,iout,jout,mlev,undef, 
-     .                      lons_in, lats_in )
+      subroutine hhinterp ( qin,iin,jin,qout,iout,jout,mlev,undef,
+     .                      lons_in,lats_in )
       implicit   none
       integer    iin,jin,       iout,jout, mlev
       real   qin(iin,jin,mlev), qout(iout,jout,mlev) 
       real undef,pi,dlin,dpin,dlout,dpout
-      real :: lons_in(iin), lats_in(jin)
+      real lons_in (iin) , lats_in (jin)
+      real lons_out(iout), lats_out(jout)
       real dlam(iin), lons(iout*jout), lon
       real dphi(jin), lats(iout*jout), lat
       integer i,j,loc,rc
@@ -61,6 +79,12 @@
 
       pi = 4.0*atan(1.0)
 
+      dlin  = 2*pi/ iin
+      dpin  =   pi/(jin-1)
+
+      dlout = 2*pi/ iout
+      dpout =   pi/(jout-1)
+
 
 !     Larry's code expects longitudes in the range [-180,180],
 !     therefore redefine longitudes and flip fields if input
@@ -69,60 +93,53 @@
       lons_save = lons_in
       imh = -1
       if ( lons_in(1) >= 0 ) then
-           do i = 1, iin
-              if ( lons_in(i) >= pi ) then
-                   lons_in(i) = lons_in(i) - 2*pi
-                   if ( imh < 0 ) imh = i
-                end if 
-           end do
-           i1 = 1; i2 = imh-1; i3=imh; i4=iin
-           n1 = 1; n2 = i4-i3+1; n3=n2+1; n4=iin
-           dlam = lons_in
-           lons_in(n1:n2) = dlam(i3:i4)
-           lons_in(n3:n4) = dlam(i1:i2)
-           do k = 1, mlev
-              do j = 1, jin
-                 dlam = qin(:,j,k)
-                 qin(n1:n2,j,k) = dlam(i3:i4)
-                 qin(n3:n4,j,k) = dlam(i1:i2)
-              end do
-           end do
-      end if
+         imh=1
+         do k = 1, mlev
+           call  myhflip2_(qin(1,1,k),iin,jin)
+         enddo
+         lons_in(1) = -pi
+         do i=2,iin
+         lons_in(i) = lons_in(i-1) + dlin
+         enddo
+      endif
 
-      do i = 1, iin-1
-         dlam(i) = lons_in(i+1) - lons_in(i)
-      enddo
-      dlam(iin) = lons_in(iin) - lons_in(iin-1) ! just in case
+! Set INPUT DLAM and DPHI to Uniform Grid Constants
+! -------------------------------------------------
+      dlam(:) = dlin
+      dphi(:) = dpin
       lon_min = lons_in(1)
 
       if ( abs(lats_in(1)+pi/2) >= 0.0001 ) then
          qout = undef           ! requires lat to start at South Pole
          return
       end if
-      do j = 1, jin-1
-         dphi(j) = lats_in(j+1) - lats_in(j)
-      enddo
-      dphi(jin) = lats_in(jin) - lats_in(jin-1) ! just in case
 
-      dlout = 2*pi/iout
-      dpout = pi/(jout-1)
+c Compute Output Lons & Lats consistent with DLAM and DPHI
+c --------------------------------------------------------
+      lons_out(1) = -pi
+      do i=2,iout
+      lons_out(i) = lons_out(i-1) + dlout
+      enddo
+      lats_out(1) = -pi*0.5
+      do j=2,jout-1
+      lats_out(j) = lats_out(j-1) + dpout
+      enddo
+      lats_out(jout) = pi*0.5
 
       loc = 0
       do j=1,jout
-         do i=1,iout
-            loc = loc + 1
-            lon = -pi + (i-1)*dlout ! in [-180,180)
-            lons(loc) = lon
-         enddo
+      do i=1,iout
+      loc = loc + 1
+      lons(loc) = lons_out(i)
+      enddo
       enddo
 
       loc = 0
       do j=1,jout
-         lat = -pi/2.0 + (j-1)*dpout
-         do i=1,iout
-            loc = loc + 1
-            lats(loc) = lat
-         enddo
+      do i=1,iout
+      loc = loc + 1
+      lats(loc) = lats_out(j)
+      enddo
       enddo
 
       call interp_hh ( qin,iin,jin,mlev,dlam,dphi, 
@@ -133,20 +150,31 @@
       if ( imh > 0 ) then
            lons_in = lons_save
            do k = 1, mlev
-              do j = 1, jin
-                 dlam = qin(:,j,k)
-                 qin(i1:i2,j,k) = dlam(n3:n4)
-                 qin(i3:i4,j,k) = dlam(n1:n2)
-              end do
-           end do
-      end if
+             call  myhflip2_(qin(1,1,k),iin,jin)
+           enddo
+      endif
 
       return
+      contains
+      subroutine myhflip2_ ( q,im,jm )
+      implicit none
+      integer  im,jm,i,j
+      real, intent(inout) :: q(im,jm)
+      real, allocatable   :: dum(:)
+      allocate ( dum(im) )
+      do j=1,jm
+      do i=1,im/2
+         dum(i) = q(i+im/2,j)
+         dum(i+im/2) = q(i,j)
+      enddo
+         q(:,j) = dum(:)
+      enddo
+      deallocate ( dum )
+      end subroutine myhflip2_
       end
 
       subroutine interp_hh ( q_cmp,im,jm,lm,dlam,dphi, 
-     .                       q_geo,irun,lon_geo,lat_geo, undef, 
-     .                       lon_min )
+     .                       q_geo,irun,lon_geo,lat_geo, undef, lon_min )
 C***********************************************************************
 C
 C  PURPOSE:
@@ -254,18 +282,12 @@ c Allocate Memory for Weights and Index Locations
 c -----------------------------------------------
       allocate ( wl_ip0jp0(irun) , wl_im1jp0(irun) )
       allocate ( wl_ip0jm1(irun) , wl_im1jm1(irun) )
-      allocate ( wc_ip1jp1(irun) , wc_ip0jp1(irun) , wc_im1jp1(irun) , 
-     &   wc_im2jp1(irun) )
-      allocate ( wc_ip1jp0(irun) , wc_ip0jp0(irun) , wc_im1jp0(irun) , 
-     &   wc_im2jp0(irun) )
-      allocate ( wc_ip1jm1(irun) , wc_ip0jm1(irun) , wc_im1jm1(irun) , 
-     &   wc_im2jm1(irun) )
-      allocate ( wc_ip1jm2(irun) , wc_ip0jm2(irun) , wc_im1jm2(irun) , 
-     &   wc_im2jm2(irun) )
-      allocate (       ip1(irun) ,       ip0(irun) ,       im1(irun) , 
-     &         im2(irun) )
-      allocate (       jp1(irun) ,       jp0(irun) ,       jm1(irun) , 
-     &         jm2(irun) )
+      allocate ( wc_ip1jp1(irun) , wc_ip0jp1(irun) , wc_im1jp1(irun) , wc_im2jp1(irun) )
+      allocate ( wc_ip1jp0(irun) , wc_ip0jp0(irun) , wc_im1jp0(irun) , wc_im2jp0(irun) )
+      allocate ( wc_ip1jm1(irun) , wc_ip0jm1(irun) , wc_im1jm1(irun) , wc_im2jm1(irun) )
+      allocate ( wc_ip1jm2(irun) , wc_ip0jm2(irun) , wc_im1jm2(irun) , wc_im2jm2(irun) )
+      allocate (       ip1(irun) ,       ip0(irun) ,       im1(irun) ,       im2(irun) )
+      allocate (       jp1(irun) ,       jp0(irun) ,       jm1(irun) ,       jm2(irun) )
 
 c Compute Input Computational-Grid Latitude and Longitude Locations
 c -----------------------------------------------------------------

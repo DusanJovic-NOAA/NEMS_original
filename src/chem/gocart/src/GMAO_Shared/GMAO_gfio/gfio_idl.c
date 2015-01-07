@@ -53,7 +53,7 @@ int g5dims(int argc, void *argv[]) {
   int na, nv, rc;
    if ( argc != 5 ) {
      printf("g5dims: invalid number of arguments = %d\n",argc);
-     printf("Usage:\n    rc=g5dims(fid,im,jm,km,lm,nvars)\n",argc);
+     printf("Usage:\n    rc=g5dims(fid,im,jm,km,lm)\n",argc);
      return -1;
    }
    /* copy in */

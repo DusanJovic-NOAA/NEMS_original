@@ -35,7 +35,7 @@ use strict;
     $fpath = $ENV{"FPATH"};
     @lib = split /:/, $fpath;
     foreach (@lib) {
-        ($mklpath = $_) =~ s/include/lib\/exm64t/;
+        ($mklpath = $_) =~ s/include/lib\/em64t/;
         last if -d $mklpath;
         $mklpath = "";
     }

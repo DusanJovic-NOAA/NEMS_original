@@ -5,7 +5,6 @@
 #
 # 3mar2004  Zaslavsky  Initial imlementation.
 # 20oct2004  da Silva  Standardization.
-# 14Mar2013  Lu        Add NEMS option
 #
 
 # Make sure ESMADIR is defined
@@ -21,7 +20,6 @@ endif
   include $(ESMADIR)/Config/GMAO_base.mk  # GMAO stuff
   include $(ESMADIR)/Config/NCEP_base.mk  # NCEP stuff
 
-
 #                  ---------------------
 #                  Standard ESMA Targets
 #                  ---------------------
@@ -31,10 +29,18 @@ NAME := $(patsubst %_GridComp,%,$(THIS))
 
   # All fvChem is a single library
 
+RCDIR = .
+
 esma_install install: $(AGCS) $(LIB_THIS) 
-	$(MKDIR) $(ESMALIB) $(ESMAETC) $(INC_CHEM) $(ESMABIN)
-	$(CP) -p *.rc        $(ESMAETC)
-	$(CP) -p *.h *.mod   $(INC_CHEM)
+	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAETC)/CMIP $(ESMAETC)/MERRA2 $(ESMAETC)/NR $(ESMAETC)/PIESA $(INC_CHEM) $(ESMABIN)
+	$(CP) -p         *.rc                      $(ESMAETC)
+	$(CP) -p    CMIP/*.rc                      $(ESMAETC)/CMIP
+	$(CP) -p  MERRA2/*.rc                      $(ESMAETC)/MERRA2
+	$(CP) -pr MERRA2/19600101-20000331         $(ESMAETC)/MERRA2
+	$(CP) -pr MERRA2/20000401-present          $(ESMAETC)/MERRA2
+	$(CP) -p      NR/*.rc                      $(ESMAETC)/NR
+	$(CP) -p   PIESA/*.rc                      $(ESMAETC)/PIESA
+	$(CP) -p  *.h *.mod   $(INC_CHEM)
 
 esma_clean clean:
 	$(RM) $(ACGS) *~ *.[aox] *.[Mm][Oo][Dd]
@@ -67,25 +73,20 @@ ifeq ($(DOING_GEOS5),TRUE)
   DGEOS5 = $(D)GEOS5
 endif
 
-ifeq ($(DOING_NEMS),TRUE)
-  DNEMS = $(D)NEMS
-endif
-
 SPMD = $(D)SPMD
 DEBUG = $(D)DEBUG
 
 SRCS := $(THIS)Mod.F90
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
-ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc $(NAME)_DeclarePointer___.h
+ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc
 DEPS := $(addsuffix .d, $(basename $(SRCS)))
 
-INC_DIRS = . $(INC_MAPL_BASE) $(ESMAINC)/MAPL_Base
-MOD_DIRS = . $(INC_ESMF) $(INC_MPEU) $(INC_PILGRIM) \
-             $(INC_DIRS) $(INC_GEOS_SHARED) \
-             $(INC_CHEM_BASE) $(INC_CHEM_SHARED) $(INC_CHEM) 
+THIS_CFIO = MAPL_cfio_r4
 
-##USER_FDEFS  = $(DGEOS5) $(DEBUG)
-USER_FDEFS  = $(DGEOS5) $(DEBUG) ${DNEMS}
+INC_DIRS = . $(INC_CHEM) $(INC_ESMF) $(INC_GMAO_SHARED)
+MOD_DIRS = . $(INC_DIRS)
+
+USER_FDEFS  = $(DGEOS5) $(DEBUG)
 USER_FFLAGS = $(BIG_ENDIAN) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
@@ -98,7 +99,7 @@ $(LIB_THIS) lib : $(ACGS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB_THIS) $(OBJS)
 
 $(ACGS) : $(NAME)_Registry.rc $(ACG)
-	@$(ACG) $(ACG_FLAGS) -B -C -N GOCART $(NAME)_Registry.rc
+	@$(ACG) $(ACG_FLAGS) -B -E -C -N GOCART $(NAME)_Registry.rc
 
 $(DEPS) : $(ACGS)
 

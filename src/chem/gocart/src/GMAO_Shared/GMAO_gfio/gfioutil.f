@@ -1,3 +1,6 @@
+!! #define __NCVERBOS__ NCVERBOS
+#define __NCVERBOS__ 0
+
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -17,7 +20,6 @@
 ! !USES:
 !
       Implicit NONE
-      include 'netcdf.inc'
 !
 ! !INPUT PARAMETERS:
 !
@@ -117,6 +119,7 @@
 !
       integer begDate  ! beginning date
       integer begTime  ! beginning time
+      real*8  incSecsr8
       integer incSecs  ! time increment in secs
       integer rc       ! error return code
 !
@@ -146,8 +149,7 @@
       real*8    dtime
       integer*2 itime
       integer*4 ltime
-      integer   t1, t2
-
+      real*8   t1, t2
 
 !     Start by determing the ID of the time coordinate variable
 !     ---------------------------------------------------------
@@ -194,7 +196,8 @@
 
          call GFIO_parseIntTime ( timinc, hour, min, sec )
 
-         incSecs = hour*3600 + min*60 + sec
+         incSecsr8 = hour*3600 + min*60 + sec
+         incSecs = max ( 1, int(incSecsr8) )
 !ams     print *, 'begdate, begtime, incsecs: ',begdate, begtime, incsecs
          return                               ! all done.
       end if
@@ -235,11 +238,11 @@
       else if ( type .eq. NCDOUBLE ) then
            corner(1) = 1
            call ncvgt1(fid,timeID,corner,dtime,rc)
-           t1 = int(dtime)
+           t1 = dtime
 !ams       print *, t1, dtime, rc
            corner(1) = 2
            call ncvgt1(fid,timeID,corner,dtime,rc)
-           t2 = int(dtime)
+           t2 = dtime
 !ams       print *, t2, dtime, rc
       else if ( type .eq. NCSHORT  ) then
            corner(1) = 1
@@ -263,24 +266,25 @@
 
 !     Convert time increment to seconds if necessary
 !     ----------------------------------------------
-      incSecs = t2 - t1
+      incSecsr8 = t2 - t1
       if ( timeUnits(1:6) .eq.  'minute' ) then
-           incSecs = incSecs * 60 
+           incSecsr8 = incSecsr8 * 60 
       else if ( timeUnits(1:4) .eq. 'hour'   ) then
-           incSecs = incSecs * 60 * 60 
+           incSecsr8 = incSecsr8 * 60 * 60 
       else if ( timeUnits(1:3) .eq.  'day' ) then
-           incSecs = incSecs * 60 * 60 * 24
+           incSecsr8 = incSecsr8 * 60 * 60 * 24
       else
            if (err("GetBegDateTime: invalid time unit name",
      &         1,-44) .NE. 0) return
       endif
 
-      incSecs = max ( 1, incSecs )
+!dn      print *,timeUnits,incSecsr8
+      incSecs = max ( 1, int(incSecsr8) )
 
 !ams      print *, 'begdate, begtime, incsecs: ',begdate, begtime, incsecs
 
       rc = 0 ! all done
-      call ncpopt(NCVERBOS)
+      call ncpopt(__NCVERBOS__)
 
       return
       end
@@ -356,7 +360,8 @@
            if (rc .NE. 0) then
                call ncainq (fid, i, 'missing_value', attType, attLen, rc)
               if (rc.eq.0 .and. attType .EQ. NCFLOAT) then
-                 call ncagt (fid, allVars, 'missing_value', amiss_32, rc)
+!DN 06/01/2012   call ncagt (fid, allVars, 'missing_value', amiss_32, rc)  BUG FIXED
+                 call ncagt (fid, i, 'missing_value', amiss_32, rc)
                  if (err("GFIO_GetMissing: error getting missing value",rc,-53) 
      .                .NE. 0) return
               else
@@ -371,7 +376,7 @@
 
       GFIO_GetMissing = amiss_32
 
-      call ncpopt(NCVERBOS)
+      call ncpopt(__NCVERBOS__)
 
       rc = 0
       end
@@ -426,6 +431,7 @@
 
       character*(MAXCHR)  NewUnits
       integer ypos(2), mpos(2), dpos(2), hpos(2), minpos(2), spos(2)
+      integer datepos(2)
       integer i, j, inew, strlen
       integer firstdash, lastdash
       integer firstcolon, lastcolon
@@ -435,7 +441,22 @@
       
       firstdash = index(TimeUnits, '-')
       lastdash  = index(TimeUnits, '-', BACK=.TRUE.)
-
+      !
+      ! For GDS time:units are days since 1-1-1 00:00:0.0
+      !
+      datepos(1) = firstdash - 1
+      datepos(2) = lastdash + 2 
+      if ( TimeUnits(datepos(1):datepos(2)) .EQ. '1-1-1' ) then
+         ! Take care of URL date
+         year  = 1
+         month = 1
+         day   = 1 
+         hour  = 0
+         min   = 0
+         sec   = 0
+         rc = 0
+         return
+      endif
       if (firstdash .LE. 0 .OR. lastdash .LE. 0) then
         rc = -1
         return
@@ -459,6 +480,12 @@
         
         ! If no colons, check for hour.
 
+        ! The logic assumes that the timeunits has a terminating null beyond the hour
+        ! if it does not we will add one so that it correctly parses the time
+        if (TimeUnits(strlen:strlen) /= char(0)) then
+           TimeUnits = trim(TimeUnits)//char(0)
+           strlen=len_trim(TimeUnits)
+        endif
         lastspace = index(TRIM(TimeUnits), ' ', BACK=.TRUE.)
         if ((strlen-lastspace).eq.2 .or. (strlen-lastspace).eq.3) then
           hpos(1) = lastspace+1
@@ -467,7 +494,8 @@
           min  = 0
           sec  = 0
         else
-          print *, 'ParseTimeUnits: Assuming a starting time of 00z'
+!ams       Please avoid casual prints, this is BAD under MPI
+!!!          print *, 'ParseTimeUnits: Assuming a starting time of 00z'
           hour = 0
           min  = 0
           sec  = 0

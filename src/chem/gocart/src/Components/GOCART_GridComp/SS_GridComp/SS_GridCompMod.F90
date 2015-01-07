@@ -1,6 +1,4 @@
-#ifdef GEOS5
 #include "MAPL_Generic.h"
-#endif
 
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
@@ -16,20 +14,22 @@
 
 ! !USES:
 
-#ifdef GEOS5
-   USE ESMF_Mod
+   USE ESMF
    USE MAPL_Mod
-#endif
 
    use Chem_Mod              ! Chemistry Base Class
    use Chem_StateMod         ! Chemistry State
    use Chem_SettlingMod      ! Settling
-   use Chem_DepositionMod    ! Aerosol Deposition
    use Chem_ConstMod, only: grav, von_karman, cpd     ! Constants !
    use Chem_UtilMod          ! I/O
    use Chem_MieMod           ! Aerosol LU Tables, calculator
    use m_inpak90             ! Resource file management
    use m_die, only: die
+   use m_mpout
+   use SeasaltEmissionMod
+   use DryDepositionMod
+   use WetRemovalMod
+   use ConvectionMod         ! Offline convective mixing/scavenging
 
    implicit none
 
@@ -54,7 +54,6 @@
 ! !REVISION HISTORY:
 !
 !  16Sep2003 da Silva  First crack.
-!  13Mar2013 Lu        Add NEMS option
 !  30Sep2013 Lu        Remove doing_scav option
 !
 !EOP
@@ -63,11 +62,16 @@
   type SS_GridComp
         character(len=255) :: name
         type(Chem_Mie), pointer :: mie_tables  ! aod LUTs
-        integer       :: rhFlag
-        real, pointer :: radius(:)      ! particle effective radius [um]
-        real, pointer :: rLow(:)        ! lower radius of particle bin [um]
-        real, pointer :: rUp(:)         ! upper radius of particle bin [um]
-        real, pointer :: rhop(:)        ! dry salt particle density [kg m-3]
+        integer       :: rhFlag          ! Choice of relative humidity parameterization for radius
+        integer       :: sstemisFlag     ! Choice of SST correction to emissions: 0 - none; 1 - Jaegle et al. 2011; 2 - GEOS5
+        logical       :: hoppelFlag      ! Apply the Hoppel correction to emissions (Fan and Toon, 2011)
+        logical       :: weibullFlag     ! Apply the Weibull distribution to wind speed for emissions (Fan and Toon, 2011)
+        integer       :: emission_scheme ! Emission scheme to use (see SeasaltEmissionMod)
+        real          :: emission_scale  ! Global tuning factor for emissions
+        real, pointer :: radius(:)       ! particle effective radius [um]
+        real, pointer :: rLow(:)         ! lower radius of particle bin [um]
+        real, pointer :: rUp(:)          ! upper radius of particle bin [um]
+        real, pointer :: rhop(:)         ! dry salt particle density [kg m-3]
   end type SS_GridComp
 
   real, parameter :: OCEAN=0.0, LAND = 1.0, SEA_ICE = 2.0
@@ -93,13 +97,13 @@ CONTAINS
 
 ! !INPUT PARAMETERS:
 
-   type(Chem_Bundle), intent(inout) :: w_c        ! Chemical tracer fields      
+   type(Chem_Bundle), intent(inout) :: w_c     ! Chemical tracer fields      
    integer, intent(in) :: nymd, nhms           ! time
    real,    intent(in) :: cdt                  ! chemical timestep (secs)
 
 ! !OUTPUT PARAMETERS:
 
-   type(SS_GridComp), intent(inout) :: gcSS   ! Grid Component
+   type(SS_GridComp), intent(inout) :: gcSS     ! Grid Component
    type(ESMF_State), intent(inout)  :: impChem  ! Import State
    type(ESMF_State), intent(inout)  :: expChem  ! Export State
    integer, intent(out) ::  rc                  ! Error return code:
@@ -124,9 +128,11 @@ CONTAINS
    integer, allocatable :: ier(:)
    integer :: i1, i2, im, j1, j2, jm, nbins, n1, n2, nbins_rc
    real :: qmin, qmax
-   real :: radius, rlow, rup, rmrat, rmin, rhop, fscav
-   integer :: irhFlag
-   character(len=255) :: CARMA_Services = ' '
+   real :: radius, rlow, rup, rmrat, rmin, rhop, fscav, fnum, molwght, rnum
+   integer :: irhFlag, isstemisFlag, ihoppelFlag, iweibullFlag, iemission_scheme
+
+   integer, parameter :: nhres = 5   ! number of horizontal model resolutions: a,b,c,d,e
+   real    :: emission_scale(nhres)  ! scale factor buffer
 
 
 
@@ -169,20 +175,6 @@ CONTAINS
    end if
 !   call final_(0)
 
-!  CARMA Services
-!  --------------
-   call i90_label ( 'CARMA_Services:', ier(1) )
-   if ( ier(1) /= 0 ) then
-      CARMA_Services = ' '
-   else
-      call i90_gtoken ( CARMA_Services, ier(1) )
-      if ( ier(1) /= 0 ) then
-        CARMA_Services = ' '
-      end if
-   end if
-   do n = n1, n2
-    w_c%qa(n)%wantServices = trim(CARMA_Services)
-   enddo
 
 !  Particle radius
 !  ---------------
@@ -190,7 +182,6 @@ CONTAINS
    do n = 1, nbins
       radius           = i90_gfloat ( ier(n+1) )
       gcSS%radius(n)   = radius
-      w_c%qa(n1+n-1)%r = radius * 1.e-6  ! save radius in [m]
    end do
    if ( any(ier(1:nbins+1) /= 0) ) then
       call final_(50)
@@ -201,9 +192,9 @@ CONTAINS
 !  ---------------
    call i90_label ( 'radius_lower:', ier(1) )
    do n = 1, nbins
-      rlow                = i90_gfloat ( ier(n+1) )
-      gcSS%rlow(n)        = rlow
-      w_c%qa(n1+n-1)%rlow = rlow * 1.e-6  ! save radius in [m]
+      rlow                  = i90_gfloat ( ier(n+1) )
+      gcSS%rlow(n)          = rlow
+      w_c%reg%rlow(n1+n-1)  = rlow * 1.e-6
    end do
    if ( any(ier(1:nbins+1) /= 0) ) then
       call final_(50)
@@ -214,9 +205,9 @@ CONTAINS
 !  ---------------
    call i90_label ( 'radius_upper:', ier(1) )
    do n = 1, nbins
-      rup                = i90_gfloat ( ier(n+1) )
-      gcSS%rup(n)        = rup
-      w_c%qa(n1+n-1)%rup = rup * 1.e-6  ! save radius in [m]
+      rup                 = i90_gfloat ( ier(n+1) )
+      gcSS%rup(n)         = rup
+      w_c%reg%rup(n1+n-1) = rup * 1.e-6
    end do
    if ( any(ier(1:nbins+1) /= 0) ) then
       call final_(50)
@@ -228,9 +219,9 @@ CONTAINS
 !  ---------------
    call i90_label ( 'SS_density:', ier(1) )
    do n = 1, nbins
-      rhop                = i90_gfloat ( ier(n+1) )
-      gcSS%rhop(n)        = rhop
-      w_c%qa(n1+n-1)%rhop = rhop
+      rhop                 = i90_gfloat ( ier(n+1) )
+      gcSS%rhop(n)         = rhop
+      w_c%reg%rhop(n1+n-1) = rhop
    end do
    if ( any(ier(1:nbins+1) /= 0) ) then
       call final_(50)
@@ -252,141 +243,127 @@ CONTAINS
       call final_(50)
       return
    end if
+!                          -------
 
+!  Number median radius
+!  To be used in droplet activation code
+!  ---------------
+   call i90_label ( 'particle_radius_number:', ier(1) )
+   do n = 1, nbins
+      rnum                    = i90_gfloat ( ier(n+1) )
+      w_c%reg%rmed(n1+n-1)    = rnum * 1e-6
+   end do
+   if ( any(ier(1:nbins+1) /= 0) ) then
+      call final_(50)
+      return
+   end if
+!                          -------
+
+!  Number to mass conversion factor
+!  To be used in droplet activation code
+!  ---------------
+   call i90_label ( 'fnum:', ier(1) )
+   do n = 1, nbins
+      fnum                    = i90_gfloat ( ier(n+1) )
+      w_c%reg%fnum(n1+n-1)    = fnum
+   end do
+   if ( any(ier(1:nbins+1) /= 0) ) then
+      call final_(50)
+      return
+   end if
+!                          -------
+
+!  Molecular weight
+!  To be used in droplet activation code
+!  ---------------
+   call i90_label ( 'molecular_weight:', ier(1) )
+   do n = 1, nbins
+      molwght                 = i90_gfloat ( ier(n+1) )
+      w_c%reg%molwght(n1+n-1) = molwght
+   end do
+   if ( any(ier(1:nbins+1) /= 0) ) then
+      call final_(50)
+      return
+   end if
 !                          -------
 
 !  Particle affected by relative humidity?
 !  ---------------
    call i90_label ( 'rhFlag:', ier(1) )
    irhFlag                    = i90_gint ( ier(2) )
-   w_c%qa(n1+n-1)%irhFlag     = irhFlag
    gcSS%rhFlag                = irhFlag
    if ( any(ier(1:2) /= 0) ) then
       call final_(50)
       return
    end if
 
+!  Which Emissions Scheme to Use (see SeasaltEmissionMod)
+!  ---------------
+   call i90_label ( 'emission_scheme:', ier(1) )
+   iemission_scheme           = i90_gint ( ier(2) )
+   gcSS%emission_scheme       = iemission_scheme
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
 
-#ifndef GEOS5
+!  Emissions Efficiency
+!  Scaling factor to multiply calculated
+!  emissions by.  Applies to all size bins.
+!  ---------------
+   CALL I90_Label ( 'emission_scale:', ier(1) )
+   do n = 1, nhres
+      emission_scale(n) = i90_gfloat ( ier(n+1) )
+   end do
+   gcSS%emission_scale = Chem_UtilResVal(im, jm, emission_scale(:), ier(nhres + 2))
+   if ( any(ier(1:nhres+2) /= 0) ) then
+      call final_(50)
+      return
+   end if
+!                          -------
 
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
+!  SST correction to emission strength following Jaegle et al, 2011
+!  ---------------
+   call i90_label ( 'sstemisFlag:', ier(1) )
+   isstemisFlag = i90_gint ( ier(2) )
+   if ((isstemisFlag < 0) .or. (isstemisFlag > 2)) then
+      gcSS%sstemisFlag = 0     ! unknown correction - fall back to no SST correction
+   else
+      gcSS%sstemisFlag = isstemisFlag
+   end if
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
 
-!  Set which fvGCM fields are needed
-!  ---------------------------------
-   call Chem_StateSetNeeded ( impChem, iFRACLAKE, .true., ier(1) )
-   call Chem_StateSetNeeded ( impChem, iGWETTOP,  .true., ier(2) )
-   call Chem_StateSetNeeded ( impChem, iORO,      .true., ier(3) )
-   call Chem_StateSetNeeded ( impChem, iU10M,     .true., ier(4) )
-   call Chem_StateSetNeeded ( impChem, iV10M,     .true., ier(5) )
-   call Chem_StateSetNeeded ( impChem, iLAI,      .true., ier(6) )
-   call Chem_StateSetNeeded ( impChem, iUSTAR,    .true., ier(7) )
-   call Chem_StateSetNeeded ( impChem, iPRECC,    .true., ier(8) )
-   call Chem_StateSetNeeded ( impChem, iPRECL,    .true., ier(9) )
-   call Chem_StateSetNeeded ( impChem, iDQCOND,   .true., ier(10) )
-   call Chem_StateSetNeeded ( impChem, iT,        .true., ier(11) )
-   call Chem_StateSetNeeded ( impChem, iAIRDENS,  .true., ier(12) )
-   call Chem_StateSetNeeded ( impChem, iU,        .true., ier(13) )
-   call Chem_StateSetNeeded ( impChem, iV,        .true., ier(14) )
-   call Chem_StateSetNeeded ( impChem, iPBLH,     .true., ier(15) )
-   call Chem_StateSetNeeded ( impChem, iSHFX,     .true., ier(16) )
-   call Chem_StateSetNeeded ( impChem, iZ0H,      .true., ier(17) )
-   call Chem_StateSetNeeded ( impChem, iHSURF,    .true., ier(18) )
-   call Chem_StateSetNeeded ( impChem, iHGHTE,    .true., ier(19) )
+!  Hoppel 2005 correction to emissions (Fan and Toon 2011)
+!  ---------------
+   call i90_label ( 'hoppelFlag:', ier(1) )
+   ihoppelFlag = i90_gint ( ier(2) )
+   if (ihoppelFlag /= 0) then
+      gcSS%hoppelFlag = .True.
+   else
+      gcSS%hoppelFlag = .False.
+   end if
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
 
-   if ( any(ier(1:19) /= 0) ) then
-        call final_(90)
-        return
-   endif
+!  Weibull wind speed adjustment to emissions (Fan and Toon 2011)
+!  ---------------
+   call i90_label ( 'weibullFlag:', ier(1) )
+   iweibullFlag = i90_gint ( ier(2) )
+   if (iweibullFlag /= 0) then
+      gcSS%weibullFlag = .True.
+   else
+      gcSS%weibullFlag = .False.
+   end if
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
 
-!  Select fields to be produced in the export state
-!  ------------------------------------------------
-   n = nbins
-
-!  Emission Flux
-   if(n>0) call Chem_StateSetNeeded ( expChem, iSSEM001, .true., ier(1) )
-   if(n>1) call Chem_StateSetNeeded ( expChem, iSSEM002, .true., ier(2) )
-   if(n>2) call Chem_StateSetNeeded ( expChem, iSSEM003, .true., ier(3) )
-   if(n>3) call Chem_StateSetNeeded ( expChem, iSSEM004, .true., ier(4) )
-   if(n>4) call Chem_StateSetNeeded ( expChem, iSSEM005, .true., ier(5) )
-   if(n>5) call Chem_StateSetNeeded ( expChem, iSSEM006, .true., ier(6) )
-   if(n>6) call Chem_StateSetNeeded ( expChem, iSSEM007, .true., ier(7) )
-   if(n>7) call Chem_StateSetNeeded ( expChem, iSSEM008, .true., ier(8) )
-   if(n>8) ier(9) = 1 ! not enough bins - need to change mod_diag.F
-
-   if ( any(ier(1:9) /= 0) ) then
-        call final_(91)
-        return
-   endif
-
-!  Sedimentation Flux
-   if(n>0) call Chem_StateSetNeeded ( expChem, iSSSD001, .true., ier(1) )
-   if(n>1) call Chem_StateSetNeeded ( expChem, iSSSD002, .true., ier(2) )
-   if(n>2) call Chem_StateSetNeeded ( expChem, iSSSD003, .true., ier(3) )
-   if(n>3) call Chem_StateSetNeeded ( expChem, iSSSD004, .true., ier(4) )
-   if(n>4) call Chem_StateSetNeeded ( expChem, iSSSD005, .true., ier(5) )
-   if(n>5) call Chem_StateSetNeeded ( expChem, iSSSD006, .true., ier(6) )
-   if(n>6) call Chem_StateSetNeeded ( expChem, iSSSD007, .true., ier(7) )
-   if(n>7) call Chem_StateSetNeeded ( expChem, iSSSD008, .true., ier(8) )
-   if(n>8) ier(9) = 1 ! not enough bins - need to change mod_diag.F
-
-   if ( any(ier(1:9) /= 0) ) then
-        call final_(92)
-        return
-   endif
-
-!  Dry Deposition Flux
-   if(n>0) call Chem_StateSetNeeded ( expChem, iSSDP001, .true., ier(1) )
-   if(n>1) call Chem_StateSetNeeded ( expChem, iSSDP002, .true., ier(2) )
-   if(n>2) call Chem_StateSetNeeded ( expChem, iSSDP003, .true., ier(3) )
-   if(n>3) call Chem_StateSetNeeded ( expChem, iSSDP004, .true., ier(4) )
-   if(n>4) call Chem_StateSetNeeded ( expChem, iSSDP005, .true., ier(5) )
-   if(n>5) call Chem_StateSetNeeded ( expChem, iSSDP006, .true., ier(6) )
-   if(n>6) call Chem_StateSetNeeded ( expChem, iSSDP007, .true., ier(7) )
-   if(n>7) call Chem_StateSetNeeded ( expChem, iSSDP008, .true., ier(8) )
-   if(n>8) ier(9) = 1 ! not enough bins - need to change mod_diag.F
-
-   if ( any(ier(1:9) /= 0) ) then
-        call final_(93)
-        return
-   endif
-
-!  Wet Deposition Flux
-   if(n>0) call Chem_StateSetNeeded ( expChem, iSSWT001, .true., ier(1) )
-   if(n>1) call Chem_StateSetNeeded ( expChem, iSSWT002, .true., ier(2) )
-   if(n>2) call Chem_StateSetNeeded ( expChem, iSSWT003, .true., ier(3) )
-   if(n>3) call Chem_StateSetNeeded ( expChem, iSSWT004, .true., ier(4) )
-   if(n>4) call Chem_StateSetNeeded ( expChem, iSSWT005, .true., ier(5) )
-   if(n>5) call Chem_StateSetNeeded ( expChem, iSSWT006, .true., ier(6) )
-   if(n>6) call Chem_StateSetNeeded ( expChem, iSSWT007, .true., ier(7) )
-   if(n>7) call Chem_StateSetNeeded ( expChem, iSSWT008, .true., ier(8) )
-   if(n>8) ier(9) = 1 ! not enough bins - need to change mod_diag.F
-
-   if ( any(ier(1:9) /= 0) ) then
-        call final_(94)
-        return
-   endif
-
-
-!  Other diagnostics
-   call Chem_StateSetNeeded ( expChem, iSSSMASS, .true., ier(1) )
-   call Chem_StateSetNeeded ( expChem, iSSCMASS, .true., ier(2) )
-   call Chem_StateSetNeeded ( expChem, iSSMASS, .true., ier(3) )
-   call Chem_StateSetNeeded ( expChem, iSSEXTTAU, .true., ier(4) )
-   call Chem_StateSetNeeded ( expChem, iSSSCATAU, .true., ier(5) )
-   call Chem_StateSetNeeded ( expChem, iSSSM25, .true., ier(6) )
-   call Chem_StateSetNeeded ( expChem, iSSCM25, .true., ier(7) )
-   call Chem_StateSetNeeded ( expChem, iSSMASS25, .true., ier(8) )
-   call Chem_StateSetNeeded ( expChem, iSSEXTT25, .true., ier(9) )
-   call Chem_StateSetNeeded ( expChem, iSSSCAT25, .true., ier(10) )
-
-   if ( any(ier(1:10) /= 0) ) then
-        call final_(70)
-        return
-   endif
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
 
 !  All done
 !  --------
@@ -466,25 +443,45 @@ CONTAINS
    character(len=*), parameter :: myname = 'SS_GridCompRun'
    character(len=*), parameter :: Iam = myname
    integer :: ier(32), idiag
-   integer :: i1, i2, im, j1, j2, jm, nbins, nbeg, nend, km, n, ios, ijl, ijkl
+   integer :: i1, i2, im, j1, j2, jm, nbins, n1, n2, km, n, ios, ijl, ijkl, i, j
    real :: qmin, qmax
    real, pointer :: SS_radius(:), SS_rhop(:)
+   real, pointer :: memissions(:,:), nemissions(:,:), w10m(:,:), dqa(:,:), drydepositionfrequency(:,:)
+   type(Chem_Array), pointer :: fluxout
 
 
 !  Input fields from fvGCM
 !  -----------------------
-   real, pointer, dimension(:,:)   ::  fraclake, gwettop, oro, u10m, v10m, &
-                                       xlai, ustar, precc, precl, pblh, &
-                                       shflux, z0h, hsurf
-   real, pointer, dimension(:,:,:) ::  dqcond, tmpu, rhoa, u, v, hghte
+   real, pointer, dimension(:,:)   ::  frlake, frocean, frseaice, &
+                                       oro, u10m, v10m, &
+                                       ustar, precc, precl, pblh, dz,      &
+                                       shflux, z0h, hsurf, tskin
+   real, pointer, dimension(:,:,:) ::  dqcond, tmpu, rhoa, u, v, hghte, ple
 
+!  Additional needs for GOCART convective diagnostic
+   real, pointer, dimension(:,:,:)       ::  cmfmc, qccu, dtrain
+   real, pointer, dimension(:,:)         ::  area
+   real*8, allocatable, dimension(:,:,:) ::  cmfmc_, qccu_, dtrain_, &
+                                             airmass_, airmol_, vud_, &
+                                             delz_, delp_
+   real*8, allocatable                   ::  tc_(:,:,:,:), bcnv_(:,:,:)
+   real*8, allocatable                   ::  area_(:,:), frlake_(:,:), &
+                                             frocean_(:,:), frseaice_(:,:)
+   integer*4                             ::  icdt
 
-
-#ifdef GEOS5 
+!  Modifications to source function
+   real, allocatable, dimension(:,:) ::  tskin_c
+   real, allocatable, dimension(:,:) ::  fsstemis
+   real, allocatable, dimension(:,:) ::  fgridefficiency
+   real, allocatable, dimension(:,:) ::  fhoppel, vsettle
+   real                              ::  radius_wet, rhop_wet, diff_coef
+   double precision                  ::  a, c, k, wt, x
+   double precision, allocatable, dimension(:,:)  ::  gweibull, wm
 
 #define EXPORT        expChem
 
 #define ptrSSWT       SS_wet
+#define ptrSSSV       SS_conv
 #define ptrSSEM       SS_emis
 #define ptrSSDP       SS_dep
 #define ptrSSSD       SS_set
@@ -500,27 +497,18 @@ CONTAINS
 #define ptrSSEXTT25   SS_exttau25
 #define ptrSSSCAT25   SS_scatau25
 #define ptrSSAERIDX   SS_aeridx
+#define ptrSSCONC     SS_conc
+#define ptrSSEXTCOEF  SS_extcoef
+#define ptrSSSCACOEF  SS_scacoef
+#define ptrSSEXTTFM   SS_exttaufm
+#define ptrSSSCATFM   SS_scataufm
+#define ptrSSANGSTR   SS_angstrom
+#define ptrSSFLUXU    SS_fluxu
+#define ptrSSFLUXV    SS_fluxv
 
    integer :: STATUS
 
 #include "SS_GetPointer___.h"
-
-#else
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-!  Quantities to be exported
-!  -------------------------
-   type(Chem_Array), pointer :: SS_emis(:), SS_set(:), SS_dep(:), SS_wet(:), &
-                                SS_sfcmass, SS_colmass, SS_mass, SS_exttau, &
-                                SS_scatau, &
-                                SS_sfcmass25, SS_colmass25, SS_mass25, SS_exttau25, &
-                                SS_scatau25
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
-
 
 !  Initialize local variables
 !  --------------------------
@@ -530,30 +518,11 @@ CONTAINS
 
    km = w_c%grid%km
    nbins = w_c%reg%n_SS
-   nbeg  = w_c%reg%i_SS
-   nend  = w_c%reg%j_SS
+   n1  = w_c%reg%i_SS
+   n2  = w_c%reg%j_SS
 
    ijl  = ( i2 - i1 + 1 ) * ( j2 - j1 + 1 )
    ijkl = ijl * km
-
-#ifndef GEOS5
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-!  Work space for holding seasalt output
-!  ----------------------------------
-   allocate ( SS_emis(nbins), SS_set(nbins), SS_dep(nbins), SS_wet(nbins), &
-              SS_sfcmass, SS_colmass, SS_mass, SS_exttau, SS_scatau,       &
-              SS_sfcmass25, SS_colmass25, SS_mass25, SS_exttau25, SS_scatau25,       & 
-              stat = ios)
-   if ( ios /= 0 ) then
-      rc = 1
-      return
-   end if
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
 
 
 !  Seasalt particle radius [m] and density [kg m-3]
@@ -561,89 +530,64 @@ CONTAINS
    allocate( SS_radius(nbins), SS_rhop(nbins) )
    SS_radius = 1.e-6*gcSS%radius
    SS_rhop   = gcSS%rhop
+   allocate( fluxout )
+   allocate( fluxout%data2d(i1:i2,j1:j2), w10m(i1:i2,j1:j2), dqa(i1:i2,j1:j2), &
+             memissions(i1:i2,j1:j2), nemissions(i1:i2,j1:j2), &
+             drydepositionfrequency(i1:i2,j1:j2), stat=STATUS)
+   VERIFY_(STATUS)
 
-#ifdef GEOS5
 
 !  Get 2D Imports
 !  --------------
-   call MAPL_GetPointer ( impChem, fraclake, 'FRLAKE',  rc=ier(1) )
-   call MAPL_GetPointer ( impChem, gwettop,  'WET1',    rc=ier(2) )
-   call MAPL_GetPointer ( impChem, oro,      'LWI',     rc=ier(3) )
-   call MAPL_GetPointer ( impChem, u10m,     'U10M',    rc=ier(4) )
-   call MAPL_GetPointer ( impChem, v10m,     'V10M',    rc=ier(5) )
-   call MAPL_GetPointer ( impChem, xlai,     'LAI',     rc=ier(6) )
-   call MAPL_GetPointer ( impChem, ustar,    'USTAR',   rc=ier(7) )
-   call MAPL_GetPointer ( impChem, precc,    'CN_PRCP', rc=ier(8) )
-   call MAPL_GetPointer ( impChem, precl,    'NCN_PRCP',   rc=ier(9) )
-   call MAPL_GetPointer ( impChem, pblh,     'ZPBL',    rc=ier(10) )
-   call MAPL_GetPointer ( impChem, shflux,   'SH',      rc=ier(11) )
-   call MAPL_GetPointer ( impChem, z0h,      'Z0H',     rc=ier(12) )
-   ier(13) = 0 ! see below for hsurf
+   ier = 0
+   call MAPL_GetPointer ( impChem, frocean,  'FROCEAN',  rc=ier(1) )
+   call MAPL_GetPointer ( impChem, frseaice, 'FRACI',    rc=ier(2) )
+   call MAPL_GetPointer ( impChem, oro,      'LWI',      rc=ier(3) )
+   call MAPL_GetPointer ( impChem, u10m,     'U10M',     rc=ier(4) )
+   call MAPL_GetPointer ( impChem, v10m,     'V10M',     rc=ier(5) )
+   call MAPL_GetPointer ( impChem, ustar,    'USTAR',    rc=ier(6) )
+   call MAPL_GetPointer ( impChem, precc,    'CN_PRCP',  rc=ier(7) )
+   call MAPL_GetPointer ( impChem, precl,    'NCN_PRCP', rc=ier(8) )
+   call MAPL_GetPointer ( impChem, tskin,    'TS',       rc=ier(9) )
+   call MAPL_GetPointer ( impChem, z0h,      'Z0H',      rc=ier(10) )
+   call MAPL_GetPointer ( impChem, pblh,     'ZPBL',     rc=ier(11) )
+   call MAPL_GetPointer ( impChem, shflux,   'SH',       rc=ier(12) )
+   call MAPL_GetPointer ( impChem, dz,       'DZ',       rc=ier(13) )
+   call MAPL_GetPointer ( impChem, frlake,   'FRLAKE',   rc=ier(14) )
+   call MAPL_GetPointer ( impChem, area,     'AREA',     rc=ier(15) )
+
+!  Define 10-m wind speed
+   w10m = sqrt(u10m*u10m + v10m*v10m)
 
 !  Get 3D Imports
 !  --------------
-   call MAPL_GetPointer ( impChem, dqcond, 'DQDT',    rc=ier(14) )
-   call MAPL_GetPointer ( impChem, tmpu,   'T',       rc=ier(15) )
-   call MAPL_GetPointer ( impChem, rhoa,   'AIRDENS', rc=ier(16) )
-   call MAPL_GetPointer ( impChem, u,      'U',       rc=ier(17) )
-   call MAPL_GetPointer ( impChem, v,      'V',       rc=ier(18) )
-   call MAPL_GetPointer ( impChem, hghte,  'ZLE',     rc=ier(19) )
+   call MAPL_GetPointer ( impChem, dqcond, 'DQDT',    rc=ier(16) )
+   call MAPL_GetPointer ( impChem, tmpu,   'T',       rc=ier(17) )
+   call MAPL_GetPointer ( impChem, rhoa,   'AIRDENS', rc=ier(18) )
+   call MAPL_GetPointer ( impChem, u,      'U',       rc=ier(19) )
+   call MAPL_GetPointer ( impChem, v,      'V',       rc=ier(20) )
+   call MAPL_GetPointer ( impChem, hghte,  'ZLE',     rc=ier(21) )
+   call MAPL_GetPointer ( impChem, ple,    'PLE',     rc=ier(22) )
+   call MAPL_GetPointer ( impChem, qccu,   'CNV_QC',  rc=ier(23) )
+   call MAPL_GetPointer ( impChem, cmfmc,  'CNV_MFC', rc=ier(24) )
+   call MAPL_GetPointer ( impChem, dtrain, 'CNV_MFD', rc=ier(25) )
 
 !  Unlike GEOS-4 hghte is defined for km+1
 !  ---------------------------------------
    hsurf => hghte(i1:i2,j1:j2,km) ! in GEOS-5 hghte is in [0,km]
     
-
-#else
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-!  Get input fvGCM 2D diagnostics
-!  ------------------------------
-   call Chem_StateGetArray2D ( impChem, iFRACLAKE, fraclake, ier(1) )
-   call Chem_StateGetArray2D ( impChem, iGWETTOP,  gwettop,  ier(2) )
-   call Chem_StateGetArray2D ( impChem, iORO,      oro,      ier(3) )
-   call Chem_StateGetArray2D ( impChem, iU10M,     u10m,     ier(4) )
-   call Chem_StateGetArray2D ( impChem, iV10M,     v10m,     ier(5) )
-   call Chem_StateGetArray2D ( impChem, iLAI,      xlai,     ier(6) )
-   call Chem_StateGetArray2D ( impChem, iUSTAR,    ustar,    ier(7) )
-   call Chem_StateGetArray2D ( impChem, iPRECC,    precc,    ier(8) )
-   call Chem_StateGetArray2D ( impChem, iPRECL,    precl,    ier(9) )
-   call Chem_StateGetArray2D ( impChem, iPBLH,     pblh,     ier(10) )
-   call Chem_StateGetArray2D ( impChem, iSHFX,     shflux,   ier(11) )
-   call Chem_StateGetArray2D ( impChem, iZ0H,      z0h,      ier(12) )
-   call Chem_StateGetArray2D ( impChem, iHSURF,    hsurf,      ier(13) )
-
-!  Get input fvGCM 3D diagnostics
-!  ------------------------------
-   call Chem_StateGetArray3D ( impChem, iDQCOND,   dqcond,   ier(14) )
-   call Chem_StateGetArray3D ( impChem, iT,        tmpu,     ier(15) )
-   call Chem_StateGetArray3D ( impChem, iAIRDENS,  rhoa,     ier(16) )
-   call Chem_StateGetArray3D ( impChem, iU,        u,        ier(17) )
-   call Chem_StateGetArray3D ( impChem, iV,        v,        ier(18) )
-   call Chem_StateGetArray3D ( impChem, iHGHTE,    hghte,    ier(19) )
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
-
-   if ( any(ier(1:19) /= 0) ) then
+   if ( any(ier(1:25) /= 0) ) then
         rc = 10 
         return
    end if
 
-!  Make sure LAI has values over ocean
-!  -----------------------------------
-   where ( oro /= LAND  )  xlai = 0.0
-
 #ifdef DEBUG
 
-   call pmaxmin('SS: fraclake   ', fraclake, qmin, qmax, ijl,1, 1. )
-   call pmaxmin('SS: gwtop      ', gwettop , qmin, qmax, ijl,1, 1. )
+   call pmaxmin('SS: frocean    ', frocean,  qmin, qmax, ijl,1, 1. )
+   call pmaxmin('SS: frseaice   ', frseaice, qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: oro        ', oro     , qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: u10m       ', u10m    , qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: v10m       ', v10m    , qmin, qmax, ijl,1, 1. )
-   call pmaxmin('SS: xlai       ', xlai    , qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: ustar      ', ustar   , qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: precc      ', precc   , qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: precl      ', precl   , qmin, qmax, ijl,1, 1. )
@@ -651,7 +595,7 @@ CONTAINS
    call pmaxmin('SS: shfflux    ', shflux  , qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: z0h        ', z0h     , qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: hsurf      ', hsurf   , qmin, qmax, ijl,1, 1. )
-
+   call pmaxmin('SS: tskin      ', tskin   , qmin, qmax, ijl,1, 1. )
    call pmaxmin('SS: dqcond     ', dqcond  , qmin, qmax, ijkl,1, 1. )
    call pmaxmin('SS: tmpu       ', tmpu    , qmin, qmax, ijkl,1, 1. )
    call pmaxmin('SS: rhoa       ', rhoa    , qmin, qmax, ijkl,1, 1. )
@@ -661,131 +605,103 @@ CONTAINS
 
 #endif
 
-#ifndef GEOS5
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-!  Get pointers to export state
-!  ----------------------------
-   do n = 1, nbins
-      idiag = iSSEM001 + n - 1
-      call Chem_StateGetArray2D ( expChem, idiag, SS_emis(n)%data2d, ier(n) )
-   end do
-   if ( any(ier(1:nbins) /= 0) ) then
-        rc = 15 
-        return
-   end if
-
-   do n = 1, nbins
-      idiag = iSSSD001 + n - 1
-      call Chem_StateGetArray2D ( expChem, idiag, SS_set(n)%data2d, ier(n) )
-   end do
-   if ( any(ier(1:nbins) /= 0) ) then
-        rc = 15 
-        return
-   end if
-
-   do n = 1, nbins
-      idiag = iSSDP001 + n - 1
-      call Chem_StateGetArray2D ( expChem, idiag, SS_dep(n)%data2d, ier(n) )
-   end do
-   if ( any(ier(1:nbins) /= 0) ) then
-        rc = 15 
-        return
-   end if
-
-   do n = 1, nbins
-      idiag = iSSWT001 + n - 1
-      call Chem_StateGetArray2D ( expChem, idiag, SS_wet(n)%data2d, ier(n) )
-   end do
-   if ( any(ier(1:nbins) /= 0) ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSSMASS
-   call Chem_StateGetArray2D ( expChem, idiag, SS_sfcmass%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSCMASS
-   call Chem_StateGetArray2D ( expChem, idiag, SS_colmass%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSMASS
-   call Chem_StateGetArray3D ( expChem, idiag, SS_mass%data3d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSEXTTAU
-   call Chem_StateGetArray2D ( expChem, idiag, SS_exttau%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSSCATAU
-   call Chem_StateGetArray2D ( expChem, idiag, SS_scatau%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSSM25
-   call Chem_StateGetArray2D ( expChem, idiag, SS_sfcmass25%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSCM25
-   call Chem_StateGetArray2D ( expChem, idiag, SS_colmass25%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSMASS25
-   call Chem_StateGetArray3D ( expChem, idiag, SS_mass25%data3d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSEXTT25
-   call Chem_StateGetArray2D ( expChem, idiag, SS_exttau25%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-   idiag = iSSSCAT25
-   call Chem_StateGetArray2D ( expChem, idiag, SS_scatau25%data2d, ier(1) )
-   if ( ier(1) /= 0 ) then
-        rc = 15 
-        return
-   end if
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
-
-!  Seasalt Source
+!  Seasalt Source (and modifications)
 !  -----------
-!   call SS_Emission ( i1, i2, j1, j2, km, nbins, cdt, gcSS, w_c, &
-!                      oro, u10m, v10m, SS_emis, rc )
-   call SS_Emission ( i1, i2, j1, j2, km, nbins, cdt, gcSS, w_c, &
-                      oro, u10m, v10m, tmpu, SS_emis, rc )
+!  Grid box efficiency to emission (fraction of sea water)
+   allocate(fgridefficiency(i1:i2,j1:j2), __STAT__ )
+   fgridefficiency = min(max(0.,frocean-frseaice),1.)
+
+!  Apply SST correction to emissions
+   allocate(fsstemis(i1:i2,j1:j2), __STAT__ )
+
+   fsstemis = 1.0
+
+   if (gcSS%sstemisFlag == 1) then          ! SST correction folowing Jaegle et al. 2011
+    fsstemis = 0.0
+
+    allocate( tskin_c(i1:i2,j1:j2), __STAT__ )
+    tskin_c  = tskin - 273.15
+    fsstemis = (0.3 + 0.1*tskin_c - 0.0076*tskin_c**2 + 0.00021*tskin_c**3)
+    where(fsstemis < 0.0) fsstemis = 0.0
+    deallocate( tskin_c, __STAT__ )
+   else if (gcSS%sstemisFlag == 2) then     ! GEOS5 SST correction
+    fsstemis = 0.0
+
+    allocate( tskin_c(i1:i2,j1:j2), __STAT__ )
+    tskin_c  = tskin - 273.15
+    
+    where(tskin_c < -0.1) tskin_c = -0.1    ! temperature range (0, 36) C 
+    where(tskin_c > 36.0) tskin_c = 36.0    !
+
+    fsstemis = (-1.107211 -0.010681*tskin_c -0.002276*tskin_c**2 + 60.288927*1.0/(40.0 - tskin_c))
+    where(fsstemis < 0.0) fsstemis = 0.0
+    where(fsstemis > 7.0) fsstemis = 7.0
+
+    deallocate( tskin_c, __STAT__ )
+   endif
+
+!  Apply a Weibull distribution to emissions wind speeds
+!  The Weibull distribution correction ends up being a multiplicative constant (g) times
+!  our present source function (see Eq. 12 in Fan & Toon, 2011 and notes for 9/22/11).
+!  This constant is derived from the incomplete and complete forms of the gamma
+!  function, hence the utilities pasted below.  The Weibull function and shape
+!  parameters (k, c) assumed are from Justus 1978.
+   allocate(gweibull(i1:i2,j1:j2), wm(i1:i2,j1:j2), __STAT__ )
+   gweibull = 1.0
+   wm = sqrt(u10m**2 + v10m**2)   ! mean wind speed
+   wt = 4.d0                      ! a threshold (Fan & Toon, 2011)
+   if(gcSS%weibullFlag) then
+    gweibull = 0.
+    do j = j1, j2
+     do i = i1, i2
+      if(wm(i,j) > 0.01) then
+       k  = 0.94d0 * sqrt(wm(i,j))         ! Weibull shape parameter
+       c  = wm(i,j) / gamma(1.d0 + 1.d0/k) ! Weibull shape parameter
+       x  = (wt / c) ** k
+       a  = 3.41d0 / k + 1.d0
+       gweibull(i,j)  = (c / wm(i,j))**3.41d0 * igamma(a,x)
+      endif
+     end do
+    end do
+   endif
+
+!  Loop over bins and do emission calculation
+!  Possibly apply the Hoppel correction based on fall speed (Fan and Toon, 2011)
+   allocate(fhoppel(i1:i2,j1:j2), vsettle(i1:i2,j1:j2), __STAT__ )
+   fhoppel = 1.0
+   do n = 1, nbins
+    memissions = 0.
+    nemissions = 0.
+    dqa = 0.
+    call SeasaltEmission( gcSS%rLow(n), gcSS%rUp(n), gcSS%emission_scheme, w10m, ustar, &
+                          memissions, nemissions, rc )
+!   For the Hoppel correction need to compute the wet radius and settling velocity
+!   in the surface
+    if(gcSS%hoppelFlag) then
+     do j = j1, j2
+      do i = i1, i2
+       call wet_radius ( SS_radius(n), SS_rhop(n), w_c%rh(i,j,km), gcSS%rhFlag, &
+                         radius_wet, rhop_wet )
+       call Chem_CalcVsettle ( radius_wet, rhop_wet, rhoa(i,j,km), tmpu(i,j,km), &
+                               diff_coef, vsettle(i,j) )
+       fhoppel(i,j) = (10./dz(i,j)) ** (vsettle(i,j)/MAPL_KARMAN/ustar(i,j))
+      end do
+     end do
+    endif
+
+!   For the moment, do not apply these corrections to the emissions
+    memissions = gcSS%emission_scale * fgridefficiency * fsstemis * fhoppel * gweibull * memissions
+
+    dqa = memissions * cdt * grav / w_c%delp(:,:,km)
+    w_c%qa(n1+n-1)%data3d(:,:,km) = &
+            w_c%qa(n1+n-1)%data3d(:,:,km) + dqa
+
+    if( associated(SS_emis(n)%data2d) ) &
+     SS_emis(n)%data2d = memissions
+   end do
 
 #ifdef DEBUG
-   do n = nbeg, nend
+   do n = n1, n2
       call pmaxmin('SS: q_emi', w_c%qa(n)%data3d(i1:i2,j1:j2,1:km), &
                                 qmin, qmax, ijl, km, 1. )
    end do
@@ -793,15 +709,12 @@ CONTAINS
 
 !  Seasalt Settling
 !  ----------------
-!  CARMA potentially provides this service.  Check to see.
-   if( index(w_c%qa(nbeg)%wantServices,":CARMA_Sedimentation:") .eq. 0) then
-     call Chem_Settling ( i1, i2, j1, j2, km, nbeg, nend, nbins, gcSS%rhFlag, &
-                          SS_radius, SS_rhop, cdt, w_c, tmpu, rhoa, hsurf,    &
-                          hghte, SS_set, rc )
-   endif
+   call Chem_Settling ( i1, i2, j1, j2, km, n1, n2, nbins, gcSS%rhFlag, &
+                        SS_radius, SS_rhop, cdt, w_c, tmpu, rhoa, hsurf,    &
+                        hghte, SS_set, rc )
 
 #ifdef DEBUG
-   do n = nbeg, nend
+   do n = n1, n2
       call pmaxmin('SS: q_set', w_c%qa(n)%data3d(i1:i2,j1:j2,1:km), qmin, qmax, &
                     ijl, km, 1. )
    end do
@@ -809,55 +722,115 @@ CONTAINS
 
 !  Seasalt Deposition
 !  -----------
-   call Chem_Deposition( i1, i2, j1, j2, km, nbeg, nend, nbins, cdt, w_c, &
-                         SS_radius, SS_rhop, tmpu, rhoa, hsurf, hghte, oro, ustar, &
-                         u10m, v10m, fraclake, gwettop, pblh, shflux, z0h, SS_dep, rc )
+   drydepositionfrequency = 0.
+   call DryDepositionGOCART( i1, i2, j1, j2, km, &
+                             tmpu, rhoa, hghte, oro, ustar, &
+                             pblh, shflux, z0h, drydepositionfrequency, rc )
+    
+   do n = 1, nbins
+    dqa = 0.
+    dqa = max(0.0, w_c%qa(n1+n-1)%data3d(:,:,km)*(1.-exp(-drydepositionfrequency*cdt)))
+    w_c%qa(n1+n-1)%data3d(:,:,km) = &
+            w_c%qa(n1+n-1)%data3d(:,:,km) - dqa
+    if( associated(SS_dep(n)%data2d) ) &
+     SS_dep(n)%data2d = dqa*w_c%delp(:,:,km)/grav/cdt
+   end do
 
 #ifdef DEBUG
-   do n = nbeg, nend
+   do n = n1, n2
       call pmaxmin('SS: q_dry', w_c%qa(n)%data3d(i1:i2,j1:j2,1:km), qmin, qmax, &
                     ijl, km, 1. )
    end do
 #endif
 
-!  Seasalt Wet Removal
-!  -----------
-   call SS_Wet_Removal ( i1, i2, j1, j2, km, nbins, cdt, rhoa, gcSS, w_c, &
-                         precc, precl, dqcond, tmpu, SS_wet, rc )
+!  Seasalt Large-scale Wet Removal
+!  -------------------------------
+   do n = 1, nbins
+    w_c%qa(n1+n-1)%fwet = 1.
+    call WetRemovalGOCART(i1, i2, j1, j2, km, n1+n-1, n1+n-1, cdt, &
+                          w_c%qa, ple, tmpu, rhoa, dqcond, precc, precl, &
+                          fluxout, rc )
+    if(associated(SS_wet(n)%data2d)) SS_wet(n)%data2d = fluxout%data2d
+   end do
 
 #ifdef DEBUG
-   do n = nbeg, nend
+   do n = n1, n2
       call pmaxmin('SS: q_wet', w_c%qa(n)%data3d(i1:i2,j1:j2,1:km), qmin, qmax, &
                     ijl, km, 1. )
    end do
 #endif
 
 
+!  Seasalt Convective-scale Mixing and Wet Removal
+!  -----------------------------------------------
+   icdt = cdt
+   allocate(cmfmc_(i1:i2,j1:j2,km+1), qccu_(i1:i2,j1:j2,km), &
+            dtrain_(i1:i2,j1:j2,km), airmass_(i1:i2,j1:j2,km), &
+            delz_(i1:i2,j1:j2,km), vud_(i1:i2,j1:j2,km), &
+            tc_(i1:i2,j1:j2,km,n1:n2), delp_(i1:i2,j1:j2,km), &
+            airmol_(i1:i2,j1:j2,km), bcnv_(i1:i2,j1:j2,n1:n2), &
+            area_(i1:i2,j1:j2), frlake_(i1:i2,j1:j2), &
+            frocean_(i1:i2,j1:j2), frseaice_(i1:i2,j1:j2), __STAT__ )
+
+   area_            = area
+   frlake_          = frlake
+   frocean_         = frocean
+   frseaice_        = frseaice
+   do k = 1, km+1
+    cmfmc_(:,:,k)   = cmfmc(:,:,km-k+1)
+   end do
+   do k = 1, km
+    dtrain_(:,:,k)  = dtrain(:,:,km-k+1)
+    qccu_(:,:,k)    = qccu(:,:,km-k+1)
+    delp_(:,:,k)    = w_c%delp(:,:,km-k+1)/100.
+    airmass_(:,:,k) = w_c%delp(:,:,km-k+1)/grav*area_
+    airmol_(:,:,k)  = airmass_(:,:,k)*1000./28.966
+    delz_(:,:,k)    = w_c%delp(:,:,km-k+1)/grav/rhoa(:,:,km-k+1)
+   enddo
+   do n = n1, n2
+    do k = 1, km
+     tc_(:,:,k,n)   = w_c%qa(n)%data3d(:,:,km-k+1)
+    enddo
+   enddo
+   call set_vud(i1, i2, j1, j2, km, frlake_, frocean_, frseaice_, cmfmc_, qccu_, &
+                airmass_, delz_, area_, vud_)
+   call convection(i1, i2, j1, j2, km, n1, n2, icdt, 'sea_salt', &
+                   tc_, cmfmc_, dtrain_, area_, delz_, delp_, vud_, &
+                   airmass_, airmol_, &
+                   bcnv_)
+!  Return adjusted tracer to mixing ratio
+   do n = n1, n2
+    do k = 1, km
+     w_c%qa(n)%data3d(:,:,km-k+1) = tc_(:,:,k,n)
+    enddo
+   enddo
+
+!  Note GOCART returns bcnv_ as negative, recast for my diagnostic
+   do n = 1, nbins
+    if(associated(SS_conv(n)%data2d)) SS_conv(n)%data2d = -bcnv_(:,:,n1+n-1)/area_/icdt
+   end do
+
+   deallocate(cmfmc_, qccu_, dtrain_, tc_, airmass_, &
+              delz_, vud_, delp_, airmol_, bcnv_, &
+              area_, frlake_, frocean_, frseaice_, __STAT__ )
+
+
 !  Compute the desired output diagnostics here
 !  Ideally this will go where chemout is called in fvgcm.F since that
 !  will reflect the distributions after transport, etc.
 !  ------------------------------------------------------------------
-   call SS_Compute_Diags(i1, i2, j1, j2, km, nbins, gcSS, w_c, tmpu, rhoa, &
+   call SS_Compute_Diags(i1, i2, j1, j2, km, nbins, gcSS, w_c, tmpu, rhoa, u, v, &
                          SS_sfcmass, SS_colmass, SS_mass, SS_exttau, SS_scatau, &
                          SS_sfcmass25, SS_colmass25, SS_mass25, SS_exttau25, SS_scatau25, &
-                         rc)
+                         SS_conc, SS_extcoef, SS_scacoef, SS_exttaufm, SS_scataufm, &
+                         SS_angstrom, SS_fluxu, SS_fluxv, rc)
 
 !  Clean up
 !  --------
-   deallocate ( SS_radius, SS_rhop, stat=ios )
-
-#ifndef GEOS5
-
-!\/--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---\/ 
-
-   deallocate ( SS_emis, SS_set, SS_dep, SS_wet, &
-                SS_sfcmass, SS_colmass, SS_mass, SS_exttau, SS_scatau, &
-                SS_sfcmass25, SS_colmass25, SS_mass25, SS_exttau25,    &
-                SS_scatau25, stat=ios )
-
-!/\--- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut ---/\
-
-#endif
+   deallocate ( fluxout%data2d, __STAT__ )
+   deallocate ( fluxout, SS_radius, SS_rhop, memissions, nemissions, &
+                w10m, dqa, drydepositionfrequency, __STAT__ )
+   deallocate ( fsstemis, fgridefficiency, fhoppel, vsettle, gweibull, wm, __STAT__ )
 
    return
 
@@ -870,541 +843,16 @@ CONTAINS
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE:  SS_Emission - Adds seasalt emission for one timestep
+! !IROUTINE:  SS_Compute_Diags - Calculate seasalt 2D diagnostics
 !
 ! !INTERFACE:
 !
 
-!   subroutine SS_Emission ( i1, i2, j1, j2, km, nbins, cdt, gcSS, w_c, &
-!                            oro, u10m, v10m, SS_emis, rc )
-   subroutine SS_Emission ( i1, i2, j1, j2, km, nbins, cdt, gcSS, w_c, &
-                            oro, u10m, v10m, tmpu, SS_emis, rc )
-
-! !USES:
-
-  implicit NONE
-
-! !INPUT PARAMETERS:
-
-   integer, intent(in) :: i1, i2, j1, j2, km, nbins
-   real, intent(in)    :: cdt
-   type(SS_GridComp), intent(in)    :: gcSS       ! SS Grid Component
-   real, pointer, dimension(:,:) :: oro, u10m, v10m
-   real, pointer, dimension(:,:,:) :: tmpu    ! temperature [K]
-
-! !OUTPUT PARAMETERS:
-
-   type(Chem_Bundle), intent(inout) :: w_c         ! Chemical tracer fields
-   type(Chem_Array), intent(inout)  :: SS_emis(nbins) ! SS emissions, kg/m2/s
-   integer, intent(out)             :: rc          ! Error return code:
-                                                   !  0 - all is well
-                                                   !  1 - 
-   character(len=*), parameter :: myname = 'SS_Emission'
-
-! !DESCRIPTION: Updates the seasalt concentration with emissions every timestep
-!  The approach here is to use the modified Monahan et al. (1986) source
-!  formulation (see Gong 2003) which does a reasonable job simulating
-!  sea salt number concentrations for r80 between 0.07 um and 20 um.
-!  Gong suggests that the parameterization is good to dry radius 0.03 um,
-!  so we use that as our lower radius bin limit.  The function gives the
-!  particle flux at RH = 80% dF/dr [# m-2 s-1 um-1] as a function of particle
-!  radius r [um] and the 10-m wind speed [m s-1].  The dry particle number
-!  flux is just dF/drDry = fac*dF/dr, where fac is really a function of
-!  particle size converting dry radius to wet radius (RH=80%).
-!  Two parameterizations for the swelling are permitted.  Setting rhFlag = 1 in
-!  the resource file specifies the Fitzgerald parameterization.  For our sizes
-!  a value of fac = 2.00 is pretty good, so we use that (see Fitzgerald, JAM,
-!  1975 for 100% soluble NaCl).  Setting rhFlag = 2 is the resource file
-!  specifies the Gerber parameterization.  See Gong et al. 1997.  For our size
-!  range and that choice fac = 1.65 is pretty good.
-!
-!  Convert to a mass flux by multiplying by the particle mass (note the units).
-!  Similar to GOCART, we have five major bins and employ a simple sub-binning 
-!  to put the right mass into each bin (i.e., radius_i has rLow_i and rUp_i 
-!  which define the edges of the bin and we actually calculate the emissions
-!  across the range with a number of sub-bins and dump all the mass into a super-bin.
-
-!  FUTURE IMPROVEMENTS: 1) Evaluate the choice of bin sizes used
-!
-! !REVISION HISTORY:
-!
-!  19Apr2013, Sarah Lu, add GEOS-Chem upgrade
-!  06Nov2003, Colarco
-!  Based on Ginoux
-!
-!EOP
-!-------------------------------------------------------------------------
-
-! !Local Variables
-   integer  ::  i, j, k, m, n, ios, ir, nr
-   integer  ::  nbeg, nend
-   real     ::  emis(i1:i2,j1:j2)       ! Local bin emission
-   real, parameter ::  pi = 3.1415
-   real, parameter ::  rho = 1000.      ! density of water [kg m-3]
-   real            ::  rLow, rUp        ! bounding radii of super-bins [um]
-   real            ::  radius           ! sub-bin radius at 80% RH [um]
-   real            ::  dr               ! sea-salt sub-bins radius width [um]
-   real            ::  fac              ! factor chosen as ratio of particle
-                                        ! radius at RH=80% to dry radius
-   real            ::  w10m, src, src2
-   real            ::  rDry, aFac, bFac
-   real :: qmax, qmin
-   real :: sst, wgt                     ! temp adj (Jaegle et al., 2011)
-
-
-
-!  Initialize local variables
-!  --------------------------
-   nbeg  = w_c%reg%i_SS
-   nend  = w_c%reg%j_SS
-
-!  Choice of swelling factor based on value of rhFlag
-!  0 = no swelling
-!  1 = Fitzgerald Parameterization
-!  2 = Gerber Parameterization
-   fac = 1.
-   if(gcSS%rhFlag .eq. 1) fac = 2.00
-   if(gcSS%rhFlag .eq. 2) fac = 1.65
-
-!  Loop over the number of sea-salt super-bins
-   do n = 1, nbins
-
-    emis = 0.0
-    if( associated(SS_emis(n)%data2d) ) SS_emis(n)%data2d = 0.0
-
-!   Define the upper and lower radii of the super-bin and the number of sub-bins
-!   defined at 80% RH
-    rLow   = fac * gcSS%rLow(n)
-    rUp    = fac * gcSS%rUp(n)
-    nr     = 10
-    dr     = (rUp-rLow)/nr
-    radius = rLow + 0.5*dr
-
-!   Loop over the sub-bins and add mass
-!   src is the accumulated dry salt mass in each super-bin divided 
-!   by w10m**3.41.  At each sub-bin this is the product of the
-!   number flux into the bin (dF/dr * dr) and the mass of the dry particle.
-    src = 0.0
-    do ir = 1, nr
-     rDry = radius/fac
-!    Gong 2003
-     aFac = 4.7*(1.+30.*radius)**(-0.017*radius**(-1.44))
-     bFac = (0.433-log10(radius))/0.433
-     src =   src &
-          + 4./3.*pi*gcSS%rhop(n)*rDry**3.*1.e-18 &
-           *1.373*radius**(-aFac)*(1.+0.057*radius**3.45) &
-           *10**(1.607*exp(-bFac**2.))*dr
-!    Gong 1997
-!     aFac = 3.
-!     bFac = (0.380-log10(radius))/0.65
-!     src =   src &
-!          + 4./3.*pi*gcSS%rhop(n)*rDry**3.*1.e-18 &
-!           *1.373*radius**(-aFac)*(1.+0.057*radius**1.05) &
-!           *10**(1.19*exp(-bFac**2.))*dr
-     radius = radius+dr
-    end do
-
-!   Loop over the horizontal grid
-    do j = j1, j2
-     do i = i1, i2
-
-      if ( oro(i,j) /= OCEAN ) cycle ! only over OCEAN gridpoints
-
-      w10m = sqrt(u10m(i,j)**2.+v10m(i,j)**2.)
-
-!! 
-! Based on a comparison of GEOS-Chem sea salt simulation with coarse mode 
-! sea salt mass concentration observations obtained on 6 PMEL cruises, a 
-! new SST dependent source function was derived (Jaegle et al., 2011):
-      sst = tmpu(i,j,km) - 273.15
-      sst = min (30., max(sst, 0.))
-      wgt = 0.3 + 0.1*sst - 0.0076*sst*sst + 0.00021*sst*sst*sst
-      wgt = min (1.0, wgt)
-#ifdef NEMS
-      emis(i,j) = wgt*src*w10m**3.41               
-#else
-      emis(i,j) = src*w10m**3.41
-#endif
-      w_c%qa(nbeg+n-1)%data3d(i,j,km) = &
-            w_c%qa(nbeg+n-1)%data3d(i,j,km) + emis(i,j)*cdt*grav/w_c%delp(i,j,km)
-     end do   ! i
-    end do    ! j
-    if( associated(SS_emis(n)%data2d) ) SS_emis(n)%data2d = emis
-
-   end do     ! n
-
-   rc = 0
-
-   end subroutine SS_Emission
-
-!-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
-!-------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE:  SS_Wet_Removal - Removal of seasalt by precipitation
-!  NOTE: For the removal term, fluxout is the sum of the in-cloud
-!        convective and large-scale washout and the total flux across
-!        the surface due to below-cloud (rainout) convective and
-!        large-scale precipitation reaching the surface.  The fluxout
-!        is initialized to zero at the beginning and then at each i, j
-!        grid point it is added to.
-!        
-!
-! !INTERFACE:
-!
-
-   subroutine SS_Wet_Removal ( i1, i2, j1, j2, km, nbins, cdt, rhoa, gcSS, w_c,&
-                               precc, precl, dqcond, tmpu, fluxout, rc )
-
-! !USES:
-
-  implicit NONE
-
-! !INPUT PARAMETERS:
-
-   integer, intent(in) :: i1, i2, j1, j2, km, nbins
-   real, intent(in)    :: cdt
-   type(SS_GridComp), intent(in)   :: gcSS  ! SS Grid Component
-   real, pointer, dimension(:,:)   :: precc ! total convective precip [mm day-1]
-   real, pointer, dimension(:,:)   :: precl ! total large-scale prec. [mm day-1]
-   real, pointer, dimension(:,:,:) :: dqcond  ! change in q due to moist
-                                              ! processes [kg kg-1 s-1] 
-   real, pointer, dimension(:,:,:) :: tmpu    ! temperature [K]
-   real, pointer, dimension(:,:,:) :: rhoa    ! air density [kg m-3]
-
-! !OUTPUT PARAMETERS:
-
-   type(Chem_Bundle), intent(inout) :: w_c        ! Chemical tracer fields
-   type(Chem_Array), intent(inout)  :: fluxout(nbins) ! Mass lost by wet dep
-                                                      ! to surface, kg/m2/s
-   integer, intent(out)             :: rc         ! Error return code:
-                                                  !  0 - all is well
-                                                  !  1 - 
-   character(len=*), parameter :: myname = 'SS_Wet_Removal'
-
-! !DESCRIPTION: Updates the dust concentration in each vertical layer
-!               due to wet removal
-!
-! !REVISION HISTORY:
-!
-!  17Nov2003, Colarco
-!  Based on Ginoux
-!
-!EOP
-!-------------------------------------------------------------------------
-
-! !Local Variables
-   integer  ::  i, j, k, iit, n, LH, kk, ios
-   integer  ::  nbeg, nend
-   real :: pdog(i1:i2,j1:j2,km)      ! air mass factor dp/g [kg m-2]
-   real :: Td_ls, Td_cv              ! ls and cv timescales [s]
-   real :: pls, pcv, pac             ! ls, cv, tot precip [mm day-1]
-   real :: qls(km), qcv(km)          ! ls, cv portion dqcond [kg m-3 s-1]
-   real :: qmx, qd, A                ! temporary variables on moisture
-   real :: F, B, BT                  ! temporary variables on cloud, freq.
-   real, allocatable :: fd(:,:)      ! flux across layers [kg m-2]
-   real, allocatable :: DC(:)        ! scavenge change in mass mixing ratio
-
-!  Rain parameters (from where?)
-   real, parameter :: B0_ls = 1.0e-4
-   real, parameter :: F0_ls = 1.0
-   real, parameter :: XL_ls = 5.0e-4
-   real, parameter :: B0_cv = 1.5e-3
-   real, parameter :: F0_cv = 0.3
-   real, parameter :: XL_cv = 2.0e-3
-
-   rc = 0
-
-!  Initialize local variables
-!  --------------------------
-   do n = 1, nbins
-    if( associated(fluxout(n)%data2d) ) fluxout(n)%data2d(i1:i2,j1:j2) = 0.0
-   end do
-
-   nbeg  = w_c%reg%i_SS
-   nend  = w_c%reg%j_SS
-
-!  Allocate the dynamic arrays
-   allocate(fd(km,nbins),stat=ios)
-   if(ios .ne. 0) stop
-   allocate(dc(nbins),stat=ios)
-   if(ios .ne. 0) stop
-
-!  Duration of rain: ls = model timestep, cv = 1800 s (<= cdt)
-   Td_ls = cdt
-#ifdef NEMS
-   Td_cv = cdt
-#else
-   Td_cv = 1800.
-#endif
-
-!  Accumulate the 3-dimensional arrays of rhoa and pdog
-   pdog = w_c%delp/grav
-
-!  Loop over spatial indices
-   do j = j1, j2
-    do i = i1, i2
-
-!    Check for total precipitation amount
-!    Assume no precip in column if precl+precc = 0
-     pac = precl(i,j) + precc(i,j)
-     if(pac .le. 0.) goto 100
-     pls = precl(i,j)
-     pcv = precc(i,j)
-
-!    Initialize the precipitation fields
-     qls(:)  = 0.
-     qcv(:)  = 0.
-     fd(:,:) = 0.
-
-!    Find the highest model layer experiencing rainout.  Assumes no
-!    scavenging if T < 258 K
-     LH = 0
-     do k = 1, km
-      if(dqcond(i,j,k) .lt. 0. .and. tmpu(i,j,k) .gt. 258.) then
-       LH = k
-       goto 15
-      endif
-     end do
- 15  continue
-     if(LH .lt. 1) goto 100
-
-!    convert dqcond from kg water/kg air/s to kg water/m3/s and reverse
-!    sign so that dqcond < 0. (positive precip) means qls and qcv > 0.
-     do k = LH, km
-      qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
-!      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
-#ifdef NEMS
-      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
-#endif
-     end do
-
-!    Loop over vertical to do the scavenging!
-     do k = LH, km
-
-!-----------------------------------------------------------------------------
-!   (1) LARGE-SCALE RAINOUT:             
-!       Tracer loss by rainout = TC0 * F * exp(-B*dt)
-!         where B = precipitation frequency,
-!               F = fraction of grid box covered by precipitating clouds.
-!       We assume that tracer scavenged by rain is falling down to the
-!       next level, where a fraction could be re-evaporated to gas phase
-!       if Qls is less then 0 in that level.
-!-----------------------------------------------------------------------------
-      if (qls(k) .gt. 0.) then
-       F  = F0_ls / (1. + F0_ls*B0_ls*XL_ls/(qls(k)*cdt/Td_ls))
-       B  = B0_ls/F0_ls +1./(F0_ls*XL_ls/qls(k)) 
-       BT = B * Td_ls
-       if (BT.gt.10.) BT = 10.               !< Avoid overflow >
-!      Adjust du level:
-       do n = 1, nbins
-        DC(n) = w_c%qa(nbeg+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
-        if (DC(n).lt.0.) DC(n) = 0.
-        w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k)-DC(n)
-        if (w_c%qa(nbeg+n-1)%data3d(i,j,k) .lt. 1.0E-32) w_c%qa(nbeg+n-1)%data3d(i,j,k) = 1.0E-32
-       end do
-!      Flux down:  unit is kg m-2
-!      Formulated in terms of production in the layer.  In the revaporation step
-!      we consider possibly adding flux from above...
-       do n = 1, nbins
-        Fd(k,n) = DC(n)*pdog(i,j,k)
-       end do
-
-      end if                                    ! if Qls > 0  >>>
-
-!-----------------------------------------------------------------------------
-! * (2) LARGE-SCALE WASHOUT:
-! *     Occurs when rain at this level is less than above.
-!-----------------------------------------------------------------------------
-      if(k .gt. LH .and. qls(k) .ge. 0.) then
-       if(qls(k) .lt. qls(k-1)) then
-!       Find a maximum F overhead until the level where Qls<0.
-        Qmx   = 0.
-        do kk = k-1,LH,-1
-         if (Qls(kk).gt.0.) then
-          Qmx = max(Qmx,Qls(kk))
-         else
-          goto 333
-         end if
-        end do
-
- 333    continue
-        F = F0_ls / (1. + F0_ls*B0_ls*XL_ls/(Qmx*cdt/Td_ls))
-        if (F.lt.0.01) F = 0.01
-!-----------------------------------------------------------------------------
-!  The following is to convert Q(k) from kgH2O/m3/sec to mm/sec in order
-!  to use the Harvard formula.  Convert back to mixing ratio by multiplying
-!  by rhoa.  Multiply by pdog gives kg/m2/s of precip.  Divide by density
-!  of water (=1000 kg/m3) gives m/s of precip and multiply by 1000 gives
-!  units of mm/s (omit the multiply and divide by 1000).
-!-----------------------------------------------------------------------------
-
-        Qd = Qmx /rhoa(i,j,k)*pdog(i,j,k)
-        if (Qd.ge.50.) then
-         B = 0.
-        else
-         B = Qd * 0.1
-        end if
-        BT = B * cdt
-        if (BT.gt.10.) BT = 10.
-
-!       Adjust du level:
-        do n = 1, nbins
-         DC(n) = w_c%qa(nbeg+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
-         if (DC(n).lt.0.) DC(n) = 0.
-         w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k)-DC(n)
-         if (w_c%qa(nbeg+n-1)%data3d(i,j,k) .lt. 1.0E-32) & 
-          w_c%qa(nbeg+n-1)%data3d(i,j,k) = 1.0E-32
-         if( associated(fluxout(n)%data2d) ) then
-          fluxout(n)%data2d(i,j) = fluxout(n)%data2d(i,j)+DC(n)*pdog(i,j,k)/cdt
-         endif
-        end do
-
-       end if
-      end if                                    ! if ls washout  >>>
-
-!-----------------------------------------------------------------------------
-!  (3) CONVECTIVE RAINOUT:
-!      Tracer loss by rainout = dd0 * F * exp(-B*dt)
-!        where B = precipitation frequency,
-!              F = fraction of grid box covered by precipitating clouds.
-!-----------------------------------------------------------------------------
-
-      if (qcv(k) .gt. 0.) then
-       F  = F0_cv / (1. + F0_cv*B0_cv*XL_cv/(Qcv(k)*cdt/Td_cv))
-       B  = B0_cv
-       BT = B * Td_cv
-       if (BT.gt.10.) BT = 10.               !< Avoid overflow >
-
-!      Adjust du level: 
-       do n = 1, nbins
-        DC(n) = w_c%qa(nbeg+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
-        if (DC(n).lt.0.) DC(n) = 0.
-        w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k)-DC(n)
-        if (w_c%qa(nbeg+n-1)%data3d(i,j,k) .lt. 1.0E-32) w_c%qa(nbeg+n-1)%data3d(i,j,k) = 1.0E-32
-       end do
-
-!------  Flux down:  unit is kg. Including both ls and cv.
-       do n = 1, nbins
-        Fd(k,n) = Fd(k,n) + DC(n)*pdog(i,j,k)
-       end do
-
-      end if                                  ! if Qcv > 0   >>>
-
-!-----------------------------------------------------------------------------
-!  (4) CONVECTIVE WASHOUT:
-!      Occurs when rain at this level is less than above.
-!-----------------------------------------------------------------------------
-
-      if (k.gt.LH .and. Qcv(k).ge.0.) then
-       if (Qcv(k).lt.Qcv(k-1)) then
-!-----  Find a maximum F overhead until the level where Qls<0.
-        Qmx   = 0.
-        do kk = k-1, LH, -1
-         if (Qcv(kk).gt.0.) then
-          Qmx = max(Qmx,Qcv(kk))
-         else
-          goto 444
-         end if
-        end do
-
- 444    continue
-        F = F0_cv / (1. + F0_cv*B0_cv*XL_cv/(Qmx*cdt/Td_cv))
-        if (F.lt.0.01) F = 0.01
-!-----------------------------------------------------------------------------
-!  The following is to convert Q(k) from kgH2O/m3/sec to mm/sec in order
-!  to use the Harvard formula.  Convert back to mixing ratio by multiplying
-!  by rhoa.  Multiply by pdog gives kg/m2/s of precip.  Divide by density
-!  of water (=1000 kg/m3) gives m/s of precip and multiply by 1000 gives
-!  units of mm/s (omit the multiply and divide by 1000).
-!-----------------------------------------------------------------------------
-
-        Qd = Qmx / rhoa(i,j,k)*pdog(i,j,k)
-        if (Qd.ge.50.) then
-         B = 0.
-        else
-         B = Qd * 0.1
-        end if
-        BT = B * cdt
-        if (BT.gt.10.) BT = 10.
-
-!       Adjust du level:
-        do n = 1, nbins
-         DC(n) = w_c%qa(nbeg+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
-         if (DC(n).lt.0.) DC(n) = 0.
-         w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k)-DC(n)
-         if (w_c%qa(nbeg+n-1)%data3d(i,j,k) .lt. 1.0E-32) & 
-          w_c%qa(nbeg+n-1)%data3d(i,j,k) = 1.0E-32
-         if( associated(fluxout(n)%data2d) ) then
-          fluxout(n)%data2d(i,j) = fluxout(n)%data2d(i,j)+DC(n)*pdog(i,j,k)/cdt
-         endif
-        end do
-
-       end if
-      end if                                    ! if cv washout  >>>
-
-!-----------------------------------------------------------------------------
-!  (5) RE-EVAPORATION.  Assume that SO2 is re-evaporated as SO4 since it
-!      has been oxidized by H2O2 at the level above. 
-!-----------------------------------------------------------------------------
-!     Add in the flux from above, which will be subtracted if reevaporation occurs
-      if(k .gt. LH) then
-       do n = 1, nbins
-        Fd(k,n) = Fd(k,n) + Fd(k-1,n)
-       end do
-
-!      Is there evaporation in the currect layer?
-       if (-dqcond(i,j,k) .lt. 0.) then
-!       Fraction evaporated = H2O(k)evap / H2O(next condensation level).
-        if (-dqcond(i,j,k-1) .gt. 0.) then
-
-          A =  abs(  dqcond(i,j,k) * pdog(i,j,k)    &
-            /      ( dqcond(i,j,k-1) * pdog(i,j,k-1))  )
-          if (A .gt. 1.) A = 1.
-
-!         Adjust tracer in the level
-          do n = 1, nbins
-           DC(n) =  Fd(k-1,n) / pdog(i,j,k) * A
-           w_c%qa(nbeg+n-1)%data3d(i,j,k) = w_c%qa(nbeg+n-1)%data3d(i,j,k) + DC(n)
-           w_c%qa(nbeg+n-1)%data3d(i,j,k) = max(w_c%qa(nbeg+n-1)%data3d(i,j,k),1.e-32)
-!          Adjust the flux out of the bottom of the layer
-           Fd(k,n)  = Fd(k,n) - DC(n)*pdog(i,j,k)
-          end do
-
-        endif
-       endif                                   ! if -moistq < 0
-      endif
-     end do  ! k
-
-     do n = 1, nbins
-      if( associated(fluxout(n)%data2d) ) then
-       fluxout(n)%data2d(i,j) = fluxout(n)%data2d(i,j)+Fd(km,n)/cdt
-      endif
-     end do
-
- 100 continue
-    end do   ! i
-   end do    ! j
-
-   deallocate(fd,DC,stat=ios)
-
-   end subroutine SS_Wet_Removal
-
-!-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
-!-------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE:  SS_Compute_Diags - Calculate dust 2D diagnostics
-!
-! !INTERFACE:
-!
-
-   subroutine SS_Compute_Diags ( i1, i2, j1, j2, km, nbins, gcSS, w_c, tmpu, rhoa, &
+   subroutine SS_Compute_Diags ( i1, i2, j1, j2, km, nbins, gcSS, w_c, tmpu, rhoa, u, v, &
                                  sfcmass, colmass, mass, exttau, scatau, &
                                  sfcmass25, colmass25, mass25, exttau25, scatau25, &
-                                 rc )
+                                 conc, extcoef, scacoef, exttaufm, scataufm, &
+                                 angstrom, fluxu, fluxv, rc )
 
 ! !USES:
 
@@ -1416,21 +864,31 @@ CONTAINS
    type(Chem_Bundle), intent(in)   :: w_c      ! Chem Bundle
    real, pointer, dimension(:,:,:) :: tmpu     ! temperature [K]
    real, pointer, dimension(:,:,:) :: rhoa     ! air density [kg m-3]
+   real, pointer, dimension(:,:,:) :: u        ! east-west wind [m s-1]
+   real, pointer, dimension(:,:,:) :: v        ! north-south wind [m s-1]
 
 ! !OUTPUT PARAMETERS:
-   type(Chem_Array), intent(inout)  :: sfcmass ! sfc mass concentration kg/m3
-   type(Chem_Array), intent(inout)  :: colmass ! col mass density kg/m2
-   type(Chem_Array), intent(inout)  :: mass    ! 3d mass mixing ratio kg/kg
-   type(Chem_Array), intent(inout)  :: exttau  ! ext. AOT at 550 nm
-   type(Chem_Array), intent(inout)  :: scatau  ! sct. AOT at 550 nm
+   type(Chem_Array), intent(inout)  :: sfcmass   ! sfc mass concentration kg/m3
+   type(Chem_Array), intent(inout)  :: colmass   ! col mass density kg/m2
+   type(Chem_Array), intent(inout)  :: mass      ! 3d mass mixing ratio kg/kg
+   type(Chem_Array), intent(inout)  :: exttau    ! ext. AOT at 550 nm
+   type(Chem_Array), intent(inout)  :: scatau    ! sct. AOT at 550 nm
    type(Chem_Array), intent(inout)  :: sfcmass25 ! sfc mass concentration kg/m3 (pm2.5)
    type(Chem_Array), intent(inout)  :: colmass25 ! col mass density kg/m2 (pm2.5)
    type(Chem_Array), intent(inout)  :: mass25    ! 3d mass mixing ratio kg/kg (pm2.5)
    type(Chem_Array), intent(inout)  :: exttau25  ! ext. AOT at 550 nm (pm2.5)
    type(Chem_Array), intent(inout)  :: scatau25  ! sct. AOT at 550 nm (pm2.5)
-   integer, intent(out)             :: rc      ! Error return code:
-                                               !  0 - all is well
-                                               !  1 - 
+   type(Chem_Array), intent(inout)  :: conc      ! 3d mass concentration, kg/m3
+   type(Chem_Array), intent(inout)  :: extcoef   ! 3d ext. coefficient, 1/m
+   type(Chem_Array), intent(inout)  :: scacoef   ! 3d scat.coefficient, 1/m
+   type(Chem_Array), intent(inout)  :: exttaufm  ! fine mode (sub-micron) ext. AOT at 550 nm
+   type(Chem_Array), intent(inout)  :: scataufm  ! fine mode (sub-micron) sct. AOT at 550 nm
+   type(Chem_Array), intent(inout)  :: angstrom  ! 470-870 nm Angstrom parameter
+   type(Chem_Array), intent(inout)  :: fluxu     ! Column mass flux in x direction
+   type(Chem_Array), intent(inout)  :: fluxv     ! Column mass flux in y direction
+   integer, intent(out)             :: rc        ! Error return code:
+                                                 !  0 - all is well
+                                                 !  1 - 
 
 ! !DESCRIPTION: Calculates some simple 2d diagnostics from the SS fields
 !               Surface concentration (dry)
@@ -1448,32 +906,54 @@ CONTAINS
 
 ! !Local Variables
    character(len=*), parameter :: myname = 'SS_Compute_Diags'
-   integer :: i, j, k, n, nbeg, nend, ios, nch, idx
+   integer :: i, j, k, n, n1, n2, ios, nch, idx
    real :: tau, ssa
+   real :: fPMfm(nbins)  ! fraction of bin with particles diameter < 1.0 um
    real :: fPM25(nbins)  ! fraction of bin with particles diameter < 2.5 um
    character(len=255) :: qname
+   real, dimension(i1:i2,j1:j2) :: tau470, tau870
+   real    :: ilam550, ilam470, ilam870
+   logical :: do_angstrom
 
 
 !  Initialize local variables
 !  --------------------------
-   nbeg  = w_c%reg%i_SS
-   nend  = w_c%reg%j_SS
+   n1  = w_c%reg%i_SS
+   n2  = w_c%reg%j_SS
    nch   = gcSS%mie_tables%nch
 
-!  Compute the PM2.5 bin-wise fractions
+!  Get the wavelength indices
+!  --------------------------
+!  Must provide ilam550 for AOT calculation
+   ilam550 = 1.
+   ilam470 = 0.
+   ilam870 = 0.
+   if(nch .gt. 1) then
+    do i = 1, nch
+     if ( gcSS%mie_tables%channels(i) .ge. 5.49e-7 .and. &
+          gcSS%mie_tables%channels(i) .le. 5.51e-7) ilam550 = i
+     if ( gcSS%mie_tables%channels(i) .ge. 4.69e-7 .and. &
+          gcSS%mie_tables%channels(i) .le. 4.71e-7) ilam470 = i
+     if ( gcSS%mie_tables%channels(i) .ge. 8.69e-7 .and. &
+          gcSS%mie_tables%channels(i) .le. 8.71e-7) ilam870 = i
+    enddo
+   endif
+
+!  Determine if going to do Angstrom parameter calculation
+!  -------------------------------------------------------
+   do_angstrom = .false.
+!  If both 470 and 870 channels provided (and not the same) then
+!  possibly will do Angstrom parameter calculation
+   if(ilam470 .ne. 0. .and. &
+      ilam870 .ne. 0. .and. &
+      ilam470 .ne. ilam870) do_angstrom = .true.
+
+
+
+!  Compute the fine mode (sub-micron) and PM2.5 bin-wise fractions
 !  ------------------------------------
-   do n = 1, nbins
-    if(gcSS%rup(n) < 1.25) then
-     fPM25(n) = 1.
-    else
-     if(gcSS%rlow(n) < 1.25) then
-!     Assume dm/dlnr = constant, i.e., dm/dr ~ 1/r
-      fPM25(n) = log(1.25/gcSS%rlow(n)) / log(gcSS%rup(n)/gcSS%rlow(n))
-     else
-      fPM25(n) = 0.
-     endif
-    endif
-   enddo
+   call SS_Binwise_PM_Fractions(fPMfm, 0.50, gcSS%rlow, gcSS%rup, nbins)   ! 2*r < 1.0 um
+   call SS_Binwise_PM_Fractions(fPM25, 1.25, gcSS%rlow, gcSS%rup, nbins)   ! 2*r < 2.5 um
 
 
 !  Calculate the diagnostic variables if requested
@@ -1485,7 +965,7 @@ CONTAINS
       do n = 1, nbins
          sfcmass%data2d(i1:i2,j1:j2) &
               =   sfcmass%data2d(i1:i2,j1:j2) &
-              + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,km)*rhoa(i1:i2,j1:j2,km)
+              + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,km)*rhoa(i1:i2,j1:j2,km)
       end do
    endif
    if( associated(sfcmass25%data2d) ) then
@@ -1493,7 +973,7 @@ CONTAINS
       do n = 1, nbins
          sfcmass25%data2d(i1:i2,j1:j2) &
               =   sfcmass25%data2d(i1:i2,j1:j2) &
-              + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,km)*rhoa(i1:i2,j1:j2,km)*fPM25(n)
+              + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,km)*rhoa(i1:i2,j1:j2,km)*fPM25(n)
       end do
    endif
 
@@ -1504,7 +984,7 @@ CONTAINS
        do k = 1, km
         colmass%data2d(i1:i2,j1:j2) &
          =   colmass%data2d(i1:i2,j1:j2) &
-           + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav
        end do
       end do
    endif
@@ -1514,8 +994,18 @@ CONTAINS
        do k = 1, km
         colmass25%data2d(i1:i2,j1:j2) &
          =   colmass25%data2d(i1:i2,j1:j2) &
-           + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav*fPM25(n)
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav*fPM25(n)
        end do
+      end do
+   endif
+
+!  Calculate the total mass concentration
+   if( associated(conc%data3d) ) then
+      conc%data3d(i1:i2,j1:j2,1:km) = 0.
+      do n = 1, nbins
+       conc%data3d(i1:i2,j1:j2,1:km) &
+         =   conc%data3d(i1:i2,j1:j2,1:km) &
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,1:km)*rhoa(i1:i2,j1:j2,1:km)
       end do
    endif
 
@@ -1525,7 +1015,7 @@ CONTAINS
       do n = 1, nbins
        mass%data3d(i1:i2,j1:j2,1:km) &
          =   mass%data3d(i1:i2,j1:j2,1:km) &
-           + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,1:km)
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,1:km)
       end do
    endif
    if( associated(mass25%data3d) ) then
@@ -1533,9 +1023,33 @@ CONTAINS
       do n = 1, nbins
        mass25%data3d(i1:i2,j1:j2,1:km) &
          =   mass25%data3d(i1:i2,j1:j2,1:km) &
-           + w_c%qa(n+nbeg-1)%data3d(i1:i2,j1:j2,1:km)*fPM25(n)
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,1:km)*fPM25(n)
       end do
    endif
+
+!  Calculate the column mass flux in x direction
+   if( associated(fluxu%data2d) ) then
+      fluxu%data2d(i1:i2,j1:j2) = 0.
+      do n = 1, nbins
+       do k = 1, km
+        fluxu%data2d(i1:i2,j1:j2) &
+         =   fluxu%data2d(i1:i2,j1:j2) &
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav*u(i1:i2,j1:j2,k)
+       end do
+      end do
+   endif   
+   
+!  Calculate the column mass flux in y direction
+   if( associated(fluxv%data2d) ) then
+      fluxv%data2d(i1:i2,j1:j2) = 0.
+      do n = 1, nbins
+       do k = 1, km
+        fluxv%data2d(i1:i2,j1:j2) &
+         =   fluxv%data2d(i1:i2,j1:j2) &
+           + w_c%qa(n+n1-1)%data3d(i1:i2,j1:j2,k)*w_c%delp(i1:i2,j1:j2,k)/grav*v(i1:i2,j1:j2,k)
+       end do
+      end do
+   endif      
 
 !  Calculate the extinction and/or scattering AOD
    if( associated(exttau%data2d) .or. associated(scatau%data2d) ) then
@@ -1546,29 +1060,49 @@ CONTAINS
       if( associated(exttau25%data2d)) exttau25%data2d(i1:i2,j1:j2) = 0.
       if( associated(scatau25%data2d)) scatau25%data2d(i1:i2,j1:j2) = 0.
 
+      if( associated(exttaufm%data2d)) exttaufm%data2d(i1:i2,j1:j2) = 0.
+      if( associated(scataufm%data2d)) scataufm%data2d(i1:i2,j1:j2) = 0.
+
+      if( associated(extcoef%data3d)) extcoef%data3d(i1:i2,j1:j2,1:km) = 0.
+      if( associated(scacoef%data3d)) scacoef%data3d(i1:i2,j1:j2,1:km) = 0.
+
       do n = 1, nbins
 
 !      Select the name for species
-       qname = trim(w_c%reg%vname(w_c%reg%i_SS+n-1))
+       qname = trim(w_c%reg%vname(n+n1-1))
        idx = Chem_MieQueryIdx(gcSS%mie_tables,qname,rc)
        if(rc .ne. 0) call die(myname, 'cannot find proper Mie table index')
 
-!      Recall -- at present need to divide RH by 100 to get to tables
        do k = 1, km
         do j = j1, j2
          do i = i1, i2
-          call Chem_MieQuery(gcSS%mie_tables, idx, 1., &
-              w_c%qa(nbeg+n-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav, &
-              w_c%rh(i,j,k)/100., tau=tau, ssa=ssa)
+          call Chem_MieQuery(gcSS%mie_tables, idx, ilam550, &
+              w_c%qa(n1+n-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav, &
+              w_c%rh(i,j,k), tau=tau, ssa=ssa)
+
+!         Calculate the total ext. and scat. coefficients
+          if( associated(extcoef%data3d) ) then
+              extcoef%data3d(i,j,k) = extcoef%data3d(i,j,k) + &
+                                      tau * (grav * rhoa(i,j,k) / w_c%delp(i,j,k))
+          endif
+          if( associated(scacoef%data3d) ) then
+              scacoef%data3d(i,j,k) = scacoef%data3d(i,j,k) + &
+                                      ssa * tau * (grav * rhoa(i,j,k) / w_c%delp(i,j,k))
+          endif
+
 
 !         Integrate in the vertical
           if( associated(exttau%data2d) ) exttau%data2d(i,j) = exttau%data2d(i,j) + tau
+          if( associated(exttaufm%data2d)) &
+                         exttaufm%data2d(i,j) = exttaufm%data2d(i,j) + tau*fPMfm(n)          
           if( associated(exttau25%data2d)) &
                          exttau25%data2d(i,j) = exttau25%data2d(i,j) + tau*fPM25(n)
+
           if( associated(scatau%data2d) ) scatau%data2d(i,j) = scatau%data2d(i,j) + tau*ssa
+          if( associated(scataufm%data2d) ) &
+                         scataufm%data2d(i,j) = scataufm%data2d(i,j) + tau*ssa*fPMfm(n)
           if( associated(scatau25%data2d) ) &
                          scatau25%data2d(i,j) = scatau25%data2d(i,j) + tau*ssa*fPM25(n)
-
 
          enddo
         enddo
@@ -1579,9 +1113,102 @@ CONTAINS
    endif
 
 
+!  Calculate the 470-870 Angstrom parameter
+   if( associated(angstrom%data2d) .and. do_angstrom ) then
+
+      angstrom%data2d(i1:i2,j1:j2) = 0.
+!     Set tau to small number by default
+      tau470(i1:i2,j1:j2) = tiny(1.0)
+      tau870(i1:i2,j1:j2) = tiny(1.0)
+
+      do n = 1, nbins
+
+!      Select the name for species
+       qname = trim(w_c%reg%vname(n+n1-1))
+       idx = Chem_MieQueryIdx(gcSS%mie_tables,qname,rc)
+       if(rc .ne. 0) call die(myname, 'cannot find proper Mie table index')
+
+       do k = 1, km
+        do j = j1, j2
+         do i = i1, i2
+
+          call Chem_MieQuery(gcSS%mie_tables, idx, ilam470, &
+              w_c%qa(n+n1-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav, &
+              w_c%rh(i,j,k), tau=tau)
+          tau470(i,j) = tau470(i,j) + tau
+
+          call Chem_MieQuery(gcSS%mie_tables, idx, ilam870, &
+              w_c%qa(n+n1-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav, &
+              w_c%rh(i,j,k), tau=tau)
+          tau870(i,j) = tau870(i,j) + tau
+
+         enddo
+        enddo
+       enddo
+
+      enddo  ! nbins
+      angstrom%data2d(i1:i2,j1:j2) = &
+        -log(tau470(i1:i2,j1:j2)/tau870(i1:i2,j1:j2)) / &
+         log(470./870.)
+   endif
+
+
    rc = 0
 
    end subroutine SS_Compute_Diags
+
+
+!##############################################################################
+!-------------------------------------------------------------------------
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  SS_Binwise_PM_Fractions - Calculate bin-wise PM fractions
+!
+! !INTERFACE:
+!
+
+   subroutine SS_Binwise_PM_Fractions(fPM, rPM, r_low, r_up, nbins)
+
+! !USES:
+
+  implicit NONE
+
+! !INPUT/OUTPUT PARAMETERS:
+
+  real, dimension(:), intent(inout) :: fPM     ! bin-wise PM fraction (r < rPM)
+
+! !INPUT PARAMETERS:
+
+   real,    intent(in)              :: rPM     ! PM radius
+   integer, intent(in)              :: nbins   ! number of bins
+   real, dimension(:), intent(in)   :: r_low   ! bin radii - low bounds
+   real, dimension(:), intent(in)   :: r_up    ! bin radii - upper bounds
+
+! !OUTPUT PARAMETERS:
+!EOP
+
+! !Local Variables
+
+   integer :: n
+
+   character(len=*), parameter :: myname = 'SS_Binwise_PM_Fractions'
+
+   do n = 1, nbins
+     if(r_up(n) < rPM) then
+       fPM(n) = 1.0
+     else
+       if(r_low(n) < rPM) then
+!        Assume dm/dlnr = constant, i.e., dm/dr ~ 1/r
+         fPM(n) = log(rPM/r_low(n)) / log(r_up(n)/r_low(n))
+       else
+         fPM(n) = 0.0
+       endif
+     endif
+   enddo
+
+   end subroutine SS_Binwise_PM_Fractions
 
  end subroutine SS_GridCompRun
 
@@ -1637,6 +1264,186 @@ CONTAINS
    return
 
  end subroutine SS_GridCompFinalize
+
+ subroutine wet_radius (radius, rhop, rh, flag, &
+                        radius_wet, rhop_wet)
+
+! Compute the wet radius of sea salt particle
+! Inputs:  radius - dry radius [m]
+!          rhop   - dry density [kg m-3]
+!          rh     - relative humidity [0-1]
+!          flag   - 1 (Fitzgerald, 1975)
+!                 - 2 (Gerber, 1985)
+! Outputs: radius_wet - humidified radius [m]
+!          rhop_wet   - wet density [kg m-3]
+
+       real, intent(in)  :: radius, rhop, rh
+       integer           :: flag                  ! control method of humidification
+       real, intent(out) :: radius_wet, rhop_wet
+
+!      Local
+       real :: sat, rcm, rrat
+       real, parameter ::  rhow = 1000.  ! Density of water [kg m-3]
+
+!      The following parameters relate to the swelling of seasalt like particles
+!      following Fitzgerald, Journal of Applied Meteorology, 1975.
+       real, parameter :: epsilon = 1.   ! soluble fraction of deliqeuscing particle
+       real, parameter :: alphaNaCl = 1.35
+       real :: alpha, alpha1, alpharat, beta, theta, f1, f2
+
+!      parameter from Gerber 1985 (units require radius in cm, see rcm)
+       real, parameter :: c1=0.7674, c2=3.079, c3=2.573e-11, c4=-1.424
+
+!      Default is to return radius as radius_wet, rhop as rhop_wet
+       radius_wet = radius
+       rhop_wet   = rhop
+
+!      Make sure saturation ratio (RH) is sensible
+       sat = max(rh,tiny(1.0)) ! to avoid zero FPE
+
+!      Fitzgerald Scheme
+       if(flag .eq. 1 .and. sat .ge. 0.80) then
+!       parameterization blows up for RH > 0.995, so set that as max
+!       rh needs to be scaled 0 - 1
+        sat = min(0.995,sat)
+!       Calculate the alpha and beta parameters for the wet particle
+!       relative to amonium sulfate
+        beta = exp( (0.00077*sat) / (1.009-sat) )
+        if(sat .le. 0.97) then
+         theta = 1.058
+        else
+         theta = 1.058 - (0.0155*(sat-0.97)) /(1.02-sat**1.4)
+        endif
+        alpha1 = 1.2*exp( (0.066*sat) / (theta-sat) )
+        f1 = 10.2 - 23.7*sat + 14.5*sat**2.
+        f2 = -6.7 + 15.5*sat - 9.2*sat**2.
+        alpharat = 1. - f1*(1.-epsilon) - f2*(1.-epsilon**2.)
+        alpha = alphaNaCl * (alpha1*alpharat)
+!       radius_wet is the radius of the wet particle
+        radius_wet = alpha * radius**beta
+        rrat       = (radius/radius_wet)**3.
+        rhop_wet   = rrat*rhop + (1.-rrat)*rhow
+       elseif(flag .eq. 2) then   ! Gerber
+        sat = min(0.995,sat)
+        rcm = radius*100.
+        radius_wet = 0.01 * (   c1*rcm**c2 / (c3*rcm**c4-alog10(sat)) &
+                              + rcm**3.)**(1./3.)
+        rrat       = (radius/radius_wet)**3.
+        rhop_wet   = rrat*rhop + (1.-rrat)*rhow
+       endif
+
+ end subroutine wet_radius
+
+!===============================================================================
+!gamma and incomplete gamma functions from Tianyi Fan, but she cannot recall
+!origin of the code.  I did verify against IDL for accuracy.  --prc
+ double precision function gamma(X)
+
+!----------------------------------------------------------------------- 
+! Gamma function
+!----------------------------------------------------------------------- 
+ implicit none
+double precision, intent(in)  :: X
+! local variable
+double precision G(26)
+double precision M1, Z, M, R, GR
+integer K
+double precision, parameter :: PI = 4.d0 * atan(1.d0)
+
+        IF (X.EQ.INT(X)) THEN
+           IF (X.GT.0.0) THEN
+              gamma=1.0d0
+              M1=X-1
+              DO K=2,M1
+                 gamma=gamma*K
+              end do
+           ELSE
+              gamma=1.0d+300
+           ENDIF
+        ELSE
+           IF (ABS(X).GT.1.0) THEN
+              Z=ABS(X)
+              M=INT(Z)
+              R=1.0
+              DO  K=1,M
+                 R=R*(Z-K)
+              END DO
+              Z=Z-M
+           ELSE
+              Z=X
+           ENDIF
+
+           DATA G/1.0D0,0.5772156649015329D0,                 &
+               -0.6558780715202538D0, -0.420026350340952D-1,  &
+               0.1665386113822915D0,-.421977345555443D-1,     &
+               -.96219715278770D-2, .72189432466630D-2,       &
+               -.11651675918591D-2, -.2152416741149D-3,       &
+               .1280502823882D-3, -.201348547807D-4,          &
+               -.12504934821D-5, .11330272320D-5,             &
+               -.2056338417D-6, .61160950D-8,                 &
+               .50020075D-8, -.11812746D-8,                   &
+               .1043427D-9, .77823D-11,                       &
+               -.36968D-11, .51D-12,                          &
+               -.206D-13, -.54D-14, .14D-14, .1D-15/
+           GR=G(26)
+           DO K=25,1,-1
+              GR=GR*Z+G(K)
+           END DO
+           gamma =1.0/(GR*Z)
+           IF (ABS(X).GT.1.0) THEN
+              gamma=gamma*R
+              IF (X.LT.0.0D0) gamma =-PI/(X*gamma*SIN(PI*X))
+           ENDIF
+        ENDIF
+        RETURN
+
+ 
+ 
+ end function gamma
+ 
+!===============================================================================
+ DOUBLE PRECISION function igamma(A, X)
+!----------------------------------------------------------------------- 
+! incomplete Gamma function
+!----------------------------------------------------------------------- 
+ IMPLICIT NONE
+ double precision, intent(in) :: 	A
+ DOUBLE PRECISION, INTENT(IN) ::      X
+! LOCAL VARIABLE
+ DOUBLE PRECISION :: XAM, GIN,  S, R, T0
+ INTEGER K
+        XAM=-X+A*LOG(X)
+        IF (XAM.GT.700.0.OR.A.GT.170.0) THEN
+           WRITE(*,*)'IGAMMA: a and/or x too large, X = ', X
+	   WRITE(*,*) 'A = ', A
+           STOP
+	   
+        ENDIF
+
+        IF (X.EQ.0.0) THEN           
+           IGAMMA=GAMMA(A)
+           
+        ELSE IF (X.LE.1.0+A) THEN
+           S=1.0/A
+           R=S
+           DO  K=1,60
+              R=R*X/(A+K)
+              S=S+R
+              IF (ABS(R/S).LT.1.0e-15) EXIT
+           END DO
+           GIN=EXP(XAM)*S           
+           IGAMMA=GAMMA(A)-GIN
+        ELSE IF (X.GT.1.0+A) THEN
+           T0=0.0
+           DO K=60,1,-1
+              T0=(K-A)/(1.0+K/(X+T0))
+           end do
+
+           IGAMMA=EXP(XAM)/(X+T0)
+
+        ENDIF
+ 
+ end function igamma
 
  end module SS_GridCompMod
 

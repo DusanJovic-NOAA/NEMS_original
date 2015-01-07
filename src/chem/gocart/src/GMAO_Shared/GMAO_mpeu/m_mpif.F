@@ -26,10 +26,7 @@
 ! !INTERFACE:
 
 	module m_mpif
-
 	  implicit none
-#include "mpif.h"
-
 	  private	! except
 
 	  public :: MPI_INTEGER2
@@ -77,6 +74,8 @@
 #ifdef MPICH_
 	  public :: MPIPRIV	! the common block name
 #endif
+
+#include "mpif.h"
 
 ! !REVISION HISTORY:
 ! 	01Apr98 - Jing Guo <guo@thunder> - initial prototype/prolog/code

@@ -58,26 +58,23 @@
 ! !REVISION HISTORY:
 !
 !  1998.07.20  Lucchesi    Initial version.
+!  2010.05.11  Lucchesi  Integer for julian seconds changed to 64-bit. StartDate
+!                        constant no longer needed.
 !
 !EOP
 !-------------------------------------------------------------------------
 
-      integer StartDate, julday1
-      parameter (StartDate = 2439321)   ! Use birthday of author as base date
+      integer julday
 
       integer year1,mon1,day1,hour1,min1,sec1
       integer year2,mon2,day2,hour2,min2,sec2
       integer seconds1, seconds2
-      integer julian1, julian2
-      integer julsec, remainder
+      integer(kind=8) julian1, julian2
+      integer(kind=8) julsec, remainder
       character*8 dateString
 
 ! Error checking.
 
-      if (yyyymmdd_1 .lt. 19000000 .or. yyyymmdd_1 .gt. 21000000 ) then
-         rc=-1
-         return
-      endif
       if (hhmmss_1 .lt. 0 .or. hhmmss_1 .ge. 240000 ) then
          rc=-1
          return
@@ -85,19 +82,21 @@
 
 ! Convert Date/Time strings to integer variables.
 
-      write (dateString, 200) yyyymmdd_1
-200   format (I8)
-      read (dateString, 201) year1, mon1, day1
-201   format (I4,2I2)
-      write (dateString, 202) hhmmss_1
-202   format (I6)
-      read (dateString, 203) hour1, min1, sec1
-203   format (3I2)
+!ams       write (dateString, 200) yyyymmdd_1
+!ams 200   format (I8)
+!ams       read (dateString, 201) year1, mon1, day1
+!ams 201   format (I4,2I2)
+!ams       write (dateString, 202) hhmmss_1
+!ams 202   format (I6)
+!ams       read (dateString, 203) hour1, min1, sec1
+!ams 203   format (3I2)
 
-! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
+      call GFIO_parseIntTime ( yyyymmdd_1, year1, mon1, day1 )
+      call GFIO_parseIntTime (   hhmmss_1, hour1, min1, sec1 )
+
+! Get Julian Day and subtract off a constant (Julian days since 01/01/1850)
  
-      julian1 = julday1 (mon1, day1, year1)
-      julian1 = julian1 - StartDate
+      julian1 = julday (mon1, day1, year1)
        
 ! Calculcate Julian seconds
 
@@ -107,7 +106,6 @@
 
       julsec = julsec + offset
       julian1 = INT(julsec/86400) + 1
-      julian1 = julian1 + StartDate
       remainder = MOD(julsec,86400)
  
 ! Convert julian day to YYYYMMDD.

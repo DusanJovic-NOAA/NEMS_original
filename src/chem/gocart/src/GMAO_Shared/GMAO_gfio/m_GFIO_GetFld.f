@@ -902,6 +902,8 @@
 !
 ! !USES:
 
+      use m_fpe, only: isnan
+
       implicit none
 
 
@@ -920,6 +922,9 @@
 ! !REVISION HISTORY: 
 !
 !  13Apr00   Todling    - Initial code.
+!  23Jun2010 Kokron     - eliminate previous calculation of val_max_in
+!                         because it would fail if the input field
+!                         contained NaNs
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -927,7 +932,7 @@
       character(len=*), parameter :: myname_ = myname//'*'//'Fix_Undef_In_'
 
       integer  i
-      integer  nonmiss
+      integer  nonmiss, numnan
       real     tol
       real     val_max_in, val_max_out
       logical  verbose_
@@ -939,12 +944,14 @@
 
 !     Make sure there is no precision problem with undef's
 !     ----------------------------------------------------
-      nonmiss = 0
-      val_max_in  = maxval(var)
-      do i = 1, ndim
-         if ( abs(var(i)-undef) .lt. tol ) then
-              nonmiss = nonmiss + 1
-              var(i) = undef
+      nonmiss = 0; numnan = 0.; val_max_in=0.
+      do i= 1,ndim
+         if (isnan(var(i))) then
+            numnan=numnan+1
+            var(i) = undef
+         elseif ( abs(var(i)-undef) .lt. tol ) then
+            nonmiss = nonmiss + 1
+            var(i) = undef
          end if
       end do
       val_max_out = maxval(var)
@@ -962,6 +969,12 @@
             call exit (7)
          end if
       end if
+      if (numnan .ne. 0) then
+         write(stdout,'(2a,i10,3a)') myname_, ': There were ',numnan,
+     .                             ' NaN values from input',
+     .                             ' for variable ', trim(vname)
+         call flush(stdout)
+      endif
 
       return
       end subroutine Fix_Undef_In_

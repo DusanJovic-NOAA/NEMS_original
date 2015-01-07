@@ -11,7 +11,7 @@
 
    Program ut_GOCART
 
-   use ESMF_Mod
+   use ESMF
    use MAPL_Mod
    use GOCART_GridCompMod, only: SetServices
 
@@ -42,7 +42,7 @@
    integer :: status, rc
    integer :: i, j, n, im, jm
 
-   integer :: Nx = 2, Ny=1                            ! Layout
+   integer :: Nx = 1, Ny=1                            ! Layout
    integer :: IM_World=72, JM_World=46, LM_WORLD=72   ! Grid dimensions
 
 !  Coordinate variables
@@ -65,15 +65,15 @@ CONTAINS
 !   Initialize the ESMF. For performance reasons, it is important
 !    to turn OFF ESMF's automatic logging feature
 !   -------------------------------------------------------------
-    call ESMF_Initialize (DefaultLogType=ESMF_LOG_NONE, vm=vm, __RC__)
+    call ESMF_Initialize (LogKindFlag=ESMF_LOGKIND_NONE, vm=vm, __RC__)
 
 !   Check the number of processors
 !   ------------------------------
     call ESMF_VMGet(vm, localPET=myPET, PETcount=nPET)  
-    if ( nPET /= 2 ) then
+    if ( nPET /= Nx*Ny ) then
        if ( MAPL_am_I_root() ) then
-          print *, 'Error: expecting 2 PETs but found ', nPET, 'PETs'
-          print *, 'Try:   mpirun -np 2 ut_GOCART.x'
+          print *, 'Error: expecting ', Nx*Ny, ' PETs but found ', nPET, 'PETs'
+          print *, 'Try:   mpirun -np ',Nx*Ny,' ut_GOCART.x'
        end if
        ASSERT_(.FALSE.)
     end if
@@ -99,22 +99,21 @@ CONTAINS
 
 !   Create a clock starting at 1/1/2001 0Z with a 30 min time step
 !   --------------------------------------------------------------
-    call ESMF_CalendarSetDefault ( ESMF_CAL_GREGORIAN )
+    call ESMF_CalendarSetDefault ( ESMF_CALKIND_GREGORIAN )
     call ESMF_TimeSet(Time, yy=2007, mm=7, dd=1,  h=0,  m=0, s=0)
     call ESMF_TimeIntervalSet( TimeStep, h=0, m=30, s=0, __RC__ )
-    CLOCK = ESMF_ClockCreate ( "Clock", timeStep=TimeStep, startTime=Time, __RC__ )
+    CLOCK = ESMF_ClockCreate ( name="Clock", timeStep=TimeStep, startTime=Time, __RC__ )
 
 
 !   Create states and the component
 !   -------------------------------
-    IMPORT = ESMF_StateCreate ( 'impGOCART', __RC__ )
-    EXPORT = ESMF_StateCreate ( 'expGOCART', __RC__ )
+    IMPORT = ESMF_StateCreate ( name='impGOCART', __RC__ )
+    EXPORT = ESMF_StateCreate ( name='expGOCART', __RC__ )
         GC = ESMF_GridCompCreate ( name='GOCART',             &
                                    Grid=Grid,                 &
-                                   GridCompType = ESMF_ATM,   &
+!                                   GridCompType = ESMF_ATM,   &
                                    ConfigFile='MAPL.rc',      &
                                    __RC__  )
-
 
 !   Set component services
 !   ----------------------
@@ -122,7 +121,7 @@ CONTAINS
 
 !   Initialize component
 !   --------------------
-    call ESMF_GridCompInitialize ( GC, IMPORT, EXPORT, CLOCK, __RC__ )
+    call ESMF_GridCompInitialize ( GC, importState=IMPORT, exportState=EXPORT, clock=CLOCK, __RC__ )
 
 !   Fill in IMPORT state with reasonable values
 !   -------------------------------------------
@@ -142,7 +141,7 @@ CONTAINS
 
 !   Run component
 !   -------------
-    call ESMF_GridCompRun ( GC, IMPORT, EXPORT, CLOCK, __RC__ )
+    call ESMF_GridCompRun ( GC, importState=IMPORT, exportState=EXPORT, clock=CLOCK, __RC__ )
 
 !   Finalize component
 !   ------------------
@@ -163,10 +162,12 @@ CONTAINS
 
   integer :: i1, i2, j1, j2, k1, k2
 
-  real, pointer, dimension(:,:,:) :: ple, zle, airdens, fcld, dqdt, t, u, v, o3, rh2
+  real, pointer, dimension(:,:,:) :: ple, zle, airdens, fcld, dqdt, t, u, v, &
+                                     o3, rh2, cnv_qc, cnv_mfc, cnv_mfd
 
   real, pointer, dimension(:,:)   :: tropp, lwi, zpbl, frlake, fraci, wet1, lai, grn, cn_prcp, ncn_prcp, &
-                                     ps, sh, tsoil1, u10m, v10m, ustar, z0h
+                                     ps, sh, tsoil1, u10m, v10m, ustar, z0h, &
+                                     area, frocean
 
 !     Get Pointers to IMPORT state
 !     ----------------------------
@@ -178,13 +179,15 @@ CONTAINS
       call MAPL_GetPointer ( IMPORT, T, 'T', __RC__ )
       call MAPL_GetPointer ( IMPORT, U, 'U', __RC__ )
       call MAPL_GetPointer ( IMPORT, V, 'V', __RC__ )
-      call MAPL_GetPointer ( IMPORT, O3, 'O3', __RC__ )
+!      call MAPL_GetPointer ( IMPORT, O3, 'O3', __RC__ )
       call MAPL_GetPointer ( IMPORT, RH2, 'RH2', __RC__ )
       call MAPL_GetPointer ( IMPORT, TROPP, 'TROPP', __RC__ )
       call MAPL_GetPointer ( IMPORT, LWI, 'LWI', __RC__ )
       call MAPL_GetPointer ( IMPORT, ZPBL, 'ZPBL', __RC__ )
       call MAPL_GetPointer ( IMPORT, FRLAKE, 'FRLAKE', __RC__ )
       call MAPL_GetPointer ( IMPORT, FRACI, 'FRACI', __RC__ )
+      call MAPL_GetPointer ( IMPORT, area,     'AREA', __RC__ )
+      call MAPL_GetPointer ( IMPORT, frocean,  'FROCEAN', __RC__ )
       call MAPL_GetPointer ( IMPORT, WET1, 'WET1', __RC__ )
       call MAPL_GetPointer ( IMPORT, LAI, 'LAI', __RC__ )
       call MAPL_GetPointer ( IMPORT, GRN, 'GRN', __RC__ )
@@ -197,6 +200,9 @@ CONTAINS
       call MAPL_GetPointer ( IMPORT, V10M, 'V10M', __RC__ )
       call MAPL_GetPointer ( IMPORT, USTAR, 'USTAR', __RC__ )
       call MAPL_GetPointer ( IMPORT, Z0H, 'Z0H', __RC__ )
+      call MAPL_GetPointer ( IMPORT, cnv_qc,   'CNV_QC', __RC__ )
+      call MAPL_GetPointer ( IMPORT, cnv_mfc,  'CNV_MFC', __RC__ )
+      call MAPL_GetPointer ( IMPORT, cnv_mfd, 'CNV_MFD', __RC__ )
 
      i1 = lbound(u,1)
      j1 = lbound(u,2)
@@ -206,7 +212,6 @@ CONTAINS
      k2 = ubound(u,3)
 
      ASSERT_( (k2-k1+1) == 72)
-
 
 !     Fill typical values
 !     -------------------
@@ -269,7 +274,6 @@ CONTAINS
                           250, 254, 257, 260, 262, 263, 265, 266, 267, 268, 269, 270, &
                           270, 270, 270, 270, 271, 271, 271, 270, 267, 265, 266, 266 /)
 
-
             U(i,j,:) = (/ -18, -13, 0, 10, 26, 36, 39, 40, 38, 37, 36, 35, 32, 28,    &
                            23, 16, 6, -2, -9, -13, -15, -16, -14, -14, -12, -12, -11, &
                           -10, -9, -5, -3, -2, 0, 1, 3, 5, 9, 13, 17, 22, 24, 26,     &
@@ -283,14 +287,14 @@ CONTAINS
                          -9, -6, -4, -4, -4, -3, -2, -1, 0, 0, 0, 1, 1, 1, 2, 2,      &
                           3, 3, 3, 4, 4, 3 /)
 
-            O3(i,j,:) = 1.E-9 * & 
-                        (/ 16182, 9700, 7294, 5781, 4164, 3017, 2440, 2287, 2324, 2514,  &
-                           2838, 3304, 4030, 4924, 5915, 7033, 8434, 9894, 11101, 11414, &
-                           10475, 9745, 10058, 9119, 8538, 9238, 9164, 10028, 10132, 10237, &
-                           9447, 7972, 7174, 5222, 4008, 3296, 2231, 1320, 768, 628, 685, &
-                           676, 202, 122, 96, 88, 86, 83, 83, 84, 84, 83, 82, 81, 79, &
-                           79, 77, 76, 77, 80, 84, 87, 89, 90, 89, 88, 83, 76, 69, 65, &
-                           64, 64 /)
+!            O3(i,j,:) = 1.E-9 * & 
+!                        (/ 16182, 9700, 7294, 5781, 4164, 3017, 2440, 2287, 2324, 2514,  &
+!                           2838, 3304, 4030, 4924, 5915, 7033, 8434, 9894, 11101, 11414, &
+!                           10475, 9745, 10058, 9119, 8538, 9238, 9164, 10028, 10132, 10237, &
+!                           9447, 7972, 7174, 5222, 4008, 3296, 2231, 1320, 768, 628, 685, &
+!                           676, 202, 122, 96, 88, 86, 83, 83, 84, 84, 83, 82, 81, 79, &
+!                           79, 77, 76, 77, 80, 84, 87, 89, 90, 89, 88, 83, 76, 69, 65, &
+!                           64, 64 /)
  
             RH2(i,j,:) = 1e-6 * &
                          (/ 1, 2, 2, 2, 3, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 6, 18, 51,          &
@@ -301,11 +305,14 @@ CONTAINS
                             601563, 456055, 475098, 626954, 590821, 483399, 380860, 297852,  &
                             230958, 183594, 144288, 111084, 96558, 136963, 369629, 770508,   &
                             793946, 799805 /)
+
 !           2D
 !           --
             TROPP(i,j) = 20363.5
             LWI(i,j) = 1.
             ZPBL(i,j) = 59.
+            AREA(i,j) = 1.e6
+            FROCEAN(i,j) = 0.
             FRLAKE(i,j) = 0.
             FRACI(i,j) = 0.
             WET1(i,j) = 0.0
@@ -323,6 +330,11 @@ CONTAINS
 
          end do
       end do
+
+!     Convective imports
+      cnv_qc = 0.
+      cnv_mfc = 0.
+      cnv_mfd = 0.
 
     end subroutine Fill_Import_State_
 

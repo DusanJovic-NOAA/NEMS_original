@@ -29,14 +29,14 @@
   CO2EM002 | kg m-2 s-1 | xy  |   |    |   |   |     | CO2 Emission Bin 002     
   CO2EM003 | kg m-2 s-1 | xy  |   |    |   |   |     | CO2 Emission Bin 003     
   CO2EM004 | kg m-2 s-1 | xy  |   |    |   |   |     | CO2 Emission Bin 004     
-  CO2CL001 | kg m-2     | xy  |   |    |   |   |     | CO2 Column Load Bin 001     
-  CO2CL002 | kg m-2     | xy  |   |    |   |   |     | CO2 Column Load Bin 002     
-  CO2CL003 | kg m-2     | xy  |   |    |   |   |     | CO2 Column Load Bin 003     
-  CO2CL004 | kg m-2     | xy  |   |    |   |   |     | CO2 Column Load Bin 004     
-  CO2SC001 | ppmv       | xy  |   |    |   |   |     | CO2 Surface Concentration Bin 001     
-  CO2SC002 | ppmv       | xy  |   |    |   |   |     | CO2 Surface Concentration Bin 002     
-  CO2SC003 | ppmv       | xy  |   |    |   |   |     | CO2 Surface Concentration Bin 003     
-  CO2SC004 | ppmv       | xy  |   |    |   |   |     | CO2 Surface Concentration Bin 004     
+  CO2CL001 | 1          | xy  |   |    |   |   |     | CO2 Bulk Mixing Ratio (Column Mass/ps) Bin 001
+  CO2CL002 | 1          | xy  |   |    |   |   |     | CO2 Bulk Mixing Ratio (Column Mass/ps) Bin 002
+  CO2CL003 | 1          | xy  |   |    |   |   |     | CO2 Bulk Mixing Ratio (Column Mass/ps) Bin 003
+  CO2CL004 | 1          | xy  |   |    |   |   |     | CO2 Bulk Mixing Ratio (Column Mass/ps) Bin 004
+  CO2SC001 | 1e-6       | xy  |   |    |   |   |     | CO2 Surface Concentration Bin 001     
+  CO2SC002 | 1e-6       | xy  |   |    |   |   |     | CO2 Surface Concentration Bin 002     
+  CO2SC003 | 1e-6       | xy  |   |    |   |   |     | CO2 Surface Concentration Bin 003     
+  CO2SC004 | 1e-6       | xy  |   |    |   |   |     | CO2 Surface Concentration Bin 004     
 # ---------|------------|-----|---|----|---|---|-----|---------------------------------
 </CO2::ExportSpec>
 

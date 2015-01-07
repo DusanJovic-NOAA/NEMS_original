@@ -31,39 +31,54 @@ LIB  = lib$(THIS).a
 # ----------------------------------------------------------
   ifeq ($(GOCART_MODE),stub)
      BINS = ut_Registry.x
-     CSHS = 
+     SCRP = 
      SRCS := Chem_RegistryMod---stub.F90
      LIBS = $(LIB)
   else
-     BINS = Chem_Aod.x Chem_Aod3d.x ctl_crst.x Chem_BundleToG5rs.x 
-     CSHS = extinction_calculator.csh
+     BINS = Chem_Aod.x Chem_Aod3d.x ctl_crst.x Chem_BundleToG5rs.x \
+            reff_calculator.xx ext_calculator.xx
+     SCRP = extinction_calculator.csh ext_calculator.py
      SRCS = Chem_RegistryMod.F90 Chem_ArrayMod.F90 \
             Chem_BundleMod.F90 Chem_Mod.F90 Chem_InitMod.F90 \
-            Chem_MieTableMod.F90 Chem_MieMod.F90 Chem_AodMod.F90
-     LIBS = $(LIB) $(LIB_EU) $(LIB_GFIO) \
-            $(LIB_MFHDF3) $(LIB_SDF) \
-            $(LIB_ESMF) $(LIB_SYS) $(LIB_MPI) 
+            Chem_MieTableMod.F90 Chem_MieMod.F90 Chem_AodMod.F90 \
+            Chem_SimpleBundleMod.F90
+     LIBS = $(LIB) $(LIB_MAPL_BASE) $(LIB_MAPL_BASE_STUBS) $(LIB_MAPL_BASE_STUBS2) \
+            $(LIB_EU) $(LIB_CFIO) $(LIB_GFIO) \
+            $(LIB_MPEU) $(LIB_MFHDF3) $(LIB_ESMF) \
+            $(LIB_SDF) $(LIB_MPI) $(LIB_SYS)
+     MPLIBS = $(LIB) $(LIB_MAPL_BASE) $(LIB_MAPL_BASE_STUBS) $(LIB_MAPL_BASE_STUBS2) \
+            $(LIB_MPEU) $(LIB_CFIO) $(LIB_GFIO) \
+            $(LIB_MPEU) $(LIB_MFHDF3) $(LIB_ESMF) \
+            $(LIB_SDF) $(LIB_MPI) $(LIB_SYS)
   endif
 
 
 ifeq ( $(wildcard $(INC_MAPL_BASE)), $(null) ) 
       DGEOS5 =
 else
-      MOD_DIRS += $(INC_ESMF) $(INC_MAPL_BASE) $(INC_GMAO_MPEU) 
+      MOD_DIRS += $(INC_ESMF) $(INC_MAPL_BASE) $(INC_CFIO) $(INC_GMAO_MPEU) 
       DGEOS5 = $(D)GEOS5
 endif
 
+RCDIR = .
 
-#esma_install install: $(LIB) $(BINS)
+#jw esma_install install: $(LIB) $(BINS)
 esma_install install: $(LIB)
-	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAINC)/$(THIS) $(ESMABIN)
+	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAETC)/CMIP $(ESMAETC)/MERRA2 $(ESMAETC)/NR $(ESMAETC)/PIESA $(ESMAINC)/$(THIS) $(ESMABIN)
 	$(CP) -p *.a             $(ESMALIB)
-	$(CP) -p *.rc            $(ESMAETC)
+	$(CP) -p        *.rc     $(ESMAETC)
+	$(CP) -p   CMIP/*.rc     $(ESMAETC)/CMIP
+	$(CP) -p MERRA2/*.rc     $(ESMAETC)/MERRA2
+	$(CP) -p     NR/*.rc     $(ESMAETC)/NR
+	$(CP) -p  PIESA/*.rc     $(ESMAETC)/PIESA
 	$(CP) -p *.mod           $(ESMAINC)/$(THIS)
-	$(CP) -p $(CSHS) $(ESMABIN)
+#jw	$(CP) -p $(BINS) $(SCRP) $(ESMABIN)
 
-esma_clean esma_distclean clean:
-	$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd] *.x
+esma_clean clean:
+	$(RM) *~ *.[aox] *.[Mm][Oo][Dd] *.xx
+
+esma_distclean distclean:
+	$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd] *.xx
 
 esma_doc doc:
 	@echo "Target $@ not implemented yet in `pwd`"
@@ -96,9 +111,11 @@ THIS_GFIO = GMAO_gfio_r4
 
 ifeq ($(ESMA_REAL),$(FREAL8))
 	THIS_GFIO = GMAO_gfio_r8
+	THIS_CFIO = MAPL_cfio_r8
 	FREAL = $(FREAL8)
 else
 	THIS_GFIO = GMAO_gfio_r4
+	THIS_CFIO = MAPL_cfio_r4
 	FREAL = $(FREAL4)
 endif
 
@@ -114,8 +131,15 @@ $(LIB) lib : $(DEPS) $(OBJS)
 	$(RM) $(LIB)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
 
+# Generic single PE apps
+# ----------------------
 %.x : $(LIB) %.o 
 	$(LD) $(LDFLAGS) -o $@ $*.o $(LIBS)
+
+# Generic MPI apps
+# ----------------
+%.xx : $(LIB) %.o 
+	$(LD) $(LDFLAGS) -o $@ $*.o $(MPLIBS)
 
 # Hack to prevent remaking dep files during cleaning
 # --------------------------------------------------

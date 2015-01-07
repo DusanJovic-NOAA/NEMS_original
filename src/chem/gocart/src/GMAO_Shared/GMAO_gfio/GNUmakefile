@@ -26,7 +26,7 @@ THIS := $(shell basename `pwd`)
 #                  Standard ESMA Targets
 #                  ---------------------
 
-esma_help :
+esma_help help:
 	@echo "Standard ESMA targets:"
 	@echo "% make esma_install    (builds and install under ESMADIR)"
 	@echo "% make esma_clean      (removes deliverables: *.[aox], etc)"
@@ -47,24 +47,42 @@ esma_help :
 
 SUBDIRS = r4 r8
 
-TARGETS = esma_install esma_clean esma_distclean esma_doc \
-          help install doc
+TARGETS = esma_install esma_clean esma_doc \
+          install clean doc
 
-$(TARGETS): 
+PY_MODS = gfio.py
+PY_EXTS = GFIO_.$(F2PYEXT)
+
+# GPU With CUDA Fortran, one of the compiler options interferes
+# with f2py. This turns off the GPU options if on.
+GPU_TARGET = 
+
+$(TARGETS):
 	@ t=$@; argv="$(SUBDIRS)" ;\
 	  for d in $$argv; do			 \
 	    ( $(MKDIR) $$d            		;\
 	      $(MAKE) -C $$d -f ../GNUmakefile_r4r8 -e $$t NTHIS=$(THIS) RN=$$d ) \
 	  done
+	$(MAKE) local_$@
 
+#jw local_esma_install local_install: $(LIB) python_install
 local_esma_install local_install: $(LIB)
 	@echo No local install in here
+
+local_esma_clean local_clean:
+	-$(RM) *~ *.[aox] *.mod *.pyf *.so
+
+local_esma_doc local_doc:
+	@echo No doc to build here
+
+esma_distclean distclean:
+	-$(RM) -r *~ *.[aoxd] *.mod *.pyf *.so $(SUBDIRS)
 
 #                  --------------------
 #                  User Defined Targets
 #                  --------------------
 
-r4_install:
+r4_install: 
 	$(MKDIR) r4
 	echo Making install for r4 in $(PWD)
 	$(MAKE) -C r4 -f ../GNUmakefile_r4r8 -e install NTHIS=$(THIS) RN=r4
@@ -80,26 +98,28 @@ dist:
           $(TAR)  cvf evac-`date '+%d%b%Y'`.tar src ;\
           $(GZIP) evac-`date '+%d%b%Y'`.tar )
 
-clean:
-	-$(RM) *~ *.[aox] *.mod
-	$(MAKE) esma_clean
-
-distclean:
-	-$(RM) -r *~ *.[aoxd] *.mod r4 r8
-	$(MAKE) esma_distclean
-
-binclean:
-	-$(RM) -r $(ESMADIR)/Config 
-	-$(RM) -r $(ESMADIR)/$(ARCH)
-
-realclean:
-	$(MAKE) distclean
-	$(MAKE) binclean
-
 test:
 	$(MAKE) -C r4 -f ../GNUmakefile_r4r8 -e test NTHIS=$(THIS) RN=r4
 	$(MAKE) -C r8 -f ../GNUmakefile_r4r8 -e test NTHIS=$(THIS) RN=r8
 
+#                  --------------------
+#                        Python
+#                  --------------------
+
+python: $(PY_EXTS)
+
+GFIO_.$(F2PYEXT): GFIO_py.F90 r4_install
+	$(F2PY) -c -m GFIO_ $(M). $(M)$(INC_SDF) \
+              GFIO_py.F90 r4/libGMAO_gfio_r4.a $(LIB_SDF) $(LIB_SYS) \
+              only: gfioopen gfiocreate gfiodiminquire gfioinquire\
+                    gfiogetvar gfiogetvart gfioputvar gfiogetbegdatetime\
+                    gfiointerpxy gfiointerpnn gfiocoordnn gfioclose :
+
+python-install python_install: $(PY_EXTS)
+	$(MKDIR) $(ESMALIB)/Python
+	$(CP) -pr $(PY_MODS) $(PY_EXTS) $(ESMALIB)/Python
+
+#...............................................................
 
   -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
 

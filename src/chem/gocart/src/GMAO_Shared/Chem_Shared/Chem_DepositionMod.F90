@@ -130,6 +130,7 @@ CONTAINS
    real*8 R1, R2, w10m, u_thresh0
    real*8 obk, vds, vdsmax, czh, factor
    real*8 frac, cz, psi_h, eps, logmfrac, z0h_min, z0h_, r8_cdt
+   real*8 :: one = 1.0, zero = 0.0
 
    r8_cdt = cdt
 
@@ -158,6 +159,8 @@ CONTAINS
 
 !  =========================================================================
 !  Aerodynamic Resistance
+!  psi_h and Ra are equations 2, 4-5 of Walcek et al. 1986 Atmospheric Environment
+!  obk supposedly from Wesely and Hicks 1977 J. Air Poll. Control Assoc.
 !
    do j = j1, j2
     do i = i1, i2
@@ -183,7 +186,7 @@ CONTAINS
       if(frac .gt. 0. .and. frac .le. 1.) then
        psi_h = -5.0*frac
       else if (frac .lt. 0.) then
-       eps = min(1.,-frac)
+       eps = min(one,-frac)
        logmfrac = log(eps)
        psi_h = exp(0.598 + 0.39*logmfrac - 0.09*(logmfrac)**2.)
       endif
@@ -197,7 +200,8 @@ CONTAINS
 
 !  =======================================================================
 !  Surface Resistance term for aerosols
-!  Walcek et al. 1986
+!  Rs formulation from eqn. 15 - 18 of Walcek et al. 1986 Atmospheric Environment
+!  obk supposedly from Wesely and Hicks 1977 J. Air Poll. Control Assoc.
 
 !  Loop over the bins
    do n = 1, nbins
@@ -232,11 +236,10 @@ CONTAINS
       if(obk .lt. 0.) vds = vds*(1.+(-300./obk)**0.6667)
       czh = pblh(i,j)/obk
       if(czh .lt. -30.) vds = 0.0009*ustar(i,j)*(-czh)**0.6667
-      if(oro(i,j) .eq. OCEAN) then
-       vdsMax = 0.001
-      else
-       vdsMax = 0.01
-      endif
+!     vdsMax is from Table 2 of Walcek et al. 1986
+!     There are actually seasonal and regionally varying values,
+!     but for most of the world a value of 1.0 cm s-1 is used.
+      vdsMax = 0.01
 
       Rs(i,j) = 1./min(vds,vdsmax)
 
@@ -259,7 +262,7 @@ CONTAINS
        else
         R2 = fraclake(i,j)+(1.-fraclake(i,j)) &
                            *( gwettop(i,j)+(1.-gwettop(i,j)) &
-                             *exp(-max(0.,(w10m-u_thresh0))))
+                             *exp(-max(zero,(w10m-u_thresh0))))
        endif
       endif
 
@@ -283,7 +286,7 @@ CONTAINS
 
 !     Update the mass mixing ratio and compute the flux out
       factor = (1.0d0-exp(-drydepf(i,j)*r8_cdt))
-      dc = max(0.0,w_c%qa(n+nbeg-1)%data3d(i,j,km)*factor)
+      dc = max(zero,w_c%qa(n+nbeg-1)%data3d(i,j,km)*factor)
       w_c%qa(n+nbeg-1)%data3d(i,j,km) = w_c%qa(n+nbeg-1)%data3d(i,j,km) - dc
 
       outflux(i,j) = dc * w_c%delp(i,j,km)/grav/cdt

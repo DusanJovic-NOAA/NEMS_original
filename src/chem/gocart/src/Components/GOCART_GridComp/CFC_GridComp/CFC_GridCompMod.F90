@@ -13,14 +13,16 @@
 
 ! !USES:
 
-   USE ESMF_Mod
+   USE ESMF
    USE MAPL_Mod
    USE Chem_Mod 	     ! Chemistry Base Class
    USE Chem_StateMod	     ! Chemistry State
    USE Chem_ConstMod, ONLY: grav
    USE Chem_UtilMod	     ! I/O
    USE m_inpak90	     ! Resource file management
-   USE m_die, ONLY: die
+
+   USE ESMF_CFIOFileMOD
+   USE MAPL_CFIOMOD
 
    IMPLICIT NONE
 
@@ -64,14 +66,17 @@
     INTEGER :: nx
     INTEGER :: nxdo
     INTEGER :: nts
+    INTEGER :: photEquNumber
 
-    REAL(KIND=4), POINTER :: sdat(:,:,:,:)
-    REAL(KIND=4), POINTER :: xtab(:,:)
-    REAL(KIND=4), POINTER :: o3_tab(:,:)
-    REAL(KIND=4), POINTER :: sza_tab(:)
+    REAL, POINTER :: sdat(:,:,:,:)
+    REAL, POINTER :: sza_tab(:)
+    REAL, POINTER :: o3_tab(:,:)
+    REAL, POINTER :: xtab(:,:,:)
 
     REAL, POINTER :: CFCsfcFlux(:,:)	 ! CFC-12 surface flux kg m^-2 s^-1
     REAL, POINTER :: CFCloss(:,:,:,:)	 ! CFC loss due to photolysis m^-3 s^-1
+
+    LOGICAL :: DebugIsOn
 
   END TYPE CFC_GridComp
 
@@ -122,260 +127,338 @@ CONTAINS
 !                      for CR-AVE
 !  12Feb2005  Nielsen  8 regions for INTEX-B 2006
 !   1Jan2008  Nielsen  CFC-12 configuration for ARCTAS
+!   1Nov2012  Nielsen  Accomodate cubed sphere for GEOS-5 Ganymed releases
 !
 !EOP
 !-------------------------------------------------------------------------
+#include "mpif.h"
 
-   CHARACTER(LEN=*), PARAMETER :: myname = 'CFC_GridCompInitialize'
-   
+   CHARACTER(LEN=*), PARAMETER :: Iam = 'CFC_GridCompInitialize'
+   TYPE(ESMF_VM) :: vm
+
    CHARACTER(LEN=255) :: rcfilen = 'CFC_GridComp.rc'
 
-   CHARACTER(LEN=255) :: dir4files
-   CHARACTER(LEN=255) :: fnO2Jdat
-   CHARACTER(LEN=255) :: fnO3SZA
-   CHARACTER(LEN=255) :: fnXsectJPL
+   CHARACTER(LEN=255) :: fnPhoto, fileName
    CHARACTER(LEN=255) :: eFileName
 
-   INTEGER :: ier(128)
-   INTEGER :: i, i1, i2, im, j1, j2, jm, km, nbins
+   REAL :: x
+   REAL, ALLOCATABLE :: w(:)
+
+   INTEGER :: i, i1, i2, im, j, j1, j2, jm, k, km, kr, n, nbins, status
 
    gcCFC%name = 'CFC-12 Chemistry for ARCTAS'
 
-   rc = 0
 !  Initialize local variables
 !  --------------------------
    rc = 0
    i1 = w_c%grid%i1
    i2 = w_c%grid%i2
    im = w_c%grid%im
-   
+
    j1 = w_c%grid%j1
    j2 = w_c%grid%j2
    jm = w_c%grid%jm
-   
+
    km = w_c%grid%km
-   
+
    nbins = w_c%reg%n_CFC
-   ier(:)=0
 
-!  Initialize photolysis variables
-!  -------------------------------
-   gcCFC%nlam  =  79
-   gcCFC%nsza  =  20
-   gcCFC%numo3 =  12
-   gcCFC%nx    =  35
-   gcCFC%nxdo  =  33
-   gcCFC%nts   = 200
+! Grab the virtual machine
+! ------------------------
+   CALL ESMF_VMGetCurrent(vm, RC=status)
+   VERIFY_(status)
 
-!  Load resource file
-!  ------------------
-   CALL I90_loadf ( TRIM(rcfilen), ier(1) )
-   IF ( ier(1) .NE. 0 ) THEN
-    rc = 10
-    RETURN
+! Load resource file
+! ------------------
+   CALL I90_loadf ( TRIM(rcfilen), status )
+   VERIFY_(status)
+
+   CALL I90_label ( 'photolysisFile:', status )
+   VERIFY_(status)
+   CALL I90_Gtoken( fnPhoto, status )
+   VERIFY_(status)
+
+   CALL I90_label ( 'CFC_emission_filename:', status )
+   VERIFY_(status)
+   CALL I90_Gtoken( eFileName, status )
+   VERIFY_(status)
+
+   CALL I90_Label ( 'phot_Equation_number:', status )
+   VERIFY_(status)
+   gcCFC%photEquNumber = I90_Gint( status )
+   VERIFY_(status)
+
+! Run-time debug switch
+! ---------------------
+   CALL I90_label ( 'DEBUG:', status )
+   VERIFY_(status)
+   n = I90_gint ( status )
+   VERIFY_(status)
+   IF(n /= 0) THEN
+    gcCFC%DebugIsOn = .TRUE.
+   ELSE
+    gcCFC%DebugIsOn = .FALSE.
    END IF
 
-   CALL I90_label ( 'directory:', ier(30) )
-   CALL I90_Gtoken( dir4files, ier(31) )
+! Allocate space
+! --------------
+   ALLOCATE(gcCFC%CFCsfcFlux(i1:i2,j1:j2), STAT=status )
+   VERIFY_(status)
+   ALLOCATE(gcCFC%CFCloss(i1:i2,j1:j2,1:km,nbins), STAT=status )
+   VERIFY_(status)
 
-   CALL I90_label ( 'O2Jtable:', ier(32) )
-   CALL I90_Gtoken( fnO2Jdat, ier(33) )
-
-   CALL I90_label ( 'O3&SZAtables:', ier(36) )
-   CALL I90_Gtoken( fnO3SZA, ier(37) )
-
-   CALL I90_label ( 'JPLXsections:', ier(40) )
-   CALL I90_Gtoken( fnXsectJPL, ier(41) )
-
-   CALL I90_label ( 'CFC_emission_filename:', ier(50) )
-   CALL I90_Gtoken( eFileName, ier(51) )
-
-   IF( ANY( ier(1:128) /= 0 ) ) THEN
-    rc = 12
-    RETURN
-   END IF
-   ier(:)=0
-
-! Allocate space for grid-size dependent arrays
-! ---------------------------------------------
-   ALLOCATE(gcCFC%sdat(gcCFC%nsza,gcCFC%numo3,km,gcCFC%nlam), stat=ier( 9) )
-   ALLOCATE(	            gcCFC%xtab(gcCFC%nlam,gcCFC%nts), stat=ier(10) )
-   ALLOCATE(	                gcCFC%o3_tab(gcCFC%numo3,km), stat=ier(11) )
-   ALLOCATE(	                   gcCFC%sza_tab(gcCFC%nsza), stat=ier(12) )
-   ALLOCATE(                   gcCFC%CFCsfcFlux(i1:i2,j1:j2), stat=ier(13) )
-   ALLOCATE(           gcCFC%CFCloss(i1:i2,j1:j2,1:km,nbins), stat=ier(14) )
-
-   IF( ANY( ier(1:128) /= 0 ) ) THEN
-    rc = 14
-    RETURN
-   END IF
-   ier(:)=0
-
-!  Acquire the CFC-12 emissions
-!  ----------------------------
+! Acquire the CFC-12 emissions
+! ----------------------------
    CALL Chem_UtilMPread ( TRIM(eFileName), 'CFC-12_EMISSION', 20080101, &
    			  120000, i1, i2, 0, im, j1, j2, 0, jm, 0, &
    			  var2d=gcCFC%CFCsfcFlux, cyclic=.true., &
    			  grid=w_c%grid_esmf )
 
-!  Read the tables
-!  ---------------
-   CALL rdPhotFiles(km,dir4files,fnO2Jdat,fnO3SZA,fnXsectJPL)
+! Photolysis tables: Initialize from NetCDF file
+! ----------------------------------------------
+   fileName = TRIM(fnPhoto)
+   CALL readPhotTables(fileName, status)
+   VERIFY_(status)
+
+! Reverse vertical ordering of the radiative
+! source function and the overhead O3 reference
+! ---------------------------------------------
+   DO n = 1,gcCFC%nlam
+    DO j = 1,gcCFC%numo3
+     DO i = 1,gcCFC%nsza
+      DO k = 1,km/2
+       kr = km-k+1
+       x = gcCFC%sdat(i,j,k,n)
+       gcCFC%sdat(i,j,k,n) = gcCFC%sdat(i,j,kr,n)
+       gcCFC%sdat(i,j,kr,n) = x
+      END DO
+     END DO
+    END DO
+   END DO
+
+   ALLOCATE(w(gcCFC%numo3), STAT=status)
+   VERIFY_(status)
+
+   DO k = 1,km/2
+    kr = km-k+1
+    w(1:gcCFC%numo3) = gcCFC%o3_tab(1:gcCFC%numo3,k)
+    gcCFC%o3_tab(1:gcCFC%numo3,k) = gcCFC%o3_tab(1:gcCFC%numo3,kr)
+    gcCFC%o3_tab(1:gcCFC%numo3,kr) = w(1:gcCFC%numo3)
+   END DO
+
+   DEALLOCATE(w, STAT=status)
+   VERIFY_(status)
 
    RETURN
-   CONTAINS
-   SUBROUTINE rdPhotFiles(km,dir,fnO2Jdat,fnO3SZA,fnXsectJPL)
-!---------------------------------------------------------------------------
+  CONTAINS
+!-------------------------------------------------------------------------
+!NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1, GEOS/DAS!
+!-------------------------------------------------------------------------
+!BOP
 !
-! Read several external files for the photolysis.
+! !INTERFACE:
+
+ SUBROUTINE readPhotTables(fileName, rc)
+
+! !USES:
+
+  IMPLICIT NONE
+
+! !INPUT PARAMETERS:
 !
-! Input parameters:
+  CHARACTER(LEN=*), INTENT(IN) :: fileName
 !
-! km    Grid dimensions
-! dir	Directory on which these files reside
-! fns   File names
+! !OUTPUT PARAMETERS:
 !
-! Output parameters:
+  INTEGER, INTENT(OUT) :: rc
+
+! !DESCRIPTION:
 !
-!  None.
+! Read tables for photolysis in StratChem ... from a NetCDF file
 !
 ! Restrictions:
+!  ASSERT that the number of pressure layers in the dataset equals km.
 !
-!  This runs on each processor
+! !REVISION HISTORY:
+!  Nielsen     11 May 2012: First crack.
 !
-!  This version requires input data at jnp latitudes.
-!
+!EOP
 !-----------------------------------------------------------------------
-      IMPLICIT NONE
 
-      INTEGER, INTENT(IN) :: km
-      
-      CHARACTER(LEN=*), INTENT(IN) :: dir
-      CHARACTER(LEN=*), INTENT(IN) :: fnO2Jdat
-      CHARACTER(LEN=*), INTENT(IN) :: fnO3SZA
-      CHARACTER(LEN=*), INTENT(IN) :: fnXsectJPL
+  CHARACTER(LEN=ESMF_MAXSTR) :: Iam = "CFC::readPhotTables"
 
-      REAL(KIND=4), ALLOCATABLE :: dxtab(:,:,:)
+  INTEGER :: comm, info, unit, status
+  INTEGER :: dimid, i, n
 
-      INTEGER :: i, j, k, l, ierr, iunit, iuchem, kReverse
-      INTEGER :: npr_in, nlam_in, nsza_in, no3_in
-      REAL :: deg2Rad, pi
-      REAL (KIND=4) :: pr_tab(km)
-      REAL (KIND=4) :: rlam(gcCFC%nlam)
+  INTEGER :: length
 
-      LOGICAL :: exists,open,found
+  INTEGER, PARAMETER :: nD = 6
+  CHARACTER(LEN=ESMF_MAXSTR) :: dimName(nD)= (/"nsza", &
+             "numO3", "layers", "nlam", "nts", "nxdo" /)
 
-      pi = 4.00*ATAN(1.00)
-      deg2Rad = pi/180.00
+  INTEGER, PARAMETER :: nV = 4
+  CHARACTER(LEN=ESMF_MAXSTR) :: varName(nV)= (/"sza", &
+                           "O3TAB",  "SDAT",  "XTAB" /)
 
-! Find an available logical unit 
-! ------------------------------
-      found=.FALSE.
-      iunit=11
+  rc = 0
 
-      DO WHILE (.NOT. found .AND. iunit <= 99)
-       INQUIRE(UNIT=iunit,EXIST=exists,OPENED=open)
-       IF(exists .AND. .NOT. open) THEN
-        found=.TRUE.
-        iuchem=iunit
-       END IF
-       iunit=iunit+1
-      END DO
+  CALL ESMF_VMGet(vm, MPICOMMUNICATOR=comm, rc=status)
+  VERIFY_(status)
 
-      IF(.NOT. found) THEN
-       WRITE(*,FMT="(/,'rdPhotFiles: No available logical units.')")
-       STOP
-      ELSE
-       IF(MAPL_AM_I_ROOT()) THEN
-        WRITE(*,FMT="(' ')")
-        WRITE(*,FMT="(' ','rdPhotFiles: Reading from UNIT ',I3)") iuchem
-	END IF
-      END IF
-      
-! Read in sdat(nsza,numo3,levels,nlam)
-! ------------------------------------
-      OPEN(iuchem,FILE=TRIM(dir)//'/'//TRIM(fnO2Jdat),STATUS='old', &
-            FORM='unformatted',ACTION='read')
-      READ(iuchem) gcCFC%sdat
-      CLOSE(iuchem)
-  
-! Read solar zenith angle and O3 references after checking sizes
-! --------------------------------------------------------------
-      OPEN(iuchem,FILE = TRIM(dir)//'/'//TRIM(fnO3SZA),STATUS='old', &
-           FORM='unformatted',ACTION='read')
-      READ(iuchem) npr_in,nlam_in,nsza_in,no3_in
-      READ(iuchem) pr_tab
-      READ(iuchem) rlam
-      READ(iuchem) gcCFC%sza_tab
-      READ(iuchem) gcCFC%o3_tab
-      CLOSE(iuchem)
-      IF(( npr_in .NE.         km) .OR. (nlam_in .NE.  gcCFC%nlam) .OR. &
-         (nsza_in .NE. gcCFC%nsza) .OR. ( no3_in .NE. gcCFC%numo3)) THEN
-         PRINT *,'rdPhotFiles: Array sizes of table do not match ', &
-                 ' those expected:',npr_in,km,nlam_in,gcCFC%nlam, &
-                 nsza_in,gcCFC%nsza,no3_in,gcCFC%numo3
-     	 STOP
-      END IF
- 
-! Convert sza_tab(nsza) to radians
-! --------------------------------
-      DO i=1,gcCFC%nsza
-       gcCFC%sza_tab(i) = gcCFC%sza_tab(i)*deg2Rad
-      END DO
+#undef H5_HAVE_PARALLEL
+#ifdef H5_HAVE_PARALLEL
 
-! Reverse sdat(nsza,numo3,levels,nlam) in the vertical to accomodate GEOS-5
-! -------------------------------------------------------------------------
-      DO l=1,gcCFC%nlam				       
-       DO j=1,gcCFC%numo3				       
-        DO i=1,gcCFC%nsza				       
-         pr_tab(1:km) = gcCFC%sdat(i,j,1:km,l)		       
-         DO k=1,km					       
-          kReverse = km-k+1				       
-          gcCFC%sdat(i,j,k,l) = pr_tab(kReverse)
-         END DO						       
-        END DO						       
-       END DO						       
-      END DO						       
+  CALL MPI_Info_create(info, status)
+  CALL MPI_Info_set(info, "romio_cb_read", "automatic", status)
+  VERIFY_(status)
 
-! Reverse o3_tab(numo3,km) in the vertical to accomodate GEOS-5
-! -------------------------------------------------------------
-      DO j=1,gcCFC%numo3					 
-       pr_tab(1:km) = gcCFC%o3_tab(j,1:km)			 
-       DO k=1,km						 
-        kReverse = km-k+1					 
-        gcCFC%o3_tab(j,k) = pr_tab(kReverse)
-       END DO 						 
-      END DO  						 
+#ifdef NETCDF_NEED_NF_MPIIO
+  status = NF_OPEN_PAR(TRIM(fileName), IOR(NF_NOWRITE,NF_MPIIO), comm, info, unit)
+#else
+  status = NF_OPEN_PAR(TRIM(fileName), NF_NOWRITE, comm, info, unit)
+#endif
 
-      ALLOCATE(dxtab(gcCFC%nlam,gcCFC%nts,gcCFC%nx),STAT=ierr)
+#else
 
-! JPL cross sections
-! ------------------ 
-      OPEN(iuchem,FILE=TRIM(dir)//'/'//TRIM(fnXsectJPL), &
-           STATUS='old',ACTION='read',FORM='unformatted')
-      READ(iuchem) dxtab
-      CLOSE(iuchem)
+  IF(MAPL_AM_I_ROOT(vm)) THEN 
+   status = NF_OPEN(TRIM(fileName), NF_NOWRITE, unit)
 
-! Need only #25
-! -------------
-      k=25
-      DO j=1,gcCFC%nts
-       DO i=1,gcCFC%nlam
-        gcCFC%xtab(i,j) = dxtab(i,j,k)
-       END DO
-      END DO
+#endif
 
-      DEALLOCATE(dxtab,STAT=ierr)
+   IF(status /= NF_NOERR) THEN
+    PRINT *,'Error opening file ',TRIM(fileName), status
+    PRINT *, NF_STRERROR(status)
+    VERIFY_(status)
+   END IF
 
-      IF(MAPL_AM_I_ROOT()) THEN
-       print *,'rdPhotFiles: Done'
-       print *,' '
-      END IF
+   DO i = 1,nD
 
-      RETURN
-      END SUBROUTINE rdPhotFiles
+    status = NF_INQ_DIMID(unit, TRIM(dimName(i)), dimid)
+    IF(status /= NF_NOERR) THEN
+     PRINT *,"Error inquiring dimension ID for ", TRIM(dimName(i)), status
+     PRINT *, NF_STRERROR(status)
+     VERIFY_(status)
+    END IF
 
-   END SUBROUTINE CFC_GridCompInitialize
+    status = NF_INQ_DIMLEN(unit, dimid, n)
+    IF(status /= NF_NOERR) THEN
+     PRINT *,"Error inquiring  dimension length for ", TRIM(dimName(i)), status
+     PRINT *, NF_STRERROR(status)
+    END IF
+
+    SELECT CASE (i)
+     CASE (1)
+      gcCFC%nsza = n
+     CASE (2)
+      gcCFC%numO3 = n
+     CASE (3)
+      ASSERT_(n == km)
+     CASE (4)
+      gcCFC%nlam = n
+     CASE (5)
+      gcCFC%nts = n
+     CASE (6)
+      gcCFC%nxdo = n
+     CASE DEFAULT
+    END SELECT
+
+   END DO
+
+#ifndef H5_HAVE_PARALLEL
+
+  END IF ! MAPL_AM_I_ROOT
+
+  CALL MAPL_CommsBcast(vm, gcCFC%nsza, 1, 0, RC=status)
+  VERIFY_(status)
+  CALL MAPL_CommsBcast(vm, gcCFC%numO3, 1, 0, RC=status)
+  VERIFY_(status)
+  CALL MAPL_CommsBcast(vm, gcCFC%nlam, 1, 0, RC=status)
+  VERIFY_(status)
+  CALL MAPL_CommsBcast(vm, gcCFC%nts, 1, 0, RC=status)
+  VERIFY_(status)
+  CALL MAPL_CommsBcast(vm, gcCFC%nxdo, 1, 0, RC=status)
+  VERIFY_(status)
+
+#endif
+
+  ALLOCATE(gcCFC%sdat(gcCFC%nsza,gcCFC%numo3,km,gcCFC%nlam), STAT=status)
+  VERIFY_(status)
+  ALLOCATE(gcCFC%o3_tab(gcCFC%numo3,km), STAT=status)
+  VERIFY_(status)
+  ALLOCATE(gcCFC%xtab(gcCFC%nlam,gcCFC%nxdo,gcCFC%nts), STAT=status)
+  VERIFY_(status)
+  ALLOCATE(gcCFC%sza_tab(gcCFC%nsza), STAT=status)
+  VERIFY_(status)
+
+#ifndef H5_HAVE_PARALLEL
+
+  IF(MAPL_AM_I_ROOT(vm)) THEN
+
+#endif
+
+   DO i = 1,nV
+
+    status = NF_INQ_VARID(unit, TRIM(varName(i)), n)
+    IF(status /= NF_NOERR) THEN
+     PRINT *,"Error getting varid for ", TRIM(varName(i)), status
+     PRINT *, NF_STRERROR(status)
+     VERIFY_(status)
+    END IF
+
+    SELECT CASE (i)
+     CASE (1)
+      status = NF_GET_VAR_REAL(unit, n, gcCFC%sza_tab)
+     CASE (2)
+      status = NF_GET_VAR_REAL(unit, n, gcCFC%o3_tab)
+     CASE (3)
+      status = NF_GET_VAR_REAL(unit, n, gcCFC%sdat)
+     CASE (4)
+      status = NF_GET_VAR_REAL(unit, n, gcCFC%xtab)
+     CASE DEFAULT
+    END SELECT
+
+    IF(status /= NF_NOERR) THEN
+     PRINT *,"Error getting values for ", TRIM(varName(i)), status
+     PRINT *, NF_STRERROR(status)
+     VERIFY_(status)
+    END IF
+
+   END DO
+
+#ifdef H5_HAVE_PARALLEL
+
+   CALL MPI_Info_free(info, status)
+   VERIFY_(status)
+
+#else
+
+   status = NF_CLOSE(unit)
+   VERIFY_(status)
+
+  END IF ! MAPL_AM_I_ROOT
+
+  length = SIZE(gcCFC%sza_tab)
+  CALL MPI_Bcast(gcCFC%sza_tab, length, MPI_REAL, 0, comm, status)
+  VERIFY_(status)
+
+  length = SIZE(gcCFC%o3_tab)
+  CALL MPI_Bcast(gcCFC%o3_tab, length, MPI_REAL, 0, comm, status)
+  VERIFY_(status)
+
+  length = SIZE(gcCFC%sdat)
+  CALL MPI_Bcast(gcCFC%sdat, length, MPI_REAL, 0, comm, status)
+  VERIFY_(status)
+
+  length = SIZE(gcCFC%xtab)
+  CALL MPI_Bcast(gcCFC%xtab, length, MPI_REAL, 0, comm, status)
+  VERIFY_(status)
+
+#endif
+
+  RETURN
+ END SUBROUTINE readPhotTables
+
+ END SUBROUTINE CFC_GridCompInitialize
 
 !-------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
@@ -411,11 +494,10 @@ CONTAINS
    INTEGER, INTENT(OUT) ::  rc                  ! Error return code:
                                                 !  0 - all is well
                                                 !  1 -
+!EOP
 
-   CHARACTER(LEN=*), PARAMETER :: myname = 'CFC_GridCompRun'
-   CHARACTER(LEN=*), PARAMETER :: Iam = myname
+   CHARACTER(LEN=*), PARAMETER :: Iam = 'CFC_GridCompRun'
 
-   INTEGER :: ier(128)
    INTEGER ::  i1, i2, im, iXj, j1, j2, jm, km, status
    INTEGER ::  i, indt, j, k, m, n, nbeg, nbins, nend
    REAL :: o3c, qmin, qmax, r, rg, szan
@@ -519,45 +601,41 @@ CONTAINS
    nbins = w_c%reg%n_CFC
    nbeg  = w_c%reg%i_CFC
    nend  = w_c%reg%j_CFC
-   
+
 !  Imports
 !  -------
-   call MAPL_GetPointer( impChem,     T,     'T', rc=ier(1) ) 
-   call MAPL_GetPointer( impChem,    O3,    'O3', rc=ier(2) ) 
-   call MAPL_GetPointer( impChem, tropp, 'TROPP', rc=ier(3) ) 
+   CALL MAPL_GetPointer( impChem,     T,     'T', RC=status )
+   VERIFY_(status) 
+   CALL MAPL_GetPointer( impChem,    O3,    'O3', RC=status ) 
+   VERIFY_(status) 
+   CALL MAPL_GetPointer( impChem, tropp, 'TROPP', RC=status ) 
+   VERIFY_(status) 
 
-   IF(ANY(ier(:) /= 0 )) THEN
-    rc = 1
-    RETURN
+   IF(gcCFC%DebugIsOn) THEN
+    CALL pmaxmin('CFC:     T',     T, qmin, qmax, iXj, km, 1. )
+    CALL pmaxmin('CFC:    O3',    O3, qmin, qmax, iXj, km, 1. )
+    CALL pmaxmin('CFC: TROPP', tropp, qmin, qmax, iXj,  1, 1. )
    END IF
-   ier(:)=0
-
-#ifdef DEBUG
-   CALL pmaxmin('    T',     T, qmin, qmax, iXj, km, 1. )
-   CALL pmaxmin('   O3',    O3, qmin, qmax, iXj, km, 1. )
-   CALL pmaxmin('TROPP', tropp, qmin, qmax, iXj,  1, 1. )
-#endif
 
 !  Allocate temporary workspace
 !  ----------------------------
-   ALLOCATE(    emit2vmr(i1:i2,j1:j2), STAT=ier(1))
-   ALLOCATE(      tropPa(i1:i2,j1:j2), STAT=ier(1))
-   ALLOCATE(      pPa(i1:i2,j1:j2,km), STAT=ier(2))
-   ALLOCATE(       nd(i1:i2,j1:j2,km), STAT=ier(3))
-   ALLOCATE(    O3Col(i1:i2,j1:j2,km), STAT=ier(4))
-   ALLOCATE(photoRate(i1:i2,j1:j2,km), STAT=ier(5))
-
-   IF(ANY(ier(:) /= 0 )) THEN
-    rc = 10
-    RETURN
-   END IF
-   ier(:)=0
+   ALLOCATE(    emit2vmr(i1:i2,j1:j2), STAT=status)
+   VERIFY_(status) 
+   ALLOCATE(      tropPa(i1:i2,j1:j2), STAT=status)
+   VERIFY_(status) 
+   ALLOCATE(      pPa(i1:i2,j1:j2,km), STAT=status)
+   VERIFY_(status) 
+   ALLOCATE(       nd(i1:i2,j1:j2,km), STAT=status)
+   VERIFY_(status) 
+   ALLOCATE(    O3Col(i1:i2,j1:j2,km), STAT=status)
+   VERIFY_(status) 
+   ALLOCATE(photoRate(i1:i2,j1:j2,km), STAT=status)
+   VERIFY_(status) 
 
 !  Fix bad tropopause pressure values if they exist.
 !  -------------------------------------------------
-   CALL Chem_UtilTroppFixer(i2, j2, tropp, VERBOSE=.TRUE., &
-                            NEWTROPP=tropPa, RC=STATUS)
-   VERIFY_(STATUS)
+   CALL Chem_UtilTroppFixer(i2, j2, tropp, VERBOSE=.TRUE., NEWTROPP=tropPa, RC=status)
+   VERIFY_(status)
 
 !  Find the pressure at mid-layer
 !  ------------------------------
@@ -609,7 +687,8 @@ CONTAINS
                                          nd(i1:i2,j1:j2,1:km)
    END DO
 
-   ALLOCATE(s(gcCFC%nlam,i1:i2,j1:j2,1:km), STAT=ier(1))
+   ALLOCATE(s(gcCFC%nlam,i1:i2,j1:j2,1:km), STAT=status)
+   VERIFY_(status)
 
 !  Photolysis:  Loop over horizontal domain
 !  ----------------------------------------
@@ -621,8 +700,10 @@ CONTAINS
 !  -----------------------------------------------------------------
      IF(w_c%cosz(i,j) <= 1.00E-06) THEN
       szan = ACOS(-0.50)
-     ELSE
+     ELSE if(w_c%cosz(i,j) < 1.0 ) THEN
       szan = ACOS(w_c%cosz(i,j))
+     ELSE
+      szan = 0.0
      END IF
 
      DO k=1,km
@@ -638,13 +719,14 @@ CONTAINS
 
 !  Rate constant is sum over wavelengths
 !  -------------------------------------
-      photoRate(i,j,k) = SUM(s(1:gcCFC%nlam,i,j,k)*gcCFC%xtab(1:gcCFC%nlam,indt))
+      photoRate(i,j,k) = SUM(s(1:gcCFC%nlam,i,j,k)*gcCFC%xtab(1:gcCFC%nlam,gcCFC%photEquNumber,indt))
 
      END DO ! Layer
     END DO  ! Longitude
    END DO   ! Latitude
 
-   DEALLOCATE(s, STAT=ier(2))
+   DEALLOCATE(s, STAT=status)
+   VERIFY_(status)
    m = 0
 
 !  Apply photolysis
@@ -695,17 +777,18 @@ CONTAINS
 
 !  Clean up
 !  --------
-   DEALLOCATE( emit2vmr, STAT=ier(1))
-   DEALLOCATE(      pPa, STAT=ier(2))
-   DEALLOCATE(       nd, STAT=ier(3))
-   DEALLOCATE(    O3Col, STAT=ier(4))
-   DEALLOCATE(photoRate, STAT=ier(5))
-
-   IF(ANY(ier(:) /= 0 )) THEN
-    rc = 99
-    RETURN
-   END IF
-   ier(:)=0
+   DEALLOCATE( emit2vmr, STAT=status)
+   VERIFY_(status)
+   DEALLOCATE(   tropPa, STAT=status)
+   VERIFY_(status)
+   DEALLOCATE(      pPa, STAT=status)
+   VERIFY_(status)
+   DEALLOCATE(       nd, STAT=status)
+   VERIFY_(status)
+   DEALLOCATE(    O3Col, STAT=status)
+   VERIFY_(status)
+   DEALLOCATE(photoRate, STAT=status)
+   VERIFY_(status)
 
    RETURN
 
@@ -745,6 +828,7 @@ CONTAINS
 !   Created 930825 - SR Kawa
 !   Modified 960710 for 28 levels and to handle J(O2) separately
 !   1Jan2008  Nielsen  CFC-12 configuration for ARCTAS.
+!   1Nov2012  Nielsen  Accomodate cubed sphere for GEOS-5 Ganymed releases
 ! --------------------------------------------------------------------------
 
    IMPLICIT NONE
@@ -867,18 +951,14 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   CHARACTER(LEN=*), PARAMETER :: myname = 'CFC_GridCompFinalize'
-   INTEGER :: ios
+   CHARACTER(LEN=*), PARAMETER :: Iam = 'CFC_GridCompFinalize'
+   INTEGER :: status
 
    rc = 0
 
    DEALLOCATE(gcCFC%sdat, gcCFC%xtab, gcCFC%o3_tab, gcCFC%sza_tab, &
-              gcCFC%CFCloss, gcCFC%CFCsfcFlux, STAT=ios )
-
-   IF( ios /= 0 ) THEN
-    rc = 1
-    IF(MAPL_AM_I_ROOT()) PRINT *,myname,': DEALLOCATE return code is ',ios
-   END IF
+              gcCFC%CFCloss, gcCFC%CFCsfcFlux, STAT=status )
+   VERIFY_(status)
 
    RETURN
    END SUBROUTINE CFC_GridCompFinalize

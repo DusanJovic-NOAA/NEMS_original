@@ -876,6 +876,8 @@ end subroutine sp_balances_
   real*8,allocatable,dimension(:,:,:  ) :: zavg
   real*8,allocatable,dimension(:,:,:  ) :: zabv
   real*8,allocatable,dimension(:,:,:,:) :: zmax
+  integer,allocatable,dimension(:):: ktmp
+  integer,allocatable,dimension(:):: ksum
   integer :: mname
   integer :: nlist
   integer         ,pointer,dimension(:  ) :: pindx
@@ -910,7 +912,10 @@ end subroutine sp_balances_
 		  zsum(    0:5,0:1,0:nlist),	&
 		  zavg(    0:5,0:1,0:nlist),	&
 		  zabv(    0:5,0:1,0:nlist),	&
-		  zmax(0:1,0:5,0:1,0:nlist),	stat=ier)
+		  zmax(0:1,0:5,0:1,0:nlist),	&
+		  ktmp(            0:nlist),	&
+		  ksum(            0:nlist),	&
+		  stat=ier)
 		if(ier/=0) call die(myname_,'allocate()',ier)
 
 		if(mall_ison()) then
@@ -919,6 +924,8 @@ end subroutine sp_balances_
 		  call mall_mci(zavg,myname)
 		  call mall_mci(zabv,myname)
 		  call mall_mci(zmax,myname)
+		  call mall_mci(ktmp,myname)
+		  call mall_mci(ksum,myname)
 		endif
 
 	! Prepare the information for all accounts as in the merged
@@ -927,6 +934,7 @@ end subroutine sp_balances_
 	pindx => ptr_indx(merged)	! indices to the merge list
 
   ztmp(:,:,:)=0.	! zero all accounts in the merge list.
+  ktmp(    :)=0
 
   do l=1,mname		! For all local accounts other than ZEIT,
     k=pindx(l+1)-1	! +lbound(pindx), then -lbound(pindx_values).
@@ -942,6 +950,8 @@ end subroutine sp_balances_
 	ztmp(i,1,k)=ztmp(i,1,k) + zts(i) -szts_sv(i,l)
       end do
     endif
+
+    ktmp(k)=knt_l(l)
   end do
 
 	! Update the account for this timing module.  Note that the
@@ -968,6 +978,7 @@ end subroutine sp_balances_
     ztmp(i,0,k)=ztmp(i,0,k) + zts(i) - zts_sv(i)
     ztmp(i,1,k)=ztmp(i,1,k) + zts(i) -szts_sv(i,0)
   end do
+  ktmp(k)=knt_l(0)
 
 	! Compute global statisticis through reducation.
 
@@ -982,6 +993,8 @@ end subroutine sp_balances_
 		  zavg(    0:5,0:1,0:nlist),	&
 		  zabv(    0:5,0:1,0:nlist),	&
 		  zmax(0:1,0:5,0:1,0:nlist),	&
+		  ktmp(            0:nlist),	&
+		  ksum(            0:nlist),	&
 		  myID,nPEs,comm)
 
   if(myID == root) then
@@ -998,6 +1011,7 @@ end subroutine sp_balances_
     do i=0,5
       if(iand(MASKS(i),imask) /= 0)	&
 	call mp_balances_(lu,i,nPEs,plist,zsum,zavg,zabv,zmax, &
+	     ksum, &
              subname_at_end=subname_at_end)
     end do
 
@@ -1010,8 +1024,10 @@ end subroutine sp_balances_
 	  call mall_mco(zavg,myname)
 	  call mall_mco(zabv,myname)
 	  call mall_mco(zmax,myname)
+	  call mall_mco(ktmp,myname)
+	  call mall_mco(ksum,myname)
 	endif
-  deallocate(ztmp,zsum,zavg,zabv,zmax,stat=ier)
+  deallocate(ztmp,zsum,zavg,zabv,zmax,ktmp,ksum,stat=ier)
 	if(ier/=0) call die(myname_,'deallocate()',ier)
 
   call clean(merged)
@@ -1053,7 +1069,7 @@ end subroutine allflush_
 ! !INTERFACE:
 
     subroutine mp_balances_(lu,item,nPEs,names,zsum,zavg,zabv,zmax,&
-               subname_at_end)
+               ksum,subname_at_end)
       implicit none
       integer,intent(in) :: lu
       integer,intent(in) :: item
@@ -1063,6 +1079,7 @@ end subroutine allflush_
       real*8,   dimension(0:,0:,0:   ),intent(in) :: zavg
       real*8,   dimension(0:,0:,0:   ),intent(in) :: zabv
       real*8,   dimension(0:,0:,0:,0:),intent(in) :: zmax
+      integer,dimension(0:),intent(in) :: ksum
       logical,optional,intent(in) :: subname_at_end
 
 ! !REVISION HISTORY:
@@ -1088,12 +1105,12 @@ end subroutine allflush_
 	! NET timings
   integer :: ix_o
   real*8  :: zts_o,zta_o,ztm_o,ztr_o
-  integer :: x_o,i_o,r_o
+  integer :: x_o,i_o,r_o,m_o
 
 	! SCOPE timings
   integer :: ix_s
-  real*8  :: zts_s,zta_s,ztm_s,ztr_s
-  integer :: x_s,i_s,r_s
+  real*8  :: zts_s,zta_s,ztm_s,ztr_s,tta_s
+  integer :: x_s,i_s,r_s,m_s
 
   logical :: line_end_subname
 
@@ -1102,32 +1119,33 @@ end subroutine allflush_
 
   write(num,'(i4)') nPEs
  If(.not.line_end_subname)then
-  write(lu,'(3a,t15,a,t45,a)')	&
+  write(lu,'(3a,t15,a,t49,a)')	&
     HEADER(item),'x',adjustl(num),	&
-    'NET avg     max imx x% r% i%',	&
-    'SCP avg     max imx x% r% i%'
+    'NET avg %tt     max imx x% r% i%',	&
+    'SCP avg %tt     max imx x% r% i%'
 
 !23.|....1....|....2....|....3....|....4....|....5....|....6....|....7..
 
-!MWTIME]x3    NET avg     max imx x% r% i%  SCP avg     max imx x% r% i%
-!-----------------------------------------------------------------------
-!zeit.       333333.3 33333.3 333 33 33 33 333333.3 33333.3 333 33 33 33
+!MWTIME]x3    NET avg %tt     max imx x% r% i%  SCP avg %tt     max imx x% r% i%
+!-------------------------------------------------------------------------------
+!zeit.       333333.3 100 33333.3 333 33 33 33 333333.3 100 33333.3 333 33 33 33    999999x
  Else
-  write(lu,'(t3,a,t33,a,2x,3a)')        &
-    'NET avg     max imx x% r% i%',     &
-    'SCP avg     max imx x% r% i%',     &
+  write(lu,'(t3,a,t37,a,2x,3a)')        &
+    'NET avg %tt     max imx x% r% i%',     &
+    'SCP avg %tt     max imx x% r% i%',     &
     HEADER(item),'x',adjustl(num)
 
 !23.|....1....|....2....|....3....|....4....|....5....|....6....|....7..
 
-! NET avg     max imx x% r% i%  SCP avg     max imx x% r% i%    MWTIME]x3
-!-----------------------------------------------------------------------
-!zeit.       333333.3 33333.3 333 33 33 33 333333.3 33333.3 333 33 33 33
+! NET avg %tt     max imx x% r% i%  SCP avg %tt     max imx x% r% i%    MWTIME]x3
+!-------------------------------------------------------------------------------
+!333333.3 100 33333.3 333 33 33 33 333333.3 100 33333.3 333 33 33 33    999999x .zeit.
  Endif
 
 lname=size(names,1)
+tta_s=max(zavg(item,1,0),res)	! total time from ".zeit."
 
-write(lu,'(80a)') ('-',i=1,72)
+write(lu,'(80a)') ('-',i=1,80)
 do l=0,ubound(zsum,3)
 		! Convert the name of the account from an array to a
 		! string.
@@ -1141,6 +1159,7 @@ do l=0,ubound(zsum,3)
   ztr_o=     zabv(  item,0,l)
   ztm_o=     zmax(0,item,0,l)
    ix_o=nint(zmax(1,item,0,l))
+    m_o=nint(100.*zta_o/tta_s)
 
   x_o=nint(100.*(ztm_o-zta_o)/max(zts_o,res))
   r_o=nint(100.* ztr_o       /max(zts_o,res))
@@ -1151,6 +1170,7 @@ do l=0,ubound(zsum,3)
   ztr_s=     zabv(  item,1,l)
   ztm_s=     zmax(0,item,1,l)
    ix_s=nint(zmax(1,item,1,l))
+    m_s=nint(100.*zta_s/tta_s)
 
   x_s=nint(100.*(ztm_s-zta_s)/max(zts_s,res))
   r_s=nint(100.* ztr_s       /max(zts_s,res))
@@ -1166,17 +1186,17 @@ do l=0,ubound(zsum,3)
     write(lu,'(a)',advance='no') repeat(' ',lnmax)
   endif
 
-  write(lu,'(2(1x,2f8.1,1x,z3.3,3i3))')		&
-	zta_o,ztm_o,ix_o,x_o,r_o,i_o,		&
-	zta_s,ztm_s,ix_s,x_s,r_s,i_s
+  write(lu,'(2(1x,f8.1,i4,f8.1,1x,z3.3,3i3),i10,a)')		&
+	zta_o,m_o,ztm_o,ix_o,x_o,r_o,i_o,			&
+	zta_s,m_s,ztm_s,ix_s,x_s,r_s,i_s,ksum(l),'x'
  Else
-  write(lu,'(2(1x,2f8.1,1x,z3.3,3i3),2x,a)')            &
-        zta_o,ztm_o,ix_o,x_o,r_o,i_o,           &
-        zta_s,ztm_s,ix_s,x_s,r_s,i_s,namei(1:ln)
+  write(lu,'(2(1x,f8.1,i4,f8.1,1x,z3.3,3i3),i10,a,1x,a)')	&
+        zta_o,m_o,ztm_o,ix_o,x_o,r_o,i_o,			&
+        zta_s,m_s,ztm_s,ix_s,x_s,r_s,i_s,ksum(l),'x',namei(1:ln)
  Endif
 
 end do
-write(lu,'(80a)') ('-',i=1,72)
+write(lu,'(80a)') ('-',i=1,80)
 end subroutine mp_balances_
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 !       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
@@ -1188,7 +1208,7 @@ end subroutine mp_balances_
 !
 ! !INTERFACE:
 
-    subroutine allreduce_(ztmp,zsum,zavg,zabv,zmax,myID,nPEs,comm)
+    subroutine allreduce_(ztmp,zsum,zavg,zabv,zmax,ktmp,ksum,myID,nPEs,comm)
       use m_mpif90,only : MP_type
       use m_mpif90,only : MP_2type
       use m_mpif90,only : MP_MAXLOC
@@ -1200,6 +1220,8 @@ end subroutine mp_balances_
       real*8,dimension(0:,0:,0:   ),intent(out) :: zavg
       real*8,dimension(0:,0:,0:   ),intent(out) :: zabv
       real*8,dimension(0:,0:,0:,0:),intent(out) :: zmax
+      integer,dimension(0:),intent(in ) :: ktmp
+      integer,dimension(0:),intent(out) :: ksum
       integer,intent(in) :: myID
       integer,intent(in) :: nPEs
       integer,intent(in) :: comm
@@ -1233,6 +1255,14 @@ end subroutine mp_balances_
 
   call MPI_allreduce(ztmp,zsum,mcount,mptype,MP_SUM,comm,ier)
 	if(ier/=0) call MP_die(myname_,'MPI_allreduce(zsum)',ier)
+
+		! Compute global counts summations on all PEs.
+
+	mcount=size(ktmp)
+	mptype=MP_type(ktmp(0))
+
+  call MPI_allreduce(ktmp,ksum,mcount,mptype,MP_SUM,comm,ier)
+	if(ier/=0) call MP_die(myname_,'MPI_allreduce(ksum)',ier)
 
 		! Compute global averages on all PEs.
 

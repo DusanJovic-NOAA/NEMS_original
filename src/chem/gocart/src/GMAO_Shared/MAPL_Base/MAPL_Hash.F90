@@ -1,7 +1,8 @@
 
 #define ASSERT_(A) if(.not.(A))call exit(1)
+#define INT_MAX 2147483647
 
-!  $Id: MAPL_Hash.F90,v 1.1 2008/07/15 17:25:24 f4mjs Exp $
+!  $Id: MAPL_Hash.F90,v 1.2 2012-06-13 18:19:19 ltakacs Exp $
 
 !=============================================================================
 !BOP
@@ -107,16 +108,21 @@ end function MAPL_HashCreate
 
 !----------------------------------------------
 
-integer function MAPL_HashIncrement(Hash,i,j)
+integer function MAPL_HashIncrement(Hash,i,j,k)
   integer,           intent(IN) :: Hash
   integer,           intent(IN) :: i
   integer, optional, intent(IN) :: j
+  integer, optional, intent(IN) :: k
 
   integer INCREMENTHASH
-  if(present(j)) then
-     MAPL_HashIncrement = INCREMENTHASH(HASH,I,J)
+
+  if    (present(k)) then
+     ASSERT_(present(j))
+     MAPL_HashIncrement = INCREMENTHASH(HASH,I,J,K)
+  elseif(present(j)) then
+     MAPL_HashIncrement = INCREMENTHASH(HASH,I,J,INT_MAX)
   else
-     MAPL_HashIncrement = INCREMENTHASH(HASH,I,1)
+     MAPL_HashIncrement = INCREMENTHASH(HASH,I,INT_MAX,INT_MAX)
   endif
 
 end function MAPL_HashIncrement

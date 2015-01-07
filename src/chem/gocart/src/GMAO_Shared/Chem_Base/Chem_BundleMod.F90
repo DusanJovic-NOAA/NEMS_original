@@ -11,11 +11,12 @@
             
 ! !USES:
 
-#if defined(GEOS5)
-      Use ESMF_Mod
-#endif
+      Use ESMF
       Use Chem_RegistryMod
       Use Chem_ArrayMod
+      Use m_chars, only: uppercase
+      Use MAPL_Mod, only: MAPL_UNDEF
+
       Implicit NONE
 
 ! !PUBLIC TYPES:
@@ -53,11 +54,7 @@
 !EOP
 !-------------------------------------------------------------------------
 
-   real, parameter ::  missing_val = 1.0E+15 ! hardwire this for now
-!!! CAR 3/24/09
-!!! Fix to make calculator work with netcdf4 output files
-!!! There was a problem in gfio.h
-!!! Changed nch to 256 (was 255) and replaced every instance of "255" with nch
+   real, parameter ::  missing_val = MAPL_UNDEF ! hardwire this for now
    integer, parameter :: nch = 256
 
 !   Grid
@@ -69,16 +66,15 @@
       integer       :: i1, i2, iml               ! local indices
       integer       :: ig                        ! ghosting
       integer       :: im                        ! global dimension
-      real          :: lon_min, lon_max, lon_del ! global phys coords
-      real, pointer :: lon(:) => null()          ! longitudes (deg)
+      integer       :: iLeft                     ! i1's index on global grid
+      real, pointer :: lon(:,:) => null()        ! longitudes (deg)
 
 !     Meridional grid
 !     ---------------
       integer       :: j1, j2, jml               ! local indices
       integer       :: jg                        ! ghosting
       integer       :: jm                        ! global dimension
-      real          :: lat_min, lat_max, lat_del ! global phys coords
-      real, pointer :: lat(:) => null()          ! latitudes (deg)
+      real, pointer :: lat(:,:) => null()        ! latitudes (deg)
 
 !     Vertical grid
 !     -------------
@@ -86,6 +82,14 @@
       real, pointer :: lev(:) => null()
       character(len=nch) :: levUnits 
       real          :: ptop          ! Top pressure [Pa]
+
+!     Horizontal gridbox area
+!     -----------------------
+      real, pointer :: cell_area(:,:) => null()
+
+!     Cubed sphere or not
+!     -------------------
+      logical :: Cubed_Sphere = .FALSE.
 
     end type Chem_Grid
 
@@ -104,32 +108,30 @@
       real, pointer   :: cosz(:,:) => null()  ! cosine solar zenith angle
       real, pointer   :: sinz(:,:) => null()  !   sine solar zenith angle
 
-#if defined(GEOS5)
       type(ESMF_Grid) :: grid_esmf
-#else
-      integer         :: grid_esmf = 0     ! place holder, not need in GEOS-4
-#endif
 
 !     Whether this class allocated the memory for q, delp
 !     ---------------------------------------------------
       logical :: did_allocation = .false.
       logical :: has_rh = .false.            ! for backward compatibility
       logical :: diurnal_bb = .false.        ! whether using diurnal biomass burning
-      real    :: missing_value = 1.0E20
+      real    :: missing_value = MAPL_UNDEF
 
 !     Tracer array
 !     ------------
       real, pointer :: delp(:,:,:) => null()! Layer thickness [Pa] (not ghosted)
       real, pointer :: rh(:,:,:) => null()  ! Layer thickness [Pa] (not ghosted)
 
-#if !defined(GEOS5)
-      real, pointer :: q(:,:,:,:) => null() ! specifig humity & tracers (ghosted)
-#endif
       type(chem_array), pointer :: qa(:) => null()
                                             ! access 4D array in q as a 
                                             ! collection of 3D arrays; used
                                             ! for gradually removing the 4D
                                             ! arrays     
+
+!     Two calendar elements (from ESMF)
+!     ---------------------------------
+      LOGICAL :: isLeapYear
+      REAL :: dayOfYear
 
     end type Chem_Bundle
 
@@ -158,6 +160,7 @@
                                    j1, j2, jg, jm, km,  &
                                    w_c, rc,             &
                                    skipAlloc, lat, lon, &
+                                   cell_area,           &
                                    lev, levUnits, ptop )  ! Optional
 !
 ! !USES:
@@ -179,8 +182,9 @@
   integer,      intent(in)   :: km              !   vertical dimension
 
   logical, OPTIONAL, intent(in) :: skipAlloc    ! Do not allocate arrays
-  real,    OPTIONAL, intent(in) :: lon(i1:i2)   ! longitude in degrees
-  real,    OPTIONAL, intent(in) :: lat(j1:j2)   ! latitude in degrees
+  real,    OPTIONAL, intent(in) :: lon(i1:i2,j1:j2) ! longitude in degrees
+  real,    OPTIONAL, intent(in) :: lat(i1:i2,j1:j2) ! latitude in degrees
+  real,    OPTIONAL, pointer    :: cell_area(:,:) ! grid box area
   real,    OPTIONAL, intent(in) :: lev(1:km)    ! levels
   character(len=*), OPTIONAL, intent(in) :: levUnits ! level units
   real,    OPTIONAL, intent(in) :: ptop         ! top pressure in Pa
@@ -214,18 +218,19 @@
 
      integer err, i, j, n, nq, ios, ios1, ios2, ios3
      logical :: do_allocation
+     real*8 :: delta
 
 !    Sanity check
 !    ------------
      rc = 0
      nq = reg%nq
      if ( im<1 .or. jm<1 .or. km<1 .or. nq<1) then
-          rc = 3
+          rc = -3
           return
      endif
               
      w_c%reg = reg
-     w_c%missing_value = 1.0E20
+     w_c%missing_value = MAPL_UNDEF
 
 !    Whether or not we allocate memory for arrays
 !    --------------------------------------------
@@ -243,19 +248,16 @@
      w_c%grid%jml = j2 - j1 + 1 
      w_c%grid%km = km
 
+!    Detect cubed sphere for sanity checks latter
+!    --------------------------------------------
+     if ( jm == im * 6 ) then
+          w_c%grid%Cubed_Sphere = .TRUE.
+     else
+          w_c%grid%Cubed_Sphere = .FALSE.
+     end if
 
 !    Horizontal grid (hardwire A-grid for now)
 !    -----------------------------------------
-#if defined(GEOS5)
-     w_c%grid%lon_min = -180.0
-#else
-     w_c%grid%lon_min = 0.0
-#endif
-     w_c%grid%lon_del = 360.0 / im
-     w_c%grid%lon_max = w_c%grid%lon_min + (im-1) * w_c%grid%lon_del
-     w_c%grid%lat_min = -90.0
-     w_c%grid%lat_max = +90.0
-     w_c%grid%lat_del = ( w_c%grid%lat_max - w_c%grid%lat_min ) / ( jm-1) 
      if ( present(ptop) ) then
           w_c%grid%ptop =  ptop
      else
@@ -264,7 +266,8 @@
 
 !    Save lat/lons
 !    -------------
-     allocate ( w_c%grid%lon(i1:i2), w_c%grid%lat(j1:j2), stat = ios )
+     allocate ( w_c%grid%lon(i1:i2,j1:j2), w_c%grid%lat(i1:i2,j1:j2), &
+                stat = ios ) ! 
      if ( ios /= 0 ) then
         rc = 2
         return
@@ -272,17 +275,29 @@
      if ( present(lon) ) then
           w_c%grid%lon = lon
      else
-          do i = i1, i2
-             w_c%grid%lon(i) = w_c%grid%lon_min + (i-1) * w_c%grid%lon_del
+          !ALT w_c%grid%lon = MAPL_UNDEF
+          delta = 360.0d0/im
+          do i = 1, im
+            w_c%grid%lon(i,:) = -180.0d0 + (i-1)*delta
           end do
      end if
 
      if ( present(lat) ) then
           w_c%grid%lat = lat
      else
-          do j = j1, j2
-             w_c%grid%lat(j) = w_c%grid%lat_min + (j-1) * w_c%grid%lat_del
+          !ALT w_c%grid%lat = MAPL_UNDEF
+          if(jm==1) then
+            delta = 0.0d0
+          else
+            delta = 180.0d0/(jm-1)
+          endif
+          do j = 1, jm
+            w_c%grid%lat(:,j) = -90.0d0 + (j-1)*delta
           end do
+     end if
+
+     if ( present(cell_area) ) then ! will be left unallocated otherwise
+          w_c%grid%cell_area => cell_area
      end if
 
      if ( present(lev) ) then
@@ -301,8 +316,6 @@
 
      w_c%did_allocation = .false.
      w_c%has_rh = .false.       ! will be set to TRUE when set
-
-!!! #if !defined(GEOS5)
 
      allocate(w_c%qa(nq),stat=ios2)
 
@@ -328,12 +341,11 @@
   
      end if
 
-!!! #endif
-
 !    Set array of pointers: may be null() if no allocation took place
 !    ----------------------------------------------------------------
      call Chem_BundleSetPtr ( w_c, rc ) 
 
+  
    end subroutine Chem_BundleCreate_
 
 !-------------------------------------------------------------------------
@@ -433,7 +445,7 @@
 !
 ! !INPUT/OUTPUT PARAMETERS: 
 !
-  type(Chem_Bundle), intent (out) :: w_c   ! chemical bundle
+  type(Chem_Bundle), intent (inout) :: w_c   ! chemical bundle
 
 ! !OUTPUT PARAMETERS:
 
@@ -457,28 +469,26 @@
    rc = 0
 
    if ( w_c%did_allocation ) then
+
       if ( associated(w_c%delp) ) deallocate(w_c%delp, stat=ier)
       if ( associated(w_c%rh)  )  deallocate(w_c%rh, stat=ier)
-#if  defined(GEOS5)
+    
       do n = 1, w_c%reg%nq 
          if ( associated(w_c%qa(n)%data3d)  ) &
               deallocate(w_c%qa(n)%data3d, stat=ier)
       end do
-      deallocate(w_c%qa, stat=ier)
-#else
-      if ( associated(w_c%q)  )   deallocate(w_c%q, stat=ier)
-#endif
+      deallocate( w_c%grid%lon, w_c%grid%lat, w_c%grid%lev, w_c%qa, stat=ier) 
+      
    else
+
       if ( associated(w_c%delp) ) nullify(w_c%delp)
       if ( associated(w_c%rh) )   nullify(w_c%rh)
-#if  defined(GEOS5)
+      
       do n = 1, w_c%reg%nq 
          if ( associated(w_c%qa(n)%data3d)  ) nullify(w_c%qa(n)%data3d)
       end do
-      deallocate(w_c%qa, stat=ier)  
-#else
-      if ( associated(w_c%q)  )   nullify(w_c%q)
-#endif
+      deallocate( w_c%grid%lon, w_c%grid%lat, w_c%grid%lev,w_c%qa, stat=ier)  
+
    end if
 
 
@@ -565,6 +575,13 @@
    km = w_c%grid%km; nq = w_c%reg%nq
    nvars = nq + 2            ! delp, RH and tracers 
 
+!  Cannot handle cubed sphere
+!  --------------------------
+   if ( w_c%grid%cubed_sphere ) then
+      rc = 1
+      return
+   end if
+
 !  No chemical tracers, nothing to do
 !  ----------------------------------
    if ( nvars .lt. 2 ) return  
@@ -608,8 +625,8 @@
 
 !  Create coordinate variables
 !  ---------------------------
-   lat = w_c%grid%lat
-   lon = w_c%grid%lon
+   lat = w_c%grid%lat(1,:)
+   lon = w_c%grid%lon(:,1)
 
 !  Vertical coordinates: fake something for GrADS sake
 !  ---------------------------------------------------
@@ -813,6 +830,7 @@
 
    character(len=nch)              :: title, source, contact, levunits
    character(len=nch), allocatable :: vname(:), vtitle(:), vunits(:)
+   character(len=nch) :: vname_
 
    real,    allocatable :: lat(:), lon(:), lev(:)
    real,    allocatable :: valid_range(:,:), packing_range(:,:)
@@ -827,6 +845,7 @@
    integer :: fid, err, ngatts
 
    type(Chem_registry) :: Reg
+   logical :: all_upper ! whether all variables are upper case
 
    rc = 0
 
@@ -863,8 +882,6 @@
 
 !  Get file attributes
 !  -------------------
-
-   
    call GFIO_Inquire ( fid, im, jm, km, lm, nvars,     &
                        title, source, contact, amiss,  &
                        lon, lat, lev, levunits,        &
@@ -879,6 +896,18 @@
    if ( present(freq) ) then
         freq = timinc
    end if
+
+!  Loop over variables and detect whether we have the new
+!  GEOS-5 convention where all variables are upper case.
+!  ------------------------------------------------------
+   all_upper = .TRUE.
+   do n = 1, nvars
+      if ( trim(vname(n)) /= uppercase(trim(vname(n))) ) &
+           all_upper = .FALSE.
+   end do
+
+   if ( all_upper ) &
+        print *, "Chem_BundleRead: Using GEOS-5 all upercase mode"
 
 !  Pick time to return
 !  -------------------
@@ -936,12 +965,18 @@
    end if
    do j = 1, reg%nq
       ivar(j) = -1
+      if ( all_upper ) then
+           vname_ = uppercase(trim(reg%vname(j)))
+      else
+           vname_ = trim(reg%vname(j))
+      end if
       do i = 1, nvars
-         if ( trim(reg%vname(j)) .eq. trim(vname(i)) ) then
+         if ( trim(vname_) .eq. trim(vname(i)) ) then
               ivar(j) = i
          end if
       end do
       if ( ivar(j) < 1 ) then
+         print *, 'Missing variable: ', trim(reg%vname(j))
          rc = 10
          call clean_()
          return
@@ -951,16 +986,21 @@
 
 !  retrieve the variables
 !  ----------------------
-   call GFIO_GetVar ( fid, 'delp', nymd, nhms,     &
-                      im, jm, 1, km, w_c%delp, err )
+   if ( all_upper ) then 
+      call GFIO_GetVar ( fid, 'DELP', nymd, nhms,     &
+                         im, jm, 1, km, w_c%delp, err )
+   else
+      call GFIO_GetVar ( fid, 'delp', nymd, nhms,     &
+                         im, jm, 1, km, w_c%delp, err )
+   endif
+
    if ( err .ne. 0 )                                        rc = 101
-#if defined(GEOS5)
    call GFIO_GetVar ( fid, 'RH', nymd, nhms,     &
                       im, jm, 1, km, w_c%rh, err )
-#else
-   call GFIO_GetVar ( fid, 'rh', nymd, nhms,     &
-                      im, jm, 1, km, w_c%rh, err )
-#endif
+   if ( err .ne. 0 ) then
+      call GFIO_GetVar ( fid, 'rh', nymd, nhms,     &
+                         im, jm, 1, km, w_c%rh, err )
+   end if
    if ( err .ne. 0 ) then
         w_c%rh = w_c%missing_value
         w_c%has_rh = .false.
@@ -969,18 +1009,25 @@
    end if
    do n = 1, reg%nq
         l = ivar(n)
-        call GFIO_GetVar ( fid, vname(l), nymd, nhms,         & 
+        if ( all_upper ) then
+             vname_ = uppercase(trim(vname(l)))
+        else
+             vname_ = trim(vname(l))
+        end if
+        call GFIO_GetVar ( fid, vname_, nymd, nhms,         & 
                            im, jm, 1, km, w_c%qa(n)%data3d(:,:,:), err )
          if ( err .ne. 0 )                                  rc = 100 + l
    end do
-
 
 
 !  Retrieve vertical grid attributes
 !  ---------------------------------
     call GFIO_GetRealAtt ( fid, 'ptop',   1, buf, err )
     w_c%grid%ptop = buf(1)
-    if ( err .ne. 0 ) rc = 201
+    if ( err .ne. 0 ) then
+       w_c%grid%ptop = 1. ! do not fuss about this
+       rc = 0
+    end if
 
 !   Close GFIO file
 !   ---------------
@@ -1044,32 +1091,6 @@
 !
 !EOP
 !-------------------------------------------------------------------------
-
-#if !defined(GEOS5)
-
-   integer :: i1, i2, j1, j2, im, jm, km, nq, n
-
-   rc = 0
-
-!  Short hand for dimensions
-!  -------------------------
-   i1 = w_c%grid%i1; j1 = w_c%grid%j1
-   i2 = w_c%grid%i2; j2 = w_c%grid%j2
-   im = w_c%grid%im; jm = w_c%grid%jm
-   km = w_c%grid%km; nq = w_c%reg%nq
-
-   !!! allocate(w_c%qa(nq), stat=rc)
-   !!! if (rc /=0 ) return
-
-!  Another reference to q: Array of pointers
-!  -----------------------------------------
-   do n = 1, nq
-      if ( associated(w_c%q) ) then
-            w_c%qa(n)%data3d => w_c%q(i1:i2,j1:j2,1:km,n)
-      end if
-   end do
-
-#endif
 
    rc = 0
 

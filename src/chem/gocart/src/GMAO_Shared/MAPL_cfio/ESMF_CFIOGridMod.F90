@@ -42,6 +42,7 @@
          integer :: im              ! size of longitudinal dimension
          integer :: jm              ! size of latitudinal  dimension
          integer :: km              ! size of vertical dimension
+         integer :: tm              ! size of time dimension
          real*8, pointer :: lon(:)    ! longitude of center of gridbox in
                                     ! degrees east of Greenwich (can be
                                     ! -180 -> 180 or 0 -> 360)
@@ -91,6 +92,7 @@
       grid%im = 0
       grid%jm = 0
       grid%km = 0
+      grid%tm = 0
 
       grid%levUnits = 'unknown'
       grid%coordinate = 'unknown'
@@ -102,6 +104,13 @@
       grid%twoDimLat = .false.
       grid%reduceGrid = .false.
       grid%stnGrid = .false.
+
+      nullify(grid%lon)
+      nullify(grid%lat)
+      nullify(grid%lev)
+      nullify(grid%ak)
+      nullify(grid%bk)
+      nullify(grid%sigma)
 
       if ( present(gName) ) grid%gName = gName
 
@@ -118,7 +127,7 @@
 ! !ROUTINE: ESMF_CFIOGridSet -- set up a grid
 
 ! !INTERFACE:
-      subroutine ESMF_CFIOGridSet (grid, gName, im, jm, km, lat, lon, lev,  &
+      subroutine ESMF_CFIOGridSet (grid, gName, im, jm, km, tm, lat, lon, lev,&
                                    coordinate, standardName, formulaTerm,   &
                                    levUnit, ak, bk, sigma, ptop, ptopUnit,  &
                                    twoDimLat, reduceGrid, stnGrid, rc)
@@ -131,6 +140,7 @@
       integer, intent(in), OPTIONAL :: im  ! size of longitudinal dimension
       integer, intent(in), OPTIONAL :: jm  ! size of latitudinal  dimension
       integer, intent(in), OPTIONAL :: km  ! size of vertical dimension
+      integer, intent(in), OPTIONAL :: tm  ! size of time dimension
       real, intent(in), OPTIONAL :: lon(:) ! longitude 
       real, intent(in), OPTIONAL :: lat(:) ! latitude 
       real, intent(in), OPTIONAL :: lev(:) ! Level   
@@ -177,45 +187,66 @@
 !------------------------------------------------------------------------------
        integer :: rtcode  = 0
        integer :: i, j
+       integer :: sz
 
        if ( present(gName) ) grid%gName = gName
        if ( present(im) ) grid%im = im
        if ( present(jm) ) grid%jm = jm
        if ( present(km) ) grid%km = km
+       if ( present(tm) ) grid%tm = tm
 
-        if ( present(lon) ) then
-           grid%im = size(lon)
-           allocate(grid%lon(grid%im), stat = rtcode)
-           grid%lon = lon
-        else if ( present(im) ) then
-                allocate(grid%lon(im), stat = rtcode)
-                do i = 1, im
-                   grid%lon(i) = 360./im * (i-1)
-                end do
-        end if    
-        if (rtcode .ne. 0) then 
-           print *, "problem in setting ESMF_CFIOGridSet:lon"
-           rtcode = -1
-           if ( present(rc) ) rc = rtcode
-           return
-        end if
+       if (present(twoDimLat)) then
+          grid%twoDimLat = twoDimLat
+          if (.not. (present(im) .or. present(jm) .or. &
+                     present(lon) .or. present(lat))) then
+             rtcode = -1
+          else
+             sz = im*jm
+             allocate(grid%lon(sz), grid%lat(sz), stat = rtcode)
+             grid%lon = lon
+             grid%lat = lat
+          end if
+          if (rtcode .ne. 0) then 
+             print *, "problem in setting ESMF_CFIOGridSet:lat"
+             rtcode = -2
+             if ( present(rc) ) rc = rtcode
+             return
+          end if
+       else
+          if ( present(lon) ) then
+             grid%im = size(lon)
+             allocate(grid%lon(grid%im), stat = rtcode)
+             grid%lon = lon
+          else if ( present(im) ) then
+             allocate(grid%lon(im), stat = rtcode)
+             do i = 1, im
+                grid%lon(i) = 360./im * (i-1)
+             end do
+          end if
+          if (rtcode .ne. 0) then 
+             print *, "problem in setting ESMF_CFIOGridSet:lon"
+             rtcode = -1
+             if ( present(rc) ) rc = rtcode
+             return
+          end if
 
-        if ( present(lat) ) then
-           grid%jm = size(lat)
-           allocate(grid%lat(grid%jm), stat = rtcode)
-           grid%lat = lat
-        else if ( present(jm) ) then
-                allocate(grid%lat(jm), stat = rtcode)
-                do j = 1, jm
-                   grid%lat(j) = 180./(jm-1) * (j-1) - 90
-                end do
-        end if    
-        if (rtcode .ne. 0) then 
-           print *, "problem in setting ESMF_CFIOGridSet:lat"
-           rtcode = -2
-           if ( present(rc) ) rc = rtcode
-           return
-        end if
+          if ( present(lat) ) then
+             grid%jm = size(lat)
+             allocate(grid%lat(grid%jm), stat = rtcode)
+             grid%lat = lat
+          else if ( present(jm) ) then
+             allocate(grid%lat(jm), stat = rtcode)
+             do j = 1, jm
+                grid%lat(j) = 180./(jm-1) * (j-1) - 90
+             end do
+          end if
+          if (rtcode .ne. 0) then 
+             print *, "problem in setting ESMF_CFIOGridSet:lat"
+             rtcode = -2
+             if ( present(rc) ) rc = rtcode
+             return
+          end if
+       end if ! if (usableTwoDimLat)...
 
         if ( present(lev) ) then
            grid%km = size(lev)
@@ -261,7 +292,7 @@
 ! !ROUTINE: ESMF_CFIOGridGet -- get grid info 
 
 ! !INTERFACE:
-      subroutine ESMF_CFIOGridGet (grid, gName, im, jm, km, lat, lon, lev,  &
+      subroutine ESMF_CFIOGridGet (grid, gName, im, jm, km, tm, lat, lon, lev,&
                                    coordinate, standardName, formulaTerm,   &
                                    levUnit, ak, bk, sigma, ptop, twoDimLat, &
                                    reduceGrid, stnGrid, rc)
@@ -278,6 +309,7 @@
       integer, intent(out), OPTIONAL :: im  ! size of longitudinal dimension
       integer, intent(out), OPTIONAL :: jm  ! size of latitudinal  dimension
       integer, intent(out), OPTIONAL :: km  ! size of vertical dimension
+      integer, intent(out), OPTIONAL :: tm  ! size of time dimension
       real, pointer, OPTIONAL :: lon(:) ! longitude
       real, pointer, OPTIONAL :: lat(:) ! latitude
       real, pointer, OPTIONAL :: lev(:) ! Level
@@ -320,6 +352,7 @@
        if ( present(im) ) im = grid%im
        if ( present(jm) ) jm = grid%jm
        if ( present(km) ) km = grid%km 
+       if ( present(tm) ) tm = grid%tm
                                                                                      
         if ( present(lon) ) then
            allocate(lon(size(grid%lon)), stat=rtcode)

@@ -8,19 +8,20 @@
 # ----------------------------------------------------
 
 # OMI SO2: 305, 310, 324, 380, 440, 500
-# OMI Aerosol: 354 388 [~380] 471 [~470] 
-# MODIS: .47e-6 .55e-6 .659e-6 .865e-6 1.24e-6 1.64e-6 2.13e-6
+# OMI Aerosol: 354 [~340] 388 [~380] 471 [~470] 
+# MODIS: .47e-6 .55e-6 .659e-6 [~670] .865e-6 1.24e-6 1.64e-6 2.13e-6
 # MISR: 468 [~470] 558 [~550] 672 [~670] 867 [~865]
 # PARASOL: 670 [~670]  865 
+# AERONET: 340 380 440 500 675 [~670] 870 [~865] 1020 1640
 
-n_channels: 15
-r_channels: .305e-6 .310e-6 .324e-6 .354e-6 .380e-6 .440e-6 .470e-6 .500e-6 .55e-6 .659e-6 .670e-6 .865e-6 1.24e-6 1.64e-6 2.13e-6
+n_channels: 12
+r_channels: .340e-6 .380e-6 .440e-6 .470e-6 .500e-6 .55e-6 .670e-6 .865e-6 1.02e-6 1.24e-6 1.64e-6 2.13e-6
 
-filename_optical_properties_DU: ExtData/g5chem/x/optics_DU.nc
-filename_optical_properties_SS: ExtData/g5chem/x/optics_SS.v2.nc
-filename_optical_properties_OC: ExtData/g5chem/x/optics_OC.nc
-filename_optical_properties_BC: ExtData/g5chem/x/optics_BC.nc
-filename_optical_properties_SU: ExtData/g5chem/x/optics_SU.nc
+filename_optical_properties_DU: ExtData/PIESA/x/optics_DU.v14_2.nc
+filename_optical_properties_SS: ExtData/PIESA/x/optics_SS.v3_3.nc
+filename_optical_properties_OC: ExtData/PIESA/x/optics_OC.v1_3.nc
+filename_optical_properties_BC: ExtData/PIESA/x/optics_BC.v1_3.nc
+filename_optical_properties_SU: ExtData/PIESA/x/optics_SU.v1_3.nc
 
 # Second block is a copy of a chem registry type, used here only
 # to specify what to write out to the bundle file!!!

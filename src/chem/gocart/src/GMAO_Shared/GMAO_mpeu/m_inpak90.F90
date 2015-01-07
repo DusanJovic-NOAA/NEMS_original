@@ -271,7 +271,7 @@
   character, parameter :: TAB = achar(09)   ! TAB
   character, parameter :: EOL = achar(10)   ! end of line mark (newline)
   character, parameter :: EOB = achar(00)   ! end of buffer mark (null)
-  character, parameter :: NULL= achar(00)   ! what it says
+!  character, parameter :: NULL= achar(00)   ! what it says
 
   type inpak90
 		! May be easily paged for extentable file size (J.G.)

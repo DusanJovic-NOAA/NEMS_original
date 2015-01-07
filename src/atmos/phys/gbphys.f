@@ -35,7 +35,7 @@
 !           dusfc,dvsfc,dtsfc,dqsfc,totprcp,gflux,                      !
 !           dlwsfc,ulwsfc,suntim,runoff,ep,cldwrk,                      !
 !           dugwd,dvgwd,psmean,cnvprcp,spfhmin,spfhmax,rain,rainc,      !
-!           dt3dt,dq3dt,du3dt,dv3dt,dqdt_v,acv,acvb,acvt,               !
+!           dt3dt,dq3dt,du3dt,dv3dt,dqdt_v,cnvqc_v,acv,acvb,acvt,       !
 !           slc,smc,stc,upd_mf,dwn_mf,det_mf,        phy_f3d,phy_f2d,   !
 !           dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 !
 !           dlwsfc_cpl,dswsfc_cpl,dnirbm_cpl,dnirdf_cpl,                !
@@ -129,6 +129,7 @@
 !      Aug  2014  - s. moorthi  add tracer fixer                        !
 !      Sep  2014  - Sarah Lu    disable the option to compute tracer    !
 !                               scavenging in GFS phys (set fscav=0.)   !
+!      Dec  2014  - Jun Wang    add cnvqc_v for gocart                  !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
 !  inputs:                                                       size   !
@@ -331,6 +332,7 @@
 !     du3dt     - real, u momentum change due to physics            ix,levs,4 !
 !     dv3dt     - real, v momentum change due to physics            ix,levs,4 !
 !     dqdt_v    - real, total moisture tendency (kg/kg/s)        ix,levs   !
+!     cnvqc_v   - real, total convective conensate (kg/kg)       ix,levs   !
 !     acv       - real,  array containing accumulated convective clouds im !
 !     acvb,acvt - real,  arrays used by cnvc90                      im   !
 !     slc       - real, liquid soil moisture                     ix,lsoil!
@@ -476,10 +478,9 @@
      &      dusfc,dvsfc,dtsfc,dqsfc,totprcp,gflux,                      &
      &      dlwsfc,ulwsfc,suntim,runoff,ep,cldwrk,                      &
      &      dugwd,dvgwd,psmean,cnvprcp,spfhmin,spfhmax,rain,rainc,      &
-     &      dt3dt,dq3dt,du3dt,dv3dt,dqdt_v,acv,acvb,acvt,               &
+     &      dt3dt,dq3dt,du3dt,dv3dt,dqdt_v,cnvqc_v,acv,acvb,acvt,       &
      &      slc,smc,stc,upd_mf,dwn_mf,det_mf,        phy_f3d,phy_f2d,   &
 !    &      slc,smc,stc,upd_mf,dwn_mf,det_mf,dkh,rnp,phy_f3d,phy_f2d,   &
-
      &      dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 &
      &      dlwsfc_cpl,dswsfc_cpl,dnirbm_cpl,dnirdf_cpl,                & 
      &      dvisbm_cpl,dvisdf_cpl,rain_cpl,  nlwsfc_cpl,nswsfc_cpl,     &
@@ -628,7 +629,7 @@
      &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk
 
       real(kind=kind_phys), dimension(ix,levs),       intent(out) ::    &
-     &      gt0, gu0, gv0, dqdt_v
+     &      gt0, gu0, gv0, dqdt_v, cnvqc_v
 
       real(kind=kind_phys), dimension(ix,levs,ntrac), intent(out) ::    &
      &      gq0
@@ -710,14 +711,17 @@
 !*************************************************************************
 !     lprnt = .true.
       lprnt = .false.
-!     lprnt = me == 0
+!     lprnt = me == 0 .and. kdt < 10
+!     lprnt = kdt >= 19
+      ipr = 1
 !     lprnt = kdt >= 19
 
-!     write(0,*)' In gbphys:', im,ix,levs,lsoil,lsm,
+!     if (me == 0 .and. kdt < 5)
+!    &write(0,*)' In gbphys:', im,ix,levs,lsoil,lsm,
 !    &  ntrac,ncld,ntoz,ntcw,
 !    &  nmtvr,nrcm,ko3,lonr,latr,jcap,num_p3d,num_p2d,npdf3d,
 !    &      kdt,lat,me,pl_coeff,ncw,flgmin,crtrh,cdmbgwd
-!    &,' ccwf=',ccwf,' dlqf=',dlqf,
+!    &,' ccwf=',ccwf,' dlqf=',dlqf,' ras=',ras,
 !    & ' evpco=',evpco,' wminco=',wminco,' levr=',levr
       ipr = 1
 !     lprnt = kdt .gt. 0
@@ -867,6 +871,10 @@
         dlength(i) = sqrt( tem1*tem1+tem2*tem2 )
         cldf(i)    = cgwf(1)*work1(i) + cgwf(2)*work2(i)
       enddo
+!     if (lprnt) write(0,*)' in gbphys work1&2=',work1(ipr),work2(ipr)
+!    &,' dxmin=',dxmin,' dxinv=',dxinv,' dx=',
+!    &           log(coslat(ipr) / (nlons(ipr)*latr))
+!    &,' coslat=',coslat(ipr),' nlons=',nlons(ipr),' latr=',latr
 
 !  --- ...  transfer soil moisture and temperature from global to local variables
 
@@ -1962,9 +1970,6 @@
 
       else    ! ras
 
-!       if  (lprnt) print *,' calling ras for kdt=',kdt,' me=',me       &
-!    &,                     ' lprnt=',lprnt
-
         if (ccwf(1) >= 0.0 .or. ccwf(2) >= 0 ) then
           do i=1,im
             ccwfac(i) = ccwf(1)*work1(i) + ccwf(2)*work2(i)
@@ -1978,6 +1983,8 @@
             lmh(i)    = levs
           enddo
         endif
+!       if  (lprnt) write(0,*) ' calling ras for kdt=',kdt,' me=',me    &
+!    &,                     ' lprnt=',lprnt,' ccwfac=',ccwfac(ipr)
 
         call rascnv(im,     ix,    levs,   dtp, dtf, rann               &
      &,             gt0,    gq0,   gu0,    gv0, clw, tottracer          &
@@ -2053,6 +2060,11 @@
 !             tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
 !             dqdt_v(i,k)  = dqdt_v(i,k)  + tem
               dqdt_v(i,k)  = (gq0(i,k,1)-dqdt(i,k,1)) * frain
+              upd_mf(i,k)  = upd_mf(i,k)  + ud_mf(i,k) * frain
+              dwn_mf(i,k)  = dwn_mf(i,k)  + dd_mf(i,k) * frain
+              det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * frain
+              cnvqc_v(i,k)  = cnvqc_v(i,k) + (clw(i,k,1)+clw(i,k,2))
+     &                                                        *frain
             enddo
           enddo
         endif ! if (lgocart)

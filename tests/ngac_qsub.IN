@@ -7,6 +7,7 @@
 #PBS -q _QUEUE_
 #PBS -l procs=_TASKS_
 #PBS -l walltime=00:_WLCLK_:00
+#PBS -q debug
 
 set -aeux
 export MPI_GROUP_MAX=96
@@ -56,7 +57,8 @@ export wgrib=/home/George.Vandenberghe/nwprod/util/exec/wgrib
 export HOMEGLOBAL=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para
 export FIXGLOBAL=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
 export FIX_NGAC=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_ngac
-export PARM_NGAC=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/parms/parm_ngac
+#jw export PARM_NGAC=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/parms/parm_ngac
+export PARM_NGAC=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/NGAC/NGACv2.0.0/parm
 
 _RUND_/JNGAC_FORECAST.sms.para
 

@@ -1,7 +1,5 @@
 #include "MAPL_Generic.h"
 
-!!! TO DO: Please revise Prologues!!!!
-
 !-------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1     !
 !-------------------------------------------------------------------------
@@ -16,7 +14,7 @@
 
 ! !USES:
 
-   USE ESMF_Mod
+   USE ESMF
    USE MAPL_Mod
 
    USE Chem_Mod 	     ! Chemistry Base Class
@@ -61,24 +59,26 @@
 
   TYPE Rn_GridComp1
 
-        CHARACTER(LEN=255) :: name            ! generic name of the package
-        CHARACTER(LEN=255) :: iname           ! instance name
-        CHARACTER(LEN=255) :: rcfilen         ! resource file name
-        CHARACTER(LEN=255) :: maskFileName    ! File that contains the land mask
-        CHARACTER(LEN=255) :: regionsString   ! Comma-delimited string of regions
-        CHARACTER(LEN=255) :: emisFileName    ! Radon emission file name
+        CHARACTER(LEN=ESMF_MAXSTR) :: name            ! generic name of the package
+        CHARACTER(LEN=ESMF_MAXSTR) :: iname           ! instance name
+        CHARACTER(LEN=ESMF_MAXSTR) :: rcfilen         ! resource file name
+        CHARACTER(LEN=ESMF_MAXSTR) :: maskFileName    ! File that contains the land mask
+        CHARACTER(LEN=ESMF_MAXSTR) :: regionsString   ! Comma-delimited string of regions
+        CHARACTER(LEN=ESMF_MAXSTR) :: emisFileName    ! Radon emission file name
 
         INTEGER :: instance                   ! instance number
         INTEGER :: BCnymd                     ! Date of last emissions update
 
         REAL :: halfLife                      ! Half-life
-        CHARACTER(LEN=255) :: halfLifeUnit    ! Half-life unit: years, days, or seconds
+        CHARACTER(LEN=ESMF_MAXSTR) :: halfLifeUnit    ! Half-life unit: years, days, or seconds
         REAL :: decayConstant                 ! Decay constant, inverse seconds.
 	REAL :: emission                      ! kg m^{-2} s^{-1}
 
         REAL, POINTER :: regionMask(:,:)      ! regional mask
         REAL, POINTER :: RnsfcFlux(:,:)       ! Rn surface flux kg m^-2 s^-1
         REAL, POINTER :: ScheryEmission(:,:)  ! Monthly mean emission mBq m^{-2} s^{-1}
+
+        LOGICAL :: DebugIsOn                  ! Run-time debug switch
 
   END TYPE Rn_GridComp1
 
@@ -133,90 +133,94 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   CHARACTER(LEN=*), PARAMETER :: myname = 'Rn_GridCompInitialize'
-   CHARACTER(LEN=255) :: rcbasen = 'Rn_GridComp'
-   CHARACTER(LEN=255) :: name
+   CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: Iam = 'Rn_GridCompInitialize'
+   CHARACTER(LEN=ESMF_MAXSTR) :: rcbasen = 'Rn_GridComp'
+   CHARACTER(LEN=ESMF_MAXSTR) :: name
    
-   integer i, ier, n
+   INTEGER :: i, n, status
+   CHARACTER(LEN=1) :: sOrP
 
 !  Load resource file
 !  ------------------
-   CALL I90_loadf ( TRIM(rcbasen)//'.rc', ier )
-   if ( ier .NE. 0 ) then; rc = 10; return; end if
+   CALL I90_loadf ( TRIM(rcbasen)//'.rc', status )
+   VERIFY_(status)
 
 !  Parse resource file
 !  -------------------
-   CALL I90_label ( 'Rn_instances:', ier )
-   if ( ier .NE. 0 ) then; rc = 20; return; end if
+   CALL I90_label ( 'Rn_instances:', status )
+   VERIFY_(status)
 
 !  First determine how many instances we have
 !  ------------------------------------------   
    n = 0
-   do while ( ier .EQ. 0 )
-      CALL I90_gtoken( name, ier )
-      n = n + 1
-   end do
-   if ( n .EQ. 0 ) then; rc = 30; return; end if
+   status = 0
+   DO WHILE( status == 0 )
+    CALL I90_gtoken( name, status )
+    n = n + 1
+   END DO
+   IF( n == 0 ) THEN
+    status = 1
+    VERIFY_(status)
+   END IF
    
 !  We cannot have fewer instances than the number of
 !  Rn bins in the registry (it is OK to have less, though)
 !  --------------------------------------------------------
-   if ( n .LT. w_c%reg%n_Rn ) then
-        rc = 35
-        return
-   else if ( n .GT. w_c%reg%n_Rn ) then
-        if (MAPL_AM_I_ROOT()) &
-        print *, trim(myname)// &
-                 ': fewer Rn bins than possible Rn instances: ',&
-                 n, w_c%reg%n_Rn
-   end if
-   n = min(n,w_c%reg%n_Rn )
+   IF( n < w_c%reg%n_Rn ) THEN
+    status = 1
+    VERIFY_(status)
+   ELSE IF ( n >= w_c%reg%n_Rn ) THEN
+    IF(MAPL_AM_I_ROOT()) THEN
+     sOrP = " "
+     IF(w_c%reg%n_Rn > 1) sOrP = "s"
+     PRINT *, " " 
+     PRINT *, TRIM(Iam)//": Rn has ",w_c%reg%n_Rn," instantiation"//TRIM(sOrP)
+    END IF
+   END IF
+   n = MIN(n,w_c%reg%n_Rn)
    gcRn%n = n
 
 !  Next allocate necessary memory
 !  ------------------------------
-   allocate ( gcRn%gcs(n), stat=ier )    
-   if ( ier .NE. 0 ) then; rc = 40; return; end if
+   ALLOCATE ( gcRn%gcs(n), STAT=status )    
+   VERIFY_(status)
 
 !  Record name of each instance
 !  ----------------------------
-   CALL I90_label ( 'Rn_instances:', ier )
-   do i = 1, n
-      CALL I90_gtoken( name, ier )
-      if ( ier .NE. 0 ) then; rc = 40; return; end if
+   CALL I90_label ( 'Rn_instances:', status )
+   VERIFY_(status)
+   DO i = 1, n
+    CALL I90_gtoken( name, status )
+    VERIFY_(status)
                                             ! resource file name
-      gcRn%gcs(i)%rcfilen = trim(rcbasen)//'---'//trim(name)//'.rc'
+      gcRn%gcs(i)%rcfilen = TRIM(rcbasen)//'---'//TRIM(name)//'.rc'
       gcRn%gcs(i)%instance = i              ! instance number 
       IF(TRIM(name) == "full" ) THEN
        gcRn%gcs(i)%iname = " "              ! blank instance name for full (1)
       ELSE
        gcRn%gcs(i)%iname = TRIM(name)       ! instance name for others
       END IF
-   end do    
+   END DO
 
 !  Next initialize each instance
 !  -----------------------------
-   do i = 1, gcRn%n
-      IF(MAPL_AM_I_ROOT()) THEN
-       PRINT *," "
-       PRINT *,myname,": Initializing instance ",TRIM(gcRn%gcs(i)%iname)," [",gcRn%gcs(i)%instance,"]"
-      END IF
-      call Rn_SingleInstance_ ( Rn_GridCompInitialize1_, i, &
-                                gcRn%gcs(i), w_c, impChem, expChem,  &
-                                nymd, nhms, cdt, ier )
-      if ( ier .NE. 0 ) then; rc = 1000+ier; return; end if
-   end do
+   DO i = 1, gcRn%n
+    IF(MAPL_AM_I_ROOT()) THEN
+     PRINT *," "
+     PRINT *, TRIM(Iam)//": Initializing instance ",TRIM(gcRn%gcs(i)%iname)," [",gcRn%gcs(i)%instance,"]"
+    END IF
+    CALL Rn_SingleInstance_ ( Rn_GridCompInitialize1_, i, &
+                              gcRn%gcs(i), w_c, impChem, expChem,  &
+                              nymd, nhms, cdt, status )
+    VERIFY_(status)
+   END DO
 
 !  All done
 !  --------
-   CALL I90_FullRelease( ier )
-   IF( ier /= 0 ) THEN
-    PRINT *,myname,": I90_FullRelease not successful."
-    rc = 40
-   END IF
+   CALL I90_FullRelease( status )
+   VERIFY_(status)
 
-
- end subroutine Rn_GridCompInitialize
+ END SUBROUTINE Rn_GridCompInitialize
 
 !-------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1     !
@@ -228,7 +232,7 @@ CONTAINS
 ! !INTERFACE:
 !
 
-   subroutine Rn_GridCompRun ( gcRn, w_c, impChem, expChem, &
+   SUBROUTINE Rn_GridCompRun ( gcRn, w_c, impChem, expChem, &
                                       nymd, nhms, cdt, rc )
 
 ! !USES:
@@ -262,16 +266,17 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   integer i, ier
+   CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: Iam = 'Rn_GridCompRun'
+   INTEGER :: i, status
 
-   do i = 1, gcRn%n
-      call Rn_SingleInstance_ ( Rn_GridCompRun1_, i, &
-                                gcRn%gcs(i), w_c, impChem, expChem, &
-                                nymd, nhms, cdt, ier )
-      if ( ier .NE. 0 ) then; rc = i * 1000+ier; return; end if
-   end do
+   DO i = 1, gcRn%n
+    CALL Rn_SingleInstance_ ( Rn_GridCompRun1_, i, &
+                              gcRn%gcs(i), w_c, impChem, expChem, &
+                              nymd, nhms, cdt, status )
+    VERIFY_(status)
+   END DO
 
- end subroutine Rn_GridCompRun
+ END SUBROUTINE Rn_GridCompRun
 
 
 !-------------------------------------------------------------------------
@@ -284,7 +289,7 @@ CONTAINS
 ! !INTERFACE:
 !
 
-   subroutine Rn_GridCompFinalize ( gcRn, w_c, impChem, expChem, &
+   SUBROUTINE Rn_GridCompFinalize ( gcRn, w_c, impChem, expChem, &
                                       nymd, nhms, cdt, rc )
 
 ! !USES:
@@ -318,19 +323,20 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   integer i, ier
+   CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: Iam = 'Rn_GridCompFinalize'
+   INTEGER :: i, status
 
-   do i = 1, gcRn%n
-      call Rn_SingleInstance_ ( Rn_GridCompFinalize1_, i, &
-                                gcRn%gcs(i), w_c, impChem, expChem, &
-                                nymd, nhms, cdt, ier )
-      if ( ier .NE. 0 ) then; rc = i * 1000+ier; return; end if
-   end do
+   DO i = 1, gcRn%n
+    CALL Rn_SingleInstance_ ( Rn_GridCompFinalize1_, i, &
+                              gcRn%gcs(i), w_c, impChem, expChem, &
+                              nymd, nhms, cdt, status )
+    VERIFY_(status)
+   END DO
 
-   deallocate ( gcRn%gcs, stat=ier )    
+   DEALLOCATE( gcRn%gcs, STAT=status )    
    gcRn%n = -1
 
- end subroutine Rn_GridCompFinalize
+ END SUBROUTINE Rn_GridCompFinalize
 
 !--------------------------------------------------------------------------
 
@@ -384,13 +390,10 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   CHARACTER(LEN=*), PARAMETER :: myname = 'Rn_GridCompInitialize1'
+   CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: Iam = 'Rn_GridCompInitialize1_'
+   CHARACTER(LEN=ESMF_MAXSTR) :: rcfilen 
 
-   CHARACTER(LEN=255) :: rcfilen 
-
-   INTEGER :: ios, j, n
-   INTEGER, ALLOCATABLE :: ier(:)
-   INTEGER :: i1, i2, im, j1, j2, jm, km
+   INTEGER :: i1, i2, im, j, j1, j2, jm, km, n, status
    INTEGER :: nTimes, begTime, incSecs
    INTEGER :: nbeg, nend, nymd1, nhms1
    LOGICAL :: NoRegionalConstraint
@@ -399,14 +402,16 @@ CONTAINS
    REAL :: conFac, limitN, limitS, log10Emission, radTODeg
    REAL, ALLOCATABLE :: var2d(:,:)
 
-   rcfilen = gcRn%rcfilen
-   gcRn%name = 'GEOS-5/GOCART Parameterized Radon Package'
-   radTODeg = 57.2957795
+   rcfilen     = gcRn%rcfilen
+   gcRn%name   = 'GEOS-5/GOCART Parameterized Radon Package'
+   radTODeg    = 57.2957795
    gcRn%BCnymd = -1
 
 !  Initialize local variables
 !  --------------------------
    rc = 0
+   status = 0
+
    i1 = w_c%grid%i1
    i2 = w_c%grid%i2
    im = w_c%grid%im
@@ -423,72 +428,77 @@ CONTAINS
 !  It requires 1 bin
 !  -----------------
    IF( nbeg /= nend ) THEN
-    IF(MAPL_AM_I_ROOT()) PRINT *,myname,": Must have only 1 bin at the single instance level"
-    rc = 1
-    RETURN 
+    IF(MAPL_AM_I_ROOT()) PRINT *, TRIM(Iam)//": Must have only 1 bin at the single instance level"
+    status = 1
+    VERIFY_(status)
    END IF
-
-!  Allocate memory, etc
-!  --------------------
-   CALL INIT_()
-   IF ( rc /= 0 ) RETURN
 
 !  Load resource file
 !  ------------------
-   CALL I90_loadf ( TRIM(rcfilen), ier(1) )
-   IF( ier(1) /= 0 ) THEN
-    CALL final_(11)
-    RETURN
+   CALL I90_loadf ( TRIM(rcfilen), status )
+   VERIFY_(status)
+
+! Run-time debug switch
+! ---------------------
+   CALL I90_label ( 'DEBUG:', status )
+   VERIFY_(status)
+   n = I90_gint ( status )
+   VERIFY_(status)
+   IF(n /= 0) THEN
+    gcRn%DebugIsOn = .TRUE.
+   ELSE
+    gcRn%DebugIsOn = .FALSE.
    END IF
-   ier(:)=0
+
+!  Allocate
+!  --------
+   ALLOCATE( gcRn%RnsfcFlux(i1:i2,j1:j2), gcRn%regionMask(i1:i2,j1:j2), &
+	     gcRn%ScheryEmission(i1:i2,j1:j2), STAT=status )
+   VERIFY_(status)
 
 !  Obtain half life.  Unit must be "years", "days", or "seconds".
 !  --------------------------------------------------------------
-   CALL I90_label ( 'HalfLife:', ier(1) )
-   gcRn%halfLife = I90_gfloat ( ier(2) )
-   CALL I90_label ( 'HalfLifeUnit:', ier(3) )
-   CALL I90_gtoken( gcRn%halfLifeUnit, ier(4) )
+   CALL I90_label ( 'HalfLife:', status )
+   VERIFY_(status)
+   gcRn%halfLife = I90_gfloat ( status )
+   VERIFY_(status)
+   CALL I90_label ( 'HalfLifeUnit:', status )
+   VERIFY_(status)
+   CALL I90_gtoken( gcRn%halfLifeUnit, status )
+   VERIFY_(status)
 
 !  Emission, mBq m^{-2} s^{-1}
 !  ---------------------------
-   CALL I90_label ( 'Rn_emission_file_name:', ier(5) )
-   CALL I90_gtoken( gcRn%emisFileName, ier(6) )
-
-   IF( ANY(ier(1:6) < 0 ) ) THEN
-    CALL final_(21)
-    RETURN
-   END IF
-   ier(:)=0
+   CALL I90_label ( 'Rn_emission_file_name:', status )
+   VERIFY_(status)
+   CALL I90_gtoken( gcRn%emisFileName, status )
+   VERIFY_(status)
 
 !  Validate the specified half-life and units, and find
 !  the constant needed to convert half-life to seconds.
 !  ----------------------------------------------------
-   unitOK=.FALSE.
+   unitOK = .FALSE.
    IF(TRIM(gcRn%halfLifeUnit) ==   "years") THEN
-    ier(1) = 1
+    unitOK = .TRUE.
     conFac = 86400.00*365.25
    END IF
-   unitOK=.FALSE.
    IF(TRIM(gcRn%halfLifeUnit) ==    "days") THEN
-    ier(2) = 1
+    unitOK = .TRUE.
     conFac = 86400.00
    END IF
-   unitOK=.FALSE.
    IF(TRIM(gcRn%halfLifeUnit) == "seconds") THEN
-    ier(3) = 1
+    unitOK = .TRUE.
     conFac = 1.00
    END IF
-   IF( ALL(ier(1:3) == 0 ) ) THEN
-    IF(MAPL_AM_I_ROOT()) PRINT *,myname,": Invalid unit specified for radon half-life."
-    CALL final_(31)
-    RETURN
+   IF( .NOT. unitOK ) THEN
+    IF(MAPL_AM_I_ROOT()) PRINT *, TRIM(Iam)//": Invalid unit specified for radon half-life."
+    status = 1
+    VERIFY_(status)
    END IF
    IF(gcRn%halfLife <= 0.00) THEN
-    IF(MAPL_AM_I_ROOT()) PRINT *,myname,": Radon half-life must be greater than zero."
-    CALL final_(32)
-    RETURN
+    IF(MAPL_AM_I_ROOT()) PRINT *, TRIM(Iam)//": Radon half-life must be greater than zero."
+    VERIFY_(status)
    END IF
-   ier(:)=0
 
 !  Compute the decay constant (inverse seconds) from the half-life:
 !    ln(N/No) = ln(1/2) = -decayConstant * halfLife
@@ -497,83 +507,78 @@ CONTAINS
 
 !  Obtain geographical region mask
 !  -------------------------------
-   CALL I90_label ( 'Rn_regions:', ier(5) )
-   CALL I90_gtoken( gcRn%maskFileName, ier(6) )
-
-   IF( ANY(ier(1:6) < 0 ) ) THEN
-     CALL final_(41)
-     RETURN
-   END IF
-   ier(:)=0
+   CALL I90_label ( 'Rn_regions:', status )
+   VERIFY_(status)
+   CALL I90_gtoken( gcRn%maskFileName, status )
+   VERIFY_(status)
 
    CALL Chem_UtilGetTimeInfo( gcRn%maskFileName, nymd1, &
                               begTime, nTimes, incSecs )
-   IF(nymd1 < 0) CALL final_(15)
+   IF(nymd1 < 0) THEN
+    status = 1
+    VERIFY_(status)
+   END IF
    nhms1 = 120000
    CALL Chem_UtilMPread ( TRIM(gcRn%maskFileName), 'REGION_MASK', nymd1, nhms1, &
    			  i1, i2, 0, im, j1, j2, 0, jm, 0, &
-   			  var2d=gcRn%regionMask, grid=w_c%grid_esmf )
+   			  var2d=gcRn%regionMask, grid=w_c%grid_esmf, &
+                          voting=.true. )
 
 !  Grab the region string.
 !  -----------------------
-   CALL I90_label ( 'Rn_regions_indices:', ier(1) )
-   CALL I90_gtoken( gcRn%regionsString, ier(2) )
-   IF( ANY(ier(1:2) < 0 ) ) THEN
-    CALL final_(51)
-    RETURN
-   END IF
+   CALL I90_label ( 'Rn_regions_indices:', status )
+   VERIFY_(status)
+   CALL I90_gtoken( gcRn%regionsString, status )
+   VERIFY_(status)
 
 !  Is a latitude mask desired INSTEAD?  NOTE: Not a fatal error if not specified.
 !  ------------------------------------------------------------------------------
-   CALL I90_label ( 'doZoneMasking:', ier(1) )
-   n = I90_gint ( ier(2) )
+   CALL I90_label ( 'doZoneMasking:', status )
+   VERIFY_(status)
+   n = I90_gint ( status )
+   VERIFY_(status)
 
    ZoneMasking: IF(n == 1) THEN
 
 !  BOTH a south and a north latitude limit must be specified on the .rc file.
 !  --------------------------------------------------------------------------
-    CALL I90_label ( 'LatitudeSouth:', ier(1) )
-    limitS = i90_gfloat ( ier(2) )
-    CALL I90_label ( 'LatitudeNorth:', ier(3) )
-    limitN = i90_gfloat ( ier(4) )
+    CALL I90_label ( 'LatitudeSouth:', status )
+    VERIFY_(status)
+    limitS = i90_gfloat ( status )
+    VERIFY_(status)
+    CALL I90_label ( 'LatitudeNorth:', status )
+    VERIFY_(status)
+    limitN = i90_gfloat ( status )
+    VERIFY_(status)
 
-    SpecCheck: IF( ANY(ier(1:4) < 0) .OR. limitN < limitS ) THEN
-     PRINT *,myname,": Latitude bounds for zone-masking not properly specified."
-     CALL final_(61)
-     RETURN
+    SpecCheck: IF( limitN < limitS ) THEN
+     PRINT *, TRIM(Iam)//": Latitude bounds for zone-masking not properly specified."
+     status = 1
+     VERIFY_(status)
     ELSE
 
-     IF(MAPL_AM_I_ROOT()) PRINT *,myname,": Latitude zone masking is ACTIVE."
-     IF(MAPL_AM_I_ROOT()) PRINT *,myname,":  Range: ",limitS," to ",limitN
-     ier(:)=0
+    IF(MAPL_AM_I_ROOT()) PRINT *, TRIM(Iam)//": Latitude zone masking is ACTIVE."
+    IF(MAPL_AM_I_ROOT()) PRINT *, TRIM(Iam)//":  Range: ",limitS," to ",limitN
 
 !  Reset the regions string to 1, which will be the "on" integer in the mask.
 !  --------------------------------------------------------------------------
      gcRn%regionsString = "1"
-     ALLOCATE(var2d(i1:i2,j1:j2), STAT=ios)
-     IF(ios /= 0) THEN
-      PRINT *,myname,": Unable to allocate var2d."
-      CALL final_(62)
-     END IF
+     ALLOCATE(var2d(i1:i2,j1:j2), STAT=status)
+     VERIFY_(status)
      var2d(i1:i2,j1:j2) = 0.00
 
 !  Within the latitude range specified, set land boxes to 1
 !  --------------------------------------------------------
-     DO j = j1,j2
-      WHERE(gcRn%regionMask(i1:i2,j) > 0 .AND. &
-            (limitS <= w_c%grid%lat(j)*radTODeg .AND. &
-	     w_c%grid%lat(j)*radTODeg <= limitN) ) var2d(i1:i2,j) = 1.00
-     END DO
+      WHERE(gcRn%regionMask > 0 .AND. &
+            (limitS <= w_c%grid%lat*radTODeg .AND. &
+	     w_c%grid%lat*radTODeg <= limitN) ) var2d = 1.00
 
 !  Reset the region mask in gcRn
 !  -----------------------------
      gcRn%regionMask(i1:i2,j1:j2) = var2d(i1:i2,j1:j2)
 
-     DEALLOCATE(var2d, STAT=ios)
-     IF(ios /= 0) THEN
-      PRINT *,myname,": Unable to deallocate var2d."
-      CALL final_(63)
-     END IF
+     DEALLOCATE(var2d, STAT=status)
+     VERIFY_(status)
 
     END IF SpecCheck
 
@@ -600,10 +605,10 @@ CONTAINS
 
    IF(MAPL_AM_I_ROOT()) THEN
     IF(NoRegionalConstraint) THEN
-     PRINT *,myname,": This instantiation has no regional constraints."
+     PRINT *, TRIM(Iam)//": This instantiation has no regional constraints."
     ELSE
-     PRINT *,myname,": This instantiation is regionally constrained."
-     PRINT *,myname,": List of region numbers included: ",TRIM(gcRn%regionsString)
+     PRINT *, TRIM(Iam)//": This instantiation is regionally constrained."
+     PRINT *, TRIM(Iam)//": List of region numbers included: ",TRIM(gcRn%regionsString)
     END IF
    END IF
 
@@ -611,31 +616,7 @@ CONTAINS
 !  --------------------------------------------
    gcRn%RnsfcFlux(i1:i2,j1:j2) = 0.00
 
-   DEALLOCATE(ier)
-
    RETURN
-
-CONTAINS
-
-   SUBROUTINE init_()
-
-   INTEGER ios, nerr
-   nerr = 128
-   ALLOCATE ( gcRn%RnsfcFlux(i1:i2,j1:j2), &
-              gcRn%regionMask(i1:i2,j1:j2), &
-	      gcRn%ScheryEmission(i1:i2,j1:j2), &
-              ier(nerr),STAT=ios )
-
-   IF ( ios /= 0 ) rc = 100
-   END SUBROUTINE init_
-
-   SUBROUTINE final_(ierr)
-   INTEGER :: ierr
-   INTEGER ios
-   DEALLOCATE ( gcRn%RnsfcFlux, gcRn%regionMask, gcRn%ScheryEmission, ier, STAT=ios )
-   CALL I90_release()
-   rc = ierr
-   END SUBROUTINE final_
 
  END SUBROUTINE Rn_GridCompInitialize1_
 
@@ -685,8 +666,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   CHARACTER(LEN=*), PARAMETER :: myname = 'Rn_GridCompRun'
-   CHARACTER(LEN=*), PARAMETER :: Iam = myname
+   CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: Iam = 'Rn_GridCompRun1_'
 
 !  Input fields from fvGCM
 !  -----------------------
@@ -695,9 +675,9 @@ CONTAINS
    REAL, POINTER, DIMENSION(:,:)   :: soilT   => null()
    REAL, POINTER, DIMENSION(:,:)   :: fracIce => null()
 
-   INTEGER :: i1, i2, im, j1, j2, jm, km, ios, idiag, iXj
+   INTEGER :: i1, i2, im, j1, j2, jm, km, idiag, iXj
    INTEGER :: i, j, k, kReverse, n, nbeg, nend, nymd1
-   INTEGER :: ier(8)
+   INTEGER :: status
 
    REAL, PARAMETER :: nsuba=6.022E+26
    REAL, PARAMETER :: mwtAir=28.97
@@ -716,8 +696,6 @@ CONTAINS
 #define RnCL     Rn_column
 #define RnSC     Rn_surface
 #define RnLS     Rn_loss
-
-   integer :: STATUS
 
 #include "Rn_GetPointer___.h"
 
@@ -740,11 +718,11 @@ CONTAINS
 
 !  It requires 1 bin
 !  -----------------
-   if ( nbeg /= nend ) then
-      IF(MAPL_AM_I_ROOT()) PRINT *,myname,": Must have only 1 bin at the single instance level"
-      rc = 1
-      return 
-   end if
+   IF ( nbeg /= nend ) THEN
+    IF(MAPL_AM_I_ROOT()) PRINT *, TRIM(Iam)//": Must have only 1 bin at the single instance level"
+    status = 1
+    VERIFY_(status)
+   END IF
 
 !  Update emissions once each day.  Expecting units mBq m^{-2} s^{-1}.
 !  -------------------------------------------------------------------
@@ -764,23 +742,19 @@ CONTAINS
 !  Allocate temporary workspace
 !  ----------------------------
    ALLOCATE(pe(i1:i2,j1:j2,km+1), p(i1:i2,j1:j2,km), nd(i1:i2,j1:j2,km), &
-            dZ(i1:i2,j1:j2,km), F(i1:i2,j1:j2), mask(i1:i2,j1:j2), STAT=ios)
-   IF(ios /= 0) THEN
-    rc = 3
-    RETURN
-   END IF
+            dZ(i1:i2,j1:j2,km), F(i1:i2,j1:j2), mask(i1:i2,j1:j2), STAT=status)
+   VERIFY_(status)
 
 !  Get imports
 !  -----------
-   call MAPL_GetPointer( impChem,       T,      'T', rc=ier(1) ) 
-   call MAPL_GetPointer( impChem,     zle,    'ZLE', rc=ier(2) ) 
-   call MAPL_GetPointer( impChem,   soilT, 'TSOIL1', rc=ier(3) ) 
-   call MAPL_GetPointer( impChem, fracIce,  'FRACI', rc=ier(4) ) 
-
-   IF(ANY(ier(1:4) /= 0)) THEN
-    rc = 4
-    RETURN
-   END IF
+   CALL MAPL_GetPointer( impChem,	T,	'T', RC=status ) 
+   VERIFY_(status)
+   CALL MAPL_GetPointer( impChem,     zle,    'ZLE', RC=status ) 
+   VERIFY_(status)
+   CALL MAPL_GetPointer( impChem,   soilT, 'TSOIL1', RC=status ) 
+   VERIFY_(status)
+   CALL MAPL_GetPointer( impChem, fracIce,  'FRACI', RC=status ) 
+   VERIFY_(status)
 
 !  Layer thicknesses.  ZLE(:,:,0:km).
 !  ----------------------------------
@@ -800,13 +774,15 @@ CONTAINS
    DO k=1,km
     p(i1:i2,j1:j2,k)=(pe(i1:i2,j1:j2,k)+pe(i1:i2,j1:j2,k+1))*0.50
    END DO
- 
+
 !  Number density
 !  --------------
    nd(i1:i2,j1:j2,1:km)= nsuba*p(i1:i2,j1:j2,1:km)/ &
                         (rstar*T(i1:i2,j1:j2,1:km))
- 
-#ifdef DEBUG
+
+!  Validate
+!  --------
+   IF(gcRn%DebugIsOn) THEN
     CALL pmaxmin('Rn: T     ',      T, qmin, qmax, iXj,   km, 1. )
     CALL pmaxmin('Rn: TSOIL1',  soilT, qmin, qmax, iXj,    1, 1. )
     CALL pmaxmin('Rn: FRACI ',fracIce, qmin, qmax, iXj,    1, 1. )
@@ -815,7 +791,7 @@ CONTAINS
     CALL pmaxmin('Rn: Edge p',     pe, qmin, qmax, iXj,   km, 1. )
     CALL pmaxmin('Rn: Mid p ',      p, qmin, qmax, iXj,   km, 1. )
     CALL pmaxmin('Rn: Numden',     nd, qmin, qmax, iXj,   km, 1. )
-#endif
+   END IF
 
 !  Convert Radon from mole fraction to number density
 !  --------------------------------------------------
@@ -832,7 +808,8 @@ CONTAINS
 
 !  Find land boxes from regional mask file.
 !  ----------------------------------------
-   CALL setLandMask
+   CALL setLandMask(status)
+   VERIFY_(status)
 
 !  For the global intantiation, include ocean emissions.
 !  -----------------------------------------------------
@@ -902,48 +879,52 @@ CONTAINS
    n = gcRn%instance 
    IF(ASSOCIATED(Rn_surface)) Rn_surface(i1:i2,j1:j2) = w_c%qa(nbeg)%data3d(i1:i2,j1:j2,km)
 
-#ifdef DEBUG
-   n = gcRn%instance 
-   IF(ASSOCIATED(   Rn_emis)) &
-   CALL pmaxmin(   'Rn_emis',	 Rn_emis(i1:i2,j1:j2), qmin, qmax, iXj, 1, 1. )
-   IF(ASSOCIATED(   Rn_loss)) &
-   CALL pmaxmin(   'Rn_loss',	 Rn_loss(i1:i2,j1:j2), qmin, qmax, iXj, 1, 1. )
-   IF(ASSOCIATED( Rn_column)) &
-   CALL pmaxmin( 'Rn_column',  Rn_column(i1:i2,j1:j2), qmin, qmax, iXj, 1, 1. )
-   IF(ASSOCIATED(Rn_surface)) &
-   CALL pmaxmin('Rn:surface', Rn_surface(i1:i2,j1:j2), qmin, qmax, iXj, 1, 1. )
-#endif
+   IF(gcRn%DebugIsOn) THEN
+    n = gcRn%instance 
+    IF(ASSOCIATED(   Rn_emis)) &
+     CALL pmaxmin(   'Rn_emis',	   Rn_emis(i1:i2,j1:j2), qmin, qmax, iXj, 1, 1. )
+    IF(ASSOCIATED(   Rn_loss)) &
+     CALL pmaxmin(   'Rn_loss',	   Rn_loss(i1:i2,j1:j2), qmin, qmax, iXj, 1, 1. )
+    IF(ASSOCIATED( Rn_column)) &
+     CALL pmaxmin( 'Rn_column',  Rn_column(i1:i2,j1:j2), qmin, qmax, iXj, 1, 1. )
+    IF(ASSOCIATED(Rn_surface)) &
+     CALL pmaxmin('Rn:surface', Rn_surface(i1:i2,j1:j2), qmin, qmax, iXj, 1, 1. )
+   END IF
 
 !  Housekeeping
 !  ------------
-   DEALLOCATE(F, mask, dZ, nd, p, pe, STAT=ier(1))
+   DEALLOCATE(F, mask, dZ, nd, p, pe, STAT=status)
+   VERIFY_(status)
 
    RETURN
 
 CONTAINS
 
-  SUBROUTINE setLandMask
+  SUBROUTINE setLandMask(rc)
    IMPLICIT NONE
-   INTEGER :: ios, k
+   INTEGER, INTENT(OUT) ::  rc
+   INTEGER :: i, k, status
    INTEGER, ALLOCATABLE :: regionNumbers(:),flag(:)
+   CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: Iam = 'Rn::setLandMask'
 
+   rc = 0
    k = 32
-   ALLOCATE(regionNumbers(k),flag(k),STAT=ios)
-   IF ( ios /= 0 ) CALL die ( myname, ": Cannot allocate for masking.")
+   ALLOCATE(regionNumbers(k), flag(k), STAT=status)
+   VERIFY_(status)
 
 ! Obtain region numbers from delimited list of integers
 ! -----------------------------------------------------
    regionNumbers(:) = 0
-   CALL Chem_UtilExtractIntegers(gcRn%regionsString,k,regionNumbers,RC=ios)
-   IF ( ios /= 0 ) CALL die ( myname, "_setLandMask: Unable to extract integers for regionNumbers.")
+   CALL Chem_UtilExtractIntegers(gcRn%regionsString, k, regionNumbers, RC=status)
+   VERIFY_(status)
 
 ! How many integers were found?
 ! -----------------------------
    flag(:) = 1
    WHERE(regionNumbers(:) == 0) flag(:) = 0
    k = SUM(flag)
-   DEALLOCATE(flag,STAT=ios)
-   IF ( ios /= 0 ) CALL die ( myname, "_setLandMask: Cannot dallocate flag.")
+   DEALLOCATE(flag, STAT=status)
+   VERIFY_(status)
 
 ! Set local mask to 1 where gridMask matches each integer (within precision!).
 ! ----------------------------------------------------------------------------
@@ -951,9 +932,9 @@ CONTAINS
    IF(regionNumbers(1) == -1) THEN
     WHERE(gcRn%regionMask(i1:i2,j1:j2) /= 0) mask(i1:i2,j1:j2) = 1
    ELSE
-    DO ios=1,k
-     WHERE(     regionNumbers(ios)-0.01 <= gcRn%regionMask(i1:i2,j1:j2) .AND. &
-           gcRn%regionMask(i1:i2,j1:j2) <= regionNumbers(ios)+0.01) mask(i1:i2,j1:j2) = 1
+    DO i = 1,k
+     WHERE(       regionNumbers(i)-0.01 <= gcRn%regionMask(i1:i2,j1:j2) .AND. &
+           gcRn%regionMask(i1:i2,j1:j2) <= regionNumbers(i)+0.01) mask(i1:i2,j1:j2) = 1
     END DO
    END IF
 
@@ -1007,12 +988,12 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   CHARACTER(LEN=*), PARAMETER :: myname = 'Rn_GridCompFinalize'
-   INTEGER :: ios
-
-   DEALLOCATE ( gcRn%RnsfcFlux,  gcRn%regionMask, gcRn%ScheryEmission, STAT=ios )
+   CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: Iam = 'Rn_GridCompFinalize1_'
+   INTEGER :: status
    rc = 0
-   IF ( ios /= 0 ) rc = 1
+
+   DEALLOCATE ( gcRn%RnsfcFlux,  gcRn%regionMask, gcRn%ScheryEmission, STAT=status )
+   VERIFY_(status)
 
    RETURN
 
@@ -1033,16 +1014,16 @@ CONTAINS
 !
 ! !INTERFACE:
 !
-  subroutine Rn_SingleInstance_ ( Method_, instance, &
+  SUBROUTINE Rn_SingleInstance_ ( Method_, instance, &
                                   gcRn, w_c, impChem, expChem, &
                                   nymd, nhms, cdt, rc )
 
 ! !USES:
 
-  Use Rn_GridCompMod
-  Use ESMF_Mod
-  Use MAPL_Mod
-  Use Chem_Mod 
+  USE Rn_GridCompMod
+  USE ESMF
+  USE MAPL_Mod
+  USE Chem_Mod 
 
   IMPLICIT NONE
 
@@ -1050,25 +1031,25 @@ CONTAINS
 
 !  Input "function pointer"
 !  -----------------------
-   interface 
-     subroutine Method_ (gc, w, imp, exp, ymd, hms, dt, rcode )
-       Use Rn_GridCompMod
-       Use ESMF_Mod
-       Use MAPL_Mod
-       Use Chem_Mod 
-       type(Rn_GridComp1),  intent(inout)  :: gc
-       type(Chem_Bundle),   intent(in)     :: w
-       type(ESMF_State),    intent(inout)  :: imp
-       type(ESMF_State),    intent(inout)  :: exp
-       integer,             intent(in)     :: ymd, hms
-       real,                intent(in)     :: dt	
-       integer,             intent(out)    :: rcode
-     end subroutine Method_
-   end interface
+   INTERFACE 
+     SUBROUTINE Method_ (gc, w, imp, exp, ymd, hms, dt, rcode )
+       USE Rn_GridCompMod
+       USE ESMF
+       USE MAPL_Mod
+       USE Chem_Mod 
+       TYPE(Rn_GridComp1),  INTENT(INOUT)  :: gc
+       TYPE(Chem_Bundle),   INTENT(IN)     :: w
+       TYPE(ESMF_State),    INTENT(INOUT)  :: imp
+       TYPE(ESMF_State),    INTENT(INOUT)  :: exp
+       INTEGER,    	    INTENT(IN)     :: ymd, hms
+       REAL,	   	    INTENT(IN)     :: dt	
+       INTEGER,    	    INTENT(OUT)    :: rcode
+     END SUBROUTINE Method_
+   END INTERFACE
 
-   integer, intent(in)           :: instance   ! instance number
+   INTEGER, INTENT(IN)           :: instance   ! instance number
 
-   TYPE(Chem_Bundle), intent(inout) :: w_c     ! Chemical tracer fields      
+   TYPE(Chem_Bundle), INTENT(INOUT) :: w_c     ! Chemical tracer fields      
    INTEGER, INTENT(IN) :: nymd, nhms	       ! time
    REAL,    INTENT(IN) :: cdt		       ! chemical timestep (secs)
 
@@ -1093,7 +1074,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-  integer n_Rn, i_Rn, j_Rn
+  INTEGER :: n_Rn, i_Rn, j_Rn
 
 ! Save overall Rn indices
 ! -----------------------
@@ -1109,8 +1090,7 @@ CONTAINS
   
 ! Execute the instance method
 ! ---------------------------
-  call Method_ ( gcRn, w_c, impChem, expChem, &
-                 nymd, nhms, cdt, rc )
+  CALL Method_ ( gcRn, w_c, impChem, expChem, nymd, nhms, cdt, rc )
 
 ! Restore the overall Rn indices
 ! ------------------------------
@@ -1118,6 +1098,6 @@ CONTAINS
   w_c%reg%i_Rn = i_Rn
   w_c%reg%j_Rn = j_Rn
 
-  end subroutine Rn_SingleInstance_
+  END SUBROUTINE Rn_SingleInstance_
 
 !-----------------------------------------------------------------------

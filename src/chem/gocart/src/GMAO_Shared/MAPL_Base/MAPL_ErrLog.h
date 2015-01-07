@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_ErrLog.h,v 1.7 2008/11/09 06:21:35 dasilva Exp $ 
+!  $Id: MAPL_ErrLog.h,v 1.8 2011-04-13 14:20:32 atrayano Exp $ 
 
 ! The error logging may eventually evolve into a module based
 ! on the ESMF logger.  For now these macros provide simple
@@ -21,7 +21,7 @@
 #endif
 
 #ifdef IGNORE_
-#undefine IGNORE_
+#undef IGNORE_
 #endif
  
 #define IGNORE_(a) continue

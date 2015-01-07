@@ -28,9 +28,15 @@ NAME := $(patsubst %_GridComp,%,$(THIS))
 
   # All fvChem is a single library
 
-esma_install install: $(AGCS) $(LIB_THIS) 
-	$(MKDIR) $(ESMALIB) $(ESMAETC) $(INC_CHEM) $(ESMABIN)
-	$(CP) -p *.rc        $(ESMAETC)
+RCDIR = .
+
+esma_install install: $(ACGS) $(LIB_THIS) 
+	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAETC)/CMIP $(ESMAETC)/MERRA2 $(ESMAETC)/NR $(ESMAETC)/PIESA $(INC_CHEM) $(ESMABIN)
+	$(CP) -p        *.rc                       $(ESMAETC)
+	$(CP) -p   CMIP/*.rc                       $(ESMAETC)/CMIP
+	$(CP) -p MERRA2/*.rc                       $(ESMAETC)/MERRA2
+	$(CP) -p     NR/*.rc                       $(ESMAETC)/NR
+	$(CP) -p  PIESA/*.rc                       $(ESMAETC)/PIESA
 	$(CP) -p *.h *.mod   $(INC_CHEM)
 
 esma_clean clean:
@@ -69,13 +75,11 @@ DEBUG = -DDEBUG
 
 SRCS := $(THIS)Mod.F90
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
-ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc $(NAME)_DeclarePointer___.h
+ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc
 DEPS := $(addsuffix .d, $(basename $(SRCS)))
 
-INC_DIRS = . $(INC_MAPL_BASE) 
-MOD_DIRS = . $(INC_ESMF) $(INC_MPEU) $(INC_PILGRIM) \
-             $(INC_DIRS) $(INC_GEOS_SHARED) $(ESMAINC)/MAPL_Base \
-             $(INC_CHEM_BASE) $(INC_CHEM_SHARED) $(INC_CHEM) 
+INC_DIRS = . $(INC_CHEM) $(INC_ESMF) $(INC_GMAO_SHARED)
+MOD_DIRS = . $(INC_DIRS)
 
 USER_FDEFS  = $(DGEOS5) $(DEBUG)
 USER_FFLAGS = $(BIG_ENDIAN) 

@@ -5,7 +5,7 @@
 
 # Make sure test binaries are up to date
 # --------------------------------------
-  (cd ..; make ut_GOCART.x)
+  (cd ..; make XFLAGS=-DDEBUG ESMA_REAL=-r8 ut_GOCART.x)
 
 # Make sure RC files are here
 # ---------------------------
@@ -22,4 +22,5 @@
 
 # Run the poor test
 # -----------------
-  mpirun -np 2 ../ut_GOCART.x
+#  mpirun -np 2 ../ut_GOCART.x
+  mpirun -np 1 ../ut_GOCART.x

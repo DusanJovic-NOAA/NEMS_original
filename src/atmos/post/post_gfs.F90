@@ -218,7 +218,6 @@
       use physcons
       use rqstfld_mod
 !
-      use ESMF_Mod
       use MODULE_WRITE_INTERNAL_STATE_GFS
 !
 !-----------------------------------------------------------------------

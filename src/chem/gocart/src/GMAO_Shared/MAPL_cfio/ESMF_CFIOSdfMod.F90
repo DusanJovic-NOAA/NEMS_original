@@ -384,7 +384,7 @@
       logical :: new_grid
       integer :: nDims, allVars, recdim
       integer :: im, jm, km
-      integer :: hour, min 
+      integer :: hour, minute, seconds
       integer :: fid, nVars, dimSize(4), myIndex
       character(len=MVARLEN) :: dimName(4), dimUnits(4), vnameTemp
       character(len=MVARLEN) :: nameAk, nameBk, namePtop
@@ -452,6 +452,9 @@
       end if
 
       allocate(cfio%varObjs(cfio%mVars))
+      do i=1,cfio%mVars
+         cfio%varObjs(i)=ESMF_CFIOVarInfoCreate(rc=rc)
+      end do
       nVars = 0
       cfio%mGrids = 0
       do i=1,allVars
@@ -507,8 +510,10 @@
            myIndex = IdentifyDim (dimName(iv), dimUnits(iv))
            if (myIndex .EQ. 0) then
               cfio%varObjs(nVars)%grid%im = dimSize(iv)
-              allocate(cfio%varObjs(nVars)%grid%lon(dimSize(iv)), &
-                       lon(dimSize(iv)))
+              if (.not. associated(cfio%varObjs(nVars)%grid%lon)) then
+                 allocate(cfio%varObjs(nVars)%grid%lon(dimSize(iv)))
+              end if
+              allocate(lon(dimSize(iv)))
 !              call ncvgt (fid, vDims(iv), 1, dimSize(iv), lon, rtcode)
               if ( coXType .eq. NCFLOAT ) then
                  call ncvgt (fid, varId, 1, dimSize(iv), lon, rtcode)
@@ -527,8 +532,10 @@
            end if
            if (myIndex .EQ. 1) then
               cfio%varObjs(nVars)%grid%jm = dimSize(iv)
-              allocate(cfio%varObjs(nVars)%grid%lat(dimSize(iv)), &
-                       lat(dimSize(iv)))
+              if (.not. associated(cfio%varObjs(nVars)%grid%lat)) then
+                 allocate(cfio%varObjs(nVars)%grid%lat(dimSize(iv)))
+              end if
+              allocate(lat(dimSize(iv)))
               if ( coYType .eq. NCFLOAT ) then
                  call ncvgt (fid, varId, 1, dimSize(iv), lat, rtcode)
               else
@@ -723,10 +730,12 @@
       end if
 
       hour = cfio%timeInc/3600
-      min = mod(cfio%timeInc,max(3600*hour,1))/60
-      cfio%timeInc = hour*10000 + min*100
+      minute = (cfio%timeInc-(3600*hour))/60
+      seconds = cfio%timeInc-(3600*hour) - (60 * minute)
+      cfio%timeInc = hour*10000 + minute*100 + seconds
 
       allocate(attNames(ngatts))
+      attNames = " "
       call CFIO_GetAttNames ( cfio%fid, ngatts, attNames, rtcode )
       if (err("CFIO_GetAttNames failed",rtcode,rtcode) .lt. 0) then  
          if ( present(rc) ) rc = rtcode
@@ -873,6 +882,7 @@
             cfio%references=cfio%attChars(i)
          if (index(cfio%attCharNames(i),'Comment') .gt. 0)  &
             cfio%comment=cfio%attChars(i)
+         deallocate(globalAtt)
       end do
 
 
@@ -1512,11 +1522,16 @@
       if ( present(xCount) ) myXount = xCount
       if ( present(yCount) ) myYount = yCount
 
-      if (.not. associated(field) ) then
-         allocate(field(myXount,myYount,myKount),stat=rtcode)
+      if (associated(field) ) then
+         if (size(field,1) < myXount .or. size(field,2) < myYount .or. size(field,3) < myKount) then 
+            print *, "Field is not Large Enough in VarRead3D"
+            if (size(field,1) < myXount) rtcode = -4
+            if (size(field,2) < myXount) rtcode = -5
+            if (size(field,3) < myKount) rtcode = -3
+            if ( present(rc) ) rc = rtcode
+            return
+         end if
       else
-         deallocate(field,stat=rtcode)
-         if (rtcode /= 0) print *, "Couldn't deallocate Field in VarRead3D"
          allocate(field(myXount,myYount,myKount),stat=rtcode)
       end if
 !      allocate(field(myXount,myYount,myKount), stat=rtcode)
@@ -1619,7 +1634,7 @@
             end if
          end if
       end if
-                                                                                
+
 !     make sure user provides the right variable name
       do i = 1, cfio%mVars
          if ( trim(vName) .eq. trim(cfio%varObjs(i)%vName) ) exit
@@ -1661,7 +1676,17 @@
            return
         end if
  
-        allocate(field(myXount,myYount))
+        if(associated(field)) then
+           if (size(field,1) < myXount .or. size(field,2) < myYount) then 
+              print *, "Field is not Large Enough in VarRead2D"
+              if (size(field,1) < myXount) rtcode = -4
+              if (size(field,2) < myXount) rtcode = -5
+              if ( present(rc) ) rc = rtcode
+              return
+           end if
+        else
+           allocate(field(myXount,myYount))
+        end if
         do j = 1, myYount
            do i = 1, myXount
               field(i,j) = tmp(myXbeg+i-1,myYbeg+j-1)
@@ -1678,7 +1703,17 @@
               if ( present(rc) ) rc = rtcode
               return
            end if
-           allocate(field(myXount,1))
+           if(associated(field)) then
+              if (size(field,1) < myXount .or. size(field,2) < 1) then 
+                 print *, "Field is not Large Enough in VarRead2D"
+                 if (size(field,1) < myXount) rtcode = -4
+                 if (size(field,2) < 1) rtcode = -5
+                 if ( present(rc) ) rc = rtcode
+                 return
+              end if
+           else
+              allocate(field(myXount,1))
+           end if
            do i = 1, myXount
               field(i,1) = tmp(myXbeg+i-1,1)
            end do
@@ -1692,7 +1727,17 @@
               if ( present(rc) ) rc = rtcode
               return
            end if
-           allocate(field(myXount,myKount))
+           if(associated(field)) then
+              if (size(field,1) < myXount .or. size(field,2) < myKount) then 
+                 print *, "Field is not Large Enough in VarRead2D"
+                 if (size(field,1) < myXount) rtcode = -4
+                 if (size(field,2) < myKount) rtcode = -3
+                 if ( present(rc) ) rc = rtcode
+                 return
+              end if
+           else
+              allocate(field(myXount,myKount))
+           end if
            do k = 1, myKount
              do i = 1, myXount
                 field(i,k) = tmp(myXbeg+i-1,k)
@@ -1892,8 +1937,9 @@
 
       ! REAL*4 variables for 32-bit output to netCDF file.
 
-      integer :: im, jm, km, nst
+      integer :: im, jm, km, tm, nst
       real*8, pointer :: lon_64(:), lat_64(:), levs_64(:)
+      real*8, pointer :: lon2_64(:), lat2_64(:)
       character(len=MVARLEN) :: levunits
       integer :: yyyymmdd_beg, hhmmss_beg, timinc
       real :: missing_val
@@ -1921,12 +1967,14 @@
       integer, pointer :: gDims3D(:,:), gDims2D(:,:)
       integer dims3D(4), dims2D(3), dims1D(1), ptopdim
       integer corner(1), edges(1)
+      integer :: corner2d(2), edges2d(2)
+      integer, pointer :: lat2id(:), lon2id(:)
 !      integer corner(4), edges(4)
       character*80 timeUnits 
       logical surfaceOnly
       character*8 strBuf
       character*14 dateString
-      integer year,mon,day,hour,min,sec
+      integer year,mon,day,hour,minute,sec
       integer count
       integer maxLen
       integer rtcode
@@ -1937,19 +1985,24 @@
       integer ig
       integer ndim
       character cig
+      integer nDefaultChunksize(4) ! Set Chunksize to im,jm,1,1 by default
 
 ! Variables for packing
 
       integer*2 amiss_16
       real*4, pointer ::  pRange_32(:,:),vRange_32(:,:)
       logical packflag
-
+      integer min
 ! Set metadata strings.  These metadata values are specified in the 
 ! COARDS conventions
 
-      character (len=50) :: lonName = "longitude"
+      character (len=50), pointer :: lonDimName
+      character (len=50), pointer :: latDimName
+      character (len=50), target :: lonName = "longitude"
+      character (len=50), target :: lon2Name = "Nominal longitude at South pole"
       character (len=50) :: lonUnits = "degrees_east"
-      character (len=50) :: latName = "latitude"
+      character (len=50), target :: latName = "latitude"
+      character (len=50), target :: lat2Name = "Nominal latitude at dateline"
       character (len=50) :: latUnits = "degrees_north"
       character (len=50) :: levName = "vertical level"
 !                           levUnits: specified by user in argument list
@@ -1957,13 +2010,17 @@
       character (len=50) :: layerUnits = "layer"
       character (len=50) :: timeName = "time"
 !                           timeUnits: string is built below
+      character (len=50) :: coordinatesName
       integer :: iCnt
       real*4, pointer :: realVarAtt(:)
       integer, pointer :: intVarAtt(:)
       real*4 :: scale_factor, add_offset
+      character (len=50) :: nameLatDim, nameLonDim
       character (len=50) :: nameLat, nameLon, nameLev, nameEdge
       character (len=50) :: nameAk, nameBk, namePtop, nameStation 
-        
+      logical  bTimeSet
+      integer :: sz_lon, sz_lat
+
       nvars = cfio%mVars
       yyyymmdd_beg = cfio%date
       hhmmss_beg = cfio%begTime
@@ -1974,6 +2031,7 @@
             vRange_32(2,nvars), pRange_32(2,nvars), stat = rtcode)
 
       allocate(latid(cfio%mGrids), lonid(cfio%mGrids),                   &
+               lat2id(cfio%mGrids), lon2id(cfio%mGrids),                 &
                levid(cfio%mGrids), layerid(cfio%mGrids),                 &
                latdim(cfio%mGrids), londim(cfio%mGrids),                 &
                levdim(cfio%mGrids), layerdim(cfio%mGrids),               &
@@ -2034,18 +2092,27 @@
 ! Create the new NetCDF file. [ Enter define mode. ]
 
 #if defined(HAS_NETCDF4)
-      rc = nf_create (trim(cfio%fName), IOR(NF_CLOBBER,NF_NETCDF4), fid)
+      if (isFileExtensionNetCDF4(trim(cfio%fName))) then
+         rc = nf_create (trim(cfio%fName), IOR(NF_CLOBBER,NF_NETCDF4), fid)
+      else
+         rc = nf_create (trim(cfio%fName), IOR(IOR(NF_CLOBBER,NF_NETCDF4),NF_CLASSIC_MODEL), fid) !NETCDF4/HDF5
+      end if
 #else
       fid = nccre (trim(cfio%fName), NCCLOB, rc)
 #endif
 
       if (err("Create: can't create file",rc,-30) .LT. 0) return
 
+!     Time Variable is defaulted to UNLIMITED
+      bTimeSet = .FALSE.
+      tm = 0
 ! Convert double-precision output variables to single-precision
    do ig = 1, cfio%mGrids
       im = cfio%grids(ig)%im
       jm = cfio%grids(ig)%jm
       km = cfio%grids(ig)%km
+      tm = max(tm,cfio%grids(ig)%tm)
+     
       if ( index(cfio%grids(ig)%gName, 'station') .gt. &
            0 ) then
          if (im .ne. jm) rtcode = err("It isn't station grid",-1,-1)
@@ -2061,6 +2128,15 @@
 
 ! Define dimensions.
 
+      lonDimName => lonName
+      latDimName => latName
+      if (cfio%grids(ig)%twoDimLat) then
+         nameLonDim = 'LON'
+         nameLatDim = 'LAT'
+         coordinatesName = trim(nameLonDim) // ' ' // trim(nameLatDim)
+         lonDimName => lon2Name
+         latDimName => lat2Name
+      endif
       if ( ig .eq. 1 ) then
          if (cfio%mGrids .eq. 1) then
             nameLon = 'lon'
@@ -2108,8 +2184,6 @@
          if (err("Create: error defining edges",rc,-31) .LT. 0) return
       endif
 
-      call ncendf (fid, rc)
-      call ncredf (fid, rc)
 
 ! Define dimension variables.
 
@@ -2126,6 +2200,14 @@
          if (err("Create: error creating lon",rc,-32) .LT. 0) return
          latid(ig) = ncvdef (fid, nameLat, NCDOUBLE, 1, latdim(ig), rc)
          if (err("Create: error creating lat",rc,-32) .LT. 0) return
+         if (cfio%grids(ig)%twoDimLat) then
+            dims2D(2) = latdim(ig)
+            dims2D(1) = londim(ig)
+            lon2id(ig) = ncvdef (fid, nameLonDim, NCDOUBLE, 2, dims2D(1:2), rc)
+            if (err("Create: error creating lon2d",rc,-32) .LT. 0) return
+            lat2id(ig) = ncvdef (fid, nameLatDim, NCDOUBLE, 2, dims2D(1:2), rc)
+            if (err("Create: error creating lat2d",rc,-32) .LT. 0) return
+         end if
       end if
 
       if (.NOT. surfaceOnly) then
@@ -2140,8 +2222,8 @@
 
 ! Set attributes for dimensions.
 
-      call ncaptc (fid,lonid(ig),'long_name',NCCHAR,LEN_TRIM(lonName), &
-                  lonName,rc)
+      call ncaptc (fid,lonid(ig),'long_name',NCCHAR,LEN_TRIM(lonDimName), &
+                  lonDimName,rc)
       if (err("Create: error creating lon attribute",rc,-33) .LT. 0) &
         return
       call ncaptc (fid,lonid(ig),'units',NCCHAR,LEN_TRIM(lonUnits), &
@@ -2149,14 +2231,34 @@
       if (err("Create: error creating lon attribute",rc,-33) .LT. 0)  &
         return
 
-      call ncaptc (fid,latid(ig),'long_name',NCCHAR,LEN_TRIM(latName),&
-                  latName,rc)
+      call ncaptc (fid,latid(ig),'long_name',NCCHAR,LEN_TRIM(latDimName),&
+                  latDimName,rc)
       if (err("Create: error creating lat attribute",rc,-33) .LT. 0) &
         return
       call ncaptc (fid,latid(ig),'units',NCCHAR,LEN_TRIM(latUnits),&
                   latUnits,rc)
       if (err("Create: error creating lat attribute",rc,-33) .LT. 0) &
         return
+
+      if (cfio%grids(ig)%twoDimLat) then
+         call ncaptc (fid,lon2id(ig),'long_name',NCCHAR,LEN_TRIM(lonName), &
+                      lonName,rc)
+         if (err("Create: error creating lon2 attribute",rc,-33) .LT. 0) &
+              return
+         call ncaptc (fid,lon2id(ig),'units',NCCHAR,LEN_TRIM(lonUnits), &
+                      lonUnits,rc)
+         if (err("Create: error creating lon2 attribute",rc,-33) .LT. 0)  &
+              return
+
+         call ncaptc (fid,lat2id(ig),'long_name',NCCHAR,LEN_TRIM(latName),&
+                      latName,rc)
+         if (err("Create: error creating lat2 attribute",rc,-33) .LT. 0) &
+              return
+         call ncaptc (fid,lat2id(ig),'units',NCCHAR,LEN_TRIM(latUnits),&
+                      latUnits,rc)
+         if (err("Create: error creating lat2 attribute",rc,-33) .LT. 0) &
+              return
+      end if
 
       if ( trim(cfio%grids(ig)%standardName) .eq. &
            'atmosphere_hybrid_sigma_pressure_coordinate' ) then
@@ -2204,7 +2306,12 @@
 ! end of mGrid loop
   end do
 
-      timedim = ncddef(fid, 'time', NCUNLIM, rc)
+      if( tm .LE. 0 ) then 
+         timedim = ncddef(fid, 'time', NCUNLIM, rc)
+      else
+         timedim = ncddef(fid, 'time', tm, rc)
+         bTimeSet = .TRUE.
+      endif
       if (err("Create: error defining time",rc,-31) .LT. 0) return
       if ( aveFile ) then
          bndsdim = ncddef(fid, 'nv', 2, rc)
@@ -2235,13 +2342,13 @@
 
 !ams       write (dateString,200) yyyymmdd_beg, hhmmss_beg
 !ams 200   format (I8,I6)
-!ams       read (dateString,201) year,mon,day,hour,min,sec
+!ams       read (dateString,201) year,mon,day,hour,minute,sec
 !ams 201   format (I4,5I2)
 
       call CFIO_parseIntTime ( yyyymmdd_beg, year, mon, day )
-      call CFIO_parseIntTime ( hhmmss_beg, hour,min,sec )
+      call CFIO_parseIntTime ( hhmmss_beg, hour,minute,sec )
 
-      write (timeUnits,202) year,mon,day,hour,min,sec
+      write (timeUnits,202) year,mon,day,hour,minute,sec
 202   format ('minutes since ',I4.4,'-',I2.2,'-',I2.2,' ',I2.2,':', &
               I2.2,':',I2.2)
       call ncaptc (fid, timeid, 'units', NCCHAR, LEN_TRIM(timeUnits),  &
@@ -2251,10 +2358,10 @@
       
 !ams       write (strBuf,203) timinc
 !ams 203   format (I6)
-!ams       read (strBuf,204) hour, min, sec
+!ams       read (strBuf,204) hour, minute, sec
 !ams 204   format (3I2)
 
-      call CFIO_parseIntTime ( timinc, hour, min, sec ) 
+      call CFIO_parseIntTime ( timinc, hour, minute, sec ) 
 
       if ( sec .NE. 0) then
         print *, 'CFIO_Create: Time increments not on minute', &
@@ -2273,7 +2380,7 @@
         return
 
       if ( aveFile ) then
-         call ncapt (fid,timeid,'bounds',NCCHAR,9,'time_bnds',rc)
+         call ncaptc (fid,timeid,'bounds',NCCHAR,9,'time_bnds',rc)
          if (err("Create: error creating time attribute",rc,-33) .LT. 0) &
              return
       end if
@@ -2282,6 +2389,7 @@
       im = cfio%grids(ig)%im
       jm = cfio%grids(ig)%jm
       km = cfio%grids(ig)%km
+      tm = max(tm,cfio%grids(ig)%tm)
       if ( index(cfio%grids(ig)%gName, 'station') .gt. &
            0 ) then
          if (im .ne. jm) rtcode = err("It isn't station grid",-1,-1)
@@ -2390,6 +2498,7 @@
       do i=1,nvars
         scale_32 = 1.0                        ! default to no packing.
         offset_32 = 0.0
+
         if (pRange_32(1,i) .NE. amiss_32 .OR. pRange_32(2,i) .NE.  &
        amiss_32) then
           if (pRange_32(1,i) .GT. pRange_32(2,i)) then
@@ -2418,6 +2527,7 @@
               dims2D = gDims2D(:,ig)
            end if
         end do
+
         if ( kmvar(i) .eq. 0 ) then
           ndim = 3
           if (index(cfio%varObjs(i)%grid%gName,'station') .gt. 0) ndim = 2
@@ -2441,11 +2551,40 @@
         endif
         if (err("Create: error defining variable",rc,-34) .LT. 0)  &
          return
+
 #if defined(HAS_NETCDF4)
+
+!
+! Chunksize is set to IM,JM,1,1 works for 2D and 3D variables
+!
+        if ( (associated(cfio%varObjs(i)%ChunkSize)) ) then 
+           rc=NF_DEF_VAR_CHUNKING(fid, vid(i), &
+                NF_CHUNKED, cfio%varObjs(i)%ChunkSize)
+           if (err("Create: error setting Chunked variable",rc,-40) .LT. 0) &
+           return
+        else
+!
+! Set Chunsize to IM,JM,1,1 by default 
+! If Time (tm) has been set in grid, set the file to contiguous
+!
+           if( bTimeSet .eq. .FALSE.) then
+              nDefaultChunkSize(1)=im
+              nDefaultChunkSize(2)=jm
+              nDefaultChunkSize(3)=1
+              nDefaultChunkSize(4)=1
+              rc=NF_DEF_VAR_CHUNKING(fid, vid(i), NF_CHUNKED,  & 
+                   nDefaultChunkSize)
+           endif
+
+        end if
+!
+! Handle deflation
+!
         if (cfio%deflate > 0 .and. cfio%deflate <= 9) then
            rc = nf_def_var_deflate(fid, vid(i), 1, 1, cfio%deflate)
            if (err("Create: error setting deflate filter",rc,-40) .LT. 0) return
         end if
+
 ! enable error checking
 !        rc = nf_def_var_fletcher32(fid, vid(i), 1)
 !        if (err("Create: error setting fletcher",rc,-41) .LT. 0) return
@@ -2658,6 +2797,17 @@
            if (err("Create: error defining cell_methods attribute",rc,-35) &
                    .LT. 0) return
         end if
+
+        if (cfio%mGrids == 1) then
+           ig = 1
+           if (cfio%grids(ig)%twoDimLat) then
+              call ncaptc (fid, vid(i), 'coordinates', NCCHAR,  &
+                   LEN_TRIM(coordinatesName), coordinatesName, rc)
+              if (err("Create: error defining coordinates attribute",rc,-35) &
+                   .LT. 0) return
+           end if
+        end if
+
       enddo
  
       if ( aveFile ) then
@@ -2678,17 +2828,38 @@
       im = cfio%grids(ig)%im
       jm = cfio%grids(ig)%jm
       km = cfio%grids(ig)%km
+      tm = max(tm,cfio%grids(ig)%tm)
 
-      allocate(lon_64(im), lat_64(jm), levs_64(km), ak_32(km+1),         &
+      if (cfio%grids(ig)%twoDimLat) then
+         sz_lon = im*jm
+         sz_lat = sz_lon
+      else
+         sz_lon = im
+         sz_lat = jm
+      end if
+      allocate(lon_64(sz_lon), lat_64(sz_lat), levs_64(km), ak_32(km+1),         &
             bk_32(km+1), layer(km+1), stat = rtcode) 
 
       ptop_32(1) = cfio%grids(ig)%ptop
-      do i=1,im
+      do i=1,sz_lon
          lon_64(i) = cfio%grids(ig)%lon(i)
       enddo
-      do i=1,jm
+      do i=1,sz_lat
          lat_64(i) = cfio%grids(ig)%lat(i)
       enddo
+
+      if (cfio%grids(ig)%twoDimLat) then
+         allocate(lon2_64(im), lat2_64(jm), stat = rtcode) 
+         do i=1,im
+!            lon2_64(i) = i ! uncomment if index is needed
+            lon2_64(i) = cfio%grids(ig)%lon(i) ! lats at South pole
+         enddo
+         do i=1,jm
+!            lat2_64(i) = i ! uncomment if index is needed
+            lat2_64(i) = cfio%grids(ig)%lat((i-1)*im + 1) ! lons at date line
+         enddo
+      end if
+
       do i=1,km
          levs_64(i) = cfio%grids(ig)%lev(i)
       enddo
@@ -2706,16 +2877,42 @@
          end if
       end if
 
-      corner(1) = 1
-      edges(1) = im
-      call ncvpt (fid, lonid(ig), corner, edges, lon_64, rc)
-      if (err("Create: error writing lons",rc,-38) .LT. 0) return
-      deallocate(lon_64, stat = rtcode)
+      if (cfio%grids(ig)%twoDimLat) then
+         corner(1) = 1
+         edges(1) = im
+         call ncvpt (fid, lonid(ig), corner, edges, lon2_64, rc)
+         if (err("Create: error writing lons2",rc,-38) .LT. 0) return
 
-      corner(1) = 1
-      edges(1) = jm
-      call ncvpt (fid, latid(ig), corner, edges, lat_64, rc)
-      if (err("Create: error writing lats",rc,-38) .LT. 0) return
+         corner(1) = 1
+         edges(1) = jm
+         call ncvpt (fid, latid(ig), corner, edges, lat2_64, rc)
+         if (err("Create: error writing lats2",rc,-38) .LT. 0) return
+
+         corner2d = 1
+         edges2d(1) = im
+         edges2d(2) = jm
+         call ncvpt (fid, lon2id(ig), corner2d, edges2d, lon_64, rc)
+         if (err("Create: error writing lons",rc,-38) .LT. 0) return
+
+         corner2d = 1
+         edges2d(1) = im
+         edges2d(2) = jm
+         call ncvpt (fid, lat2id(ig), corner2d, edges2d, lat_64, rc)
+         if (err("Create: error writing lats",rc,-38) .LT. 0) return
+         deallocate(lon2_64, stat = rtcode)
+         deallocate(lat2_64, stat = rtcode)
+      else
+         corner(1) = 1
+         edges(1) = im
+         call ncvpt (fid, lonid(ig), corner, edges, lon_64, rc)
+         if (err("Create: error writing lons",rc,-38) .LT. 0) return
+
+         corner(1) = 1
+         edges(1) = jm
+         call ncvpt (fid, latid(ig), corner, edges, lat_64, rc)
+         if (err("Create: error writing lats",rc,-38) .LT. 0) return
+      end if
+      deallocate(lon_64, stat = rtcode)
       deallocate(lat_64, stat = rtcode)
 
       if (.NOT. surfaceOnly) then
@@ -2731,12 +2928,14 @@
         corner(1) = 1
         edges(1) = 1
         call ncvpt (fid, ptopid(ig), corner, edges, ptop_32, rc)
+        if (err("Create: error writing ptopid prs",rc,-38) .LT. 0) return
         corner(1) = 1
         edges(1) = km+1
         call ncvpt (fid, layerid(ig), corner, edges, layer, rc)
         if (err("Create: error writing layers",rc,-38) .LT. 0) return
         call ncvpt (fid, akid(ig), corner, edges, ak_32, rc)
         call ncvpt (fid, bkid(ig), corner, edges, bk_32, rc)
+        if (err("Create: error writing ak/bk",rc,-38) .LT. 0) return
       endif
       deallocate(layer, stat = rtcode)
       deallocate(ak_32, stat = rtcode)
@@ -2758,8 +2957,8 @@
 
       deallocate(latid, stat = rtcode)
       deallocate(lonid, stat = rtcode)
-      deallocate(levid, stat = rtcode)
-      deallocate(layerid, stat = rtcode)
+      deallocate(lat2id, stat = rtcode)
+      deallocate(lon2id, stat = rtcode)
       deallocate(levid, stat = rtcode)
       deallocate(layerid, stat = rtcode)
       deallocate(latdim, stat = rtcode)
@@ -2787,6 +2986,26 @@
 
       rc=0
       return
+contains
+  logical function isFileExtensionNetCDF4(fileName)
+    character(len=*) :: fileName
+    
+    character(len=len(fileName)) :: ext
+    integer :: i
+    
+    isFileExtensionNetCDF4 = .false.
+    ext = ''
+    i = index(fileName,'.',back=.true.)
+    if (i==0) return
+    ext = fileName(i+1:)
+
+    if (ext == 'nc4' .or. ext == 'h5') then
+       isFileExtensionNetCDF4 = .true.
+    end if
+
+    return
+  end function isFileExtensionNetCDF4
+
       end subroutine CFIO_Create_
 
 
@@ -2819,7 +3038,7 @@
 !------------------------------------------------------------------------------
 
       integer :: vid, corner(4), edges(4)
-      integer :: hour, min, sec, incSecs, timeIndex
+      integer :: hour, minute, sec, incSecs, timeIndex
       integer :: seconds, timeinc, curSecs
       real*4 :: bndsdata(2)
       character*8 :: strBuf
@@ -2835,19 +3054,19 @@
 
 !ams          write (strBuf,203) timeinc
 !ams 203      format (I6)
-!ams          read (strBuf,204) hour, min, sec
+!ams          read (strBuf,204) hour, minute, sec
 !ams 204      format (3I2)
 
-         call CFIO_parseIntTime ( timeinc, hour, min, sec ) 
+         call CFIO_parseIntTime ( timeinc, hour, minute, sec ) 
 
-         incSecs = hour*3600 + min*60 + sec
+         incSecs = hour*3600 + minute*60 + sec
 
 !ams         write (strBuf,203) curTime
-!ams         read (strBuf,204) hour, min, sec
+!ams         read (strBuf,204) hour, minute, sec
 
-         call CFIO_parseIntTime ( curTime, hour, min, sec ) 
+         call CFIO_parseIntTime ( curTime, hour, minute, sec ) 
 
-         curSecs = hour*3600 + min*60 + sec
+         curSecs = hour*3600 + minute*60 + sec
                                                                      
          timeIndex = seconds/incSecs + 1
          corner(1) = 1
@@ -2864,7 +3083,7 @@
             bndsdata(1) = curSecs/60.
             bndsdata(2) = (incSecs + curSecs)/60.
          end if
- 
+
          vid = ncvid (cfio%fid, 'time_bnds', rtcode)
          if ( rtcode .ne. 0 ) then 
             print *, "ncvid failed in ncvid for time_bnds"

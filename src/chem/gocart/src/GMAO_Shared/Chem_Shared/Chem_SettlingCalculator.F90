@@ -10,7 +10,7 @@
 
   program Chem_SettleCalc
 
-  use ESMF_Mod              ! Needed to initialize MPI
+  use ESMF                  ! Needed to initialize MPI
   use Chem_Mod              ! Chemistry Base Class
   use Chem_StateMod         ! Chemistry State
   use Chem_SettlingMod      ! Settling

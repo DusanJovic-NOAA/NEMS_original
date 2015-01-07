@@ -13,7 +13,7 @@
 !
 ! !USES:
 !
-   use ESMF_Mod
+   use ESMF
    use MAPL_Mod
    use MAPL_GenericMod
 
@@ -28,8 +28,7 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
 
-   public GOCART_SetServices
-!   public SetServices
+   public SetServices
 !
 ! !DESCRIPTION: 
 !
@@ -50,9 +49,7 @@
 !
 !  25feb2005  da Silva  First crack.
 !  19jul2006  da Silva  First separate GOCART component.
-!  18jun2010  Lu        Add gaseous species (dms,so2,msa) to AERO bundle
-!  16oct2010  Lu        Add fscav to iAERO bundle 
-!  14nov2010  Lu        Add extract_gfs_
+!  09dec2014  Jun Wang recover two phase initialization
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -76,17 +73,16 @@ CONTAINS
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: GOCART_SetServices --- Sets IRF services for GOCART Grid Component
+! !IROUTINE: SetServices --- Sets IRF services for GOCART Grid Component
 !
 ! !INTERFACE:
 
-   subroutine GOCART_SetServices ( GC, RC )
+   subroutine SetServices ( GC, RC )
 
 ! !ARGUMENTS:
 
     type(ESMF_GridComp), intent(INOUT) :: GC  ! gridded component
-    integer, intent(out)               :: RC  ! return code
-!    integer, optional                  :: RC  ! return code
+    integer, optional                  :: RC  ! return code
 
 ! !DESCRIPTION: Sets Initialize, Run and Finalize services. 
 !
@@ -100,9 +96,9 @@ CONTAINS
 
 !   ErrLog Variables
 !   ----------------
-    character(len=ESMF_MAXSTR)      :: IAm = 'GOCART_SetServices'
+    character(len=ESMF_MAXSTR)      :: IAm = 'SetServices'
     integer                         :: STATUS
-    character(len=ESMF_MAXSTR)      :: COMP_NAME, answer
+    character(len=ESMF_MAXSTR)      :: COMP_NAME
 
 !   Local derived type aliases
 !   --------------------------
@@ -111,21 +107,26 @@ CONTAINS
     type (GOCART_wrap)            :: wrap
     type(Chem_Registry), pointer  :: r
 
-    integer                       :: n, nq, i_XX, j_XX
+    integer                       :: n, nq
+    CHARACTER(LEN=ESMF_MAXSTR)    :: FRIENDLIES, providerName
+    character(len=ESMF_MAXSTR)    :: short_name
+    real                          :: DEFVAL
+    real                          :: DEFVAL_CO2
+    real*4                        :: DEFVAL_r4
+!___NCEP___
     logical                       :: GOCART_OWNS_TRACERS   
 
 !                              ------------
 
-    RC = 0
-
 
 !   Get my name and set-up traceback handle
 !   ---------------------------------------
-    call ESMF_GridCompGet( GC, CONFIG=CF, NAME=COMP_NAME, RC=STATUS )
+    call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, RC=STATUS )
     VERIFY_(STATUS)
     Iam = TRIM(COMP_NAME) // '::' // TRIM(Iam)
 
-!   Get GFS parameters from GC and CF (Sarah Lu)
+!___NCEP___
+!   Get GFS parameters from GC and CF 
 !   -----------------------------------------
     call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS )
     VERIFY_(STATUS)
@@ -156,27 +157,27 @@ CONTAINS
         IF(MAPL_AM_I_ROOT()) THEN
          PRINT *, TRIM(Iam)//': ACTIVE'
          PRINT *,' '
-         CALL Chem_RegistryPrint(state%chemReg)
         END IF
 
         if ( GOCART_OWNS_TRACERS ) then
-           call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  InitializeSingle_, &
+           call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE, InitializeSingle_, &
                 RC=STATUS)
            VERIFY_(STATUS)
         else
-           call ESMF_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  Initialize1_, &
+           call ESMF_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE,  Initialize1_, &
                                              PHASE=1, RC=STATUS)
            VERIFY_(STATUS)
-           call ESMF_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  Initialize2_, &
+!jw           call ESMF_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  Initialize2_, &
+           call ESMF_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE,  Initialize2_, &
                                              PHASE=2, RC=STATUS)
            VERIFY_(STATUS)
         end if
 
-        call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETRUN,  Run_,        &
+        call MAPL_GridCompSetEntryPoint ( GC,  ESMF_METHOD_RUN,  Run_,        &
              RC=STATUS)
         VERIFY_(STATUS)
         
-        call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETFINAL,  Finalize_,  &
+        call MAPL_GridCompSetEntryPoint ( GC,  ESMF_METHOD_FINALIZE,  Finalize_,  &
              RC=STATUS)
         VERIFY_(STATUS)
         
@@ -190,6 +191,9 @@ CONTAINS
         if (MAPL_AM_I_ROOT()) &
         print *, trim(Iam)//': NOT ACTIVE, defaulting to Generic No-op stubs'
 
+        call MAPL_GenericSetServices ( GC, __RC__ )
+        RETURN_(ESMF_SUCCESS)
+
      endif
 
 
@@ -199,22 +203,64 @@ CONTAINS
 
 !  NOTE: For now, always define import state to avoid breaking connectivities.
 
-!BOP
+!!BOS
 !
 ! !IMPORT STATE:
 
 !    3-D Quantities
 !    --------------    
 
+!   GMICHEM species
+!   ---------------
+    GMI_on: IF(state%chemReg%doing_GMI) THEN
+
+     CALL MAPL_AddImportSpec(GC,                                   &
+          SHORT_NAME  = "OH",                                      &
+          LONG_NAME   = "Hydroxyl_radical",                        &
+          UNITS       = "mol/mol",                                 &
+          PRECISION   = KIND(0.0),                                 &
+          DIMS        = MAPL_DimsHorzVert,                         &
+          VLOCATION   = MAPL_VLocationCenter,     RC=STATUS  )
+     VERIFY_(STATUS)
+
+     CALL MAPL_AddImportSpec(GC,                                   &
+          SHORT_NAME  = "CH4",                                     &
+          LONG_NAME   = "Methane",                                 &
+          UNITS       = "mol/mol",                                 &
+          PRECISION   = KIND(0.0),                                 &
+          DIMS        = MAPL_DimsHorzVert,                         &
+          VLOCATION   = MAPL_VLocationCenter,     RC=STATUS  )
+     VERIFY_(STATUS)
+
+     CALL MAPL_AddImportSpec(GC,                                   &
+          SHORT_NAME  = "H2O2",                                    &
+          LONG_NAME   = "Hydrogen_peroxide",                       &
+          UNITS       = "mol/mol",                                 &
+          PRECISION   = KIND(0.0),                                 &
+          DIMS        = MAPL_DimsHorzVert,                         &
+          VLOCATION   = MAPL_VLocationCenter,     RC=STATUS  )
+     VERIFY_(STATUS)
+
+     CALL MAPL_AddImportSpec(GC,                                   &
+          SHORT_NAME  = "NO3",                                     &
+          LONG_NAME   = "Nitrogen_trioxide",                       &
+          UNITS       = "mol/mol",                                 &
+          PRECISION   = KIND(0.0),                                 &
+          DIMS        = MAPL_DimsHorzVert,                         &
+          VLOCATION   = MAPL_VLocationCenter,     RC=STATUS  )
+     VERIFY_(STATUS)
+
+    END IF GMI_on
+
 !    delp: derive from this
 !    ----------------------
- 
-    call MAPL_AddImportSpec(GC,                                    &
+
+    call MAPL_AddImportSpec(GC,                               &
          SHORT_NAME = 'PLE',                                       &
          LONG_NAME  = 'air_pressure',                              &
          UNITS      = 'Pa',                                        &
          PRECISION  = KIND(0.0),                                   &
-         DEFAULT    = MAPL_UNDEF,                                  &
+!ALT         DEFAULT    = MAPL_UNDEF,                                  &
          DIMS       =  MAPL_DimsHorzVert,                          &
          VLOCATION  =  MAPL_VLocationEdge,                         &
                                                         RC=STATUS  )
@@ -227,7 +273,7 @@ CONTAINS
          LONG_NAME  = 'geopotential_height',                       &
          UNITS      = 'm',                                         &
          PRECISION  = KIND(0.0),                                   &
-         DEFAULT            = MAPL_UNDEF,                          &
+!ALT         DEFAULT            = MAPL_UNDEF,                          &
          DIMS       =  MAPL_DimsHorzVert,                          &
          VLOCATION  =  MAPL_VLocationEdge,                         &
                                                         RC=STATUS  )
@@ -239,8 +285,8 @@ CONTAINS
         SHORT_NAME         = 'AIRDENS',                           &
         LONG_NAME          = 'air_density',                       &
         UNITS              = 'kg/m^3',                            &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT            = MAPL_UNDEF,                          &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
         DIMS               = MAPL_DimsHorzVert,                   &
         VLOCATION          = MAPL_VLocationCenter,       RC=STATUS  )
      VERIFY_(STATUS)
@@ -251,8 +297,8 @@ CONTAINS
          SHORT_NAME='FCLD'  ,                                      &
          LONG_NAME ='Cloud fraction for radiation',                &
          UNITS     ='1',                                           &
-         PRECISION  = KIND(0.0),                                   &
-         DEFAULT   = MAPL_UNDEF,                                   &
+         PRECISION = KIND(0.0),                                    &
+!ALT         DEFAULT   = MAPL_UNDEF,                                   &
          DIMS      = MAPL_DimsHorzVert,                            &
          VLOCATION = MAPL_VLocationCenter,              RC=STATUS  )
      VERIFY_(STATUS)
@@ -263,8 +309,20 @@ CONTAINS
          SHORT_NAME='DQDT',                                        &
          LONG_NAME ='Q tendency - moist physics',                  &
          UNITS     ='kg/kg/s',                                     &
-         PRECISION  = KIND(0.0),                                   &
-         DEFAULT   = MAPL_UNDEF,                                   &
+         PRECISION = KIND(0.0),                                    &
+!ALT         DEFAULT   = MAPL_UNDEF,                                   &
+         DIMS      = MAPL_DimsHorzVert,                            &
+         VLOCATION = MAPL_VLocationCenter,              RC=STATUS  )
+    VERIFY_(STATUS)
+
+!    DQRL: this is large-scale rainwater source
+!    ------------------------------------------
+     call MAPL_AddImportSpec(GC,                              &
+         SHORT_NAME='DQRL',                                        &
+         LONG_NAME ='Large Scale Rainwater Source - moist physics',&
+         UNITS     ='kg/kg/s',                                     &
+         PRECISION = KIND(0.0),                                    &
+!ALT         DEFAULT   = MAPL_UNDEF,                                   &
          DIMS      = MAPL_DimsHorzVert,                            &
          VLOCATION = MAPL_VLocationCenter,              RC=STATUS  )
     VERIFY_(STATUS)
@@ -276,7 +334,7 @@ CONTAINS
          LONG_NAME  = 'air_temperature',                           &
          UNITS      = 'K',                                         &
          PRECISION  = KIND(0.0),                                   &
-         DEFAULT    = MAPL_UNDEF,                                  &
+!ALT         DEFAULT    = MAPL_UNDEF,                                  &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
      VERIFY_(STATUS)
@@ -288,7 +346,7 @@ CONTAINS
          LONG_NAME  = 'eastward_wind',                             &
          UNITS      = 'm s-1',                                     &
          PRECISION  = KIND(0.0),                                   &
-         DEFAULT    = MAPL_UNDEF,                                  &
+!ALT         DEFAULT    = MAPL_UNDEF,                                  &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
      VERIFY_(STATUS)
@@ -300,31 +358,45 @@ CONTAINS
          LONG_NAME  = 'northward_wind',                            &
          UNITS      = 'm s-1',                                     &
          PRECISION  = KIND(0.0),                                   &
-         DEFAULT    = MAPL_UNDEF,                                  &
+!ALT         DEFAULT    = MAPL_UNDEF,                                  &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
      VERIFY_(STATUS)
 
+!   Q
+!   -
+    call MAPL_AddImportSpec(GC,                               &
+         SHORT_NAME = 'Q',                                         &
+         LONG_NAME  = 'specific_humidity',                         &
+         UNITS      = 'kg kg-1',                                   &
+         PRECISION  = KIND(0.0),                                   &
+!ALT         DEFAULT    = MAPL_UNDEF,                                  &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )  
+     VERIFY_(STATUS)                                                                          
+
 !   Ozone from PCHEM for CFC-12 photolysis
 !   --------------------------------------
+  CFC_on: IF(state%chemReg%doing_CFC) THEN
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'O3',                                        &
          LONG_NAME  = 'ozone_mass_mixing_ratio',                   &
          UNITS      = 'kg/kg',                                     &
          PRECISION  = KIND(0.0),                                   &
-         DEFAULT    = MAPL_UNDEF,                                  &
+!ALT         DEFAULT    = MAPL_UNDEF,                                  &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
      VERIFY_(STATUS)
+  END IF CFC_on
 
-!   RH: is this between 0 and 1 or between 0 and 100?
+!   RH: is between 0 and 1
 !   -------------------------------------------------
     call MAPL_AddImportSpec(GC,                               &
          SHORT_NAME='RH2',                                         &
          LONG_NAME ='Rel_Hum_after_moist',                         &
          UNITS     ='1',                                           &
-         PRECISION  = KIND(0.0),                                   &
-         DEFAULT   = MAPL_UNDEF,                                   &
+         PRECISION = KIND(0.0),                                    &
+!ALT         DEFAULT   = MAPL_UNDEF,                                   &
          DIMS      = MAPL_DimsHorzVert,                            &
          VLOCATION = MAPL_VLocationCenter,              RC=STATUS  )
     VERIFY_(STATUS)
@@ -339,8 +411,8 @@ CONTAINS
         SHORT_NAME         = 'TROPP',                        &
         LONG_NAME          = 'tropopause_pressure_based_on_blended_estimate', &
         UNITS              = 'Pa',                                &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT            = MAPL_UNDEF,                          &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
@@ -352,8 +424,8 @@ CONTAINS
         SHORT_NAME         = 'LWI',                               &
         LONG_NAME          = 'land-ocean-ice_mask',               &
         UNITS              = '1',                                 &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT            = MAPL_UNDEF,                          &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
@@ -365,7 +437,7 @@ CONTAINS
          SHORT_NAME='ZPBL',                                        &
          LONG_NAME ='Planetary boundary layer height',             &
          UNITS     ='m',                                           &
-         PRECISION  = KIND(0.0),                                   &
+         PRECISION = KIND(0.0),                                    &
          DIMS      = MAPL_DimsHorzOnly,                            &
          VLOCATION = MAPL_VLocationNone,              RC=STATUS  )
     VERIFY_(STATUS)
@@ -377,11 +449,23 @@ CONTAINS
         SHORT_NAME         = 'FRLAKE',                            &
         LONG_NAME          = 'fraction_of_lake',                  &
         UNITS              = '1',                                 &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT            = MAPL_UNDEF,                          &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
+     VERIFY_(STATUS)
+
+!    FROCEAN
+!    -------
+     call MAPL_AddImportSpec(GC,                          &
+        SHORT_NAME         = 'FROCEAN',                           &
+        LONG_NAME          = 'fraction_of_ocean',                 &
+        UNITS              = '1',                                 &
+        PRECISION          = KIND(0.0),                           &
+        DIMS               = MAPL_DimsHorzOnly,               &
+        VLOCATION          = MAPL_VLocationNone,              &
+                                                      RC=STATUS  )
      VERIFY_(STATUS)
 
 !    FRACI
@@ -390,8 +474,8 @@ CONTAINS
         SHORT_NAME         = 'FRACI',                             &
         LONG_NAME          = 'ice_covered_fraction_of_tile',      &
         UNITS              = '1',                                 &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT            = MAPL_UNDEF,                          &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
@@ -403,8 +487,8 @@ CONTAINS
         SHORT_NAME         = 'WET1'                              ,&
         LONG_NAME          = 'surface_soil_wetness'              ,&
         UNITS              = '1'                                 ,&
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT            = MAPL_UNDEF,                          &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
         DIMS               = MAPL_DimsHorzOnly                   ,&
         VLOCATION          = MAPL_VLocationNone                  ,&
                                                        RC=STATUS  )
@@ -416,8 +500,8 @@ CONTAINS
         SHORT_NAME         = 'LAI'                               ,&
         LONG_NAME          = 'leaf_area_index'                   ,&
         UNITS              = '1'                                 ,&
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT   = MAPL_UNDEF,                                   &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT   = MAPL_UNDEF,                                   &
         DIMS               = MAPL_DimsHorzOnly                   ,&
         VLOCATION          = MAPL_VLocationNone                  ,&
                                                        RC=STATUS  )
@@ -429,8 +513,8 @@ CONTAINS
         SHORT_NAME         = 'GRN'                               ,&
         LONG_NAME          = 'greeness_fraction'                 ,&
         UNITS              = '1'                                 ,&
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT   = MAPL_UNDEF,                                   &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT   = MAPL_UNDEF,                                   &
         DIMS               = MAPL_DimsHorzOnly                   ,&
         VLOCATION          = MAPL_VLocationNone                  ,&
                                                        RC=STATUS  )
@@ -442,8 +526,8 @@ CONTAINS
          SHORT_NAME='CN_PRCP',                                     &
          LONG_NAME ='Surface Conv. rain flux needed by land',      &
          UNITS     ='kg/m^2/s',                                    &
-         PRECISION  = KIND(0.0),                                   &
-         DEFAULT   = MAPL_UNDEF,                                   &
+         PRECISION = KIND(0.0),                                    &
+!ALT         DEFAULT   = MAPL_UNDEF,                                   &
          DIMS      = MAPL_DimsHorzOnly,                            &
          VLOCATION = MAPL_VLocationNone,                RC=STATUS  )
     VERIFY_(STATUS)
@@ -454,8 +538,8 @@ CONTAINS
          SHORT_NAME='NCN_PRCP',                                    &
          LONG_NAME ='Non-convective precipitation',                &
          UNITS     ='kg/m^2/s',                                    &
-         PRECISION  = KIND(0.0),                                   &
-         DEFAULT   = MAPL_UNDEF,                                   &
+         PRECISION = KIND(0.0),                                    &
+!ALT         DEFAULT   = MAPL_UNDEF,                                   &
          DIMS      = MAPL_DimsHorzOnly,                            &
          VLOCATION = MAPL_VLocationNone,                RC=STATUS  )
     VERIFY_(STATUS)
@@ -466,8 +550,8 @@ CONTAINS
         SHORT_NAME         = 'PS',                                &
         LONG_NAME          = 'surface_pressure',                  &
         UNITS              = 'Pa',                                &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT   = MAPL_UNDEF,                                   &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT   = MAPL_UNDEF,                                   &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
@@ -479,8 +563,8 @@ CONTAINS
         SHORT_NAME         = 'SH',                                &
         LONG_NAME          = 'sensible_heat_flux_from_turbulence',&
         UNITS              = 'W m-2',                             &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT   = MAPL_UNDEF,                                   &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT   = MAPL_UNDEF,                                   &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
@@ -492,8 +576,20 @@ CONTAINS
         SHORT_NAME         = 'TA',                                &
         LONG_NAME          = 'surface_temperature_from_surface',  &
         UNITS              = 'K',                                 &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT   = MAPL_UNDEF,                                   &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT   = MAPL_UNDEF,                                   &
+        DIMS               = MAPL_DimsHorzOnly,                   &
+        VLOCATION          = MAPL_VLocationNone,                  &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+
+!    DZ -- Surface Mid-layer Height
+!    ----
+     call MAPL_AddImportSpec(GC,                             &
+        LONG_NAME          = 'surface_layer_height',              &
+        UNITS              = 'm',                                 &
+        SHORT_NAME         = 'DZ',                                &
+        PRECISION          = KIND(0.0),                           &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
@@ -505,8 +601,8 @@ CONTAINS
         SHORT_NAME         = 'TSOIL1',                            &
         LONG_NAME          = 'soil_temperatures_layer_1',         &
         UNITS              = 'K',                                 &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT   = MAPL_UNDEF,                                   &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT   = MAPL_UNDEF,                                   &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
@@ -518,9 +614,9 @@ CONTAINS
        SHORT_NAME = 'U10M',                   &
        LONG_NAME  = '10-meter_eastward_wind', &
        UNITS      = 'm s-1',                  &
-       DEFAULT   = MAPL_UNDEF,                &
-       DIMS       = MAPL_DimsHorzOnly,        &
        PRECISION  = KIND(0.0),                &
+!ALT       DEFAULT   = MAPL_UNDEF,                &
+       DIMS       = MAPL_DimsHorzOnly,        &
        VLOCATION  = MAPL_VLocationNone,       &
        RC         = STATUS  )
      VERIFY_(STATUS)
@@ -532,9 +628,35 @@ CONTAINS
        LONG_NAME  = '10-meter_northward_wind', &
        UNITS      = 'm s-1',                   &
        PRECISION  = KIND(0.0),                 &
-       DEFAULT   = MAPL_UNDEF,                 &
+!ALT       DEFAULT   = MAPL_UNDEF,                 &
        DIMS       = MAPL_DimsHorzOnly,         &
        VLOCATION  = MAPL_VLocationNone,        &
+       RC=STATUS  )
+    VERIFY_(STATUS)
+
+!    U10N
+!    ----
+     call MAPL_AddImportSpec(GC,                            &
+       SHORT_NAME = 'U10N',                                      &
+       LONG_NAME  = 'equivalent_neutral_10-meter_eastward_wind', &
+       UNITS      = 'm s-1',                                     &
+       PRECISION  = KIND(0.0),                                   &
+!ALT       DEFAULT   = MAPL_UNDEF,                                   &
+       DIMS       = MAPL_DimsHorzOnly,                           &
+       VLOCATION  = MAPL_VLocationNone,                          &
+       RC         = STATUS  )
+     VERIFY_(STATUS)
+
+!   V10N
+!   ----
+    call MAPL_AddImportSpec(GC,                              &
+       SHORT_NAME = 'V10N',                                       &
+       LONG_NAME  = 'equivalent_neutral_10-meter_northward_wind', &
+       UNITS      = 'm s-1',                                      &
+       PRECISION  = KIND(0.0),                                    &
+!ALT       DEFAULT   = MAPL_UNDEF,                                    &
+       DIMS       = MAPL_DimsHorzOnly,                            &
+       VLOCATION  = MAPL_VLocationNone,                           &
        RC=STATUS  )
     VERIFY_(STATUS)
 
@@ -544,8 +666,8 @@ CONTAINS
         SHORT_NAME         = 'USTAR',                             &
         LONG_NAME          = 'surface_velocity_scale',            &
         UNITS              = 'm s-1',                             &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT            = MAPL_UNDEF,                          &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
@@ -557,13 +679,88 @@ CONTAINS
         SHORT_NAME         = 'Z0H',                               &
         LONG_NAME          = 'surface_roughness_for_heat',        &
         UNITS              = 'm',                                 &
-        PRECISION  = KIND(0.0),                                   &
-        DEFAULT            = MAPL_UNDEF,                          &
+        PRECISION          = KIND(0.0),                           &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
         DIMS               = MAPL_DimsHorzOnly,                   &
         VLOCATION          = MAPL_VLocationNone,                  &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
+!   Cell area
+!   ---------
+    call MAPL_AddImportSpec(GC,                                   &
+        SHORT_NAME         = 'AREA',                              &
+        LONG_NAME          = 'agrid_cell_area',                   &
+        UNITS              = 'm^2',                               &
+        PRECISION          = KIND(0.0),                           &
+        DIMS               = MAPL_DimsHorzOnly,                   &
+        VLOCATION          = MAPL_VLocationNone,                  &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+
+
+     call MAPL_AddImportSpec(GC,                             &
+        SHORT_NAME         = 'TS',                                &
+        LONG_NAME          = 'surface skin temperature',          &
+        UNITS              = 'K',                                 &
+        PRECISION  = KIND(0.0),                                   &
+!ALT        DEFAULT            = MAPL_UNDEF,                          &
+        DIMS               = MAPL_DimsHorzOnly,                   &
+        VLOCATION          = MAPL_VLocationNone,                  &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+
+     call MAPL_AddImportSpec(GC,                               & 
+         SHORT_NAME='CNV_MFD',                                     & 
+         LONG_NAME ='detraining_mass_flux',                        &
+         UNITS     ='kg m-2 s-1',                                  &    
+         PRECISION = KIND(0.0),                                    &
+         DIMS      = MAPL_DimsHorzVert,                            &  
+         VLOCATION = MAPL_VLocationCenter,                         &
+                                                        RC=STATUS  )
+     VERIFY_(STATUS)
+
+     call MAPL_AddImportSpec(GC,                               &                  
+         SHORT_NAME='CNV_MFC',                                     & 
+         LONG_NAME ='cumulative_mass_flux',                        &
+         UNITS     ='kg m-2 s-1',                                  &
+         PRECISION = KIND(0.0),                                    &
+         DIMS      = MAPL_DimsHorzVert,                            &
+         VLOCATION = MAPL_VLocationEdge,                           &
+                                                        RC=STATUS  )
+     VERIFY_(STATUS)
+
+     call MAPL_AddImportSpec(GC,                               &
+         SHORT_NAME='CNV_QC',                                      &
+         LONG_NAME ='grid_mean_convective_condensate',             &
+         UNITS     ='kg kg-1',                                     &
+         PRECISION  = KIND(0.0),                                   &
+         DIMS      = MAPL_DimsHorzVert,                            &
+         VLOCATION = MAPL_VLocationCenter,                         &
+                                                        RC=STATUS  )
+     VERIFY_(STATUS)
+     
+     call MAPL_AddImportSpec(GC,                              &
+        SHORT_NAME         = 'SWNDSRF',                           &
+        LONG_NAME        = 'surface_net_downward_shortwave_flux', &
+        UNITS              = 'W m^-2',                            &
+        PRECISION          = KIND(0.0),                           &
+        DIMS               = MAPL_DimsHorzOnly,                   &
+        VLOCATION          = MAPL_VLocationNone,                  &
+                                                        RC=STATUS  )
+     VERIFY_(STATUS)
+     
+    call MAPL_AddImportSpec(GC,                              &
+         SHORT_NAME         = 'CLDTT',                             &
+         LONG_NAME          = 'total_cloud_area_fraction',         &
+         UNITS              = '1',                                 &
+         PRECISION          = KIND(0.0),                           &
+         DIMS               = MAPL_DimsHorzOnly,                   &
+         VLOCATION          = MAPL_VLocationNone,                  &
+                                                        RC=STATUS  )
+    VERIFY_(STATUS)
+
+!___NCEP___
 !   When GOCART does own its tracers, it must come in a
 !   Bundle within the import state
 !   ----------------------------------------------------
@@ -577,7 +774,6 @@ CONTAINS
         DATATYPE           = MAPL_BundleItem,                     &
                                                        __RC__     )
     end if
-
 
 
 if ( r%doing_GOCART ) then
@@ -595,27 +791,75 @@ if ( r%doing_GOCART ) then
 
     nq = r%nq     ! total number of chemical tracers
     
+! Get BOOTSTRAP Default Values for GOCART INTERNAL
+! ------------------------------------------------
+    CALL ESMF_ConfigGetAttribute(CF, DEFVAL_CO2, Default=380.0e-6, &
+                                 Label="DEFVAL_CO2:", RC=STATUS )
+    VERIFY_(STATUS)
+
+! Is GOCART providing O3 to the ANALYSIS bundle?
+! ----------------------------------------------
+    CALL ESMF_ConfigGetAttribute(CF, providerName, Default="PCHEM", &
+                                 Label="ANALYSIS_OX_PROVIDER:", RC=STATUS )
+    VERIFY_(STATUS)
+!jw    print *,'ingocart, o3 providerName=',trim(providerName)
+
+! r%doing_O3 must be TRUE if the ANALYSIS_OX_PROVIDER is GOCART.
+! --------------------------------------------------------------
+    IF(providerName == "GOCART" .AND. .NOT. r%doing_O3) THEN
+     IF(MAPL_AM_I_ROOT()) THEN
+      PRINT *," "
+      PRINT *,TRIM(Iam)//": Set doing_O3 to yes in Chem_Registry.rc if GOCART "
+      PRINT *,"             is the ANALYSIS_OX_PROVIDER."
+      PRINT *," "
+     END IF
+     STATUS = 1
+     VERIFY_(STATUS)
+    END IF
+     
+!___NCEP___    
 !   Loop over all constituents on registry
 !   --------------------------------------
    if ( GOCART_OWNS_TRACERS ) then 
+    do n = r%i_GOCART, r%j_GOCART 
 
-     do n = r%i_GOCART, r%j_GOCART 
+       IF(TRIM(r%vname(n)) == "OX" .AND. TRIM(providerName) == "GOCART") THEN
+        FRIENDLIES="ANALYSIS:DYNAMICS:TURBULENCE:MOIST"
+       ELSE
+        FRIENDLIES="DYNAMICS:TURBULENCE:MOIST"
+       END IF
+
+!      Make aerosols unfriendly to moist
+       short_name = uppercase(trim(r%vname(n)))
+       if ( short_name(1:2) .eq. 'DU'        .or. &
+            short_name(1:2) .eq. 'SS'        .or. &
+            short_name(1:2) .eq. 'OC'        .or. &
+            short_name(1:2) .eq. 'BC'        .or. &
+            short_name(1:3) .eq. 'DMS'       .or. &
+            short_name(1:3) .eq. 'SO2'       .or. &
+            short_name(1:3) .eq. 'SO4'       .or. &
+            short_name(1:3) .eq. 'MSA'              ) then
+        FRIENDLIES="DYNAMICS:TURBULENCE"
+       endif
+
+                                        DEFVAL = 0.0
+       if( short_name(1:3) .eq. 'CO2' ) DEFVAL = DEFVAL_CO2
+       defval_r4 = defval
 
 !      Aerosol Tracers to be transported
 !      ---------------------------------
        call MAPL_AddInternalSpec(GC,                         &
-               SHORT_NAME  = trim(COMP_NAME)// '::'               &
-                          // trim(r%vname(n)),                    &
+               SHORT_NAME  = trim(COMP_NAME)//'::'//trim(r%vname(n)), &
                LONG_NAME   = r%vtitle(n),                         &
                UNITS       = r%vunits(n),                         &     
                PRECISION   = KIND(0.0),                           &
-               FRIENDLYTO  = 'DYNAMICS:TURBULENCE:MOIST',         &
+               FRIENDLYTO  = FRIENDLIES,                          &
+               DEFAULT     = DEFVAL_r4,                           &
                DIMS        = MAPL_DimsHorzVert,                   &
                VLOCATION   = MAPL_VLocationCenter,     RC=STATUS  )
           VERIFY_(STATUS)
 
-     end do
-
+    end do
   end if
 
 !   This bundle is needed by radiation - It will contain the 
@@ -628,6 +872,83 @@ if ( r%doing_GOCART ) then
         DIMS               = MAPL_DimsHorzVert,                   &
         VLOCATION          = MAPL_VLocationCenter,                &
         DATATYPE           = MAPL_BundleItem,                     &
+                                                       RC=STATUS  )
+    VERIFY_(STATUS)
+
+!   This bundle is needed by surface for snow albedo modification
+!   by aerosol settling and deposition
+!   --------------------------------------------------------
+    call MAPL_AddExportSpec(GC,                                   &
+        SHORT_NAME         = 'AERO_DP',                           &
+        LONG_NAME          = 'aerosol_deposition',                &
+        UNITS              = 'kg m-2 s-1',                        &
+        DIMS               = MAPL_DimsHorzOnly,                   &
+        DATATYPE           = MAPL_BundleItem,                     &
+                                                       RC=STATUS  )
+    VERIFY_(STATUS)
+
+!   Diagnostic Exports over all aerosol tracers
+!   -------------------------------------------
+    call MAPL_AddExportSpec(GC,  &
+        SHORT_NAME         = 'TOTEXTTAU',  &
+        LONG_NAME          = 'Total Aerosol Extinction AOT [550 nm]',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
+                                                       RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,  &
+        SHORT_NAME         = 'TOTSCATAU',  &
+        LONG_NAME          = 'Total Aerosol Scattering AOT [550 nm]',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
+                                                       RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,  &
+        SHORT_NAME         = 'TOTEXTT25',  &
+        LONG_NAME          = 'Total Aerosol Exinction AOT [550 nm] - PM2.5',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
+                                                       RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,  &
+        SHORT_NAME         = 'TOTSCAT25',  &
+        LONG_NAME          = 'Total Aerosol Scattering AOT [550 nm] - PM2.5',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
+                                                       RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,  &
+        SHORT_NAME         = 'TOTEXTTFM',  &
+        LONG_NAME          = 'Total Aerosol Exinction AOT [550 nm] - PM1.0',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
+                                                       RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,  &
+        SHORT_NAME         = 'TOTSCATFM',  &
+        LONG_NAME          = 'Total Aerosol Scattering AOT [550 nm] - PM1.0',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
+                                                       RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,  &
+        SHORT_NAME         = 'TOTANGSTR',  &
+        LONG_NAME          = 'Total Aerosol Angstrom parameter [470-870 nm]',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
                                                        RC=STATUS  )
     VERIFY_(STATUS)
 
@@ -673,16 +994,20 @@ if ( r%doing_GOCART ) then
 #       include "Rn_ExportSpec___.h"
    endif
 
-!!!   if ( r%doing_CARMA ) then
-!!!#       include "CARMA_ExportSpec___.h"
-!!!   endif
+   if ( r%doing_CH4 ) then
+#       include "CH4_ExportSpec___.h"
+   endif
 
 
-!EOP
+!!EOS
 
 !   Set the Profiling timers
 !   ------------------------
-    call MAPL_TimerAdd ( GC, name = "RUN", RC=STATUS )
+    call MAPL_TimerAdd ( GC, name = "RUN",        RC=STATUS )
+    VERIFY_(STATUS)
+    call MAPL_TimerAdd ( GC, name = "INITIALIZE", RC=STATUS )
+    VERIFY_(STATUS)
+    call MAPL_TimerAdd ( GC, name = "FINALIZE",   RC=STATUS )
     VERIFY_(STATUS)
 
 end if ! doing GOCART
@@ -698,7 +1023,7 @@ end if ! doing GOCART
 
     RETURN_(ESMF_SUCCESS)
   
-  end subroutine GOCART_SetServices
+  end subroutine SetServices
 
 !
 !  In order to couple with the 2 phase-initialization required by GFS,
@@ -734,17 +1059,18 @@ end if ! doing GOCART
      call Initialize__ ( gc, impChem, expChem, clock, 2, rc)
    end subroutine Initialize2_
 
+!
 !-------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE:  Initialize_ --- Initialize Aero_GridComp (ESMF)
+! !IROUTINE:  Initialize__ --- Initialize Aero_GridComp (ESMF)
 !
 ! !INTERFACE:
 !
 
-   subroutine Initialize__ ( gc, impChem, expChem, clock, option, rc)
+   subroutine Initialize__ ( gc, impChem, expChem, clock, option, rc )
 
 ! !USES:
 
@@ -766,7 +1092,6 @@ end if ! doing GOCART
    integer, intent(out) ::  rc                    ! Error return code:
                                                   !  0 - all is well
                                                   !  1 - 
-
 ! !DESCRIPTION: This is the lowe level Initialize routine. Notice that it is not
 !               a bona-fide ESMF component; you should register the wrapper
 ! rotines InitializeSingle_(),  Initialize1_() or Initialize2_(). This device is
@@ -792,7 +1117,7 @@ end if ! doing GOCART
    integer                         :: nymd, nhms  ! time
    real                            :: cdt         ! chemistry timestep (secs)
 
-   type(ESMF_Grid)                 :: grid        
+   type(ESMF_Grid)                 :: grid       
  
    integer                         :: i1=1, i2, ig=0, im  ! dist grid indices
    integer                         :: j1=1, j2, jg=0, jm  ! dist grid indices
@@ -802,31 +1127,42 @@ end if ! doing GOCART
    type(ESMF_Config)               :: CF
    character(len=ESMF_MAXSTR)      :: diurnal_bb
 
-   type(Chem_Array), pointer       :: q(:)          ! array of pointers
    type(MAPL_MetaComp), pointer :: ggState      ! GEOS Generic State
    type(ESMF_State)                 :: internal
    type(ESMF_Field)                 :: field
-   type(ESMF_FieldBundle)           :: Bundle, iBundle
+   type(ESMF_Field)                 :: fld
+   type(ESMF_FieldBundle)           :: bundle, ibundle
    type(MAPL_VarSpec), pointer      :: InternalSpec(:)
 
    real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LATS
    real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LONS
+   real, pointer, dimension(:,:)  :: CELL_AREA
 
-   character(len=ESMF_MAXSTR)       :: short_name, answer
+   character(len=ESMF_MAXSTR)       :: short_name
+!___NCEP___
    logical                          :: GOCART_OWNS_TRACERS
 
    real, parameter :: one = 1.0
+!jwtest
+   real(ESMF_KIND_R8), pointer :: ARRAY(:,:)
 
 !  Get my name and set-up traceback handle
 !  ---------------------------------------
    call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, RC=STATUS )
+
    VERIFY_(STATUS)
    Iam = trim(COMP_NAME) // '::' // 'Initialize_'
+
+   if (MAPL_AM_I_ROOT()) then
+      PRINT *, TRIM(Iam)//': Starting...'
+      PRINT *,' '
+   end if
 
 !  Get my internal MAPL_Generic state
 !  -----------------------------------
    call MAPL_GetObjectFromGC ( GC, ggState, RC=STATUS)
    VERIFY_(STATUS)
+
 
 !                                --------
 !                                Phase I
@@ -834,9 +1170,23 @@ end if ! doing GOCART
 !   Initialize GEOS Generic
 !   ------------------------
     if ( option==0 .OR. option==1 ) then
-       call MAPL_GenericInitialize ( gc, impChem, expChem, clock,  RC=STATUS )
-       VERIFY_(STATUS)
+      call MAPL_GenericInitialize ( gc, impChem, expChem, clock,  RC=STATUS )
+      VERIFY_(STATUS)
+
+      call MAPL_TimerOn(ggState, 'TOTAL')
+      call MAPL_TimerOn(ggState, 'INITIALIZE')
+
     end if
+!jw test impchem field bundle
+!jw    print *,' ingocart, init,MAPL_INIT, get iAERO bundle, rc=',status
+!jw   call ESMF_StateGet(expChem, 'AERO', Bundle, RC=status)
+!jw    print *,' ingocart, init,MAPL_INIT, get AERO bundle from exp state, rc=',status
+!jw   call ESMF_StateGet(expChem, itemName='DUEM001', FIELD=field, RC=status)
+!jw    print *,' ingocart, init,MAPL_INIT, get DUEM001 from exp state, rc=',status
+!jw   CALL ESMF_FieldGet(field=Field, farrayPtr=Array, rc=status)
+!jw   CALL ESMF_FieldGet(field=Field, farrayPtr=Array, rc=status)
+!jw    print *,' ingocart, init, MAPLinit, get DUEM001 ary from field, rc=',status
+
 
 !   Stop here if first phase of a 2-phase initialization
 !   ----------------------------------------------------
@@ -853,7 +1203,8 @@ end if ! doing GOCART
    call extract_ ( gc, clock, chemReg, gcChem, w_c, nymd, nhms, cdt, STATUS )
    VERIFY_(STATUS)
 
-!  Get GFS parameters from gc and cf (Sarah Lu)
+!___NCEP___
+!  Get GFS parameters from gc and cf 
 !  -----------------------------------------
    call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS, &
                        impChem=impChem, cdt=cdt )
@@ -876,20 +1227,25 @@ end if ! doing GOCART
         computationalCount=DIMS, RC=STATUS)
    VERIFY_(STATUS)
 
-!  Associate the Internal State fields with our legact state 
-!  (when we own the tracers)
+!  Associate the Internal State fields with our legacy state 
 !  ---------------------------------------------------------
    call MAPL_Get ( ggSTATE, &
-        LONS      = LONS,   &
-        LATS      = LATS,   &
+        LONS      = LONS,  &
+        LATS      = LATS,  &
         RC=STATUS  )
    VERIFY_(STATUS)
+!___NCEP___
    if ( GOCART_OWNS_TRACERS ) then
       call MAPL_Get ( ggSTATE, INTERNALSPEC=InternalSpec, &
            INTERNAL_ESMF_STATE=internal, &
            RC=STATUS  )
       VERIFY_(STATUS)
    end if
+
+
+! A-Grid cell area
+! ----------------
+  call MAPL_GetPointer(impChem, NAME='AREA', ptr=CELL_AREA, __RC__)
 
 ! Local sizes of three dimensions
 !--------------------------------
@@ -899,10 +1255,12 @@ end if ! doing GOCART
 
 !  Initalize the legacy state but do not allocate memory for arrays
 !  ----------------------------------------------------------------
+!jw   print *,'bef chem_bundleCreate, i2=',i2,ig,im,'j2=',j2,jg,jm,'size(lons)=',size(lons,1),size(lons,2),   &
+!jw    'lons=',lons(1,1),'size(lats)=',size(lats,1),size(lats,2),'lats=',lats(1,1),'km=',km
+
    call Chem_BundleCreate_ ( chemReg, i1, i2, ig, im, j1, j2, jg, jm, km,  &
-                             w_c, lon=one*LONS(:,1), lat=one*LATS(1,:), &
-                             skipAlloc=.true., rc=STATUS )
-   VERIFY_(STATUS)
+                             w_c, lon=real(LONS(:,:),kind=KIND(0.0)), lat=real(LATS(:,:),kind=KIND(0.0)), cell_area=CELL_AREA, &
+                             skipAlloc=.true., __RC__ )
 
    w_c%grid_esmf = grid  ! Will need this for I/O later
 
@@ -928,26 +1286,25 @@ end if ! doing GOCART
             stat=STATUS)
    VERIFY_(STATUS)
 
+!___NCEP___
 !  When we own the tracers, w_c is associated with our internal state
 !  ------------------------------------------------------------------
    if ( GOCART_OWNS_TRACERS ) then
+   ASSERT_ ( size(InternalSpec) == chemReg%n_GOCART )
 
-      ASSERT_ ( size(InternalSpec) == chemReg%n_GOCART )
+   do L = 1, size(InternalSpec)
 
-      do L = 1, size(InternalSpec)
+      call MAPL_VarSpecGet ( InternalSpec(L),          &
+                             SHORT_NAME = short_name,  &
+                             RC=STATUS )
+      VERIFY_(STATUS)
 
-         call MAPL_VarSpecGet ( InternalSpec(L),          &
-              SHORT_NAME = short_name,  &
-              RC=STATUS )
-         VERIFY_(STATUS)
-         
-         N = chemReg%i_GOCART + L - 1
-         call MAPL_GetPointer ( internal, NAME=short_name, ptr=w_c%qa(N)%data3d, &
-              rc = STATUS )
-         VERIFY_(STATUS)
+      N = chemReg%i_GOCART + L - 1
+      call MAPL_GetPointer ( internal, NAME=short_name, ptr=w_c%qa(N)%data3d, &
+                             rc = STATUS )
+      VERIFY_(STATUS)
 
-      end do
-
+   end do
 !  Otherwise, associate w_c with tracers in import iAERO bundle
 !  ------------------------------------------------------------
    else
@@ -959,10 +1316,10 @@ end if ! doing GOCART
 
          N = chemReg%i_GOCART + L - 1
 
-         call ESMF_FieldBundleGet(iBundle, NAME=chemReg%vname(N), &
+         call ESMF_FieldBundleGet(iBundle, chemReg%vname(N), &
                                   FIELD=FIELD, rc = STATUS )
          VERIFY_(STATUS)
-         call ESMF_FieldGet(FIELD, localDE=0, farray=w_c%qa(N)%data3d, rc=rc)
+         call ESMF_FieldGet(FIELD, farrayPtr=w_c%qa(N)%data3d, rc=status)
          VERIFY_(STATUS)
 
       end do
@@ -973,14 +1330,15 @@ end if ! doing GOCART
 #ifdef PRINT_STATES
 
    if (MAPL_AM_I_ROOT()) then
-      if ( GOCART_OWNS_TRACERS ) then
-         print *, trim(Iam)//': INTERNAL State during Initialize():' 
-         call ESMF_StatePrint ( internal )
-      end if
-      print *, trim(Iam)//': IMPORT   State during Initialize():'
-      call ESMF_StatePrint ( impChem  )
-      print *, trim(Iam)//': EXPORT   State during Initialize():' 
-      call ESMF_StatePrint ( expChem  )
+!___NCEP___
+       if ( GOCART_OWNS_TRACERS ) then
+          print *, trim(Iam)//': INTERNAL State during Initialize():' 
+          call ESMF_StatePrint ( internal )
+       end if
+       print *, trim(Iam)//': IMPORT   State during Initialize():'
+       call ESMF_StatePrint ( impChem  )
+       print *, trim(Iam)//': EXPORT   State during Initialize():' 
+       call ESMF_StatePrint ( expChem  )
     end if
 
 #endif
@@ -996,49 +1354,48 @@ end if ! doing GOCART
 !   Note: Move this to AddInternalSpec but first we need to have
 !         the subcomponents as bonafide ESMF components
 !   --------------------------------------------------------------
+!___NCEP___
     if ( GOCART_OWNS_TRACERS ) then
 
        do n = ChemReg%i_GOCART, ChemReg%j_GOCART 
 
           call ESMF_StateGet ( internal,                     &
-                            trim(COMP_NAME) // '::'//     &
-                            trim(ChemReg%vname(n)),       &
-                            field, rc=STATUS )
+                               trim(COMP_NAME) // '::'//     &
+                               trim(ChemReg%vname(n)),       &
+                               field, rc=STATUS )
           VERIFY_(STATUS)
 
           call ESMF_AttributeSet (field, NAME  = "ScavengingFractionPerKm", &
-                               VALUE = ChemReg%fscav(n),          &
-                               RC = STATUS )
+               VALUE = ChemReg%fscav(n),          &
+               RC = STATUS )
           VERIFY_(STATUS)
 
        end do
+!___NCEP___
+!!! Add ChemReg%fscav to impChem so GFS can use it
+!jw    else
 
-!!! Add ChemReg%fscav to impChem so GFS can use it (Sarah Lu)
-    else
+!!jw       do n = ChemReg%i_GOCART, ChemReg%j_GOCART 
 
-       do n = ChemReg%i_GOCART, ChemReg%j_GOCART 
+!jw        call ESMF_FieldBundleGet(iBundle,fieldNAME=trim(ChemReg%Vname(n)), &
+!!jw        call ESMF_FieldBundleGet(iBundle,trim(ChemReg%Vname(n)), &
+!!jw                  FIELD=FIELD, rc = STATUS )
+!!jw        VERIFY_(STATUS)
 
-        call ESMF_FieldBundleGet(iBundle,NAME=trim(ChemReg%Vname(n)), &
-                  FIELD=FIELD, rc = STATUS )
-        VERIFY_(STATUS)
-
-        call ESMF_AttributeSet (FIELD, NAME  = "ScavengingFractionPerKm", &
-                                VALUE = ChemReg%fscav(n),          &
-                                RC = STATUS )
-        VERIFY_(STATUS)
-       end do
-
+!!jw        call ESMF_AttributeSet (FIELD, NAME  = "ScavengingFractionPerKm", &
+!!jw                                VALUE = ChemReg%fscav(n),          &
+!!jw                                RC = STATUS )
+!!jw       print *,'aft set n=',n,'ChemReg%fscav',ChemReg%fscav(n),'rc=',status
+!!jw        VERIFY_(STATUS)
+!!jw       end do
 !!!
     end if
-
-!
 
 
 !   Now that the internal state is nice and ready add its contents to the
 !   AERO bundle needed by radiation
 !   ---------------------------------------------------------------------
-    call ESMF_StateGet(expChem, 'AERO', bundle, RC=STATUS)
-    VERIFY_(STATUS)
+    call ESMF_StateGet(expChem, 'AERO', bundle, __RC__ )
     do n = ChemReg%i_GOCART, ChemReg%j_GOCART 
 
        short_name = uppercase(trim(ChemReg%vname(n)))
@@ -1048,33 +1405,37 @@ end if ! doing GOCART
             short_name(1:8) .eq. 'OCPHOBIC'  .or. &
             short_name(1:8) .eq. 'OCPHILIC'  .or. &
             short_name(1:2) .eq. 'BC'        .or. &
-! -- add gaseous species needed by GFS (Sarah Lu)
+!___NCEP___: add gaseous species needed by GFS 
             short_name(1:3) .eq. 'DMS'       .or. &
             short_name(1:3) .eq. 'SO2'       .or. &
             short_name(1:3) .eq. 'MSA'       .or. &
 
             short_name(1:3) .eq. 'SO4'            ) then
 
+!___NCEP___
           if ( GOCART_OWNS_TRACERS ) then
-
              call ESMF_StateGet ( INTERNAL,                     &
                   trim(COMP_NAME) // '::'//     &
                   trim(ChemReg%vname(n)),       &
-                  FIELD, RC=STATUS )
-             VERIFY_(STATUS)
-             
+                  FIELD, __RC__ )
           else
 
-             call ESMF_FieldBundleGet(iBundle,NAME=trim(ChemReg%vname(n)), &
+             call ESMF_FieldBundleGet(iBundle,trim(ChemReg%vname(n)), &
                   FIELD=FIELD, rc = STATUS )
              VERIFY_(STATUS)
 
           end if
 
-          call ESMF_FieldBundleAdd ( BUNDLE, FIELD, RC=STATUS )
+
+          call ESMF_FieldBundleAdd ( BUNDLE, (/FIELD/), RC=STATUS )
           VERIFY_(STATUS)
 
+!jw          fld = MAPL_FieldCreate(FIELD, name=ChemReg%vname(n), __RC__ )
+!jw          call MAPL_FieldBundleAdd ( BUNDLE, FLD, __RC__ )
+
        end if
+
+    end do
 
 #ifdef PRINT_STATES
 
@@ -1085,12 +1446,101 @@ end if ! doing GOCART
 
 #endif
 
-    end do
+!   Likewise, add settling and deposition to the AERO_DP bundle
+!   -----------------------------------------------------------
+    call ESMF_StateGet(expChem, 'AERO_DP', bundle, __RC__ )
 
+!   Dust
+!   ---
+    if ( ChemReg%doing_DU ) then
+
+!      Dry deposition
+!      --------------
+       call AddFromExportToBundle_(expChem, bundle, 'DUDP001', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUDP002', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUDP003', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUDP004', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUDP005', __RC__)
+
+!      Wet deposition
+!      --------------
+       call AddFromExportToBundle_(expChem, bundle, 'DUWT001', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUWT002', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUWT003', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUWT004', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUWT005', __RC__)
+
+!      Gravitational Settling
+!      ----------------------
+       call AddFromExportToBundle_(expChem, bundle, 'DUSD001', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUSD002', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUSD003', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUSD004', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'DUSD005', __RC__)
+
+    end if
+
+!   Black Carbon
+!   ------------
+    if ( ChemReg%doing_BC ) then
+
+!      Dry deposition
+!      --------------
+       call AddFromExportToBundle_(expChem, bundle, 'BCDP001', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'BCDP002', __RC__)
+
+!      Wet deposition
+!      --------------
+       call AddFromExportToBundle_(expChem, bundle, 'BCWT001', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'BCWT002', __RC__)
+
+    end if
+
+!   Organic Carbon
+!   --------------
+    if ( ChemReg%doing_OC ) then
+
+!      Dry deposition
+!      --------------
+       call AddFromExportToBundle_(expChem, bundle, 'OCDP001', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'OCDP002', __RC__)
+
+!      Wet deposition
+!      --------------
+       call AddFromExportToBundle_(expChem, bundle, 'OCWT001', __RC__)
+       call AddFromExportToBundle_(expChem, bundle, 'OCWT002', __RC__)
+
+    end if
+
+#ifdef PRINT_STATES
+
+   if (MAPL_AM_I_ROOT()) then
+       print *, trim(Iam)//': AERO_DP Bundle during Initialize():' 
+       call ESMF_FieldBundlePrint ( bundle )
+   end if
+
+#endif
+
+    call MAPL_TimerOff(ggState, 'INITIALIZE')
+    call MAPL_TimerOff(ggState, 'TOTAL')
 
     RETURN_(ESMF_SUCCESS)
 
-  end subroutine Initialize__
+CONTAINS
+
+       subroutine AddFromExportToBundle_(STATE, BUNDLE, NAME, RC)
+         type(ESMF_State)       :: STATE
+         type(ESMF_FieldBundle) :: BUNDLE
+         CHARACTER(LEN=*)       :: NAME
+         integer, optional      :: RC
+         type(ESMF_Field) :: FIELD
+                   __Iam__('AddFromExportToBundle_')
+         call ESMF_StateGet(STATE, NAME, FIELD, __RC__ )
+         call MAPL_FieldBundleAdd ( BUNDLE, FIELD, __RC__ )
+         RETURN_(ESMF_SUCCESS)
+       end subroutine AddFromExportToBundle_
+
+   end subroutine Initialize__
 
 
 !-------------------------------------------------------------------------
@@ -1127,6 +1577,7 @@ end if ! doing GOCART
 ! !REVISION HISTORY:
 !
 !  27Feb2005 da Silva  First crack.
+!  10dec2014  Jun Wang temporarily turn off alarm
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1146,28 +1597,47 @@ end if ! doing GOCART
    integer                         :: n
 
    type(ESMF_Config)               :: CF
-   type(ESMF_Grid)                 :: grid
-   type(ESMF_Time)                 :: TIME
 
-   type(MAPL_MetaComp), pointer :: ggState      ! GEOS Generic State
+   type(MAPL_MetaComp), pointer    :: ggState      ! GEOS Generic State
+   type(ESMF_Alarm)                :: ALARM
 
    real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LATS
    real(ESMF_KIND_R4), pointer, dimension(:,:)  :: LONS
 
    type (MAPL_SunOrbit)            :: ORBIT
-   real, allocatable, target       :: ZTH(:,:) ! can be R8
+   real, allocatable, target       :: ZTH(:,:)    ! can be R8
    real(ESMF_KIND_R4), allocatable :: r4ZTH(:,:)
    real(ESMF_KIND_R4), allocatable :: SLR(:,:)
 
    real, pointer                   :: rh2(:,:,:)
    integer                         :: in, jn
-   integer                         :: iLeft, iRight, jBottom, jTop
 
-   logical                         :: GOCART_OWNS_TRACERS
 
-   REAL :: dayOfYear
-   REAL(ESMF_KIND_R8) :: dayOfYear_r8
+!  Diagnostics
+   real, pointer, dimension(:,:)   :: totexttau, totscatau, &
+                                      totextt25, totscat25, &
+                                      totexttfm, totscatfm, &
+                                      totangstr
+   real, pointer, dimension(:,:)   :: duexttau, duscatau, &
+                                      duextt25, duscat25, &
+                                      duexttfm, duscatfm, &
+                                      duangstr
+   real, pointer, dimension(:,:)   :: ssexttau, ssscatau, &
+                                      ssextt25, ssscat25, &
+                                      ssexttfm, ssscatfm, &
+                                      ssangstr
+   real, pointer, dimension(:,:)   :: suexttau, suscatau, &
+                                      suangstr
+   real, pointer, dimension(:,:)   :: bcexttau, bcscatau, &
+                                      bcangstr
+   real, pointer, dimension(:,:)   :: ocexttau, ocscatau, &
+                                      ocangstr
+   real, allocatable               :: tau1(:,:), tau2(:,:)
+   real                            :: c1, c2, c3
 !                               ---
+!jw test
+   type(ESMF_Field)                 :: field
+   real(ESMF_KIND_R8), pointer :: ARRAY(:,:)
 
 !  Get my name and set-up traceback handle
 !  ---------------------------------------
@@ -1180,14 +1650,27 @@ end if ! doing GOCART
    call MAPL_GetObjectFromGC ( GC, ggState, RC=STATUS)
    VERIFY_(STATUS)
 
+   call MAPL_TimerOn(ggState, 'TOTAL')
+   call MAPL_TimerOn(ggState, 'RUN')
+
 !  Get parameters from generic state.
 !  ----------------------------------
    call MAPL_Get(ggState,           &
-        LONS      = LONS,                       &
-        LATS      = LATS,                       &
-        ORBIT     = ORBIT,                      &
+        LONS      = LONS,           &
+        LATS      = LATS,           &
+        ORBIT     = ORBIT,          &
+        RUNALARM  = ALARM,          &
         RC=STATUS )
    VERIFY_(STATUS)
+
+!  If it is time, update GOCART state
+!  ---------------------------------------
+!jw   if ( ESMF_AlarmIsRinging(ALARM, RC=STATUS) ) then
+!jw       call ESMF_AlarmRingerOff(ALARM, __RC__)
+!jw   else
+!jw   print *,'in gocart run alarm is not ring, return'
+!jw       RETURN_(ESMF_SUCCESS)
+!jw   endif
 
    allocate(r4ZTH(SIZE(LATS,1), SIZE(LATS,2)), STAT=STATUS)
    VERIFY_(STATUS)
@@ -1208,12 +1691,6 @@ end if ! doing GOCART
    call extract_ ( gc, clock, chemReg, gcChem, w_c, nymd, nhms, cdt, rc=status )
    VERIFY_(STATUS)
 
-!  Get GFS parameters from gc and cf (Sarah Lu)
-!  -----------------------------------------
-   call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS, &
-                       impChem=impChem, cdt = cdt )
-   VERIFY_(STATUS)
-
 !  Set pointers for sine/cosine zenith angle
 !  -----------------------------------------
 
@@ -1231,13 +1708,12 @@ end if ! doing GOCART
 !  Fill in RH
 !  ----------
    call MAPL_GetPointer ( impChem, rh2, 'RH2', RC=STATUS)
-   w_c%rh = 100. * rh2   ! like in GEOS-4
+   w_c%rh = rh2
    VERIFY_(STATUS)
 
 !  Make sure tracers remain positive
 !  ---------------------------------
    in = size(w_c%delp,1);   jn = size(w_c%delp,2)
-
    do n = ChemReg%i_GOCART, ChemReg%j_GOCART 
       call Chem_UtilNegFiller ( w_c%qa(n)%data3d, w_c%delp, in, jn, &
                                 qmin=tiny(1.0) )
@@ -1247,11 +1723,130 @@ end if ! doing GOCART
 !  ---------------------
    call Aero_GridCompRun ( gcChem, w_c, impChem, expChem, &
                            nymd, nhms, cdt, STATUS )
-
    VERIFY_(STATUS)
 
+!  Get the diagnostics
+   call MAPL_GetPointer (expChem, totexttau, 'TOTEXTTAU', __RC__)
+   call MAPL_GetPointer (expChem, totscatau, 'TOTSCATAU', __RC__)
+   call MAPL_GetPointer (expChem, totextt25, 'TOTEXTT25', __RC__)
+   call MAPL_GetPointer (expChem, totscat25, 'TOTSCAT25', __RC__)
+   call MAPL_GetPointer (expChem, totexttfm, 'TOTEXTTFM', __RC__)
+   call MAPL_GetPointer (expChem, totscatfm, 'TOTSCATFM', __RC__)
+   call MAPL_GetPointer (expChem, totangstr, 'TOTANGSTR', __RC__)
+
+   if(associated(totexttau)) totexttau(:,:) = 0.
+   if(associated(totscatau)) totscatau(:,:) = 0.
+   if(associated(totextt25)) totextt25(:,:) = 0.
+   if(associated(totscat25)) totscat25(:,:) = 0.
+   if(associated(totexttfm)) totexttfm(:,:) = 0.
+   if(associated(totscatfm)) totscatfm(:,:) = 0.
+
+   if(w_c%reg%doing_du) then
+     call MAPL_GetPointer (expChem, duexttau, 'DUEXTTAU', __RC__)
+     call MAPL_GetPointer (expChem, duscatau, 'DUSCATAU', __RC__)
+     call MAPL_GetPointer (expChem, duextt25, 'DUEXTT25', __RC__)
+     call MAPL_GetPointer (expChem, duscat25, 'DUSCAT25', __RC__)
+     call MAPL_GetPointer (expChem, duexttfm, 'DUEXTTFM', __RC__)
+     call MAPL_GetPointer (expChem, duscatfm, 'DUSCATFM', __RC__)
+     call MAPL_GetPointer (expChem, duangstr, 'DUANGSTR', __RC__)
+     if(associated(totexttau) .and. associated(duexttau)) totexttau = totexttau+duexttau
+     if(associated(totscatau) .and. associated(duscatau)) totscatau = totscatau+duscatau
+     if(associated(totextt25) .and. associated(duextt25)) totextt25 = totextt25+duextt25
+     if(associated(totscat25) .and. associated(duscat25)) totscat25 = totscat25+duscat25
+     if(associated(totexttfm) .and. associated(duexttfm)) totexttfm = totexttfm+duexttfm
+     if(associated(totscatfm) .and. associated(duscatfm)) totscatfm = totscatfm+duscatfm
+
+   endif
+   if(w_c%reg%doing_ss) then
+     call MAPL_GetPointer (expChem, ssexttau, 'SSEXTTAU', __RC__)
+     call MAPL_GetPointer (expChem, ssscatau, 'SSSCATAU', __RC__)
+     call MAPL_GetPointer (expChem, ssextt25, 'SSEXTT25', __RC__)
+     call MAPL_GetPointer (expChem, ssscat25, 'SSSCAT25', __RC__)
+     call MAPL_GetPointer (expChem, ssexttfm, 'SSEXTTFM', __RC__)
+     call MAPL_GetPointer (expChem, ssscatfm, 'SSSCATFM', __RC__)
+     call MAPL_GetPointer (expChem, ssangstr, 'SSANGSTR', __RC__)
+     if(associated(totexttau) .and. associated(ssexttau)) totexttau = totexttau+ssexttau
+     if(associated(totscatau) .and. associated(ssscatau)) totscatau = totscatau+ssscatau
+     if(associated(totextt25) .and. associated(ssextt25)) totextt25 = totextt25+ssextt25
+     if(associated(totscat25) .and. associated(ssscat25)) totscat25 = totscat25+ssscat25
+     if(associated(totexttfm) .and. associated(ssexttfm)) totexttfm = totexttfm+ssexttfm
+     if(associated(totscatfm) .and. associated(ssscatfm)) totscatfm = totscatfm+ssscatfm
+   endif
+   if(w_c%reg%doing_su) then
+     call MAPL_GetPointer (expChem, suexttau, 'SUEXTTAU', __RC__)
+     call MAPL_GetPointer (expChem, suscatau, 'SUSCATAU', __RC__)
+     call MAPL_GetPointer (expChem, suangstr, 'SUANGSTR', __RC__)
+     if(associated(totexttau) .and. associated(suexttau)) totexttau = totexttau+suexttau
+     if(associated(totscatau) .and. associated(suscatau)) totscatau = totscatau+suscatau
+     if(associated(totextt25) .and. associated(suexttau)) totextt25 = totextt25+suexttau
+     if(associated(totscat25) .and. associated(suscatau)) totscat25 = totscat25+suscatau
+     if(associated(totexttfm) .and. associated(suexttau)) totexttfm = totexttfm+suexttau
+     if(associated(totscatfm) .and. associated(suscatau)) totscatfm = totscatfm+suscatau
+   endif
+   if(w_c%reg%doing_bc) then
+     call MAPL_GetPointer (expChem, bcexttau, 'BCEXTTAU', __RC__)
+     call MAPL_GetPointer (expChem, bcscatau, 'BCSCATAU', __RC__)
+     call MAPL_GetPointer (expChem, bcangstr, 'BCANGSTR', __RC__)
+     if(associated(totexttau) .and. associated(bcexttau)) totexttau = totexttau+bcexttau
+     if(associated(totscatau) .and. associated(bcscatau)) totscatau = totscatau+bcscatau
+     if(associated(totextt25) .and. associated(bcexttau)) totextt25 = totextt25+bcexttau
+     if(associated(totscat25) .and. associated(bcscatau)) totscat25 = totscat25+bcscatau
+     if(associated(totexttfm) .and. associated(bcexttau)) totexttfm = totexttfm+bcexttau
+     if(associated(totscatfm) .and. associated(bcscatau)) totscatfm = totscatfm+bcscatau
+   endif
+   if(w_c%reg%doing_oc) then
+     call MAPL_GetPointer (expChem, ocexttau, 'OCEXTTAU', __RC__)
+     call MAPL_GetPointer (expChem, ocscatau, 'OCSCATAU', __RC__)
+     call MAPL_GetPointer (expChem, ocangstr, 'OCANGSTR', __RC__)
+     if(associated(totexttau) .and. associated(ocexttau)) totexttau = totexttau+ocexttau
+     if(associated(totscatau) .and. associated(ocscatau)) totscatau = totscatau+ocscatau
+     if(associated(totextt25) .and. associated(ocexttau)) totextt25 = totextt25+ocexttau
+     if(associated(totscat25) .and. associated(ocscatau)) totscat25 = totscat25+ocscatau
+     if(associated(totexttfm) .and. associated(ocexttau)) totexttfm = totexttfm+ocexttau
+     if(associated(totscatfm) .and. associated(ocscatau)) totscatfm = totscatfm+ocscatau
+   endif
+
+   if(associated(totangstr)) then
+    totangstr(:,:) = 0.
+    allocate(tau1(SIZE(LATS,1), SIZE(LATS,2)), &
+             tau2(SIZE(LATS,1), SIZE(LATS,2)), STAT=STATUS)
+    VERIFY_(STATUS)
+    tau1(:,:) = tiny(1.0)
+    tau2(:,:) = tiny(1.0)
+    c1 = -log(470./550.)
+    c2 = -log(870./550.)
+    c3 = -log(470./870.)
+    if(w_c%reg%doing_du .and. associated(duexttau) .and. associated(duangstr)) then
+     tau1 = tau1 + duexttau*exp(c1*duangstr)
+     tau2 = tau2 + duexttau*exp(c2*duangstr)
+    endif
+    if(w_c%reg%doing_ss .and. associated(ssexttau) .and. associated(ssangstr)) then
+     tau1 = tau1 + ssexttau*exp(c1*ssangstr)
+     tau2 = tau2 + ssexttau*exp(c2*ssangstr)
+    endif
+    if(w_c%reg%doing_su .and. associated(suexttau) .and. associated(suangstr)) then
+     tau1 = tau1 + suexttau*exp(c1*suangstr)
+     tau2 = tau2 + suexttau*exp(c2*suangstr)
+    endif
+    if(w_c%reg%doing_bc .and. associated(bcexttau) .and. associated(bcangstr)) then
+     tau1 = tau1 + bcexttau*exp(c1*bcangstr)
+     tau2 = tau2 + bcexttau*exp(c2*bcangstr)
+    endif
+    if(w_c%reg%doing_oc .and. associated(ocexttau) .and. associated(ocangstr)) then
+     tau1 = tau1 + ocexttau*exp(c1*ocangstr)
+     tau2 = tau2 + ocexttau*exp(c2*ocangstr)
+    endif
+    totangstr = log(tau1/tau2)/c3
+    deallocate(tau1,tau2, STAT=STATUS)
+    VERIFY_(STATUS)
+   endif
+
    deallocate(SLR)
+   deallocate(ZTH)
    deallocate(r4ZTH)
+
+   call MAPL_TimerOff(ggState, 'RUN')
+   call MAPL_TimerOff(ggState, 'TOTAL')
 
    RETURN_(ESMF_SUCCESS)
 
@@ -1308,10 +1903,8 @@ end if ! doing GOCART
    type(Chem_Bundle), pointer      :: w_c         ! Chemical tracer fields     
    integer                         :: nymd, nhms  ! time
    real                            :: cdt         ! chemistry timestep (secs)
-
-    type(GOCART_state), pointer  :: state
- 
-   logical                         :: GOCART_OWNS_TRACERS
+   type(MAPL_MetaComp), pointer    :: ggState     ! GEOS Generic State
+   type(GOCART_state), pointer     :: state
 
 !  Get my name and set-up traceback handle
 !  ---------------------------------------
@@ -1319,29 +1912,23 @@ end if ! doing GOCART
    VERIFY_(STATUS)
    Iam = trim(COMP_NAME) // '::' // 'Finalize_'
 
+!  Get my internal MAPL_Generic state
+!  -----------------------------------
+   call MAPL_GetObjectFromGC ( GC, ggState, __RC__)
+
+   call MAPL_TimerON(ggState, 'TOTAL')
+   call MAPL_TimerON(ggState, 'FINALIZE')
+
 !  Get pre-ESMF parameters from gc and clock
 !  -----------------------------------------
    call extract_ ( gc, clock, chemReg, gcChem, w_c, nymd, nhms, cdt, STATUS, &
                    state = state )
    VERIFY_(STATUS)
 
-!  Get GFS parameters from gc and cf (Sarah Lu)
-!  -----------------------------------------
-   call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS, &
-                       impChem=impChem, cdt = cdt )
-   VERIFY_(STATUS)
-
 !  Call pre-ESMF version
 !  ---------------------
    call Aero_GridCompFinalize ( gcChem, w_c, impChem, expChem, &
                                 nymd, nhms, cdt, STATUS )
-   VERIFY_(STATUS)
-
-
-!  Finalize GEOS Generic
-!  ---------------------
-!ALT: don not dealloc "forein objects"
-   call MAPL_GenericFinalize ( gc, impChem, expChem, clock,  RC=STATUS )
    VERIFY_(STATUS)
 
 !  Destroy Chem_Bundle
@@ -1357,6 +1944,15 @@ end if ! doing GOCART
 !  Destroy Legacy state
 !  --------------------
    deallocate ( state%chemReg, state%gcChem, state%w_c, stat = STATUS )
+   VERIFY_(STATUS)
+
+   call MAPL_TimerOff(ggState, 'FINALIZE')
+   call MAPL_TimerOff(ggState, 'TOTAL')
+
+!  Finalize GEOS Generic
+!  ---------------------
+!ALT: don not dealloc "forein objects"
+   call MAPL_GenericFinalize ( gc, impChem, expChem, clock,  RC=STATUS )
    VERIFY_(STATUS)
 
    RETURN_(ESMF_SUCCESS)
@@ -1377,6 +1973,7 @@ end if ! doing GOCART
     integer, intent(out)             :: nymd, nhms
     real, intent(out)                :: cdt
     integer, intent(out)             :: rc
+    type(MAPL_MetaComp), pointer            :: ggState
     type(GOCART_state), pointer, optional   :: state
 
 
@@ -1388,11 +1985,14 @@ end if ! doing GOCART
     integer                         :: STATUS
     character(len=ESMF_MAXSTR)      :: COMP_NAME
 
+    type(ESMF_Alarm)                :: ALARM
+    type(ESMF_TimeInterval)         :: RingInterval
+
     type(ESMF_Time)      :: TIME
     type(ESMF_Config)    :: CF
     type(GOCART_Wrap)    :: wrap
     integer              :: IYR, IMM, IDD, IHR, IMN, ISC
-
+    real(ESMF_KIND_R8)   :: dt_r8
 
 !   Get my name and set-up traceback handle
 !   ---------------------------------------
@@ -1401,6 +2001,11 @@ end if ! doing GOCART
     Iam = trim(COMP_NAME) // '::' // 'extract_'
 
     rc = 0
+
+!  Get my internal MAPL_Generic state
+!  -----------------------------------
+   call MAPL_GetObjectFromGC ( GC, ggState, __RC__ )
+
 
 !   Get my internal state
 !   ---------------------
@@ -1437,8 +2042,12 @@ end if ! doing GOCART
 
 !   Get time step
 !   -------------
-    call ESMF_ConfigGetAttribute ( CF, cdt, Label="RUN_DT:", RC=STATUS )
-    VERIFY_(STATUS)
+    call MAPL_Get(ggState, RUNALARM=ALARM, __RC__ )
+    call ESMF_AlarmGet(ALARM, ringInterval=RingInterval, __RC__)
+
+    call ESMF_TimeIntervalGet(RingInterval, s_r8=dt_r8, __RC__)
+    cdt = real(dt_r8)
+
 
 !   Need code to extract nymd(20050205), nhms(120000) from clock
 !   ------------------------------------------
@@ -1458,6 +2067,7 @@ end if ! doing GOCART
 
 !.......................................................................
 
+!___NCEP___
     subroutine extract_gfs_ ( gc, GOCART_OWNS_TRACERS, rc, impChem, cdt)
 
     type(ESMF_GridComp), intent(inout)       :: gc          ! Grid Component

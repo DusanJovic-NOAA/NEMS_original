@@ -12,7 +12,7 @@
 
 ! !USES:
 
-   use ESMF_Mod
+   use ESMF
    use ESMFL_Mod, only: ESMFL_StateGetPointerToData
 
    use Chem_Mod           ! Chemistry Base Class

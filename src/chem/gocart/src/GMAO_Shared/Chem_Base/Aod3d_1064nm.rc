@@ -10,11 +10,11 @@ n_channels: 1
 
 r_channels: 1.064e-6 
 
-filename_optical_properties_DU: ExtData/g5chem/x/optics_DU.nc
-filename_optical_properties_SS: ExtData/g5chem/x/optics_SS.v2.nc
-filename_optical_properties_OC: ExtData/g5chem/x/optics_OC.nc
-filename_optical_properties_BC: ExtData/g5chem/x/optics_BC.nc
-filename_optical_properties_SU: ExtData/g5chem/x/optics_SU.nc
+filename_optical_properties_DU: ExtData/PIESA/x/optics_DU.v14_2.nc
+filename_optical_properties_SS: ExtData/PIESA/x/optics_SS.v3_3.nc
+filename_optical_properties_OC: ExtData/PIESA/x/optics_OC.v1_3.nc
+filename_optical_properties_BC: ExtData/PIESA/x/optics_BC.v1_3.nc
+filename_optical_properties_SU: ExtData/PIESA/x/optics_SU.v1_3.nc
 
 # Second block is a copy of a chem registry type, used here only
 # to specify what to write out to the bundle file!!!
@@ -46,7 +46,7 @@ nbins_SU:  4    # sulfates
 nbins_BC:  2    # black carbon
 nbins_OC:  2    # organic carbon
 nbins_SC:  35   # stratospheric chemistry
-nbins_XX:  7    # generic tracer
+nbins_XX:  8    # generic tracer
 
 # Units for each constituent
 # --------------------------
@@ -72,6 +72,7 @@ variable_table_XX::
 extinction  km-1      Aerosol Extinction [1064 nm]
 ssa         none      Aerosol Single Scatter Albedo [1064 nm]
 tau         none      Aerosol Layer Optical Thickness [1064 nm]
+depol       none      Aerosol Depolarization Ratio [1064 nm]
 backscat    km-1sr-1  Aerosol Backscatter [1064 nm]
 ext2back    sr-1      Aerosol Extinction to Backscatter Ratio [1064 nm]
 aback_sfc   km-1sr-1  Aerosol Attenuated Backscatter from Surface [1064 nm]

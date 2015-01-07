@@ -39,9 +39,11 @@ esma_help help:
 
 NCEP_SHARED = $(wildcard NCEP_Shared)
      G5PERT = $(wildcard g5pert)
+ GEOS_APERT = $(wildcard GEOSagcmPert_GridComp)
+GMAO_SHARED = $(wildcard GMAO_Shared)
 
 ASSERT  = $(wildcard $(ESMADIR)/src/Assert.pl)
-MODINFO = $(wildcard $(ESMADIR)/src/g5_modules)
+MODINFO = $(wildcard $(ESMADIR)/src/g5_modules $(ESMADIR)/src/g5_modules.sh)
 
 export ESMADIR BASEDIR ARCH SITE MAKEFLAGS ASSERT MODINFO
 
@@ -55,7 +57,7 @@ export ESMADIR BASEDIR ARCH SITE MAKEFLAGS ASSERT MODINFO
 
   else
 
-     ALLDIRS = Config            NCEP_Shared           GMAO_Shared   g5pert \
+     ALLDIRS = Config            NCEP_Shared           GMAO_Shared   GEOSagcmPert_GridComp g5pert \
               GEOSgcs_GridComp  Components            Applications
 
   endif
@@ -75,6 +77,9 @@ $(TARGETS):
 
 local_install:
 	@echo Nothing to locally install here
+
+pyinstall:
+	$(MAKE) esma_install PYTHON_INSTALL=python_install
 
 #                  --------------------
 #                  User Defined Targets
@@ -112,15 +117,27 @@ else
    G5PERT_INSTALL = g5pert_install
 endif
 
-              Config_install:
-         NCEP_Shared_install: Config_install
-              g5pert_install: GMAO_Shared_install
-         GMAO_Shared_install: Config_install $(NCEP_SHARED_INSTALL)
-    GEOSgcs_GridComp_install: GMAO_Shared_install \
-                              $(G5PERT_INSTALL)
-          Components_install: GMAO_Shared_install
+ifeq ($(GEOS_APERT),$(null))
+   GEOS_APERT_INSTALL = 
+else
+   GEOS_APERT_INSTALL = GEOSagcmPert_GridComp_install
+endif
 
-        Applications_install: $(foreach gc, $(GCS), $(gc)_install ) 
+ifeq ($(GMAO_SHARED),$(null))
+   GMAO_SHARED_INSTALL = 
+else
+   GMAO_SHARED_INSTALL = GMAO_Shared_install
+endif
+
+                Config_install:
+           NCEP_Shared_install: Config_install
+                g5pert_install: GMAO_Shared_install
+           GMAO_Shared_install: Config_install $(NCEP_SHARED_INSTALL)
+ GEOSagcmPert_GridComp_install: GMAO_Shared_install
+      GEOSgcs_GridComp_install: GMAO_Shared_install $(GEOS_APERT_INSTALL) $(G5PERT_INSTALL)
+            Components_install: GMAO_Shared_install
+
+          Applications_install: $(foreach gc, $(GCS), $(gc)_install ) $(GMAO_SHARED_INSTALL) $(NCEP_SHARED_INSTALL)
 
 #                  --------------------
 #                      Configuration

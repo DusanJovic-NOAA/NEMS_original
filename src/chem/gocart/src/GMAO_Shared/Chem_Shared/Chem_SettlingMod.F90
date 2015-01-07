@@ -56,7 +56,7 @@ CONTAINS
    subroutine Chem_Settling ( i1, i2, j1, j2, km, nbeg, nend, nbins, flag, &
                               radiusInp, rhopInp, cdt, w_c, tmpu, rhoa, &
                               hsurf, hghte, fluxout, rc, &
-                              vsettleOut )
+                              vsettleOut, correctionMaring )
 
 ! !USES:
 
@@ -65,7 +65,7 @@ CONTAINS
 ! !INPUT PARAMETERS:
 
    integer, intent(in) :: i1, i2, j1, j2, km, nbeg, nend, nbins
-   integer, intent(in) :: flag  ! =1 if RH affects particle size, =0 if not
+   integer, intent(in) :: flag     ! flag to control particle swelling (see note)
    real, intent(in)    :: cdt
    real, pointer, dimension(:)     :: radiusInp, rhopInp
    real, pointer, dimension(:,:)   :: hsurf
@@ -82,13 +82,17 @@ CONTAINS
 !  Optionally output the settling velocity calculated
    type(Chem_Array), pointer, optional, dimension(:)  :: vsettleOut
 
+!  Optionally correct the settling velocity following Maring et al, 2003
+   logical, optional, intent(in)    :: correctionMaring
+
    character(len=*), parameter :: myname = 'Settling'
 
 ! !DESCRIPTION: Gravitational settling of aerosol between vertical
 !               layers.  Assumes input radius in [m] and density (rhop) 
-!               in [kg m-3]. If flag is set, use the Fitzgerald 1975 simple
-!               parameterization to update the particle radius for the
-!               calculation (local variables radius and rhop).
+!               in [kg m-3]. If flag is set, use the Fitzgerald 1975 (flag = 1)
+!               or Gerber 1985 (flag = 2) parameterization to update the 
+!               particle radius for the calculation (local variables radius
+!               and rhop).
 !
 ! !REVISION HISTORY:
 !
@@ -125,6 +129,14 @@ CONTAINS
 !  parameter from Gerber 1985 (units require radius in cm, see rcm)
    real :: rcm
    real, parameter :: c1=0.7674, c2=3.079, c3=2.573e-11, c4=-1.424
+!  parameters for ammonium sulfate
+   real, parameter :: SU_c1=0.4809, SU_c2=3.082, SU_c3=3.110e-11, SU_c4=-1.428
+
+
+!  parameters from Maring et al, 2003
+   real, parameter :: v_upwardMaring = 0.33e-2   ! upward velocity, [m s-1]
+   real, parameter :: diameterMaring = 7.30e-6   ! particle diameter, [m]
+
 !
    real :: sum
    real :: sat, rrat
@@ -158,12 +170,18 @@ CONTAINS
 !  Loop over the number of dust bins
    do n = 1, nbins
 
+    radius = radiusInp(n)
+    rhop = rhopInp(n)
+
 !   Reset a (large) minimum time to cross a grid cell in settling
     minTime = cdt
 
     if( associated(fluxout(n)%data2d) ) fluxout(n)%data2d(i1:i2,j1:j2) = 0.0
     cmass_before(:,:) = 0.0
     cmass_after(:,:) = 0.0
+
+!   If radius le 0 then get out of loop
+    if(radius .le. 0.) cycle
 
     do k = 1, km
      do j = j1, j2
@@ -172,9 +190,6 @@ CONTAINS
 !      Find the column dry mass before sedimentation
        cmass_before(i,j) = cmass_before(i,j) &
         + w_c%qa(nbeg+n-1)%data3d(i,j,k)*w_c%delp(i,j,k)/grav
-
-       radius = radiusInp(n)
-       rhop = rhopInp(n)
 
 !      Adjust the particle size for relative humidity effects
        sat = max(w_c%rh(i,j,k),tiny(1.0)) ! to avoid zero FPE
@@ -208,14 +223,34 @@ CONTAINS
                           + rcm**3.)**(1./3.)
         rrat = (radiusInp(n)/radius)**3.
         rhop = rrat*rhopInp(n) + (1.-rrat)*rhow
+       elseif(flag .eq. 3) then   
+!       Gerber parameterization for Ammonium Sulfate
+        sat = min(0.995,sat)
+        rcm = radiusInp(n)*100.
+        radius = 0.01 * (   SU_c1*rcm**SU_c2 / (SU_c3*rcm**SU_c4-alog10(sat)) &
+                      + rcm**3.)**(1./3.)
+        rrat = (radiusInp(n)/radius)**3.
+        rhop = rrat*rhopInp(n) + (1.-rrat)*rhow
+       elseif(flag .eq. 4) then
+!       Petters and Kreidenweis (ACP2007) parameterization
+        sat = min(0.99,sat)
+        radius = (radiusInp(n)**3 * (1+1.19*sat/(1-sat)))**(1./3.)
+        rrat = (radiusInp(n)/radius)**3
+        rhop = rrat*rhopInp(n) + (1.-rrat)*rhow
        endif
 
 !      Calculate the settling velocity
-       call Chem_CalcVsettle(radius, rhop, pm(i,j,k), rhoa(i,j,k), &
+       call Chem_CalcVsettle(radius, rhop, rhoa(i,j,k), &
                         tmpu(i,j,k), diff_coef, vsettle(i,j,k))
       end do
      end do
     end do
+
+    if(present(correctionMaring)) then
+     if ((correctionMaring) .and. (radiusInp(n) .le. (0.5*diameterMaring))) then
+       vsettle = max(1.0e-9, vsettle - v_upwardMaring)
+     endif
+    endif
 
     if(present(vsettleOut)) then
      vsettleOut(n)%data3d = vsettle
@@ -300,7 +335,7 @@ CONTAINS
 ! !INTERFACE:
 !
 
-   subroutine Chem_CalcVsettle ( radius, rhop, pm, rhoa, tmpu, &
+   subroutine Chem_CalcVsettle ( radius, rhop, rhoa, tmpu, &
                                  diff_coef, vsettle )
 
 ! !USES:
@@ -311,7 +346,6 @@ CONTAINS
 
    real, intent(in)    :: radius              ! Particle radius [m]
    real, intent(in)    :: rhop                ! Particle density [kg m-3]
-   real, intent(in)    :: pm                  ! Layer midpoint pressure [hPa]
    real, intent(in)    :: rhoa                ! Layer air density [kg m-3]
    real, intent(in)    :: tmpu                ! Layer temperature [K]
 

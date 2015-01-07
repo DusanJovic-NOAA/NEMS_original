@@ -12,7 +12,7 @@
 ! !USES:
 !
 
-   use ESMF_mod
+   use ESMF
 
    implicit none
    private

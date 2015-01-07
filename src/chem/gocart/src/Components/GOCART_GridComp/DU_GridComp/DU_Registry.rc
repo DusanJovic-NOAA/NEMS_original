@@ -22,6 +22,9 @@
 # ---------|------------|-----|---|----|---|---|-----|---------------------------------
   DUMASS   | kg kg-1    | xyz | C |    |   |   |     | Dust Mass Mixing Ratio 
   DUMASS25 | kg kg-1    | xyz | C |    |   |   |     | Dust Mass Mixing Ratio - PM 2.5 
+  DUCONC   | kg m-3     | xyz | C |    |   |   |     | Dust Mass Concentration
+  DUEXTCOEF| m-1        | xyz | C |    |   |   |     | Dust Extinction Coefficient [550 nm]
+  DUSCACOEF| m-1        | xyz | C |    |   |   |     | Dust Scattering Coefficient [550 nm]
 # .........|............|.....|...|....|...|...|.....|..................................
   DUEM001  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Emission Bin 001     
   DUEM002  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Emission Bin 002     
@@ -43,11 +46,11 @@
   DUWT003  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Wet Deposition Bin 003     
   DUWT004  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Wet Deposition Bin 004     
   DUWT005  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Wet Deposition Bin 005     
-# DUSV001  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 001     
-# DUSV002  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 002     
-# DUSV003  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 003     
-# DUSV004  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 004     
-# DUSV005  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 005     
+  DUSV001  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 001     
+  DUSV002  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 002     
+  DUSV003  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 003     
+  DUSV004  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 004     
+  DUSV005  | kg m-2 s-1 | xy  |   |    |   |   |     | Dust Convective Scavenging Bin 005     
   DUSMASS  | kg m-3     | xy  |   |    |   |   |     | Dust Surface Mass Concentration    
   DUCMASS  | kg m-2     | xy  |   |    |   |   |     | Dust Column Mass Density    
   DUEXTTAU |    1       | xy  |   |    |   |   |     | Dust Extinction AOT [550 nm]    
@@ -57,5 +60,10 @@
   DUEXTT25 |    1       | xy  |   |    |   |   |     | Dust Extinction AOT [550 nm] - PM 2.5    
   DUSCAT25 |    1       | xy  |   |    |   |   |     | Dust Scattering AOT [550 nm] - PM 2.5   
   DUAERIDX |    1       | xy  |   |    |   |   |     | Dust TOMS UV Aerosol Index    
+  DUFLUXU  | kg m-1 s-1 | xy  |   |    |   |   |     | Dust column u-wind mass flux
+  DUFLUXV  | kg m-1 s-1 | xy  |   |    |   |   |     | Dust column v-wind mass flux
+  DUEXTTFM |    1       | xy  |   |    |   |   |     | Dust Extinction AOT [550 nm] - PM 1.0 um
+  DUSCATFM |    1       | xy  |   |    |   |   |     | Dust Scattering AOT [550 nm] - PM 1.0 um
+  DUANGSTR |    1       | xy  |   |    |   |   |     | Dust Angstrom parameter [470-870 nm]
 # ---------|------------|-----|---|----|---|---|-----|---------------------------------
 </DU::ExportSpec>

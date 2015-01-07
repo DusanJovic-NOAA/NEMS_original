@@ -13,6 +13,7 @@ export REGSDIR=${RTPWD}
 export PARA_CONFIG=${NEMSDIR}/tests/ngac_para_config
 #export CONFIG_FILE=${NGAC_CONFIG_FILE:-${REGSDIR}/data_GOCART/ngac_config}
 export CONFIG_FILE=${NGAC_CONFIG_FILE:-$PATHRT/ngac_config}
+export PARM_NGAC=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/NGAC/NGACv2.0.0/parm
 
 ####################################################################################################
 # Submit test

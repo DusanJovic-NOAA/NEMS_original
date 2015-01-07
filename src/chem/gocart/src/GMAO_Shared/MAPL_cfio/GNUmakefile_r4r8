@@ -140,7 +140,7 @@ BIG_ENDIAN =
 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
-USER_FFLAGS =  -cpp $(BIG_ENDIAN)
+USER_FFLAGS =  $(PP) $(BIG_ENDIAN)
 
 
 vpath % $(INC_DIRS) ../examples /usr/include # $(MOD_DIRS)

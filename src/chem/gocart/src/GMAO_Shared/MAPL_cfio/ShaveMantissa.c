@@ -27,7 +27,7 @@ float32 SetOffset(float32 minv, float32 maxv)
 
   range  = (maxv-minv);
   midv   = (maxv+minv)*0.5;
-  mnabs  = abs(maxv)>abs(minv) ? fabs(minv) : fabs(maxv);
+  mnabs  = fabs(maxv)>fabs(minv) ? fabs(minv) : fabs(maxv);
 
   return (range<mnabs) ? midv : midv*(mnabs/range);
 }
@@ -64,16 +64,24 @@ float32 a[];    // output "shaved" array; can share storage with ain[]
 /*
 // !DESCRIPTION:  
 //
-//  This routine returns a lower precision version of the input array
-//  {\tt a}, reducing the precision of the mantissa by {\tt xbits}.
-//  (The number of bits retained is {\tt nbits = 24 - xbits}, given that
+//  This routine returns a lower precision version of the input array {\tt a}.
+//
+//  This is done by clearing the low-order {\tt xbits} bits of the mantissa of
+//  a suitably offset version of the data, and then reshifting it to the original 
+//  offset. The offsetting procedure prevents the shaving from "throwing out
+//  the baby with the bathwater", for variables, such as Kelvin temperatures
+//  or geopotentials, that may have large offsets.
+//
+//  The number of bits retained is {\tt nbits = 24 - xbits}, given that
 //  32-bit floats in IEEE representation reserves only 24 bits for the
 //  mantissa. The purpose of this precision degradation is to promote
 //  internal GZIP compression by HDF-4.
 //
-//  This algorithm produces very similar results as the standard GRIB
-//  encoding with fixed number of bits ({\tt nbits = 24 - xbits}),
-//  and power of 2 binary scaling.
+//  For variables without large offsets, this algorithm produces very
+//  similar results as the standard GRIB encoding with fixed number of bits  
+//  ({\tt nbits = 24 - xbits}) and power of 2 binary scaling. For most files,
+//  it produces comparable compression to GRIB while using only standard 
+//  compression techniques (e.g. GZIP).
 //
 // !REVISION HISTORY:
 //
@@ -94,6 +102,7 @@ float32 a[];    // output "shaved" array; can share storage with ain[]
 //                       SKIP  checks and protected the max and min.
 //  24oct2009  da Silva  Changed abs() to fabs() in SetOffset; moved float32 
 //                       defs to header so that it can be used with prototype.
+//  28oct2010  da Silva  Changed another occurence of abs() -> fabs()
 //EOP
 //---------------------------------------------------------------------------
 */
@@ -188,7 +197,7 @@ float32 a[];    // output "shaved" array; can share storage with ain[]
 
     offset = SetOffset(minv,maxv);
 
-    // Shave chunk biginning at first valid value
+    // Shave chunk beginning at first valid value
 
     a = c-1;
     while(++a<begnxt) {

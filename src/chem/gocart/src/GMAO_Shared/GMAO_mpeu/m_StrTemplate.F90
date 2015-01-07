@@ -39,6 +39,9 @@
       end interface
 
 ! !REVISION HISTORY:
+!	22Jun11	- Jing Guo
+!		- Added optional PRESERVE= argument to preserve any
+!		  unknown %-macro or any %-macro with missing value.
 ! 	19Dec06	- Jing Guo <guo@gmao.gsfc.nasa.gov>
 !		- Merged changes between 1.1.2.6 and 1.1.2.9 to 1.2,
 !		  including a fix at bug nymd==0 and environment
@@ -73,7 +76,7 @@ contains
 !
 ! !INTERFACE:
 
-    subroutine strTemplate_(str,tmpl,class,xid,nymd,nhms,stat)
+    subroutine strTemplate_(str,tmpl,class,xid,nymd,nhms,stat,preserve)
       use m_chars, only : uppercase
       use m_stdio, only : stderr
       use m_die,   only : die
@@ -101,6 +104,9 @@ contains
       integer,intent(out),optional :: stat
 			! error code
 
+      logical,intent(in ),optional :: preserve
+      			! preserve macro if there is no corresponding input
+
 ! !REVISION HISTORY:
 ! 	03Jun99	- Jing Guo <guo@dao.gsfc.nasa.gov>
 !		- initial prototype/prolog/code
@@ -118,7 +124,7 @@ contains
   select case(uc_class)
 
   case("GX","GRADS")
-    call GX_(str,tmpl,xid,nymd,nhms,stat)
+    call GX_(str,tmpl,xid=xid,nymd=nymd,nhms=nhms,stat=stat,preserve=preserve)
 
   !case("UX","UNIX")	! yet to be implemented
   !  call UX_(str,tmpl,xid,nymd,nhms,stat)
@@ -143,7 +149,7 @@ end subroutine strTemplate_
 !
 ! !INTERFACE:
 
-    subroutine GX_(str,tmpl,xid,nymd,nhms,stat)
+    subroutine GX_(str,tmpl,xid,nymd,nhms,stat,preserve)
       use m_stdio,only : stderr
       use m_die,  only : die,perr
       implicit none
@@ -153,6 +159,8 @@ end subroutine strTemplate_
       integer,optional,intent(in)  :: nymd
       integer,optional,intent(in)  :: nhms
       integer,optional,intent(out) :: stat
+      logical,optional,intent(in ) :: preserve
+      			! preserve macro if there is no corresponding input
 
 ! !REVISION HISTORY:
 ! 	01Jun99	- Jing Guo <guo@dao.gsfc.nasa.gov>
@@ -167,6 +175,7 @@ end subroutine strTemplate_
   integer :: ln_tmpl,ln_str
   integer :: istp,kstp
   integer :: ier
+  logical :: preserve_
 
   character(len=1) :: c0,c1,c2
   character(len=4) :: sbuf
@@ -210,6 +219,9 @@ end subroutine strTemplate_
     imn=i/100
   endif
 !________________________________________
+  preserve_=.false.
+  if(present(preserve)) preserve_=preserve
+!________________________________________
 
   ln_tmpl=len_trim(tmpl)	! size of the format template
   ln_str =len(str)		! size of the output string
@@ -251,6 +263,14 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
 
     case("s")
       if(.not.present(xid)) then
+        if(preserve_) then
+	  istp=2
+	  m=k+len(c1)
+	  str(k:m)=c0//c1
+	  k=m+1
+	  cycle
+	endif
+
 	write(stderr,'(2a)') myname_,	&
 		': optional argument expected, "xid="'
 	if(.not.present(stat)) call die(myname_)
@@ -265,6 +285,13 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
       cycle
 
     case("%","$")
+      if(preserve_) then
+	istp=2
+	m=k+len(c1)
+	str(k:m)=c0//c1
+	k=m+1
+	cycle
+      endif
 
       istp=2
       str(k:k)=c1
@@ -282,6 +309,14 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
 
       case("y4","y2","m1","m2","mc","Mc","MC","d1","d2")
         if(.not.present(nymd)) then
+          if(preserve_) then
+	    istp=3
+	    m=k+len(c1)+len(c2)
+	    str(k:m)=c0//c1//c2
+	    k=m+1
+	    cycle
+          endif
+
 	  write(stderr,'(2a)') myname_,	&
 		': optional argument expected, "nymd="'
 	  if(.not.present(stat)) call die(myname_)
@@ -292,6 +327,14 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
 
       case("h1","h2","h3","n2")
         if(.not.present(nhms)) then
+          if(preserve_) then
+	    istp=3
+	    m=k+len(c1)+len(c2)
+	    str(k:m)=c0//c1//c2
+	    k=m+1
+	    cycle
+          endif
+
 	  write(stderr,'(2a)') myname_,	&
 		': optional argument expected, "nhms="'
 	  if(.not.present(stat)) call die(myname_)
@@ -301,6 +344,13 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
         istp=3
 
       case default
+        if(preserve_) then
+	  istp=2
+	  m=k+len(c1)
+	  str(k:m)=c0//c1
+	  k=m+1
+	  cycle
+        endif
 
         write(stderr,'(4a)') myname_,	&
 	  ': invalid template entry, "',trim(tmpl(i:)),'"'

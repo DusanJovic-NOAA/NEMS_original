@@ -28,7 +28,6 @@
 #if defined(HDFEOS) || defined(HDFSD)
       include "hdf.f90"
 #endif
-      include 'netcdf.inc'
 
 !------------------------------------------------------------------------------
 !
@@ -1794,14 +1793,14 @@
 !  Saul A. Teukolsky, William T. Vetterling, and Brian P. Flannery (Cambridge 
 !  University Press, 1992). 
 
-      INTEGER FUNCTION julday2(mm,id,iyyy)
+      INTEGER FUNCTION julday(mm,id,iyyy)
       INTEGER id,iyyy,mm,IGREG
       PARAMETER (IGREG=15+31*(10+12*1582))
       INTEGER ja,jm,jy
       jy=iyyy
       if (jy.eq.0) then
         print *, 'julday: there is no year zero'
-        stop
+        return
       endif
       if (jy.lt.0) jy=jy+1
       if (mm.gt.2) then
@@ -1810,13 +1809,13 @@
         jy=jy-1
         jm=mm+13
       endif
-      julday2=int(365.25*jy)+int(30.6001*jm)+id+1720995
+      julday=int(365.25*jy)+int(30.6001*jm)+id+1720995
       if (id+31*(mm+12*iyyy).ge.IGREG) then
         ja=int(0.01*jy)
-        julday2=julday2+2-ja+int(0.25*ja)
+        julday=julday+2-ja+int(0.25*ja)
       endif
       return
-      END function julday2
+      END function julday
 
 
 !-------------------------------------------------------------------------
@@ -1876,40 +1875,36 @@
 !                 function from the book "Numerical Recipes in FORTRAN, the 
 !                 art of scientific computing (2nd Ed.), by William H. Press, 
 !                 Saul A. Teukolsky, William T. Vetterling, and Brian P. 
-!                 Flannery (Cambridge University Press, 1992).  This julian
-!                 day is reduced by a constant and converted to seconds.  The
-!                 reduction is required to allow the conversion to seconds to
-!                 fit in a 32 bit integer.  The difference between the two 
-!                 times is then calculated and returned.  The times need not
-!                 be in chronological order as the function returns the abs
-!                 value.  -1 is returned in the event of an error.
+!                 Flannery (Cambridge University Press, 1992).  The difference
+!                 between the two times is then calculated and returned.  The
+!                 times need not be in chronological order as the function returns
+!                 the abs value.  -1 is returned in the event of an error.
 !
 ! !REVISION HISTORY:
 !
 !  17Oct97   Lucchesi    Initial version.
+!  2010.05.11  Lucchesi  Integer for julian seconds changed to 64-bit.  StartDate
+!                        constant no longer needed.
 !
 !EOP
 !-------------------------------------------------------------------------
 
-       integer StartDate
-       parameter (StartDate = 2439321)   ! Use birthday of author as base date
-
        integer year1,mon1,day1,hour1,min1,sec1
        integer year2,mon2,day2,hour2,min2,sec2
-       integer julian1, julian2, julsec1, julsec2
+       integer(kind=8) julian1, julian2, julsec1, julsec2
 
        character*8 dateString
 
 ! Error checking.
 
-       if (yyyymmhh_1 .lt. 19000000 .or. yyyymmhh_1 .gt. 21000000 ) then
-         DiffDate=-1
-         return
-       endif
-       if (yyyymmhh_2 .lt. 19000000 .or. yyyymmhh_2 .gt. 21000000 ) then
-         DiffDate=-1
-         return
-       endif
+!rl    if (yyyymmhh_1 .lt. 19000000 .or. yyyymmhh_1 .gt. 21000000 ) then
+!rl      DiffDate=-1
+!rl      return
+!rl    endif
+!rl    if (yyyymmhh_2 .lt. 19000000 .or. yyyymmhh_2 .gt. 21000000 ) then
+!rl      DiffDate=-1
+!rl      return
+!rl    endif
        if (hhmmss_1 .lt. 0 .or. hhmmss_1 .ge. 240000 ) then
          DiffDate=-1
          return
@@ -1943,10 +1938,8 @@
 
 ! Get Julian Days and subtract off a constant (Julian days since 7/14/66)
  
-       julian1 = julday2 (mon1, day1, year1)
-       julian1 = julian1 - StartDate
-       julian2 = julday2 (mon2, day2, year2)
-       julian2 = julian2 - StartDate
+       julian1 = julday (mon1, day1, year1)
+       julian2 = julday (mon2, day2, year2)
       
 ! Calculcate Julian seconds
 
@@ -1972,7 +1965,8 @@
 !C   TO CONVERT MODIFIED JULIAN DAY, CALL THIS ROUTINE WITH              
 !C     JULIAN = MJD + 2400001                              
 !C                                                          
-      integer JULIAN, IGREG
+      integer(kind=8) JULIAN
+      integer IGREG
       integer JALPHA, JA, JB, JC, JD, JE, ID, MM, IYYY
       PARAMETER (IGREG=2299161)                             
       IF (JULIAN.GE.IGREG) THEN                              
@@ -2090,7 +2084,13 @@
       if (firstcolon .LE. 0) then
          
         ! If no colons, check for hour.
- 
+
+        ! Logic below assumes a null character or something else is after the hour
+        ! if we do not find a null character add one so that it correctly parses time
+        if (TimeUnits(strlen:strlen) /= char(0)) then
+           TimeUnits = trim(TimeUnits)//char(0)
+           strlen=len_trim(TimeUnits)
+        endif 
         lastspace = index(TRIM(TimeUnits), ' ', BACK=.TRUE.)
         if ((strlen-lastspace).eq.2 .or. (strlen-lastspace).eq.3) then
           hpos(1) = lastspace+1
@@ -2379,7 +2379,7 @@
       if (err("PutVar: can't get vmax",rc,-53) .NE. 0) return
       call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
       if (err("PutVar: can't get fmissing_value",rc,-53) .NE. 0) return
-      if (low_32 .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
+      if (abs(low_32) .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
         do k=1,kount
           do i=1,im
             if (grid(i,k) .GT. high_32 .OR. grid(i,k) .LT. &
@@ -2768,7 +2768,7 @@
 
       if ( .not. cyclic ) then
          if (seconds .LT. 0) then
-            print *, 'CFIO_GetVar: Error code from diffdate.  Problem with', &
+            print *, 'CFIO_SGetVar: Error code from diffdate.  Problem with', &
                 ' date/time.'
             rc = -7
             return
@@ -2869,9 +2869,9 @@
           call ncagt (fid, vid, 'add_offset', offset_32, rc)
           if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
           call ncagt (fid, vid, 'missing_value', amiss_16, rc)
-          if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
+          if (err("GetVar: error getting missing",rc,-53) .NE. 0) return
           call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
-          if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
+          if (err("GetVar: error getting fmissing",rc,-53) .NE. 0) return
           allocate (grid_16(im,kount))
           call ncvgt (fid, vid, corner, edges, grid_16, rc)
           do k=1,kount
@@ -2910,9 +2910,9 @@
           call ncagt (fid, vid, 'add_offset', offset_32, rc)
           if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
           call ncagt (fid, vid, 'missing_value', amiss_16, rc)
-          if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
+          if (err("GetVar: error getting missing",rc,-53) .NE. 0) return
           call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
-          if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
+          if (err("GetVar: error getting fmissing",rc,-53) .NE. 0) return
           allocate (grid_16(im,kount))
           call ncvgt (fid, vid, corner, edges, grid_16, rc)
           do k=1,kount
@@ -3052,6 +3052,11 @@
       integer*2 amiss_16
       real*4 amiss_32
       real*4 scale_32, offset_32
+
+! Initialize these, just in case
+
+      corner = 1
+      edges  = 1
 
 ! Make NetCDF errors non-fatal, but issue warning messages.
 
@@ -3238,6 +3243,11 @@
       if (HUGE(dummy) .EQ. HUGE(dummy32)) then        ! -r4
         if (type .EQ. NCFLOAT) then                     ! 32-bit
           call ncvgt (fid, vid, corner, edges, grid, rc)
+          if(rc /=0) then
+            print*,'Error reading variable using ncvgt',rc
+            print*, NF_STRERROR(rc)
+            return
+          endif
         else if (type .EQ. NCDOUBLE) then               ! 64-bit
           allocate (grid_64(im,jm,kount))
           call ncvgt (fid, vid, corner, edges, grid_64, rc)
@@ -3255,9 +3265,9 @@
           call ncagt (fid, vid, 'add_offset', offset_32, rc)
           if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
           call ncagt (fid, vid, 'missing_value', amiss_16, rc)
-          if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
+          if (err("GetVar: error getting missing",rc,-53) .NE. 0) return
           call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
-          if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
+          if (err("GetVar: error getting fmissing",rc,-53) .NE. 0) return
           allocate (grid_16(im,jm,kount))
           call ncvgt (fid, vid, corner, edges, grid_16, rc)
           do k=1,kount
@@ -3296,9 +3306,9 @@
           call ncagt (fid, vid, 'add_offset', offset_32, rc)
           if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
           call ncagt (fid, vid, 'missing_value', amiss_16, rc)
-          if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
+          if (err("GetVar: error getting missing",rc,-53) .NE. 0) return
           call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
-          if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
+          if (err("GetVar: error getting fmissing",rc,-53) .NE. 0) return
           allocate (grid_16(im,jm,kount))
           call ncvgt (fid, vid, corner, edges, grid_16, rc)
           do k=1,kount
@@ -3582,7 +3592,7 @@
       if (err("PutVar: can't get vmax",rc,-53) .NE. 0) return
       call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
       if (err("PutVar: can't get fmissing_value",rc,-53) .NE. 0) return
-      if (low_32 .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
+      if (abs(low_32) .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
         do k=1,kount
           do j=1,jm
             do i=1,im
@@ -3827,18 +3837,17 @@
 ! !REVISION HISTORY:
 !
 !  1998.07.20  Lucchesi    Initial version.
+!  2010.05.11  Lucchesi  Integer for julian seconds changed to 64-bit. StartDate
+!                        constant no longer needed.
 !
 !EOP
 !-------------------------------------------------------------------------
 
-      integer StartDate
-      parameter (StartDate = 2439321)   ! Use birthday of author as base date
-
       integer year1,mon1,day1,hour1,min1,sec1
       integer year2,mon2,day2,hour2,min2,sec2
       integer seconds1, seconds2
-      integer julian1, julian2
-      integer julsec, remainder
+      integer(kind=8) julian1, julian2
+      integer(kind=8) julsec, remainder
       character*8 dateString
 
 ! Error checking.
@@ -3868,8 +3877,7 @@
 
 ! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
  
-      julian1 = julday2 (mon1, day1, year1)
-      julian1 = julian1 - StartDate
+      julian1 = julday (mon1, day1, year1)
        
 ! Calculcate Julian seconds
 
@@ -3879,7 +3887,6 @@
 
       julsec = julsec + offset
       julian1 = INT(julsec/86400) + 1
-      julian1 = julian1 + StartDate
       remainder = MOD(julsec,86400)
  
 ! Convert julian day to YYYYMMDD.
@@ -5218,7 +5225,7 @@ end subroutine die
       rct = sfrnatt (sdsId, attrIdx, amiss_32)
       if (err("PutVar: error getting FILL",rc,-53) .NE. 0) goto 999
 
-      if (low_32 .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
+      if (abs(low_32) .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
         do k=1,kount
           do j=1,jm
             do i=1,im

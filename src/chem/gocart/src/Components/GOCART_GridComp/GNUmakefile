@@ -48,7 +48,8 @@ LIB   = $(LIB_THIS)
      SRCS := GOCART_StubCompMod.F90
   else
      ALLDIRS = O3_GridComp CO_GridComp CO2_GridComp CFC_GridComp \
-               DU_GridComp SS_GridComp BC_GridComp OC_GridComp SU_GridComp Rn_GridComp 
+               DU_GridComp SS_GridComp  BC_GridComp  OC_GridComp \
+               SU_GridComp Rn_GridComp CH4_GridComp
      SRCS := GOCART_GridCompMod.F90 Aero_GridCompMod.F90  
   endif
 
@@ -61,14 +62,16 @@ DEBUG = # $(D)DEBUG
 
 ifeq ($(ESMA_REAL),$(FREAL8))
 	FREAL = $(FREAL8)
+	THIS_CFIO = MAPL_cfio_r8
 else
 	FREAL = $(FREAL4)
+	THIS_CFIO = MAPL_cfio_r4
 endif
 
 export ESMADIR BASEDIR ARCH SITE FREAL DEBUG
 
 $(TARGETS): 
-	 t=$@; argv="$(SUBDIRS)" ;\
+	@ t=$@; argv="$(SUBDIRS)" ;\
 	  for d in $$argv; do			 \
 	    ( cd $$d				;\
 	      echo ""; echo Making $$t in `pwd`          ;\
@@ -87,8 +90,8 @@ local_esma_distclean local_distclean: clean_rc
 	-$(RM) -f *~ *.[aoxd] *.[Mm][Oo][Dd] *___.[fF]* 
 
 local_esma_doc local_doc:
-	@echo "Target $@ not implemented yet in `pwd`"
-
+	#@echo "Target $@ not implemented yet in `pwd`"
+	@$(PROTEX) $(PROTEX_FLAGS) *GridComp*.[fF]* > $(ESMADOC)/$(THIS).tex
 
 #                  --------------------
 #                  User Defined Targets
@@ -97,10 +100,23 @@ local_esma_doc local_doc:
 OBJS := $(addsuffix .o, $(basename $(SRCS))) 
 DEPS := $(addsuffix .d, $(basename $(SRCS))) 
 
-INC_DIRS = . $(INC_MAPL_BASE) $(INC_CHEM)
+BIG_ENDIAN =
+THIS_GFIO = GMAO_gfio_r4
+#FOPT = $(FOPT3)
 
-MOD_DIRS = . $(INC_ESMF) $(INC_MAPL_BASE) $(INC_GEOS_SHARED) \
-             $(INC_CHEM_BASE) $(INC_CHEM_SHARED) $(INC_CHEM) $(INC_MPEU)
+ifeq ($(ESMA_REAL),$(FREAL8))
+        THIS_GFIO = GMAO_gfio_r8
+        THIS_CFIO = MAPL_cfio_r8
+        FREAL = $(FREAL8)
+else
+        THIS_GFIO = GMAO_gfio_r4
+        THIS_CFIO = MAPL_cfio_r4
+        FREAL = $(FREAL4)
+endif
+
+INC_DIRS = . $(INC_ESMF) $(INC_GMAO_SHARED) $(INC_CHEM_GOCART)
+
+MOD_DIRS = . $(INC_DIRS) 
 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
@@ -119,6 +135,7 @@ LIB_CHILDREN = $(wildcard \
 			  $(ESMALIB)/libCFC_GridComp.a\
 			  $(ESMALIB)/libRn_GridComp.a\
 			  $(ESMALIB)/libBC_GridComp.a\
+                          $(ESMALIB)/libCH4_GridComp.a\
                           $(ESMALIB)/libCO2_GridComp.a\
                           $(ESMALIB)/libCO_GridComp.a\
                           $(ESMALIB)/libDU_GridComp.a\
@@ -128,16 +145,16 @@ LIB_CHILDREN = $(wildcard \
                           $(ESMALIB)/libSU_GridComp.a)
 %.x : $(LIB) %.o
 	$(LD) $(LDFLAGS) -o $@ $*.o $(LIB) $(LIB_CHILDREN) \
-	      $(LIB_CHEM_BASE) $(LIB_CHEM_SHARED) $(LIB_PILGRIM)\
-              $(LIB_MAPL_BASE) $(LIB_MAPL_BASE) $(LIB_CFIO) $(LIB_GFIO) $(LIB_MPEU) \
+	      $(LIB_CHEM_BASE) $(LIB_CHEM_SHARED) \
+              $(LIB_MAPL_BASE) $(LIB_MAPL_BASE_STUBS) $(LIB_CFIO) $(LIB_GFIO) $(LIB_MPEU) \
               $(LIB_ESMF) $(LIB_SDF) \
               $(LIB_SYS) $(LIB_MPI)
 
 test_rc: $(LIB)
-	$(CP) $(ESMAETC)/Chem_Registry.rc       ./Tests
-	$(CP) $(ESMAETC)/Aod-550nm_Registry.rc  ./Tests
-	$(CP) $(ESMAETC)/??_GridComp.rc         ./Tests
-	$(CP) $(ESMAETC)/???_GridComp.rc        ./Tests
+	$(CP) $(ESMAETC)/PIESA/Chem_Registry.rc       ./Tests
+	$(CP) $(ESMAETC)/PIESA/Aod_Registry.rc  ./Tests
+	$(CP) $(ESMAETC)/PIESA/??_GridComp.rc         ./Tests
+	$(CP) $(ESMAETC)/PIESA/???_GridComp.rc        ./Tests
 
 clean_rc:
 	-$(RM) -f Tests/ExtData Tests/*_Registry.rc Tests/*_GridComp.rc 

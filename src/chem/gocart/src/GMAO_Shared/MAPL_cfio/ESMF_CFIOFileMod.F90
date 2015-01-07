@@ -47,9 +47,9 @@
          character(len=MLEN) :: fNameTmplt    ! file name in this CFIO obj.
          character(len=MLEN) :: expid         ! Experiment I
          integer :: mVars                     ! total number of variables
-         type(ESMF_CFIOVarInfo), pointer :: varObjs(:) ! CFIO variable objects
+         type(ESMF_CFIOVarInfo), pointer :: varObjs(:)=>null() ! CFIO variable objects
          integer :: mGrids                    ! total number of grids
-         type(ESMF_CFIOGrid), pointer :: grids(:)     ! CFIO variable grid
+         type(ESMF_CFIOGrid), pointer :: grids(:)=>null()     ! CFIO variable grid
          integer :: date                      ! yyyymmdd
          integer :: begTime                   ! hhmmss
          integer :: timeInc                   ! time step increment
@@ -81,6 +81,7 @@
          integer :: prec                         ! Desired precision of data
          integer :: fid                          ! file ID for internal use
          integer :: sd_id                        ! file ID for EOS
+         logical :: isGridSet           ! True only if grid was passed in
          type(iNode), pointer :: iList
          type(rNode), pointer :: rList
          type(cNode), pointer :: cList
@@ -154,6 +155,7 @@
       cfio%fNameTmplt = ''
       cfio%isOpen = .false.
       cfio%isCyclic = .false.
+      cfio%isGridSet = .false.
       cfio%format = 'SDF'
       cfio%expid = ''
 !      allocate(cfio%iList, cfio%rList, cfio%cList)
@@ -322,6 +324,7 @@
              return
           end if
           cfio%grids = grids   
+          cfio%isGridSet = .true.
        end if
        if ( present(grid) ) then
           cfio%mGrids = 1
@@ -331,6 +334,7 @@
              return
           end if
           cfio%grids = grid   
+          cfio%isGridSet = .true.
        end if
 
 !      set variable
@@ -837,9 +841,12 @@
          deallocate(cfio%varObjs, stat=rtcode)
       end if
       if ( associated(cfio%grids) ) then
-         do i = 1, size(cfio%grids)
-            call ESMF_CFIOGridDestroy (cfio%grids(i), rtcode)
-         end do
+         if (cfio%isGridSet) then
+            do i = 1, size(cfio%grids)
+               call ESMF_CFIOGridDestroy (cfio%grids(i), rtcode)
+            end do
+         end if
+
          deallocate(cfio%grids, stat=rtcode)
       end if
 

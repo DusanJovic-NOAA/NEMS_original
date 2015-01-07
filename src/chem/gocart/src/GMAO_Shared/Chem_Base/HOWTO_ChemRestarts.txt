@@ -14,6 +14,9 @@ I. Manipulating GEOS-5 Chem Restarts with lats4d
    EXAMPLE 1: Create a ctl for an existing GOCART restart 
    EXAMPLE 2: Create a subset of a GOCART restart
    EXAMPLE 3: Create a GOCART restart with a different horizontal resolution
+   EXAMPLE 4: Create a GOCART restart with additional variables
+   EXAMPLE 5: Dump statistics from a binary restart file
+   EXAMPLE 6: Change vertical resolution
 
 II. Generating GEOS-5 Restarts from GEOS-4 Chem Bundle files
 
@@ -84,29 +87,30 @@ EXAMPLE 2: Create a subset of a GOCART restart
 
 Suppose you want to create a shorter GOCART restart with fewer variables from
 and existing restart. In this case run *ctl_crst.x* using the
-*Chem_Registry.rc* that contains the desired list of variables, e.g.,
+*Chem_Registry.rc* that contains the desired subset list of variables, e.g.,
 
 % ctl_crst ./Chem_Registry.rc 
 
 which produces
 
-lats4d.sh -i old.ctl -o new -format sequential -v -vars CO CO2 du001 du002
-du003 du004 du005 ss001 ss002 ss003 ss004 ss005 DMS SO2 SO4 MSA BCphobic
-BCphilic OCphobic OCphilic
+lats4d.sh -i old.ctl -o new -format sequential -v -vars co co2 du001 du002 du003
+du004 du005 ss001 ss002 ss003 ss004 ss005 dms so2 so4 msa bcphobic bcphilic
+ocphobic ocphilic
 
-If *old.ctl* was produced as in EXAMPLE 1 then you just run the command above:
+If *old.ctl* was produced as in EXAMPLE 1 then you just run the command above
+(the output file name was changed from new to new2):
 
-% lats4d.sh -i old.ctl -o new -format sequential -v\
+% lats4d.sh -i old.ctl -o new2 -format sequential -v\
              -vars  CO CO2 \
                  du001 du002 du003 du004 du005 \
                  ss001 ss002 ss003 ss004 ss005 \
-                 DMS SO2 SO4 MSA \
-                 BCphobic BCphilic OCphobic OCphilic
+                 dms so2 so4 msa \
+                 bcphobic bcphilic ocphobic ocphilic
 
-which will produce the new (Fortran sequential) binary file *new.bin*. You can
+which will produce the new (Fortran sequential) binary file *new2.bin*. You can
 examine the contents of this file by first creating a ctl for it:
 
-% ctl_crst.x ./Chem_Registry.rc new.bin > new.ctl
+% ctl_crst.x ./Chem_Registry.rc new2.bin > new2.ctl
 
 
 EXAMPLE 3: Create a GOCART restart with a different horizontal resolution
@@ -145,17 +149,17 @@ interpolation. The default is linear interpolation. For example, use
 If *old.ctl* was produced as in EXAMPLE 1 then you just add the interpolation
 option, e.g.,
 
-% lats4d.sh -i old.ctl -o new -format sequential -v\
+% lats4d.sh -i old.ctl -o new3 -format sequential -v\
             -geos2x25 -vars  CO CO2 \
                  du001 du002 du003 du004 du005 \
                  ss001 ss002 ss003 ss004 ss005 \
                  DMS SO2 SO4 MSA \
                  BCphobic BCphilic OCphobic OCphilic
 
-which will produce the new (Fortran sequential) binary file *new.bin*. You can
+which will produce the new (Fortran sequential) binary file *new3.bin*. You can
 examine the contents of this file by first creating a ctl for it:
 
-% ctl_crst.x ./Chem_Registry.rc new.bin > new.ctl
+% ctl_crst.x ./Chem_Registry.rc new3.bin > new3.ctl
 
 IMPORTANT: It has been reported that lats4d may run out of memory and give
 segmentation fault in re() when regriding to 1/4 x 1/3 degree resolutions. One
@@ -163,8 +167,68 @@ solution has been to use lats4d with a x86_64 build of GrADS and have plenty
 of memory.
 
 
-EXAMPLE 4: Changing vertical resolution
-.......................................
+EXAMPLE 4: Create a GOCART restart with additional variables
+............................................................
+
+If you have a modified *Chem_Registry.rc* file which puts additional variables
+into the GOCART restart, then you may want to convert an existing GOCART into
+one which is consistent with the new *Chem_Registry.rc* by adding zeros as
+placeholders for the new variables.
+
+Let's start with the new2.bin file from Example 2 above. Suppose the modified
+*Chem_Registry.rc* adds five variables, COBBAE, COBBNA, COBBLA, COBBAF, COBBGL,
+after the CO variable, and two new variables, CFC12S and CFC12T, after the MSA
+variable. Use the following procedures to convert new2.bin.
+
+First create three subsets of new2.bin based on the locations for the new
+variables.
+
+% lats4d.sh -i new2.ctl -vars co -o subfile1 -format sequential
+% lats4d.sh -i new2.ctl -vars co2 du001 du002 du003 du004 du005 \
+             ss001 ss002 ss003 ss004 ss005 dms so2 so4 msa \
+            -o subfile2 -format sequential
+% lats4d.sh -i new2.ctl -vars bcphobic bcphilic ocphobic ocphilic \
+            -o subfile3 -format sequential
+
+The outputs from these commands are subfile1.bin, subfile2.bin, and
+subfile3.bin.
+
+Now create a record of zeros to use as a placeholder for the new variables. Note
+that it is not important which old variable is used in this command since all
+the values are multiplied by zero.
+
+% lats4d.sh -i new2.ctl -vars co -o zeros -func '0*@' -format sequential
+
+The output from this command is zeros.bin.
+
+Finally, use the *cat* command to create the new GOCART:
+
+% cat zeros.bin zeros.bin > zeros2.bin
+% cat zeros.bin zeros.bin zeros.bin zeros.bin zeros.bin > zeros5.bin
+
+% cat subfile1.bin zeros5.bin subfile2.bin zeros2.bin subfile3.bin  > new4.bin
+
+You can create a ctl file for new4.bin using the modified *Chem_Registry.rc*
+mentioned at the beginning of this example:
+
+% ctl_crst.x ./Chem_Registry.rc new4.bin > new4.ctl
+
+To check that the old variables from new2.bin were transferred correctly, it is
+a good idea to dump and compare the statistics from both new2.bin and new4.bin
+(see EXAMPLE 5).
+
+
+EXAMPLE 5: Dump statistics from a binary restart file
+.....................................................
+
+Use lats4d.sh and the ctl file (e.g. new.ctl) to dump statistics from a binary
+file.
+
+% lats4d.sh -i new.ctl -format stats
+
+
+EXAMPLE 6: Change vertical resolution
+.....................................
 
 Lats4D cannot really change the vertical resolution. Your best option is to
 use the GFIO_remap.x utility in this case. This utility however, can only
@@ -603,7 +667,3 @@ diffuse_PC:  yes  # parameterized chemistry (GEOS-5)
 diffuse_GMI: yes  # GMI chemistry (GEOS-5)
 
 --- cut --- --- cut --- --- cut --- --- cut --- --- cut --- --- cut --- 
-
-      
-
-   

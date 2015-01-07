@@ -1,4 +1,4 @@
-! $Id: read_parallel.H,v 1.5 2009/04/29 16:01:51 wputman Exp $
+! $Id: read_parallel.H,v 1.7 2012-08-23 20:45:49 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_

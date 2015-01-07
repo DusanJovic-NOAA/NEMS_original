@@ -23,8 +23,10 @@
   integer :: i1, i2, ig, j1, j2, jg, ik, iq, iz
   integer :: nymd, nhms, timidx, freq, rc, ier
   integer :: idxTable
+  integer :: out_fid
   integer iarg, iargc, argc, lenfile
   logical :: doing_tauabs2d
+  logical :: doing_totext2d
   logical :: doing_ssa2d
   logical :: doing_geos4
   logical :: doing_dry   ! if true, calculate like rh = 0%
@@ -32,6 +34,7 @@
   real :: channel, tau_, ssa_, scalerh, maxRH
   real, pointer :: rh(:,:,:)
   character(len=255) :: infile, outfile, filename, rcfile, argv
+  character(len=255) :: filename0
   character(len=14)  :: datestr
   character(len=8)   :: yyyymmddstr
   character(len=4)   :: hhnnstr
@@ -43,6 +46,7 @@
   outfile = 'chem_aod'
   rcfile  = 'Aod_Registry.rc'
   doing_tauabs2d = .false.
+  doing_totext2d = .false.
   doing_ssa2d = .false.
   doing_geos4 = .false.
   verbose = .false.
@@ -59,6 +63,9 @@
     case ("-v")
      verbose = .true.
     case ("-tauabs2d")
+     doing_tauabs2d = .true.
+    case ("-totext2d")
+     doing_totext2d = .true.
      doing_tauabs2d = .true.
     case ("-ssa2d")
      doing_ssa2d = .true.
@@ -154,6 +161,7 @@
                            w_ssa, ier, &
                            lev=mie_tables%channels, levUnits="m")
    endif
+
    if(doing_tauabs2d) then
     call Chem_BundleCreate(regInp, &
                            i1, i2, ig, im, &
@@ -203,20 +211,32 @@
    write(hhnnstr,'(i4.4)') nhms/100
    datestr = yyyymmddstr//'_'//hhnnstr//'z'
 
-   filename = trim(outfile(1:lenfile)//'.inst2d_ext_x.'//datestr//'.nc4')
-   call Chem_BundleWrite( filename, nymd, nhms, 0, w_tau, rc, &
-                          verbose=verbose, new=new)
+
+    if(doing_totext2d) then 
+      filename0 = trim(outfile(1:lenfile)//'.ext_Nc.'//datestr//'.nc4')
+      call cmp_totext(filename0,w_tau,nymd,nhms,0,1,out_fid,freq=freq)
+    endif
+
+    filename = trim(outfile(1:lenfile)//'.taod_Nc.'//datestr//'.nc4')
+    call Chem_BundleWrite( filename, nymd, nhms, 0, w_tau, rc, &
+                          verbose=verbose, new=new, freq=freq)
 
    if(doing_ssa2d) then 
-    filename = trim(outfile(1:lenfile)//'.inst2d_ssa_x.'//datestr//'.nc4')
+    filename = trim(outfile(1:lenfile)//'.tssa_Nc.'//datestr//'.nc4')
     call Chem_BundleWrite( filename, nymd, nhms, 0, w_ssa, rc, &
-                           verbose=verbose, new=new)
+                           verbose=verbose, new=new, freq=freq)
    endif
 
    if(doing_tauabs2d) then 
-    filename = trim(outfile(1:lenfile)//'.inst2d_abs_x.'//datestr//'.nc4')
+
+    if(doing_totext2d) then 
+     filename0 = trim(outfile(1:lenfile)//'.ext_Nc.'//datestr//'.nc4')
+     call cmp_totext(filename0,w_tauabs,nymd,nhms,0,2,out_fid,freq=freq)
+    endif
+
+    filename = trim(outfile(1:lenfile)//'.aaod_Nc.'//datestr//'.nc4')
     call Chem_BundleWrite( filename, nymd, nhms, 0, w_tauabs, rc, &
-                           verbose=verbose, new=new)
+                           verbose=verbose, new=new, freq=freq)
    endif
 
 !  ==================================================================================
@@ -237,6 +257,155 @@
 ! ----------------------------------------------------------------------------
   contains
 
+!-------------------------------------------------------------------------
+!      NASA/GSFC Global Modeling & Assimilation Office, Code 900.3       !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  cmp_totext --- Computes Total AOD and ABS_AOD.
+! 
+! !INTERFACE:
+!
+
+
+  subroutine cmp_totext( outFile,w_c,nymd,nhms,prec,iflag,out_fid,freq)
+!
+! !USES:
+!
+  implicit NONE
+
+!
+! !INPUT PARAMETERS: 
+!
+   integer, intent(in), OPTIONAL  :: freq    ! time frequency (HHMMSS) for
+   integer,             intent(in)   :: prec ! precision
+                                             ! multiple instance files
+                                             ! (default: 060000)
+
+  type(Chem_Bundle), intent(in)     :: w_c    ! chemical bundle
+  integer      :: im_e,jm_e,km_e,i,j,k,iq,iflag
+
+! !OUTPUT PARAMETER:
+
+     real, allocatable   :: total_ext(:,:,:)
+     real, allocatable   :: valid_range(:,:), packing_range(:,:)
+     real, allocatable   :: lat_e(:), lon_e(:), lev_e(:),kmVar_e(:)
+     character(len=*)    :: outFile            ! Output file name
+     integer             :: out_fid,err4
+     integer             :: nymd,nhms,timeinc
+     integer             :: nVars_new,rc
+     character(len=64)   :: outVars(2)  ! output variable names (nVars
+     character(len=64)   :: outUnits(2)  ! Units of output variables (nVars)
+     character(len=256)  :: out_title(2) ! output title
+     character(len=256)  :: source, contact, levunits,title
+!
+! !DESCRIPTION: Computes Total AOD & Total Absorption AOD.
+!               
+! !REVISION HISTORY: 
+!
+!  16Nov2011 Ravi      Initial code 
+!
+!EOP
+!------------------------------------------------------------------
+  
+      im_e = w_c%grid%im
+      jm_e = w_c%grid%jm
+      km_e = w_c%grid%km
+
+     allocate(total_ext(im_e,jm_e,km_e),stat=err4)
+
+     total_ext = 0.0
+     do iq = 1, w_c%reg%nq
+       if(trim(w_c%reg%vname(iq)) == 'du001' .or. trim(w_c%reg%vname(iq)) == 'DU001' .or. &
+          trim(w_c%reg%vname(iq)) == 'du002' .or. trim(w_c%reg%vname(iq)) == 'DU002' .or. &
+          trim(w_c%reg%vname(iq)) == 'du003' .or. trim(w_c%reg%vname(iq)) == 'DU003' .or. &
+          trim(w_c%reg%vname(iq)) == 'du004' .or. trim(w_c%reg%vname(iq)) == 'DU004' .or. &
+          trim(w_c%reg%vname(iq)) == 'du005' .or. trim(w_c%reg%vname(iq)) == 'DU005' .or. &
+          trim(w_c%reg%vname(iq)) == 'ss001' .or. trim(w_c%reg%vname(iq)) == 'SS001' .or. &
+          trim(w_c%reg%vname(iq)) == 'ss002' .or. trim(w_c%reg%vname(iq)) == 'SS002' .or. &
+          trim(w_c%reg%vname(iq)) == 'ss003' .or. trim(w_c%reg%vname(iq)) == 'SS003' .or. &
+          trim(w_c%reg%vname(iq)) == 'ss004' .or. trim(w_c%reg%vname(iq)) == 'SS004' .or. &
+          trim(w_c%reg%vname(iq)) == 'ss005' .or. trim(w_c%reg%vname(iq)) == 'SS005' .or. &
+          trim(w_c%reg%vname(iq)) == 'SO4' .or. trim(w_c%reg%vname(iq)) == 'SO4' .or.     &
+          trim(w_c%reg%vname(iq)) == 'BCphobic' .or.                                      &
+          trim(w_c%reg%vname(iq)) == 'BCphilic' .or.                                      &
+          trim(w_c%reg%vname(iq)) == 'OCphobic' .or.                                      &
+          trim(w_c%reg%vname(iq)) == 'OCphilic') then
+
+
+          do k = 1,km_e
+           do j = 1,jm_e
+            do i = 1,im_e
+             if(w_c%qa(iq)%data3d(i,j,k) < 1.e+10) then
+               total_ext(i,j,k) = total_ext(i,j,k) + w_c%qa(iq)%data3d(i,j,k)
+             endif
+            end do
+           end do
+          end do
+       endif
+     end do
+
+        nvars_new = 2
+        if(iflag == 1) then
+          allocate ( packing_range(2,nVars_new), valid_range(2,nVars_new), stat=err4 )
+          allocate ( kmVar_e(nvars_new), stat=err4 )
+          outVars(1)   = 'taod'
+          out_title(1) = 'Total Aerosol Optical Depth'
+          outVars(2)   = 'aaod'
+          out_title(2) = 'Total Absorption Aerosol Optical Depth'
+          outUnits(1)  = 'kg/kg'
+          outUnits(2)  = 'kg/kg'
+          source  = 'Data Assimilation Office, NASA/GSFC'
+          contact = 'data@gmao.gsfc.nasa.gov'
+          title   = "unknown"
+          levunits = 'm'
+          kmVar_e = km_e
+
+!         Cannot handle cubed sphere for now
+!         ----------------------------------
+          if ( w_c%grid%cubed_sphere ) then
+             call die('chem_aod','cannot yet handle cubed sphere')
+          end if
+          allocate ( lat_e(jm_e), lon_e(im_e), lev_e(km_e),stat=err4 )
+          lat_e = w_c%grid%lat(1,:)
+          lon_e = w_c%grid%lon(:,1)
+          lev_e = w_c%grid%lev
+
+          do j = 1, nVars_new
+           do i = 1, 2
+            valid_range(i,j) = w_c%missing_value
+            packing_range(i,j) = w_c%missing_value
+           end do
+          end do
+
+          if ( present(freq) ) then
+             timeinc = freq
+          else
+             timeinc = 060000
+          end if
+
+
+
+          call GFIO_Create ( outFile, title, source, contact, w_c%missing_value, &
+                             im_e, jm_e, km_e, lon_e, lat_e, Lev_e, levunits,    &
+                             nymd,nhms,timeinc,                                  &
+                             nVars_new, outVars, out_title, outUnits,            &
+                             kmVar_e,valid_range,packing_range,prec,             &
+                             out_fid, rc )
+
+          if ( rc /= 0 )  call die (myname, 'wrong in GFIO_Create')
+          deallocate ( packing_range, valid_range,lat_e,lon_e,lev_e,kmVar_e)
+        endif
+
+        call GFIO_PutVar (out_fid,outVars(iflag),nymd,nhms,  &
+                          im_e, jm_e, 1, km_e, total_ext,rc )
+        if ( rc /= 0 ) call die (myname, 'something wrong in GFIO_PutVarT for 3D file')
+
+        deallocate(total_ext)
+
+  end subroutine cmp_totext
+! -----------------------------------------------------
+
   subroutine usage()
   print *
   print *,'Usage: '
@@ -250,8 +419,12 @@
   print *, '-dryaer      to specify to ignore the relative humidity in the'
   print *, '             input file; compute all properties like RH = 0%'
   print *, '-tauabs2d    request column integrated absorption aerosol optical thickness'
+  print *, '-totext2d    request total aerosol optical thickness and '
+  print *, '             column integrated absorption aerosol optical thickness'
+  print *, '             (-tauabs2d default.)'
   print *, '-ssa2d       request column integrated single scattering albedo'
-  print *, '-o expid     filename will look like expid.inst2d_ext_x.YYYYMMDD_HHNNz.nc4'
+  print *, '-o expid     filename will look like expid.ext_nx.YYYYMMDD_HHNNz.nc4'
+  print *, '             filename for totext2d will look like expid.ext_nc.YYYYMMDD_HHNNz.nc4'
   print *, '-t rcfile    resource file specifying channels for AOD calc'
   print *, '-v           request verbose output'
   print *, 'infile       mandatory input aer_v file'

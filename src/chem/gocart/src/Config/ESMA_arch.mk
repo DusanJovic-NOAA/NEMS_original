@@ -29,6 +29,30 @@
 # 04Dec2012  Lu        Remove un-used flags and options
 # 06Dec2012  Lu        Add wcoss interface
 # 07May2013  Lu        Revise zeus and wcoss interface
+# 19Jul2012  Thompson  Added blocks for Intel 12 to work on pleiades and
+#                      discover with the AVX option as a choice FOPT path.
+#                      Added detection of MPT as a possible MPI stack for
+#                      PGI on Pleiades. Moved to CUDA 4.1 as default GPU 
+#                      level.
+# 24Sep2012  Thompson  Added blocks for Intel 13 to work on pleiades and
+#                      discover with the AVX option as a choice FOPT path.
+# 26Mar2013  Thompson  Added blocks for Open MPI that uses 
+#                      'mpif90 -showme:link' to identify the correct flags
+#                      for linking with Open MPI.
+#                      Corrected MPT LIB_MPI via Dan Kokron.
+#                      Corrected Intel 13 FPE to use '-fp-model source' as
+#                      '-fp-model precise' is deprecated.
+#                      For PGI, added Kepler info, moved to use gcc and 
+#                      g++ for CC and CXX, and turned off the dual
+#                      TARGET_ARCH by default.
+# 03Dec2013  Thompson  Added entries for Intel 14 following Intel 13
+#                      example. Removed sections for OSF1, AIX, IRIX64.
+#                      Removed options specific to Intel Fortran 8, 9, 10.
+#                      Fixed behavior of OMPFLAG. Additional entries for
+#                      PGI in re arch and GPU.
+# 10Nov2014  Wang      added full path f2py for zues
+# 12Nov2014  Wang      Updated netcdf lib and esmf lib for zeus
+# 02RJan015  Wang      Updated netcdf lib and esmf lib for wcoss
 #
 #--------------------------------------------------------------------------
 
@@ -37,238 +61,18 @@
 # -----  and ESMA_FC to control these parameters.
 #
   ifndef BASEDIR
-#     $(warning BASEDIR is undefined --- this will cause an error in the next release!)
+     $(warning BASEDIR is undefined --- this will cause an error in the next release!)
   endif
 
 #                             ---------------------
 #                             User defined defaults
 #                             ---------------------
   ifdef ESMA_FC
-	FC := $(ESMA_FC)
+     FC := $(ESMA_FC)
   endif
   ifdef ESMA_F2PY
-	F2PY := $(ESMA_F2PY)
+     F2PY := $(ESMA_F2PY)
   endif
-
-  ifeq ($(ESMA_PROFILE),TAU)
-##         TAUROOTDIR      = /usr/local/other/tau/tau-2.16.1b3
-#         TAUROOTDIR      = /gpfsm/dhome/dkokron/play/tau/tau-2.16.3p1
-#         include $(TAUROOTDIR)/x86_64/lib/Makefile.tau-9.1.042-callpath-icpc-mpi-compensate-pdt
-##        OPTS  = -optPdtF90Parser=f95parse -optPreProcess -optVerbose -optCompile=$(TAU_F90_SUFFIX) -optKeepFiles -optNoRevert -optCPPOpts="-P -traditional-cpp" -optTauSelectFile=$(ESMADIR)/src/Config/select.tau
-#        OPTS  = -optPdtF90Parser=f95parse -optPreProcess -optVerbose -optCompile=$(TAU_F90_SUFFIX) -optKeepFiles -optNoRevert -optDetectMemoryLeaks -optCPPOpts="-P -traditional-cpp" 
-#        FC = $(TAU_COMPILER) $(OPTS) $(TAU_F90)
-##       FC = tau_f90.sh
-  endif
-
-#                               ----
-#                               OSF1
-#                               ----
-
-ifeq ($(ARCH),OSF1)
-
-  SITE := $(patsubst halem%,nccs,$(SITE))
-
-  ifndef BASEDIR
-    ifeq ($(SITE),nccs)
-       BASEDIR = /share/ESMA/baselibs/v1_8r1p
-    endif
-  endif
-
-  BIG_ENDIAN = -convert big_endian
-
-  CC  = cc
-  CXX = cxx -x cxx
-
-  BYTERECLEN = -assume byterecl
-  EXTENDED_SOURCE = -extend_source
-  FREE_SOURCE = -free
-  FIXED_SOURCE = -fixed -col72
-  fFLAGS   += $(EXTENDED_SOURCE) -OPT:Olimit=0:roundoff=3:reorg_common=OFF -LNO:prefetch=2 
-  f90FLAGS += -free -OPT:Olimit=0:roundoff=3:reorg_common=OFF -LNO:prefetch=2 
-  FFLAGS   += $(EXTENDED_SOURCE) -cpp 
-  F90FLAGS += -free -cpp -OPT:Olimit=0:roundoff=3:reorg_common=OFF -LNO:prefetch=2 
-
-  LIB_SCI  = -lcxml
-  LIB_SYS  = -L/usr/ccs/lib/cmplrs/cxx -lcxx
-
-  FREAL4 = -r4
-  FREAL8 = -r8
-
-  FDEFS  += $(D)OSF1
-  CDEFS  += $(D)OSF1
-
-  OMPFLAG  = -omp
-
-endif  #    OSF1
-
-#                               ---
-#                               AIX
-#                               ---
-
-ifeq ($(ARCH),AIX)
-
-  SITE := $(patsubst v%,ncep_vapor,$(SITE))
-  SITE := $(patsubst c%,ncep_cirrus,$(SITE))
-  SITE := $(patsubst s%,ncep_stratus,$(SITE))
-
-  SITE := $(patsubst bs%,ncar,$(SITE))
-
-  ifeq ($(SITE),ncar)
-    ifndef BASEDIR
-	  BASEDIR = /home/bluesky/cacruz/ESMA/baselibs
-    endif
-  endif
-
-#  CC  = mpcc_r
-  CC  = gcc -maix64
-  CPP = /lib/cpp
-  FC  = mpxlf95_r
-  AR += -X64
-
-  D = -WF,-D
-  DC = -D
-
-  EXTENDED_SOURCE = -qfixed=132
-  FIXED_SOURCE = -qfixed=72
-  FREE_SOURCE = -qfree
-
-  FREAL4 = -qrealsize=4
-  FREAL8 = -qrealsize=8
-
-#  CFLAGS   += -q64 -DAIX 
-  fFLAGS   += -q64 $(EXTENDED_SOURCE) -qstrict -qarch=auto 
-  f90FLAGS += -q64 -qsuffix=f=f90 -qstrict -qarch=auto
-  FFLAGS   += -q64 $(EXTENDED_SOURCE) -qsuffix=cpp=F -qinit=f90ptr -qarch=auto
-  F90FLAGS += -q64 -qsuffix=cpp=F90 -qinit=f90ptr -qarch=auto
-
-  LDFLAGS  += -q64 -qsmp=omp,noauto
-  LIB_SCI   = -L/usr/local/lib64/r4i4 -llapack -lessl
-  LIB_SYS   = -lxlf90_r -lC_r -brtl 
-
-  ifeq ($(SITE),ncep_vapor)
-     DIR_NETCDF = /usrx/local/netcdf.3.5.0
-     DIR_ESMF = /mtb/save/wx20rv/ESMF/esmf_310rp2
-     BASEDIR = /usr/local# not really used
-     DEF_SDF = 
-     ESMA_SDF = netcdf
-     INC_NETCDF = $(DIR_NETCDF)/include
-     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
-     INC_SDF = $(INC_NETCDF)
-     LIB_SDF = $(LIB_NETCDF)
-     INC_ESMF = $(DIR_ESMF)/src/include $(DIR_ESMF)/mod/modO/AIX.default.64.mpi.default/ 
-     LIB_ESMF  = $(DIR_ESMF)/lib/libO/AIX.default.64.mpi.default/libesmf.so
-     INC_MPI = /usr/lpp/ppe.poe/include/thread64
-     ESMA_REAL=$(FREAL8)
-     FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
-     FPPFLAGS += -W/dev/null
-     ACG_FLAGS += -P # enforce native precision in specs
-  endif
-
-  ifeq ($(SITE),ncep_cirrus)
-     DIR_NETCDF = /usrx/local/netcdf.3.5.0
-     DIR_ESMF = /meso/save/wx20rv/ESMF_libs/esmf_3_1_0rp2
-     BASEDIR = /usr/local# not really used
-     DEF_SDF = 
-     ESMA_SDF = netcdf
-     INC_NETCDF = $(DIR_NETCDF)/include
-     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
-     INC_SDF = $(INC_NETCDF)
-     LIB_SDF = $(LIB_NETCDF) /usrx/local/netcdf.3.5.0/lib/libnetcdf.a
-     INC_ESMF = $(DIR_ESMF)/src/include $(DIR_ESMF)/mod/modO/AIX.default.64.mpi.default/ 
-     LIB_ESMF  = $(DIR_ESMF)/lib/libO/AIX.default.64.mpi.default/libesmf.so
-     INC_MPI = /usr/lpp/ppe.poe/include/thread64
-     ESMA_REAL=$(FREAL8)
-     FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
-     FPPFLAGS += -W/dev/null
-     ACG_FLAGS += -P # enforce native precision in specs
-  endif
-
-  ifeq ($(SITE),ncep_stratus)
-     DIR_NETCDF = /usrx/local/netcdf.3.5.0
-     DIR_ESMF = /meso/save/wx20rv/ESMF_libs/esmf_3_1_0rp2
-     BASEDIR = /usr/local# not really used
-     DEF_SDF = 
-     ESMA_SDF = netcdf
-     INC_NETCDF = $(DIR_NETCDF)/include
-     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
-     INC_SDF = $(INC_NETCDF)
-     LIB_SDF = $(LIB_NETCDF) /usrx/local/netcdf.3.5.0/lib/libnetcdf.a
-     INC_ESMF = $(DIR_ESMF)/src/include $(DIR_ESMF)/mod/modO/AIX.default.64.mpi.default/ 
-     LIB_ESMF  = $(DIR_ESMF)/lib/libO/AIX.default.64.mpi.default/libesmf.so
-     INC_MPI = /usr/lpp/ppe.poe/include/thread64
-     ESMA_REAL=$(FREAL8)
-     FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
-     FPPFLAGS += -W/dev/null
-     ACG_FLAGS += -P # enforce native precision in specs
-  endif
-
-endif  #  AIX
-
-
-#                               ------
-#                               IRIX64
-#                               ------
-
-ifeq ($(ARCH),IRIX64)
-
-  SITE := $(patsubst jimpf,nccs,$(SITE))
-  SITE := $(patsubst daley,nccs,$(SITE))
-  SITE := $(patsubst mintz,nccs,$(SITE))
-  SITE := $(patsubst tropic,nccs,$(SITE))
-  SITE := $(patsubst courant,nccs,$(SITE))
-
-  ifndef BASEDIR
-    ifeq ($(SITE),nccs)
-       BASEDIR = /share/ESMA/baselibs/v1_8r1p
-    else
-       BASEDIR = /share/ESMA/baselibs/latest
-    endif
-  endif
-
-  ifeq ($(SITE),nccs)
-                                               # /usr/bin/perl breaks fdp
-     PERL = /ford1/local/bin/perl
-                                               # GEOS-5 macros need GNU cpp
-     CPP = /ford1/local/irix6.2/gnu/bin/cpp
-  endif
-
-  CC  = cc
-  CXX = c++
-
-  FPP = f90 
-  FDEFS += $(D)HAVE_SHMEM
-  FPPFLAGS = -E $(FDEFS) $(FINCS) 
-
-  OMPFLAG  = -mp
-
-  FOPT += -OPT:Olimit=0
-
-  EXTENDED_SOURCE = -extend_source
-  FREE_SOURCE = -free
-  FIXED_SOURCE = -fixed
-  fFLAGS   += -64 -fixedform $(EXTENDED_SOURCE) -cpp
-  f90FLAGS += -64 $(EXTENDED_SOURCE) -cpp
-  FFLAGS   += -64 $(EXTENDED_SOURCE) -cpp -macro_expand 
-  F90FLAGS += -64 -cpp -macro_expand
-
-  CFLAGS   += -64
-  CXXFLAGS += -64
-  LDFLAGS  += -64 
-
-  LIB_MPI = -L$(MPT_SGI)/usr/lib64 -lmpi -lmpi++ 
-
-#  LIB_SCI =  -lscs -lscs_blas -lftn -lc -lC -lcomplib.sgimath -lm 
-#  LIB_SCI =  -lftn -lc -lC -lCio -lcomplib.sgimath -lm
-  LIB_SCI =  -lscs
-
-  LIB_SYS = -L/usr/lib64 -lc -lC -lCio
-
-  INC_MPI = ${MPT_SGI}/usr/include
-
-  FDEFS  += $(D)SGI $(D)IRIX64
-  CDEFS  += $(D)SGI $(D)IRIX64
-
-endif  #    IRIX64
 
 #                               -----
 #                               Linux
@@ -287,17 +91,6 @@ ifeq ($(ARCH),Linux)
 
 # Determine which site we are at
 # ------------------------------
-  SITE := $(patsubst cerebus.gsfc.nasa.gov,nsipp,$(SITE))
-  SITE := $(patsubst nsipp02.gsfc.nasa.gov,nsipp,$(SITE))
-  SITE := $(patsubst ping-ge.sci.gsfc.nasa.gov,nsipp,$(SITE))
-  SITE := $(patsubst boygo-ge.sci.gsfc.nasa.gov,nsipp,$(SITE))
-  SITE := $(patsubst boygo.gsfc.nasa.gov,nsipp,$(SITE))
-# SITE := $(patsubst columbia.nas.nasa.gov,nas,$(SITE))
-
-  SITE := $(patsubst columbia,nas,$(SITE))
-  SITE := $(patsubst cfe1,nas,$(SITE))
-  SITE := $(patsubst cfe2,nas,$(SITE))
-  SITE := $(patsubst palm,nccs,$(SITE))
   SITE := $(patsubst fe%,zeus,$(SITE))
   SITE := $(patsubst t%,wcoss,$(SITE))
   SITE := $(patsubst g%,wcoss,$(SITE))
@@ -307,30 +100,10 @@ echo SITE= ${SITE}
 #                    Linux Site Specific
 #                    -------------------
 
-# NSIPP specific
-# --------------
-  ifeq ($(SITE),nsipp)
-    ifndef BASEDIR
-       BASEDIR = /home/trayanov/baselibs/latest
-    endif
-                # Absoft f90 is the default at NSIPP
-    ifndef ESMA_FC
-      FC := f90
-    endif
-  endif
-  ifeq ($(SITE),cumulus.gsfc.nasa.gov)
-       BASEDIR = /home/bacmj/esmf_latest
-       ifndef ESMA_FC
-           FC := f90
-       endif
-  endif
-  ifeq ($(SITE),beer.gsfc.nasa.gov)
-       BASEDIR = /home/suarez/lib/baselibs/latest
-       ifndef ESMA_FC
-           FC := f90
-       endif
-  endif
-
+# MAT: I do not think these are needed on modern
+#      builds of the model. Carefully make sure 
+#      before deleting
+#
 # Add -lgpfs to LIB_HDF5 on borg/discover nodes
 # ---------------------------------------------
   ifeq ($(findstring borg,$(NODE)),borg)
@@ -338,20 +111,6 @@ echo SITE= ${SITE}
   endif
   ifeq ($(findstring discover,$(NODE)),discover)
      LIB_HDF5 += -lgpfs
-  endif
-
-# NAS specific
-# ------------
-  ifeq ($(SITE),nas)
-    ifndef BASEDIR
-       BASEDIR = /u/mirvis/v1_8r1p
-    endif
-  endif
-
-  ifeq ($(SITE),nccs)
-    ifndef BASEDIR
-       BASEDIR = /share/ESMA/baselibs/v1_8r1p
-    endif
   endif
 
 #
@@ -378,19 +137,20 @@ echo SITE= ${SITE}
 
 # Intel Fortran Compiler (ifort or mpiifort)
 # ------------------------------------------
-  ifeq ($(subst mpi,,$(FC)), ifort) 
+  ifeq ($(word 1,$(shell $(FC) --version)), ifort)
 
 #   Determine compiler version
 #   --------------------------
     IFORT_VER := $(subst ., ,$(word 3,$(shell ifort --version)))
     IFORT_MAJOR := $(word 1,$(IFORT_VER))
     IFORT_MINOR := $(word 2,$(IFORT_VER))
-
-    EXTENDED_SOURCE := -extend_source 132
+    FPIC := -fPIC
+    EXTENDED_SOURCE := -extend_source
     FREE_SOURCE := -free
     FIXED_SOURCE := -fixed
     MPFLAG  := -mp
     OMPFLAG  := -openmp
+    PP  := -fpp
     BIG_ENDIAN := -convert big_endian
     BYTERECLEN := -assume byterecl
     FPE = -fpe0
@@ -399,29 +159,42 @@ echo SITE= ${SITE}
     FREAL8 = -r8
     FOPT2 += 
     ifeq ("$(BOPT)","g")
-       FOPT = $(FOPTG) -O0 -traceback -debug extended -nolib-inline -check bounds -check uninit
+       FOPT = $(FOPTG) -O0 -ftz -align all -fno-alias -traceback -debug -nolib-inline -fno-inline-functions -assume protect_parens,minus0 -prec-div -prec-sqrt -check bounds -check uninit -fp-stack-check -ftrapuv -warn unused
     else
-       ifeq ($(IFORT_MAJOR), 8)
-          FOPT = $(FOPT3)
-       else
-       ifeq ($(IFORT_MAJOR), 9)
-          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
-#          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -fp-model precise
-       else
-       ifeq ($(IFORT_MAJOR),10)
-          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
-#          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -fp-model precise -assume protect_parens
-#          FOPT = $(FOPT3) -vec-report0 -align all -fno-alias -fno-inline-functions -assume protect_parens,minus0 -prec-div -prec-sqrt -no-ftz 
-       else
        ifeq ($(IFORT_MAJOR),11)
           FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
 #          FOPT = $(FOPT3) -xSSE4.1 -vec-report0 -ftz -align all -fno-alias
        else
+       ifeq ($(IFORT_MAJOR),12)
+          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
+#         FOPT = $(FOPT3) -axAVX -xSSE4.1 -vec-report0 -ftz -align all -fno-alias
+       else
+       ifeq ($(IFORT_MAJOR),13)
+          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -g -traceback
+#         FOPT = $(FOPT3) -axAVX -xSSE4.1 -vec-report0 -ftz -align all -fno-alias -g -traceback
+       else
+       ifeq ($(IFORT_MAJOR),14)
+          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -g -traceback
+#         FOPT = $(FOPT3) -axAVX -xSSE4.1 -vec-report0 -ftz -align all -fno-alias -g -traceback
+#         -mp is deprecated in 14
+          MPFLAG := 
+       else
+       ifeq ($(IFORT_MAJOR),15)
+          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -g -traceback
+#         FOPT = $(FOPT3) -axAVX -xSSE4.1 -vec-report0 -ftz -align all -fno-alias -g -traceback
+#         -mp is deprecated in 14
+          MPFLAG := 
+       else
           FOPT = $(FOPT3)
        endif
        endif
        endif
        endif
+       endif
+    endif
+
+    ifeq ("$(BOPT)","Og")
+       FOPT += -g -traceback
     endif
 
     LIB_ESMF = $(BASELIB)/libesmf.a
@@ -434,7 +207,7 @@ echo SITE= ${SITE}
     ifeq ($(MACH), i686)
       FC := mpif90
       INC_MPI := $(dir $(shell which mpif90))../include
-      LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx
+      LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx -lmpi_f77
     endif
 
 #   Handle MPI on x86_64
@@ -449,20 +222,38 @@ echo SITE= ${SITE}
           LIB_MPI := -L$(I_MPI_ROOT)/lib  -lmpi -lmpiif # Intel MPI
         endif
     else
+    ifdef OPENMPI
+        FC := mpif90
+        INC_MPI := $(OPENMPI)/include
+        OPENMPI_LINK_FLAGS := $(shell mpif90 -showme:link) -lmpi_cxx
+        LIB_MPI := -L$(OPENMPI)/lib $(OPENMPI_LINK_FLAGS)
+    else
     ifdef M_MPI_ROOT
-        FC := mpiifort
+        FC := mpif90
         INC_MPI := $(M_MPI_ROOT)/include
         LIB_MPI := -L$(M_MPI_ROOT)/lib  -lmpich
+    else
+    ifdef MPI_HOME
+        FC := mpif90
+        INC_MPI := $(MPI_HOME)/include
+        LIB_MPI := -L$(MPI_HOME)/lib  -lmpich
+    else
+    ifdef MVAPICH2
+        FC := mpif90
+        INC_MPI := $(MVAPICH2)/include
+        LIB_MPI := -L$(MVAPICH2)/lib  -lmpich
     else
     ifdef FPATH
         FPATHS := $(subst :, ,$(FPATH))
         ifeq ($(MACH), x86_64) 
+          FC := mpif90 
           INC_MPI := $(filter /nasa/sgi/mpt%,$(FPATHS)) \
                      $(filter /opt/scali%,$(FPATHS))
           INC_MPI := $(word 1,$(INC_MPI))
-          LIB_MPI := -L$(subst include,lib64,$(INC_MPI)) -lmpi -lmpi++
+          LIB_MPI := -L$(subst include,lib,$(INC_MPI)) -lmpi -lmpi++
         endif
         ifeq ($(MACH), ia64)
+          FC := mpif90 
           INC_MPI := $(filter /opt/sgi/mpt%,$(FPATHS)) \
                      $(filter /nasa/sgi/mpt%,$(FPATHS)) 
           INC_MPI := $(word 1,$(INC_MPI))
@@ -472,31 +263,56 @@ echo SITE= ${SITE}
     endif
     endif
     endif
+    endif
+    endif
+    endif
 
 #   Define LIB_SYS
 #   --------------
     LIB_SCI := 
     LIB_SYS := -ldl -lc -lpthread -lrt 
 
-    ifeq ($(IFORT_MAJOR), 10)
-          LIB_SYS := -lirc -lguide $(LIB_SYS)
-          ifneq ($(MACH), i686)
-              FPE := -fp-model precise
-              MPFLAG :=# -mp is incompatible with the -fp-model option
-              CC  = icc
-              CXX = icpc
-          endif
-    else
     ifeq ($(IFORT_MAJOR), 11)
           LIB_SYS := -lirc -lguide $(LIB_SYS)
           ifneq ($(MACH), i686)
-              FPE := -fp-model precise
+              FPE += -fp-model precise
               MPFLAG :=# -mp is incompatible with the -fp-model option
-              CC  = icc
-              CXX = icpc
+#ams              CC  = icc
+#ams              CXX = icpc
           endif
     else
-          LIB_SYS +=  -lunwind -lcprts
+    ifeq ($(IFORT_MAJOR), 12)
+          LIB_SYS := -lirc $(LIB_SYS)
+          ifneq ($(MACH), i686)
+              FPE += -fp-model precise
+              MPFLAG :=# -mp is incompatible with the -fp-model option
+          endif
+    else
+    ifeq ($(IFORT_MAJOR), 13)
+          LIB_SYS := -lirc $(LIB_SYS)
+          ifneq ($(MACH), i686)
+              FPE += -fp-model source
+              MPFLAG :=# -mp is incompatible with the -fp-model option
+          endif
+    else
+    ifeq ($(IFORT_MAJOR), 14)
+          LIB_SYS := -lirc $(LIB_SYS)
+          ifneq ($(MACH), i686)
+              FPE += -fp-model source
+              MPFLAG :=# -mp is incompatible with the -fp-model option
+          endif
+    else
+    ifeq ($(IFORT_MAJOR), 15)
+          LIB_SYS := -lirc $(LIB_SYS)
+          ifneq ($(MACH), i686)
+              FPE += -fp-model source
+              MPFLAG :=# -mp is incompatible with the -fp-model option
+          endif
+    else
+          LIB_SYS +=  # This should not be used; better to handle Major verison
+    endif
+    endif
+    endif
     endif
     endif
 
@@ -506,7 +322,11 @@ echo SITE= ${SITE}
        MKLPATH = $(shell $(ESMABIN)/mklpath.pl)
     endif
     ifdef MKLPATH
-       LIB_SCI += -L$(MKLPATH) -lmkl_lapack -lmkl 
+       ifeq ($(wildcard $(MKLPATH)/libmkl_intel_lp64.so),)
+           LIB_SCI += -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
+       else
+           LIB_SCI += -L$(MKLPATH) -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
+       endif
     else
     ifeq ($(MACH), ia64)
        LIB_SCI += -lscs 
@@ -522,7 +342,6 @@ echo SITE= ${SITE}
     GCC_DIR = $(shell dirname `gcc --print-libgcc-file-name`)
     ifeq ($(MACH), x86_64) 
        OVERRIDE_LIMITS =
-       OMPFLAG =
        LOOP_VECT =
        FDEFS += $(D)HAVE_SHMEM
     else
@@ -534,11 +353,33 @@ echo SITE= ${SITE}
 
     LIB_SYS += -L$(GCC_DIR) -lstdc++
 
-    fFLAGS += $(EXTENDED_SOURCE) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
-    FFLAGS += $(EXTENDED_SOURCE) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
-    f90FLAGS += $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
-    F90FLAGS += $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
+    CFLAGS += $(FPIC)
+    fFLAGS += $(FPIC) $(EXTENDED_SOURCE) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
+    FFLAGS += $(FPIC) $(EXTENDED_SOURCE) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
+    f90FLAGS += $(FPIC) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
+    F90FLAGS += $(FPIC) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
 
+#   Some safeguards
+#   ---------------
+    ifeq ($(INC_MPI),)
+      FC := mpif90
+      INC_MPI := $(dir $(shell which mpif90))../include
+      LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx -lmpi_f77
+    endif
+
+    ifeq ($(ESMA_PROFILE),TAU)
+      ORIGFC := $(FC)
+      export ORIGFC
+      TAUROOTDIR   = /discover/swdev/mathomp4/tau-2.23/intel-14.0.1.106_mvapich2-2.0b
+      TAU_MAKEFILE =  $(TAUROOTDIR)/x86_64/lib/Makefile.tau-icpc-mpi-pdt
+      PDTROOTDIR   = /discover/swdev/mathomp4/src/pdtoolkit-3.20/x86_64/intel14.0.1.106
+      #TAU_OPTIONS  = '-optPdtF90Parser="$(PDTROOTDIR)/bin/f95parse" -optPreProcess -optVerbose -optPDTInst -optTauSelectFile="$(ESMADIR)/src/Config/select.tau"'
+      TAU_OPTIONS  = '-optPdtF90Parser="$(PDTROOTDIR)/bin/f95parse" -optPreProcess -optVerbose -optPDTInst -optRevert'
+      #TAU_OPTIONS  = '-optPdtF90Parser="$(PDTROOTDIR)/bin/f95parse" -optPreProcess -optVerbose -optPDTInst -optRevert -optKeepFiles'
+      export TAU_OPTIONS
+      FC = $(TAUROOTDIR)/x86_64/bin/tau_f90.sh -tau_options=$(TAU_OPTIONS) -tau_makefile=$(TAU_MAKEFILE)
+      F2PY = /usr/bin/f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
+    endif
   endif
 
 # Lahey F95 Compiler
@@ -574,7 +415,7 @@ echo SITE= ${SITE}
 
 # GNU Fortran Compiler
 # --------------------
-  ifeq ($(FC), gfortran) 
+  ifeq ($(ESMA_FC), gfortran) 
 
       CC = gcc
 
@@ -585,16 +426,25 @@ echo SITE= ${SITE}
       FIXED_SOURCE = -ffixed-form
       FREAL4   := 
       FREAL8   := -fdefault-real-8
+      # This is needed for m_fpe.F90
+      NO_RANGE_CHECK   := -fno-range-check 
+      FPIC   := -fpic
 
-      OMPFLAG = 
+      OMPFLAG = -fopenmp
 
-      fFLAGS   += $(D)__GFORTRAN__ $(EXTENDED_SOURCE)
-      FFLAGS   += $(D)__GFORTRAN__ $(EXTENDED_SOURCE)
-      f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-256
-      F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-256
+      PP = -cpp
 
-      INC_MPI = /usr/include
-      LIB_MPI = -lmpi
+      fFLAGS   += $(FPIC) $(D)__GFORTRAN__ $(EXTENDED_SOURCE) $(NO_RANGE_CHECK)
+      FFLAGS   += $(FPIC) $(D)__GFORTRAN__ $(EXTENDED_SOURCE) $(NO_RANGE_CHECK)
+      f90FLAGS += $(FPIC) $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK)
+      F90FLAGS += $(FPIC) $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK)
+
+      ifdef OPENMPI
+          FC := mpif90
+          INC_MPI := $(OPENMPI)/include
+          OPENMPI_LINK_FLAGS := $(shell mpif90 -showme:link) 
+          OPENMPI_LINK_FLAGS := $(shell mpif90 -showme:link) -lmpi_cxx
+      endif
 
 #      LIB_SCI  = -llapackmt -lblasmt 
       LIB_SYS = -ldl -lc -lpthread -lrt -lstdc++
@@ -647,15 +497,142 @@ echo SITE= ${SITE}
 ##    CXX             = $(TAU_COMPILER) $(OPTS) $(TAU_CXX)
   endif
 
+# Portland Group Compiler (also CUDA Fortran)
+# -------------------------------------------
+  ifeq ($(ESMA_FC), pgfortran)
+
+      # Determine compiler version
+      # --------------------------
+      PGI_VER := $(subst -, ,$(subst ., ,$(word 2,$(shell pgfortran --version | sed 1d))))
+      PGI_MAJOR := $(word 1,$(PGI_VER))
+      PGI_MINOR := $(word 2,$(PGI_VER))
+
+      ifndef MPI_HOME
+         MPI_HOME := $(dir $(shell which mpif90))..
+      endif
+      FC := $(MPI_HOME)/bin/mpif90
+      FREE_SOURCE = -Mfree
+      FIXED_SOURCE = -Mfixed
+      EXTENDED_SOURCE = -Mextend
+      LIB_ESMF = $(BASELIB)/libesmf.a
+      FREAL4 = 
+      FREAL8 = -r8
+      FPE = -Ktrap=fp #Equiv to -Ktrap=divz,inv,ovf
+      FPIC = -fpic
+      BACKSLASH_STRING = -Mbackslash
+
+      OMPFLAG  := -mp
+
+      # PGI autoselects the optimization target to the be host currently compiling
+      # thus if you compile on a Sandy Bridge node, you'll generate code that cannot
+      # run on a Westmere (=nehalem). To solve this we must always compile for
+      # all targets that might be run.
+      TARGET_ARCH = -tp=nehalem-64,sandybridge-64
+
+      # If we are on janus, only one TARGET_ARCH possible, just unset
+      ifeq ($(NODE),janus.gsfc.nasa.gov)
+         TARGET_ARCH = 
+      endif
+
+      INC_PGI := $(dir $(shell which pgfortran))../include
+
+      ifeq ("$(BOPT)","g")
+         GPU_TARGET :=
+         FOPT = -O0 -g -Kieee -Minfo=all -Mbounds -traceback -Mchkfpstk -Mchkstk -Mdepchk $(GPU_TARGET)
+      else
+      ifeq ("$(BOPT)","GPU")
+
+         #FERMI To use the Fermis, compile with this:
+         GPU_TARGET := -Mcuda=nofma,ptxinfo,5.0,cc20 -acc -ta=nvidia:nofma,5.0,cc20 -Minfo=accel,par,ccff
+         TARGET_ARCH := -tp=nehalem-64            # GPU can't do more than one target_arch. All Fermis on Westmere
+
+         #K10 To use the K10 Keplers, compile with this:
+         #K10 GPU_TARGET := -Mcuda=nofma,ptxinfo,5.0,cc30 -ta=nvidia:wait,nofma,5.0,cc30 -Minfo=accel,par,ccff
+         #K10 TARGET_ARCH := -tp=sandybridge-64            # GPU can't do more than one target_arch. All Keplers on Sandy
+
+         #K20 To use the K20 Keplers, compile with this:
+         #K20 GPU_TARGET := -Mcuda=nofma,ptxinfo,5.0,cc35,maxregcount:72 -ta=nvidia:wait,nofma,5.0,cc35,maxregcount:72 -Minfo=accel,par,ccff
+         #K20 TARGET_ARCH := -tp=sandybridge-64            # GPU can't do more than one target_arch. All Keplers on Sandy
+
+         FOPT = -fast -Kieee $(GPU_TARGET)
+         USER_FDEFS += $(D)GPU_PRECISION=MAPL_R8 # Select precision for GPU Code that can be double prec (DQSAT, deledd)
+         USER_FDEFS += $(D)GPU_MAXLEVS=72        # Select max level for GPU Code (could save space with this)
+         USER_FDEFS += $(D)GPU_NUMAERO=15        # Select number of aerosols for GPU Code
+         USER_FDEFS += $(D)_CUDA                 # Set this always so the GEOS-5 dependency builder can use it.
+         USER_FDEFS += $(D)CUDAFOR               # Deprecated flag kept here for safety's sake. Move to _CUDA
+      else
+         GPU_TARGET :=
+         FOPT = -fast -Kieee -g
+      endif
+      endif
+
+      ifeq ("$(BOPT)","Og")
+         FOPT += -g -traceback
+      endif
+
+      #USER_FDEFS += $(D)OVERCAST # Uncomment for OVERCAST Radiation code
+
+      fFLAGS   += $(FPIC) $(EXTENDED_SOURCE) $(BACKSLASH_STRING) $(FPE) $(TARGET_ARCH)
+      FFLAGS   += $(FPIC) $(EXTENDED_SOURCE) $(BACKSLASH_STRING) $(FPE) $(TARGET_ARCH)
+      f90FLAGS += $(FPIC) $(BACKSLASH_STRING) $(FPE) $(TARGET_ARCH)
+      F90FLAGS += $(FPIC) $(BACKSLASH_STRING) $(FPE) $(TARGET_ARCH)
+      
+      CFLAGS += $(FPIC) -DpgiFortran
+      PP = -Mpreprocess
+
+      LDFLAGS += -pgcpplibs $(TARGET_ARCH)
+
+      INC_MPI = $(MPI_HOME)/include
+
+      # Test if we are running Open MPI
+      ifeq ($(findstring openMpi,$(INC_MPI)),openMpi)
+         OPENMPI_LINK_FLAGS := $(shell mpif90 -showme:link)
+         LIB_MPI := -L$(subst include,lib,$(INC_MPI)) $(OPENMPI_LINK_FLAGS)
+      else
+      ifeq ($(findstring openmpi,$(INC_MPI)),openmpi)
+         OPENMPI_LINK_FLAGS := $(shell mpif90 -showme:link)
+         LIB_MPI := -L$(subst include,lib,$(INC_MPI)) $(OPENMPI_LINK_FLAGS)
+      else
+      ifeq ($(findstring mvapich2,$(INC_MPI)),mvapich2)
+         LIB_MPI := -L$(subst include,lib,$(INC_MPI)) -lmpich
+      else
+      # Test if we are using mpt at NAS
+      ifdef FPATH
+          FPATHS := $(subst :, ,$(FPATH))
+         INC_MPI := $(filter /nasa/sgi/mpt%,$(FPATHS)) \
+                    $(filter /opt/scali%,$(FPATHS))
+         INC_MPI := $(word 1,$(INC_MPI))
+         LIB_MPI := -L$(subst include,lib64,$(INC_MPI)) -lmpi -lmpi++ -lstdc++
+      else
+         LIB_MPI := -L$(subst include,lib,$(INC_MPI)) -lmpich
+      endif
+      endif
+      endif
+      endif
+
+
+      LIB_SYS = -ldl -lstd -lrt -lC $(GPU_TARGET)
+
+      LIB_SCI = -llapack -lblas
+    
+      CC = gcc
+      CXX = g++
+
+  endif
+
   ifeq (${SITE},zeus)
-     ESMF_ROOT = /apps/esmf/3.1.0rp5/intel/mpt
+##     ESMF_ROOT = /apps/esmf/3.1.0rp5/intel/mpt
+     ESMF_ROOT = /apps/esmf/6.3.0r/intel/mpt
      include $(ESMF_ROOT)/lib/libO/Linux.intel.64.mpi.default/esmf.mk
-     DIR_NETCDF = /apps/netcdf/3.6.3/intel
+     DIR_NETCDF = /apps/netcdf/4.1.3-intel
+##     DIR_NETCDF = /apps/netcdf/3.6.3/intel
      DIR_ESMF   = ${ESMF_DIR}
+     BASEDIR = /usr/local
      DEF_SDF =
      ESMA_SDF = netcdf
      INC_NETCDF = $(DIR_NETCDF)/include
-     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
+#jw      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
+     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /apps/hdf5/1.8.8-intel/lib/libhdf5_hl.a /apps/hdf5/1.8.8-intel/lib/libhdf5.a /contrib/nceplibs_ext/lib/libz.a
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)
      INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/modO/Linux.intel.64.mpi.default
@@ -664,6 +641,7 @@ echo SITE= ${SITE}
 
      EXTENDED_SOURCE = -extend_source
      FC := ifort
+     F2PY = /usr/bin/f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
 ##   FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
      FOPT := -O -g -traceback
      FPE := -fp-model source
@@ -678,13 +656,14 @@ echo SITE= ${SITE}
   endif
 
   ifeq ($(SITE),wcoss)
-     include /usrx/local/esmf-3.1.0rp5/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
-     DIR_NETCDF = /usrx/local/NetCDF/3.6.3
-     DIR_ESMF = /usrx/local/esmf-3.1.0rp5
+     include /usrx/local/esmf-6.3.0rp1/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+     DIR_NETCDF = /usrx/local/NetCDF/4.2/serial
+     DIR_ESMF = /usrx/local/esmf-6.3.0rp1
      DEF_SDF =
      ESMA_SDF = netcdf
      INC_NETCDF = $(DIR_NETCDF)/include
-     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
+#jw      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
+     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /usrx/local/HDF5/1.8.9/serial/lib/libhdf5_hl.a /usrx/local/HDF5/1.8.9/serial/lib/libhdf5.a /usrx/local/zlib-1.2.7/lib/libz.a
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)
      INC_ESMF = $(DIR_ESMF)/include $(DIR_ESMF)/mod/modO/Linux.intel.64.intelmpi.default/
@@ -705,7 +684,6 @@ echo SITE= ${SITE}
      FIXED_SOURCE = -fixed
      ACG_FLAGS += -P # enforce native precision in specs
   endif
-
 
 endif  #    Linux
 
@@ -739,7 +717,7 @@ ifeq ($(ARCH),Darwin)
 # Darwin MPI default: assumes openmpi
 # -----------------------------------
   INC_MPI := $(dir $(shell which mpif90))../include
-  LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx
+  LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx -lmpi_f77
 
 #                    Darwin Compiler Specific
 #                    -----------------------
@@ -798,10 +776,12 @@ ifeq ($(ARCH),Darwin)
       fFLAGS += $(EXTENDED_SOURCE)
       FFLAGS += $(EXTENDED_SOURCE)
 
-      LIB_SYS = -limf -lm -ldl -lirc -lguide -lstdc++ -lgcc_s.1
+#      LIB_SYS = -limf -lm -ldl -lirc -lguide -lstdc++ -lgcc_s.1
+      LIB_SYS = -limf -lm -ldl -lirc -lstdc++ -lgcc_s.1
+
+      override FC = mpif90
 
   endif # ifort
 
-  override FC = mpif90
-
 endif  #    Darwin
+

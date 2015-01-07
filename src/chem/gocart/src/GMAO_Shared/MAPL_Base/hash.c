@@ -1,5 +1,7 @@
+
+// $Id: hash.c,v 1.8 2012-08-22 16:51:40 adasilva Exp $
+
 #ifndef sysAIX
-#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -8,10 +10,10 @@
 #define HASHCHUNK 32
 #define HEAPCHUNK 4
 
-#define FREE(A) if(A) free(A); A=NULL
+#define FREE(A) (void)free(A); A=NULL
 
 typedef struct {
-int i,j,k;
+  int i,j,k,m;
 } entry_t;
 
 typedef struct{
@@ -28,13 +30,19 @@ hash_t *hash_heap=(hash_t *)NULL;
 int hash_heap_size = HEAPCHUNK;
 
 void init_hash(hash_t *h, int nbuckets) {
-  int i;
+  int l;
+  bucket_t *bucket;
+
   h->bucket_list = (bucket_t *)malloc((size_t)(nbuckets*sizeof(bucket_t)));
   if(!h->bucket_list) {
-    printf("hash.c line=%d : Could not allocate bucket list\n",__LINE__);
+    printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ line=%d : Could not allocate bucket list\n",__LINE__);
     exit(1);
   }
-  for(i=0;i<nbuckets;i++) (h->bucket_list+i)->entry_list=(entry_t *)NULL;
+  for(l=0; l<nbuckets; l++) {
+    bucket=h->bucket_list;
+    (bucket+l)->entry_list=(entry_t *)NULL;
+  }
+
   h->num_entries = 0;
   h->num_buckets = nbuckets;
 }
@@ -44,7 +52,7 @@ void init_bucket(bucket_t *b) {
   b->next_entry = 0;
   b->entry_list = (entry_t *)malloc((size_t)(b->size*sizeof(entry_t)));
   if(!b->entry_list) {
-    printf("hash.c line=%d : Could not allocate entry list\n",__LINE__);
+    printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ line=%d : Could not allocate entry list\n",__LINE__);
     exit(1);
   }
 }
@@ -53,31 +61,45 @@ void init_bucket(bucket_t *b) {
 
 int create_hash(int nbuckets)
 {
-  int i;
+  int i, newhash;
+
+  // If first time allocate a new heap and clear its bucket list
 
   if(!hash_heap) {
     hash_heap = (hash_t *)malloc(hash_heap_size*sizeof(hash_t));
     if(!hash_heap) {
-      printf("hash.c line=%d : Could not allocate hash_heap\n",__LINE__);
+      printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ line=%d : Could not allocate hash_heap\n",__LINE__);
       exit(1);
     }
     for(i=0;i<hash_heap_size;i++) hash_heap[i].bucket_list=(bucket_t *)NULL;
   }
 
+  // Find an unused hash on the heap, call it newhash.
+
   for(i=0;i<hash_heap_size;i++) {
-    if(!hash_heap[i].bucket_list){
-      (void)init_hash(hash_heap+i,nbuckets);
-      return i;
+    if(!hash_heap[i].bucket_list) break;
+  }
+
+  newhash = i;
+
+  // If newhash requires bigger heap, reallocate it
+
+  if(newhash==hash_heap_size) {
+    hash_heap = 
+      (hash_t *)realloc(hash_heap,sizeof(hash_t)*(hash_heap_size+=HEAPCHUNK));
+
+    if(!hash_heap) {
+      printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ line=%d : Could not expand hash_heap\n",__LINE__);
+      exit(1);
     }
+
+    for(i=newhash;i<hash_heap_size;i++) 
+      hash_heap[i].bucket_list=(bucket_t *)NULL;
   }
 
-  hash_heap = 
-    (hash_t *)realloc(hash_heap,sizeof(hash_t)*(hash_heap_size+=HEAPCHUNK));
+  (void)init_hash(hash_heap+newhash,nbuckets);
 
-  if(!hash_heap) {
-    printf("hash.c line=%d : Could not expand hash_heap\n",__LINE__);
-    exit(1);
-  }
+  return newhash;
 }
 
 // Destroy the hash identified by handle h, releasing all its space
@@ -87,15 +109,15 @@ void destroy_hash(int h)
   int i;
 
   if(!hash_heap) {
-    printf("hash.c line=%d : Attemp to destroy hash from empty heap\n",__LINE__);
+    printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ line=%d : Attempt to destroy hash from empty heap\n",__LINE__);
     exit(1);
   } else if(!hash_heap[h].bucket_list) {
-    printf("hash.c line=%d : Attemp to destroy uninitalized hash\n",__LINE__);
+    printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ line=%d : Attempt to destroy uninitalized hash\n",__LINE__);
     exit(1);
   } else { 
-    for(i=1;i<hash_heap[h].num_buckets;i++)
-      FREE(hash_heap[h].bucket_list[i].entry_list);
-
+    for(i=0;i<hash_heap[h].num_buckets;i++) {
+	FREE(hash_heap[h].bucket_list[i].entry_list);
+    }
     FREE(hash_heap[h].bucket_list);
   }
 }
@@ -117,9 +139,9 @@ int hash_size(int h)
   return num;
 }
 
-void dump_hash(int h, int *i, int *j)
+void dump_hash(int h, int *i, int *j, int *k)
 {
-  int l, k, num;
+  int l, m, num;
   bucket_t *bucket;
   entry_t  *entry;
   hash_t   *hash;
@@ -129,10 +151,11 @@ void dump_hash(int h, int *i, int *j)
 
   for(l=0; l<hash->num_buckets; l++) {
     bucket = hash->bucket_list + l;
-    for(k=0; k<bucket->next_entry; k++) {
-      entry = (bucket->entry_list) + k;
+    for(m=0; m<bucket->next_entry; m++) {
+      entry = (bucket->entry_list) + m;
       i[num]==entry->i;
       j[num]==entry->j;
+      k[num]==entry->k;
       num++;
     }
   }
@@ -146,17 +169,17 @@ void dump_hash(int h, int *i, int *j)
 // value, and returns the Id. Currently the next Id
 // is determined by incrementing a counter.
 
-int increment_hash(int h, int i, int j)
+int increment_hash(int h, int i, int j, int k)
 {
 
   if(!hash_heap) {
 
-    printf("hash.c line=%d : Attemp to increment hash from empty heap\n",__LINE__);
+    printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ line=%d : Attempt to increment hash from empty heap\n",__LINE__);
     exit(1);
 
   } else if(!(hash_heap[h].bucket_list)) {
 
-    printf("hash.c line=%d : Attemp to increment uninitalized hash %d i=%d j=%d %ld\n",
+    printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ line=%d : Attempt to increment uninitalized hash %d i=%d j=%d %ld\n",
 	   __LINE__,h,i,j,hash_heap[h].bucket_list);
     exit(1);
 
@@ -169,15 +192,17 @@ int increment_hash(int h, int i, int j)
 
     // Start
 
-    if(j==INT_MAX) 
+
+    if(j==INT_MAX && k==INT_MAX)
       key=hash1(i);
-    else
+    else if(k==INT_MAX)
       key=hash2(i,j);
+    else 
+      key=hash2(hash2(i,j),k);
 
     hash   = hash_heap+h;
     bucket = hash->bucket_list + (key & (hash->num_buckets - 1));
 
-    //    printf("In Hash , bucket= %d \n",(key & (hash->num_buckets - 1)));
 
     if(!(bucket->entry_list)) {
 
@@ -185,13 +210,11 @@ int increment_hash(int h, int i, int j)
 
     } else {
 
-      int k;
-      //	  printf("In Hash 2, entries= %d \n",hash->num_entries);
-      //	  printf("In Hash 2,   next= %d \n",bucket->next_entry);
-      for(k=0; k<bucket->next_entry; k++) {
-	entry = (bucket->entry_list) + k;
-	if(entry->i==i && entry->j==j)
-	  return entry->k;
+      int m;
+      for(m=0; m<bucket->next_entry; m++) {
+	entry = (bucket->entry_list) + m;
+	if(entry->i==i && entry->j==j && entry->k==k)
+	  return entry->m;
       }
 
       if(bucket->next_entry == bucket->size) {
@@ -199,7 +222,7 @@ int increment_hash(int h, int i, int j)
 	bucket->entry_list = 
 	  (entry_t *)realloc(bucket->entry_list,sizeof(entry_t)*bucket->size);
 	if(!bucket->entry_list) {
-	  printf("hash.c %d : Could not reallocate entry list\n",__LINE__);
+	  printf("hash.c $Name: atanas-g40-NCEP-AEROsa $ %d : Could not reallocate entry list\n",__LINE__);
 	  exit(1);
 	}
       }
@@ -212,9 +235,10 @@ int increment_hash(int h, int i, int j)
 
     entry->i = i;
     entry->j = j;
-    entry->k = hash->num_entries;
+    entry->k = k;
+    entry->m = hash->num_entries;
 
-    return entry->k;
+    return entry->m;
   }  
 }
 
@@ -245,6 +269,13 @@ int hash1(int key)
   return key;
 }
 
+
+
+
+
+
+
+
 // Fortran bindings
 
 void DESTROYHASH (int *h){destroy_hash(*h);}
@@ -252,10 +283,10 @@ void DESTROYHASH_(int *h){destroy_hash(*h);}
 void destroyhash (int *h){destroy_hash(*h);}
 void destroyhash_(int *h){destroy_hash(*h);}
 
-int INCREMENTHASH (int *h,int *i, int *j){return increment_hash(*h,*i,*j);}
-int INCREMENTHASH_(int *h,int *i, int *j){return increment_hash(*h,*i,*j);}
-int incrementhash (int *h,int *i, int *j){return increment_hash(*h,*i,*j);}
-int incrementhash_(int *h,int *i, int *j){return increment_hash(*h,*i,*j);}
+int INCREMENTHASH (int *h,int *i, int *j, int *k){return increment_hash(*h,*i,*j,*k);}
+int INCREMENTHASH_(int *h,int *i, int *j, int *k){return increment_hash(*h,*i,*j,*k);}
+int incrementhash (int *h,int *i, int *j, int *k){return increment_hash(*h,*i,*j,*k);}
+int incrementhash_(int *h,int *i, int *j, int *k){return increment_hash(*h,*i,*j,*k);}
 
 int CREATEHASH (int *nbuckets){return create_hash(*nbuckets);}
 int CREATEHASH_(int *nbuckets){return create_hash(*nbuckets);}
@@ -267,9 +298,9 @@ int HASHSIZE_(int *h){return hash_size(*h);}
 int hashsize (int *h){return hash_size(*h);}
 int hashsize_(int *h){return hash_size(*h);}
 
-void DUMPHASH (int *h, int *i,int *j){dump_hash(*h,i,j);}
-void DUMPHASH_(int *h, int *i,int *j){dump_hash(*h,i,j);}
-void dumphash (int *h, int *i,int *j){dump_hash(*h,i,j);}
-void dumphash_(int *h, int *i,int *j){dump_hash(*h,i,j);}
+void DUMPHASH (int *h, int *i,int *j,int *k){dump_hash(*h,i,j,k);}
+void DUMPHASH_(int *h, int *i,int *j,int *k){dump_hash(*h,i,j,k);}
+void dumphash (int *h, int *i,int *j,int *k){dump_hash(*h,i,j,k);}
+void dumphash_(int *h, int *i,int *j,int *k){dump_hash(*h,i,j,k);}
 
 #endif

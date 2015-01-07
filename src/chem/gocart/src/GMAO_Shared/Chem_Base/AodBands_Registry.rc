@@ -10,11 +10,11 @@ n_channels: 1
 
 r_channels: 1 2 3 4 5 6 7 8
 
-filename_optical_properties_DU: ExtData/AeroCom/x/opticsBands_DU.nc
-filename_optical_properties_SS: ExtData/AeroCom/x/opticsBands_SS.v2.nc
-filename_optical_properties_OC: ExtData/AeroCom/x/opticsBands_OC.nc
-filename_optical_properties_BC: ExtData/AeroCom/x/opticsBands_BC.nc
-filename_optical_properties_SU: ExtData/AeroCom/x/opticsBands_SU.nc
+filename_optical_properties_DU: ExtData/PIESA/x/opticsBands_DU.v14_2.nc
+filename_optical_properties_SS: ExtData/PIESA/x/opticsBands_SS.v3_3.nc
+filename_optical_properties_OC: ExtData/PIESA/x/opticsBands_OC.v1_3.nc
+filename_optical_properties_BC: ExtData/PIESA/x/opticsBands_BC.v1_3.nc
+filename_optical_properties_SU: ExtData/PIESA/x/opticsBands_SU.v1_3.nc
 
 # Second block is a copy of a chem registry type, used here only
 # to specify what to write out to the bundle file!!!

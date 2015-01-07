@@ -1,15 +1,11 @@
 
-!  $Id: MAPL_Profiler.F90,v 1.6 2009/05/04 18:15:40 ltakacs Exp $ 
+!  $Id: MAPL_Profiler.F90,v 1.7.12.2 2013-05-30 17:57:31 atrayano Exp $ 
 
 #include "MAPL_ErrLog.h"
 
 !BOP
 
 ! !MODULE: MAPL_Profiler -- A Module to instrument codes for profiling
-! !REVISION HISTORY:
-!
-!  03Oct2011 Wang/Lu        Add NEMS option
-
 
 
 ! !INTERFACE:
@@ -18,9 +14,12 @@
 
 ! !USES:
 
-  use ESMF_Mod
+  use ESMF
   use MAPL_BaseMod
   use MAPL_IOMod
+#ifdef _CUDA
+  use cudafor
+#endif
 
   implicit none
   private
@@ -40,6 +39,7 @@
   public MAPL_ProfClockOff
   public MAPL_ProfSet
   public MAPL_ProfDisable
+  public MAPL_ProfEnable
   public MAPL_ProfWrite
   public MAPL_ProfIsDisabled
 
@@ -88,13 +88,18 @@
             print *, NAME
             RETURN_(ESMF_FAILURE)
          end if
+     
+#ifdef _CUDA
+         status = cudaDeviceSynchronize()
+#endif
 
 #ifdef NEMS
           call ESMF_VMGetCurrent(VMC, rc=STATUS)
           call ESMF_VMBarrier(VMC, rc=status)
-#else      
+#else
          call ESMF_VMBarrier(VM, rc=status)
 #endif
+
          call SYSTEM_CLOCK(TIMES(I)%START_TIME)  
 
       end if
@@ -133,6 +138,10 @@
             print *, NAME
             RETURN_(ESMF_FAILURE)
          end if
+
+#ifdef _CUDA
+         status = cudaDeviceSynchronize()
+#endif
 
 #ifdef NEMS
          call ESMF_VMGetCurrent(VMC, rc=STATUS)
@@ -241,6 +250,19 @@
       RETURN_(ESMF_SUCCESS)
       
     end subroutine MAPL_ProfDisable
+
+!********************************************************
+
+    subroutine MAPL_ProfEnable(RC)
+      integer, optional, intent(OUT)   :: RC
+
+      character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ProfEnable"
+
+      DISABLED = .false.
+
+      RETURN_(ESMF_SUCCESS)
+      
+    end subroutine MAPL_ProfEnable
 
 !********************************************************
 

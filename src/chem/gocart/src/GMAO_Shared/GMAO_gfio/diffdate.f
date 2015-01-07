@@ -56,40 +56,40 @@
 !                 function from the book "Numerical Recipes in FORTRAN, the 
 !                 art of scientific computing (2nd Ed.), by William H. Press, 
 !                 Saul A. Teukolsky, William T. Vetterling, and Brian P. 
-!                 Flannery (Cambridge University Press, 1992).  This julian
-!                 day is reduced by a constant and converted to seconds.  The
-!                 reduction is required to allow the conversion to seconds to
-!                 fit in a 32 bit integer.  The difference between the two 
-!                 times is then calculated and returned.  The times need not
-!                 be in chronological order as the function returns the abs
-!                 value.  -1 is returned in the event of an error.
+!                 Flannery (Cambridge University Press, 1992).  The difference 
+!                 between the two times is then calculated and returned.  The 
+!                 times need not be in chronological order as the function returns 
+!                 the abs value.  -1 is returned in the event of an error.
 !
 ! !REVISION HISTORY:
 !
 !  17Oct97   Lucchesi    Initial version.
+!  2010.05.11 Lucchesi  Integer for julian seconds changed to 64-bit.  StartDate
+!                        constant no longer needed.
 !
 !EOP
 !-------------------------------------------------------------------------
 
-       integer StartDate, julday1
-       parameter (StartDate = 2439321)   ! Use birthday of author as base date
+       integer julday
 
        integer year1,mon1,day1,hour1,min1,sec1
        integer year2,mon2,day2,hour2,min2,sec2
-       integer julian1, julian2, julsec1, julsec2
+!      integer julian1, julian2, julsec1, julsec2
+       integer(kind=8) julian1, julian2, julsec1, julsec2
 
        character*8 dateString
 
 ! Error checking.
 
-       if (yyyymmhh_1 .lt. 19000000 .or. yyyymmhh_1 .gt. 21000000 ) then
-         DiffDate=-1
-         return
-       endif
-       if (yyyymmhh_2 .lt. 19000000 .or. yyyymmhh_2 .gt. 21000000 ) then
-         DiffDate=-1
-         return
-       endif
+!      print *, 'HERE in diffdate ',yyyymmhh_1,yyyymmhh_2
+!rl    if (yyyymmhh_1 .lt. 19000000 .or. yyyymmhh_1 .gt. 21000000 ) then
+!rl      DiffDate=-1
+!rl      return
+!rl    endif
+!rl    if (yyyymmhh_2 .lt. 19000000 .or. yyyymmhh_2 .gt. 21000000 ) then
+!rl      DiffDate=-1
+!rl      return
+!rl    endif
        if (hhmmss_1 .lt. 0 .or. hhmmss_1 .ge. 240000 ) then
          DiffDate=-1
          return
@@ -116,10 +116,8 @@
 
 ! Get Julian Days and subtract off a constant (Julian days since 7/14/66)
  
-       julian1 = julday1 (mon1, day1, year1)
-       julian1 = julian1 - StartDate
-       julian2 = julday1 (mon2, day2, year2)
-       julian2 = julian2 - StartDate
+       julian1 = julday (mon1, day1, year1)
+       julian2 = julday (mon2, day2, year2)
       
 ! Calculcate Julian seconds
 

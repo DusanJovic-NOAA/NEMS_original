@@ -84,12 +84,11 @@
      logical :: doing_BC    ! black carbon
      logical :: doing_OC    ! organic carbon
      logical :: doing_Rn    ! radon
+     logical :: doing_CH4   ! Methane
      logical :: doing_SC    ! stratospheric chemistry
      logical :: doing_XX    ! ancillary data
-     logical :: doing_AC    ! auto chem 
      logical :: doing_PC    ! Parameterized Chemistry (GEOS-5)
      logical :: doing_GMI   ! GMI Chemistry (GEOS-5)
-     logical :: doing_CARMA ! CARMA Service Component
 
 !    Number of bins and tracer index ranges for each constituent:
 !        n_TT - number of bins for tracer TT (n_TT = j_TT - i_TT + 1)
@@ -105,12 +104,11 @@
      integer :: n_BC, i_BC, j_BC     ! black carbon
      integer :: n_OC, i_OC, j_OC     ! organic carbon
      integer :: n_Rn, i_Rn, j_Rn     ! radon
+     integer :: n_CH4,i_CH4,j_CH4    ! Methane
      integer :: n_SC, i_SC, j_SC     ! stratospheric chemistry
      integer :: n_XX, i_XX, j_XX     ! ancillary data
-     integer :: n_AC, i_AC, j_AC     ! auto chem
      integer :: n_PC, i_PC, j_PC     ! parameterized chemistry (GEOS-5)
      integer :: n_GMI, i_GMI, j_GMI  ! GMI chemistry (GEOS-5)
-     integer :: n_CARMA, i_CARMA, j_CARMA    ! CARMA Service Component
 
 !    GEOS-5 Short-hands: all combined tracers from CO to OC
 !    ------------------------------------------------------
@@ -128,12 +126,11 @@
      character(len=nch) :: units_BC    ! black carbon
      character(len=nch) :: units_OC    ! organic carbon
      character(len=nch) :: units_Rn    ! radon
+     character(len=nch) :: units_CH4   ! Methane
      character(len=nch) :: units_SC    ! stratospheric chemistry
      character(len=nch) :: units_XX    ! ancillary data
-     character(len=nch) :: units_AC    ! auto chem
      character(len=nch) :: units_PC    ! parameterized chemistry (GEOS-5)
      character(len=nch) :: units_GMI   ! GMI chemistry (GEOS-5)
-     character(len=nch) :: units_CARMA ! GMI chemistry (GEOS-5)
 
 !    CF Style metadata
 !    -----------------
@@ -145,7 +142,15 @@
 !    ---------------------------
 !!!  logical, pointer :: advect(:)  ! (nq), whether to advect it
 !!!  logical, pointer :: diffuse(:) ! (nq), whether to diffuse it
-  real, pointer    :: fscav(:)   ! (nq), scavenging coefficient
+!    Set (or not) from component resource files
+     real, pointer    :: fscav(:)   ! (nq), scavenging coefficient
+     real, pointer    :: rhop(:)    ! (nq), dry particle mass density [kg m-3]
+     real, pointer    :: molwght(:) ! (nq), molecular weight [kg mole-1]
+     real, pointer    :: rlow(:)    ! (nq), lower edge of particle size bin [m]
+     real, pointer    :: rup(:)     ! (nq), upper edge of particle size bin [m]
+     real, pointer    :: rmed(:)    ! (nq), particle bin number median radius [m]
+     real, pointer    :: sigma(:)   ! (nq), particle lognormal width
+     real, pointer    :: fNum(:)    ! (nq), ratio of particle number to mass
 
   end type Chem_Registry
 
@@ -228,12 +233,11 @@ CONTAINS
    call parserc_ ( 'BC', this%doing_BC, this%n_BC, this%units_BC )
    call parserc_ ( 'OC', this%doing_OC, this%n_OC, this%units_OC )
    call parserc_ ( 'Rn', this%doing_Rn, this%n_Rn, this%units_Rn )
+   call parserc_ ( 'CH4', this%doing_CH4, this%n_CH4, this%units_CH4 )
    call parserc_ ( 'SC', this%doing_SC, this%n_SC, this%units_SC )
    call parserc_ ( 'GMI', this%doing_GMI, this%n_GMI, this%units_GMI )
    call parserc_ ( 'XX', this%doing_XX, this%n_XX, this%units_XX )
-   call parserc_ ( 'AC', this%doing_AC, this%n_AC, this%units_AC )
    call parserc_ ( 'PC', this%doing_PC, this%n_PC, this%units_PC )
-   call parserc_ ( 'CARMA', this%doing_CARMA, this%n_CARMA, this%units_CARMA )
 
 !  Set internal indices
 !  --------------------
@@ -248,24 +252,32 @@ CONTAINS
    call setidx_ ( this%doing_BC, this%n_BC, this%i_BC, this%j_BC )
    call setidx_ ( this%doing_OC, this%n_OC, this%i_OC, this%j_OC )
    call setidx_ ( this%doing_Rn, this%n_Rn, this%i_Rn, this%j_Rn )
+   call setidx_ ( this%doing_CH4, this%n_CH4, this%i_CH4, this%j_CH4 )
    call setidx_ ( this%doing_SC, this%n_SC, this%i_SC, this%j_SC )
    call setidx_ ( this%doing_GMI, this%n_GMI, this%i_GMI, this%j_GMI )
    call setidx_ ( this%doing_XX, this%n_XX, this%i_XX, this%j_XX )
-   call setidx_ ( this%doing_AC, this%n_AC, this%i_AC, this%j_AC )
    call setidx_ ( this%doing_PC, this%n_PC, this%i_PC, this%j_PC )
-   call setidx_ ( this%doing_CARMA, this%n_CARMA, this%i_CARMA, this%j_CARMA )
 
 !  Allocate memory in registry
 !  ---------------------------
    this%nq = nq
    allocate ( this%vname(nq), this%vtitle(nq), this%vunits(nq), &
-              this%fscav(nq), stat=ios )
+              this%fscav(nq), this%rhop(nq), this%molwght(nq), &
+              this%rlow(nq), this%rup(nq), this%rmed(nq), &
+              this%sigma(nq), this%fNum(nq), stat=ios )
    if ( ios /= 0 ) then
         rc = 2
         return 
    end if
 
-   this%fscav = 0.0 ! no scavanging by default
+   this%fscav    = 0.0 ! no scavanging by default
+   this%rhop     = -1. ! default
+   this%molwght  = -1. ! default
+   this%rlow     = -1. ! default
+   this%rup      = -1. ! default
+   this%rmed     = -1. ! default
+   this%sigma    = -1. ! default
+   this%fNum     = -1. ! default
 
 !  Fill in CF metadata
 !  -------------------
@@ -291,18 +303,16 @@ CONTAINS
                    this%units_OC,  this%i_OC, this%j_OC )
    call setmeta_ ( this%doing_Rn,  'Rn', 'Radon Mixing Ratio', &
                    this%units_Rn,  this%i_Rn, this%j_Rn )
+   call setmeta_ ( this%doing_CH4,  'CH4', 'Methane Mixing Ratio', &
+                   this%units_CH4,  this%i_CH4, this%j_CH4 )
    call setmeta_ ( this%doing_SC,  'sc', 'Stratosperic Chemistry Species', &
                    this%units_SC,  this%i_SC, this%j_SC )
    call setmeta_ ( this%doing_GMI,  'GMI', 'GMI Chemistry', &
                    this%units_GMI,  this%i_GMI, this%j_GMI )
    call setmeta_ ( this%doing_XX,  'xx', 'Ancillary Data', &
                    this%units_XX,  this%i_XX, this%j_XX )
-   call setmeta_ ( this%doing_AC,  'ac', 'Auto Chemistry Species', &
-                   this%units_AC,  this%i_AC, this%j_AC )
    call setmeta_ ( this%doing_PC,  'pc', 'Parameterized Chemistry', &
                    this%units_PC,  this%i_PC, this%j_PC )
-   call setmeta_ ( this%doing_CARMA,  'CARMA', 'CARMA Service Component', &
-                   this%units_CARMA,  this%i_CARMA, this%j_CARMA )
 		   
    call I90_Release()
 
@@ -554,13 +564,14 @@ RealNames: IF( ier .EQ. 0 ) THEN
    this%doing_BC = .false.    ! black carbon
    this%doing_OC = .false.    ! organic carbon
    this%doing_Rn = .false.    ! radon
+   this%doing_CH4 = .false.   ! Methane
    this%doing_SC = .false.    ! stratospheric chemistry
-   this%doing_AC = .false.    ! stratospheric chemistry
    this%doing_XX = .false.    ! ancillary data
    this%doing_PC = .false.    ! parameterized chemistry (GEOS-5)
    this%doing_GMI = .false.   ! GMI chemistry (GEOS-5)
-   this%doing_CARMA = .false. ! CARMA Service Component
-   deallocate ( this%vname, this%vtitle, this%vunits, this%fscav, stat=ios )
+   deallocate ( this%vname, this%vtitle, this%vunits, this%fscav, &
+                this%rhop, this%molwght, this%rlow, this%rup, this%rmed, &
+                this%sigma, this%fNum, stat=ios )
    if ( ios /= 0 ) then
         rc = 1
         return 
@@ -622,12 +633,11 @@ end subroutine Chem_RegistryDestroy
    IF ( reg%doing_BC ) ActiveList = TRIM(ActiveList)//'  BC'
    IF ( reg%doing_OC ) ActiveList = TRIM(ActiveList)//'  OC'
    IF ( reg%doing_Rn ) ActiveList = TRIM(ActiveList)//'  Rn'
+   IF ( reg%doing_CH4 ) ActiveList = TRIM(ActiveList)//'  CH4'
    IF ( reg%doing_SC ) ActiveList = TRIM(ActiveList)//'  SC'
    IF ( reg%doing_GMI ) ActiveList = TRIM(ActiveList)//'  GMI'
-   IF ( reg%doing_AC ) ActiveList = TRIM(ActiveList)//'  AC'
    IF ( reg%doing_XX ) ActiveList = TRIM(ActiveList)//'  XX'
    IF ( reg%doing_PC ) ActiveList = TRIM(ActiveList)//'  PC'
-   IF ( reg%doing_CARMA ) ActiveList = TRIM(ActiveList)//'  CARMA'
    
    PRINT *
    PRINT *, 'Active chemistry components:',TRIM(ActiveList)
@@ -643,12 +653,11 @@ end subroutine Chem_RegistryDestroy
    IF ( reg%doing_BC ) CALL reg_prt_( 'BC', reg%n_BC, reg%i_BC, reg%j_BC )
    IF ( reg%doing_OC ) CALL reg_prt_( 'OC', reg%n_OC, reg%i_OC, reg%j_OC )
    IF ( reg%doing_Rn ) CALL reg_prt_( 'Rn', reg%n_Rn, reg%i_Rn, reg%j_Rn )
+   IF ( reg%doing_CH4 ) CALL reg_prt_( 'CH4', reg%n_CH4, reg%i_CH4, reg%j_CH4 )
    IF ( reg%doing_SC ) CALL reg_prt_( 'SC', reg%n_SC, reg%i_SC, reg%j_SC )
    IF ( reg%doing_GMI ) CALL reg_prt_( 'GMI', reg%n_GMI, reg%i_GMI, reg%j_GMI )
-   IF ( reg%doing_AC ) CALL reg_prt_( 'AC', reg%n_AC, reg%i_AC, reg%j_AC )
    IF ( reg%doing_XX ) CALL reg_prt_( 'XX', reg%n_XX, reg%i_XX, reg%j_XX )
    IF ( reg%doing_PC ) CALL reg_prt_( 'PC', reg%n_PC, reg%i_PC, reg%j_PC )
-   IF ( reg%doing_CARMA ) CALL reg_prt_( 'CARMA', reg%n_CARMA, reg%i_CARMA, reg%j_CARMA )
 
    IF ( reg%doing_GOCART ) & 
         CALL reg_prt_( 'GOCART is a COMPOSITE and', &
@@ -706,7 +715,7 @@ END SUBROUTINE Chem_RegistryPrint
      if ( chemReg%doing_SU )  isGOCART(chemReg%i_SU :chemReg%j_SU)  = .true.
      if ( chemReg%doing_CFC ) isGOCART(chemReg%i_CFC:chemReg%j_CFC) = .true.
      if ( chemReg%doing_Rn )  isGOCART(chemReg%i_Rn :chemReg%j_Rn)  = .true.
-     if ( chemReg%doing_CARMA ) isGOCART(chemReg%i_CARMA:chemReg%j_CARMA) = .true.
+     if ( chemReg%doing_CH4 ) isGOCART(chemReg%i_CH4:chemReg%j_CH4) = .true.
    end subroutine Chem_RegistrySetIsGOCART
 
  end module Chem_RegistryMod

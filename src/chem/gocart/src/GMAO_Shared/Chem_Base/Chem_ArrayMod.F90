@@ -11,25 +11,11 @@ Module Chem_ArrayMod
         real, pointer :: data2d(:,:)   => null()
         real, pointer :: data3d(:,:,:) => null()
 
-!       PRC
-!       Additions to Chem_Array to support CARMA
-
-!       Services requested on per tracer basis
-        character(len=255) :: wantServices = ' '
-!       Tracer particle dry radius [m] at bin center, and lower and upper
-!       bin edges.  Bin center is the volume center of the bin,
-!       assuming spherical particles, as in CARMA.  Set = -1. for non-aerosol.
-        real :: r = -1.                ! particle radius at bin center [m]
-        real :: rlow = -1.             ! particle radius at bin lower bound [m]
-        real :: rup = -1.              ! particle radius at bin upper bound [m]
-!       Alternatively, could specify rmin and rmrat
-        real :: rmin = -1.
-        real :: rmrat = -1.
-!       Tracer particle dry density [kg m-3], set = -1. for non-aerosol
-        real :: rhop = -1.
-
-!       A per-tracer scavenging efficiency in convective updrafts [1 / km]
+!       A per-tracer scavenging efficiency in convective updrafts [km-1]
         real :: fscav = 0.0
+
+!       A per-tracer large-scale wet removal efficiency [fraction]
+        real :: fwet = 0.0
 
 !       A kluge for doing RH affected fall velocities in CARMA
         integer :: irhFlag = 0

@@ -9,7 +9,7 @@
 
 module MAPL_MemUtilsMod
 
-  use ESMF_Mod
+  use ESMF
   use MAPL_BaseMod
   use MAPL_CommsMod
   use MAPL_IOMod
@@ -41,6 +41,7 @@ module MAPL_MemUtilsMod
   public MAPL_MemUtilsDisable
   public MAPL_MemUtilsWrite
   public MAPL_MemUtilsIsDisabled
+  public MAPL_MemUtilsFree
 
 #ifdef _CRAY
   public :: hplen
@@ -314,8 +315,12 @@ module MAPL_MemUtilsMod
     logical, intent(in), optional :: always
     integer, optional, intent(OUT  ) :: RC
 
-    real :: m, mmin, mmax, mavg, mstd
-    real ::    gmin, gmax, gavg, gstd
+    real :: mhwm, mrss, memused, swapused
+    real :: mmin, mmax, mavg, mstd
+    real :: gmin, gmax, gavg, gstd
+    real :: lhwm, ghwm
+    real :: lmem, gmem, lswap, gswap
+
 !memuse is an external function: works on SGI
 !use #ifdef to generate equivalent on other platforms.
     integer :: memuse !default integer OK?
@@ -337,20 +342,32 @@ module MAPL_MemUtilsMod
 #if defined(__sgi) || defined(__aix) || defined(__SX)
     m = memuse()*1e-3
 #else
-    call mem_dump(m)
+    call mem_dump(mhwm, mrss, memused, swapused)
 #endif 
-    mmin = m; call MAPL_CommsAllReduceMin(vm, mmin, gmin, 1, rc=status)
+    lhwm = mhwm; call MAPL_CommsAllReduceMax(vm, lhwm, ghwm, 1, rc=status)
     VERIFY_(STATUS)
-    mmax = m; call MAPL_CommsAllReduceMax(vm, mmax, gmax, 1, rc=status)
+    mmin = mrss; call MAPL_CommsAllReduceMin(vm, mmin, gmin, 1, rc=status)
     VERIFY_(STATUS)
-    mavg = m; call MAPL_CommsAllReduceSum(vm, mavg, gavg, 1, rc=status)
+    mmax = mrss; call MAPL_CommsAllReduceMax(vm, mmax, gmax, 1, rc=status)
+    VERIFY_(STATUS)
+    mavg = mrss; call MAPL_CommsAllReduceSum(vm, mavg, gavg, 1, rc=status)
     VERIFY_(STATUS)
     gavg = gavg/MAPL_NPES(vm)
-    mstd = (m-gavg)**2; call MAPL_CommsAllReduceSum(vm, mstd, gstd, 1, rc=status)
+    mstd = (mrss-gavg)**2; call MAPL_CommsAllReduceSum(vm, mstd, gstd, 1, rc=status)
     gstd = sqrt( gstd/MAPL_NPES(vm) )
+ !  write(outString,'(a64,5es11.3)') &
+ !       'Memuse(MB) at '//trim(text)//'=', gmin, gmax, gstd, gavg, gmax-gmax_save
     write(outString,'(a64,5es11.3)') &
-         'Memuse(MB) at '//trim(text)//'=', gmin, gmax, gstd, gavg, gmax-gmax_save
+         'Memuse(MB) at '//trim(text)//'=', ghwm, gmax, gmin, gavg, gmax-gmax_save
     gmax_save = gmax
+    call WRITE_PARALLEL(trim(outString),format='(a132)')
+
+    lmem  = memused; call MAPL_CommsAllReduceMax(vm, lmem, gmem, 1, rc=status)
+    VERIFY_(STATUS)
+    lswap = swapused; call MAPL_CommsAllReduceMax(vm, lswap, gswap, 1, rc=status)
+    VERIFY_(STATUS)
+    write(outString,'(a64,2es11.3)') &
+         'Mem/Swap Used (MB) at '//trim(text)//'=', gmem, gswap
     call WRITE_PARALLEL(trim(outString),format='(a132)')
 
     RETURN_(ESMF_SUCCESS)
@@ -358,45 +375,136 @@ module MAPL_MemUtilsMod
 
 !#######################################################################
 
-subroutine mem_dump ( memuse, RC )
+subroutine mem_dump ( memhwm, memrss, memused, swapused, RC )
 
-real, intent(out) :: memuse
+real, intent(out) :: memhwm, memrss, memused, swapused
 integer, optional, intent(OUT  ) :: RC
 
 ! This routine returns the memory usage on Linux systems.
 ! It does this by querying a system file (file_name below).
 
-character(len=32) :: file_name = '/proc/self/status'
+character(len=32) :: proc_self = '/proc/self/status'
+character(len=32) :: meminfo   = '/proc/meminfo'
 character(len=32) :: string
+integer :: memtot, memfree, swaptot, swapfree
 integer :: mem_unit
 real    :: multiplier
 
 character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_MemUtils:mem_dump"
 integer :: status
 
-  memuse = 0.0
+  memhwm = 0.0
+  memrss = 0.0
   multiplier = 1.0
 
   call get_unit(mem_unit)
-  open(UNIT=mem_unit,FILE=file_name,FORM='formatted',IOSTAT=STATUS)
+  open(UNIT=mem_unit,FILE=proc_self,FORM='formatted',IOSTAT=STATUS)
   VERIFY_(STATUS)
-
   do; read (mem_unit,'(a)', end=10) string
-    if ( INDEX ( string, 'VmHWM:' ) == 1 ) then        ! ckerr
-      read (string(7:LEN_TRIM(string)-2),*) memuse
-      exit
+    if ( INDEX ( string, 'VmHWM:' ) == 1 ) then  ! High Water Mark
+      read (string(7:LEN_TRIM(string)-2),*) memhwm
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      memhwm = memhwm * multiplier
+    endif
+    if ( INDEX ( string, 'VmRSS:' ) == 1 ) then  ! Resident Memory
+      read (string(7:LEN_TRIM(string)-2),*) memrss
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      memrss = memrss * multiplier
     endif
   enddo
-  
-  if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
-    multiplier = 1.0/1024. ! Convert from kB to MB
-
 10 close(mem_unit)
 
-   memuse = memuse * multiplier
+  call get_unit(mem_unit)
+  open(UNIT=mem_unit,FILE=meminfo,FORM='formatted',IOSTAT=STATUS)
+  VERIFY_(STATUS)
+  do; read (mem_unit,'(a)', end=20) string
+    if ( INDEX ( string, 'MemTotal:' ) == 1 ) then  ! High Water Mark
+      read (string(10:LEN_TRIM(string)-2),*) memtot
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      memtot = memtot * multiplier
+    endif
+    if ( INDEX ( string, 'MemFree:' ) == 1 ) then  ! High Water Mark
+      read (string(9:LEN_TRIM(string)-2),*) memfree
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      memfree = memfree * multiplier
+    endif
+    if ( INDEX ( string, 'SwapTotal:' ) == 1 ) then  ! Resident Memory
+      read (string(11:LEN_TRIM(string)-2),*) swaptot
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      swaptot = swaptot * multiplier
+    endif
+    if ( INDEX ( string, 'SwapFree:' ) == 1 ) then  ! Resident Memory
+      read (string(10:LEN_TRIM(string)-2),*) swapfree
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      swapfree = swapfree * multiplier
+    endif
+  enddo
+20 close(mem_unit)
+
+   memused = memtot-memfree
+   swapused = swaptot-swapfree
 
    RETURN_(ESMF_SUCCESS)
 end subroutine mem_dump
+
+subroutine MAPL_MemUtilsFree ( totmemfree, RC )
+
+real, intent(out) :: totmemfree
+integer, optional, intent(OUT  ) :: RC
+
+! This routine returns the amount of free memory on Linux systems.
+! It does this by querying a system file (file_name below).
+
+character(len=32) :: meminfo   = '/proc/meminfo'
+character(len=32) :: string
+real    :: memfree, buffers, cached
+integer :: mem_unit
+real    :: multiplier
+
+character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_MemUtilsFree"
+integer :: status
+
+  totmemfree = 0.0
+  memfree = 0.0
+  buffers = 0.0
+  cached = 0.0
+  multiplier = 1.0
+
+  call get_unit(mem_unit)
+  open(UNIT=mem_unit,FILE=meminfo,FORM='formatted',IOSTAT=STATUS)
+  VERIFY_(STATUS)
+  do; read (mem_unit,'(a)', end=20) string
+    if ( INDEX ( string, 'MemFree:' ) == 1 ) then  ! Free memory
+      read (string(9:LEN_TRIM(string)-2),*) memfree
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      memfree = memfree * multiplier
+    endif
+    if ( INDEX ( string, 'Buffers:' ) == 1 ) then  ! Buffers
+      read (string(9:LEN_TRIM(string)-2),*) buffers
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      buffers = buffers * multiplier
+    endif
+    if ( INDEX ( string, 'Cached:' ) == 1 ) then  ! Cached
+      read (string(8:LEN_TRIM(string)-2),*) cached
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      cached = cached * multiplier
+    endif
+  enddo
+20 close(mem_unit)
+
+  totmemfree = memfree + cached + buffers
+
+   RETURN_(ESMF_SUCCESS)
+end subroutine MAPL_MemUtilsFree
 
 subroutine get_unit ( iunit )
   implicit none

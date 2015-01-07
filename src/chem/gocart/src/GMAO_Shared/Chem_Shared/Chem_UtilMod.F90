@@ -6,6 +6,10 @@
 #define MAX(x,y) AMAX(real(x),real(y))
 #endif
 
+#define DEALOC_(A) if(associated(A)) then; A=0; call MAPL_DeAllocNodeArray(A,rc=STATUS); if(STATUS==MAPL_NoShm) deallocate(A, stat=STATUS); VERIFY_(STATUS); NULLIFY(A); endif
+
+#define DEALOC2_(A) if(associated(A)) then; deallocate(A, stat=STATUS); VERIFY_(STATUS); NULLIFY(A); endif
+
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -20,13 +24,15 @@
 
 ! !USES:
 
-   use ESMF_Mod
+   use ESMF
    use MAPL_Mod
 
    use MAPL_CommsMod
    use MAPL_CFIOMod
+   use MAPL_CommsMod
 !  use HorzBinMod
    use MAPL_HorzTransformMod
+   use MAPL_ShmemMod
 
    use Chem_Mod                  ! Chemistry Base Class
    use mod_diag                  ! fvGCM diagnostics
@@ -47,6 +53,7 @@
    PUBLIC  Chem_UtilGetTimeInfo     ! Time info on file
    PUBLIC  Chem_UtilExtractIntegers ! Extract integers from a character-delimited string
    PUBLIC  Chem_BiomassDiurnal      ! Biomass burning diurnal cycle
+   PUBLIC  Chem_UtilResVal          ! Finds resolution dependent value that corresponds to the model resolution
 
    PUBLIC tick      ! GEOS-4 stub
    PUBLIC mcalday   ! GEOS-4 stub
@@ -113,9 +120,6 @@ CONTAINS
                                           ! ESMF Grid; this is required
                                           !  in GEOS-5 under ESMF
   type(ESMF_Grid), OPTIONAL, intent(in) :: grid 
-
-                                                  
-
 
 ! !OUTPUT PARAMETERS:
 
@@ -199,7 +203,8 @@ CONTAINS
                                 i1, i2, ig, im, j1, j2, jg, jm, km,  &
                                 var2d, var3d, cyclic, grid,          &
                                 ForceBinning,                        &
-                                maskString, gridMask, instanceNumber )
+                                maskString, gridMask, instanceNumber,&
+                                Voting, units)
 
 ! !USES:
 
@@ -237,11 +242,17 @@ CONTAINS
   character(len=*), OPTIONAL, intent(in) :: maskString !Delimited string of integers
   real, OPTIONAL, intent(in) :: gridMask(i1:i2,j1:j2)  !Grid mask (NOTE: No ghosting) 
   integer, OPTIONAL, intent(in) :: instanceNumber      !Instantiation, for debugging.
+  logical, OPTIONAL, intent(in) :: Voting     ! Controls interpolation strategy for conservative regridding
+                                              ! Values are copied from the original grid cell with the largest fraction
+                                              ! Should be used when regridding regionMask
+                                              ! Default if .false.
 
 ! !OUTPUT PARAMETERS:
 
   real, OPTIONAL, intent(out)   :: var2d(i1-ig:i2+ig,j1-jg:j2+jg)
   real, OPTIONAL, intent(out)   :: var3d(i1-ig:i2+ig,j1-jg:j2+jg,km)
+
+  character(len=*), OPTIONAL, intent(out) :: units ! Variable units
 
 ! !DESCRIPTION: 
 !
@@ -261,7 +272,6 @@ CONTAINS
 !                      now the GFIO one does horizontal interp/binning
 !                      and swap only if necessary.
 !  29Feb2008 Nielsen   Masking
-!  07May2013 Lu        Initialize pointers (for wcoss porting)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -271,29 +281,49 @@ CONTAINS
     logical :: tcyclic, verb
 
     integer  :: READ_ONLY=1, nokm=0
-    integer :: fid, rc, ios, k
-    character(len=257) :: fname, vname
+    integer :: status, fid, rc, ios, k, kuse
+    character(len=257) :: fname, vname, vunits
     real :: const
     integer :: imf, jmf, kmf                  ! dimensions on file
-!    real,  pointer :: latf(:), lonf(:), levf(:)
-!    real,  pointer :: lat(:),  lon(:)
-    real,  pointer :: latf(:)=>null(), lonf(:)=>null(), levf(:)=>null()
-    real,  pointer :: lat(:)=>null(),  lon(:)=>null()
+    real,  pointer :: latf(:), lonf(:), levf(:)
+    real,  pointer :: lat(:) => null()
+    real,  pointer :: lon(:) => null()
 
-    real, pointer :: ptr2(:,:), ptr2f(:,:)
+    real, pointer :: ptr2(:,:)  => null() 
+    real, pointer :: ptr2f(:,:) => null()
 !
 !** added for the NEMS/GFS-GOCART                           ! Sarah Lu
     real :: local(i1-ig:i2+ig,j1-jg:j2+jg)                  ! Sarah Lu
 
-    logical :: doingMasking, ForceBinning_
+    logical :: doingMasking, ForceBinning_, kreverse
 
     INTEGER, ALLOCATABLE :: regionNumbers(:),flag(:)
     INTEGER, ALLOCATABLE :: mask(:,:)
 
 !   type(HorzBinTransform)     :: Trans
     type(MAPL_HorzTransform)   :: Trans
+    character(len=ESMF_MAXSTR) :: gridname, gridnamef, tileFile
+    logical :: regridCnv
+    logical :: geosGridNames = .false. ! keep the GEOS-5 style grid names
+    logical :: tileDataGlobal          ! this controls how tile data
+                                       ! (for conservative regridding) 
+                                       ! is kept
+    type(ESMF_DistGrid) :: distGrid
+    type(ESMF_DELayout) :: layout
+    type(ESMF_VM) :: vm
+    integer :: comm
+    logical :: IAmTransRoot
+    logical :: amRoot
+    logical :: amOnFirstNode
+    logical :: createTrans
+    logical :: Voting_
+    integer :: i1w,inw,j1w,jnw
+    integer :: order
+
+    tileDataGlobal = .true.
 
     vname = trim(varn) ! make a copy
+    vunits = 'unknown' 
 
 !   Consistency check
 !   -----------------
@@ -307,6 +337,12 @@ CONTAINS
          ForceBinning_ = ForceBinning
     else
          ForceBinning_ = .true.
+    endif
+
+    if ( present(Voting) ) then
+         Voting_ = Voting
+    else
+         Voting_ = .false.
     endif
 
     if ( present(cyclic) ) then
@@ -404,6 +440,10 @@ CONTAINS
           END IF
          END IF
 
+         IF ( PRESENT(units) ) THEN
+          units = trim(vunits)
+         END IF
+
          if ( MAPL_am_I_root() ) then
             print *, myname // ': input file is /dev/null'
             print *, myname // ':    setting variable ' // trim(vname) // &
@@ -416,21 +456,38 @@ CONTAINS
 !   ------------------------------------
     call GridGetLatLons_ ( grid, lon, lat )
 
-    local(:,:) = 0.0                                                    ! Sarah Lu
-
-!
-!   For GFS, all PEs owns its own global array and do it's own scatter  ! Sarah Lu
-
 !   Read file
 !   ---------
-!*  if ( MAPL_am_I_root() ) then                                        ! Sarah Lu
+    regridCnv = .false.
+    if ( jm == 6*im ) then
+       if (forceBinning_) then
+          regridCnv = .true.
+       end if
+    end if
+
+    call ESMF_GridGet(grid, name=gridname, rc=rc)
+    call ESMF_GridGet(grid, distGrid=distGrid, rc=rc)
+    call ESMF_DistGridGet(distGrid, DELayout=layout, rc=rc)
+    call ESMF_DELayoutGet(layout, vm=vm, rc=rc)
+
+    amRoot = MAPL_am_I_root(vm)
+    call ESMF_VMGet(VM, mpiCommunicator=comm, rc=rc)
+    amOnFirstNode = MAPL_ShmemAmOnFirstNode(comm=comm, RC=rc)
+    IAmTransRoot = (amRoot) .or. (MAPL_ShmInitialized .and. MAPL_AmNodeRoot)
+
+    if (MAPL_ShmInitialized) then
+       call ESMF_GRID_INTERIOR(GRID,I1w,INw,J1w,JNw)
+    end if
+
+    if ( amRoot .or. MAPL_ShmInitialized) then
 
 !      Allocate work space for scatter
 !      -------------------------------
-       allocate(ptr2(im,jm),stat=ios)
-       if ( ios /= 0 ) call die ( myname, 'cannot allocate ptr2' )
+       call MAPL_AllocNodeArray(ptr2,(/im,jm/),rc=STATUS)
+       if(STATUS==MAPL_NoShm) allocate(ptr2(im,jm),stat=status)
+       VERIFY_(STATUS)
 
-
+       if (amRoot) &
        print *, myname // ': Reading ' // trim(vname) // ' from GFIO file ' &
                 // trim(fname) // ' at ', nymd, nhms
 
@@ -443,30 +500,85 @@ CONTAINS
 
 !      Query file metadata
 !      -------------------
-       call queryFile_ ( fid, imf, jmf, kmf, lonf, latf, levf, vname )
+       call queryFile_ ( fid, imf, jmf, kmf, lonf, latf, levf, vname, vunits )
 
-!      If binning, define transform
-!      ----------------------------
-       if (im < imf .OR. jm < jmf .OR. ForceBinning_ ) then
-          call MAPL_HorzTransformCreate (Trans, imf, jmf, im, jm, rc=rc)
-          if ( rc /= 0 ) call die(myname,'cannot create transform',rc)
-       end if
+!      Check to see if the levels are from TOA to SFC in file
+!      ------------------------------------------------------
+       kreverse = .false.
+       if(kmf > 1) then
+        if(levf(1) > levf(kmf)) kreverse = .true.
+       endif
+
+!      Define gridname based on imf, jmf, latf, lonf
+!      ---------------------------------------------
+       call MAPL_GenGridName(imf, jmf, lonf, latf, gridname=gridnamef, geos_style=geosGridNames)
+
 
 !      Allocate work space to reada data in
 !      ------------------------------------
-       allocate(ptr2f(imf,jmf),stat=ios)
-       if ( ios /= 0 ) call die ( myname, 'cannot allocate ptr2f' )
+      !call MAPL_AllocNodeArray(ptr2f,(/imf,jmf/),rc=STATUS)
+      !if(STATUS==MAPL_NoShm) allocate(ptr2f(imf,jmf),stat=status)
+      !VERIFY_(STATUS)
+       if (IAmTransRoot) then
+          allocate(ptr2f(imf,jmf),stat=status)
+          VERIFY_(STATUS)
+       endif
 
-!*  end if ! masterproc                                                  ! Sarah Lu
+    end if ! masterproc
+
+    call MAPL_CommsBcast(vm, vunits, N=len(vunits), ROOT=MAPL_Root, RC=RC)
+
+    if (.not.MAPL_ShmInitialized) then   
+       call MAPL_CommsBcast(vm, imf, N=1, ROOT=MAPL_Root, RC=RC)
+       call MAPL_CommsBcast(vm, jmf, N=1, ROOT=MAPL_Root, RC=RC)
+    end if
+
+    if ( jmf == 6*imf ) then
+       if (forceBinning_) then
+          regridCnv = .true.
+       end if
+    end if
+
+    createTrans = .false. ! default, unless
+
+    if (regridCnv) then
+       ! everybody creates a transform
+
+       createTrans = .true.
+
+       if (.not. MAPL_ShmInitialized) &
+       call MAPL_CommsBcast(vm, gridnamef, &
+            N=len_trim(gridnamef), ROOT=MAPL_Root, RC=RC)
+
+       if (.not. geosGridNames) call MAPL_GeosNameNew(gridname)
+
+       tileFile=trim(adjustl(gridnamef)) // '_' // &
+                trim(adjustl(gridname))  // '.bin'
+
+       call MAPL_HorzTransformCreate (Trans, tileFile, gridnamef, gridname, RootOnly=.true., vm=vm, rc=rc)
+       if ( rc /= 0 ) call die(myname,'cannot create transform',rc)
+
+       call MAPL_HorzTransformGet(Trans, order=order)
+       if (Voting_) then
+          call MAPL_HorzTransformSet(Trans, order=MAPL_HorzTransOrderSample, rc=rc)
+       endif
+
+    else if (amOnFirstNode) then
+       createTrans = .true.
+       call MAPL_HorzTransformCreate (Trans, imf, jmf, im, jm, rc=rc)
+       if ( rc /= 0 ) call die(myname,'cannot create transform',rc)
+    end if
+
+
 
 !   2D Variables
 !   ------------
-    verb = .true.
+    verb = AmRoot
     if ( present(var2d) ) then
 
 !        Read global array and swap longitudes
 !        -------------------------------------
-!*       if ( MAPL_am_I_root() ) then                                    ! Sarah Lu
+         if ( IAmTransRoot ) then
 
 !           Read the file
 !           -------------
@@ -476,24 +588,27 @@ CONTAINS
 
 !           Interpolate/bin if necessary
 !           ----------------------------
-            call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, lonf, lon, verb )
+            call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, lonf, verb )
 
-!*       end if ! masterproc                                            ! Sarah Lu
+         end if ! masterproc
 
 !        Scatter the array
 !        -----------------           
-!*       call ArrayScatter ( var2d, ptr2, grid, rc=ios )                ! Sarah Lu
-!*        if ( ios /= 0 ) call die ( myname, 'cannot scatter '//trim(vname) ) !Sarah Lu
-
-!* 
-!* NOTE: emissions are S_to_N while GFS is N_to_S                        ! Sarah Lu
-         call GFS_Simple_Scatter ( ptr2f(:,jmf:1:-1), local )            ! Sarah lu
-         var2d(:,:) = local(:,:)                                         ! Sarah Lu
+         if (.not. MAPL_ShmInitialized) then
+            call ArrayScatter ( var2d, ptr2, grid, rc=ios )
+            if ( ios /= 0 ) call die ( myname, 'cannot scatter '//trim(vname) )
+         else
+            call MAPL_SyncSharedMemory(rc=STATUS)
+            VERIFY_(STATUS)
+            var2d(i1:i2,j1:j2) = ptr2(i1w:inw,j1w:jnw)
+            call MAPL_SyncSharedMemory(rc=STATUS)
+            VERIFY_(STATUS)
+         endif
 
 !        Apply mask when present
 !        -----------------------
          IF(doingMasking) THEN
-          WHERE(mask(i1:i2,j1:j2) == 0) var2d(i1:i2,j1:j2) = 0.00
+          WHERE(mask(i1:i2,j1:j2) == 0) var2d(i1:i2,j1:j2) = 0.0
          END IF
 
 !   3D Variables
@@ -504,27 +619,34 @@ CONTAINS
 
 !        Read 1 level of global array and swap longitudes
 !        ------------------------------------------------
-!*       if ( MAPL_am_I_root() ) then                                    ! Sarah Lu
+         if ( IAmTransRoot ) then
     
 !            Read the file
 !            -------------
-             call GFIO_GetVarT1 ( fid, trim(vname), nymd, nhms, imf, jmf, k, &
+             kuse = k
+             if(kreverse) kuse = km - k + 1
+             call GFIO_GetVarT1 ( fid, trim(vname), nymd, nhms, imf, jmf, kuse, &
                                   1, ptr2f, rc, tcyclic, fid )
              if ( rc .ne. 0 ) call die(myname,'cannot read '//trim(vname) )
 
 !            Interpolate/bin if necessary
 !            ----------------------------
-             call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, lonf, lon, verb ) 
+             call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, lonf, verb ) 
 
-!*       end if ! masterproc                                             ! Sarah Lu
+         end if ! masterproc
 
 !        Scatter the array with 1 level
 !        ------------------------------           
-!*       call ArrayScatter ( var3d(:,:,k), ptr2, grid, rc=ios )          ! Sarah Lu
-!*       if ( ios /= 0 ) call die ( myname, 'cannot scatter v3d'//trim(vname)) !Sarah Lu
-
-         call GFS_Simple_Scatter ( ptr2f(:,jmf:1:-1), local )            ! Sarah lu
-         var3d(:,:,k) = local(:,:)                                       ! Sarah Lu
+         if (.not. MAPL_ShmInitialized) then
+            call ArrayScatter ( var3d(:,:,k), ptr2, grid, rc=ios )
+            if ( ios /= 0 ) call die ( myname, 'cannot scatter v3d'//trim(vname))
+         else
+            call MAPL_SyncSharedMemory(rc=STATUS)
+            VERIFY_(STATUS)
+            var3d(i1:i2,j1:j2,k) = ptr2(i1w:inw,j1w:jnw)
+            call MAPL_SyncSharedMemory(rc=STATUS)
+            VERIFY_(STATUS)
+         endif
 
          verb = .false. ! true only for k=1
 
@@ -538,21 +660,48 @@ CONTAINS
 
       end if ! 2D or 3D
 
+!!! Make sure everyone is done before cleaning up and realeasing shared memory
+      call MAPL_SyncSharedMemory(rc=status)
+      VERIFY_(STATUS)
+
+!   Variable units
+!   --------------
+    if ( present(units) ) then
+       units = trim(vunits)
+    end if
+
 !   Close file
 !   ----------
-    if ( MAPL_am_I_root() ) then
 
-!      If binning, destroy transform
+! clean up. 
+
+    if (regridCnv) then
+       if (Voting_) then
+          call MAPL_HorzTransformSet(Trans, order=order, rc=rc)
+       endif
+    end if
+
+!      Destroy transform
 !      -----------------------------
-       if (im < imf .OR. jm < jmf .or. ForceBinning_ ) then
-          call MAPL_HorzTransformDestroy (Trans )
-       end if
+      if (createTrans) then
+         call MAPL_HorzTransformDestroy (Trans )
+      end if
+
+     if ( amRoot .or. MAPL_ShmInitialized ) then
 
        call GFIO_Close ( fid, rc )
 !       print *, myname // ': Closing GFIO file ' // trim(fname)
 
-       deallocate(ptr2, ptr2f, lonf, latf, levf, stat=ios)
-       if ( ios /= 0 ) call die ( myname, 'cannot deallocate ptr2/ptr2f' )
+       deallocate(lonf, latf, levf, stat=ios)
+       if ( ios /= 0 ) call die ( myname, 'cannot deallocate lonf/latf/levf' )
+
+       if (IAmTransRoot) then
+          deallocate(ptr2f, stat=ios)
+          if ( ios /= 0 ) call die ( myname, 'cannot deallocate ptr2f' )
+       endif
+
+!    Release Shared Memory
+       DEALOC_(ptr2    )
 
     end if ! masterproc
 
@@ -569,10 +718,10 @@ CONTAINS
 CONTAINS
 
     subroutine Regrid_ (Gptr2file, im, jm, Gptr2bundle, im0, jm0, &
-                            LONSfile, LONSbundle, verb ) 
+                        LONSfile, verb ) 
     integer, intent(in) :: im, jm, im0, jm0
     real, pointer :: Gptr2bundle(:,:), Gptr2file(:,:)
-    real, pointer :: LONSfile(:), LONSbundle(:)
+    real, pointer :: LONSfile(:)
     logical, intent(inout) :: verb
 
 !   Local buffers for cases compiled with -r8
@@ -585,11 +734,69 @@ CONTAINS
 !   .FALSE. *binning* is always the regridding  method.
 !                             ---
     integer :: STATUS
+
+    logical :: do_xshift, cubed, change_resolution
+
 !ams    print *, 'Regrid_:  im, jm  (file)   = ', im, jm
 !ams    print *, 'Regrid_: im0, jm0 (bundle) = ', im0, jm0
+
+! 180 Degree Shifting and Cubed Sphere
+! ------------------------------------
+!   We are changing the 180 longitudinal shifting strategy to match MAPL_CFIO   
+!
+!   Out current strategy is to correct the input (from the file), if needed.
+!   We first check if the input is on the Cubed-Sphere grid. 
+!   In this case no shifting is done. Otherwise we still assume that the
+!   input is on a lat-lon grid and if shifting is needed,
+!   it will be done prior to the optional MAPL_HorzTransformRun regridding.
+
+
+    do_xshift = .FALSE. ! Initialize: do not shift
+
     if ( im /= im0 .OR. jm /= JM0 ) then
+       change_resolution = .true.
+    else
+       change_resolution = .false.
+    end if
+
+    if ( JM == 6*IM )  then
+        cubed = .true.
+    else                              
+        cubed = .false.
+    end if
+
+    if ( IM0==1 .AND. JM0==1 ) then
+       ! running SCM with single point grid
+       change_resolution = .FALSE. ! does not make sense in SCM mode
+    else
+       ! Normal case, not SCM
+       do_xshift = abs(LONSfile(1)+180._8) .GT. abs(LONSfile(2)-LONSfile(1))
+    end if
+
+    if (cubed) then
+       do_xshift = .FALSE.         ! never shift for Cubed Sphere input
+    end if
+
+    if ( do_xshift ) then
+       if ( verb ) print *, myname // &
+            ': shifting input longitudes by 180 degrees'
+       call shift180Lon2D_ ( Gptr2file, im, jm )
+
+!ALT: technically, we could shift lons themselves as well
+ 
+    end if
+
+!
+! redefine cubed, so that if any of the grids (in or out) is on the cubed-sphere, 
+! we set cubed to .TRUE.
+!
+    if ( JM0 == 6*IM0 )  then
+        cubed = .true.
+    end if
+
+    if ( change_resolution ) then
        r4_Gptr2file = Gptr2file
-       if (IM0 <  IM .or. JM0 < JM .or. ForceBinning_ ) then
+       if (IM0 <  IM .or. JM0 < JM .or. ForceBinning_ .or. cubed ) then
           if ( verb ) print *, myname // ': Binning... '
           call MAPL_HorzTransformRun(Trans, r4_Gptr2file, r4_Gptr2bundle, MAPL_undef, rc=STATUS )
           VERIFY_(STATUS)
@@ -601,11 +808,6 @@ CONTAINS
     else
        Gptr2bundle = Gptr2file
     end if ! change resolution
-    if ( abs(LONSbundle(1)-LONSfile(1)+180.) <= 10.*tiny(1.) ) then
-       if ( verb ) print *, myname // &
-            ': shifting input longitudes by 180 degrees'
-       call shift180Lon2D_ ( Gptr2bundle, im0, jm0 )
-    end if
     end subroutine Regrid_
 
 
@@ -625,10 +827,11 @@ CONTAINS
     return
     end subroutine shift180Lon2D_
 
-    subroutine queryFile_ ( fid, im, jm, km, lon, lat, lev, varn )
+    subroutine queryFile_ ( fid, im, jm, km, lon, lat, lev, varn, varu )
       integer, intent(in)  :: fid
       integer, intent(out) :: im, jm, km
       character(len=255), intent(inout) :: varn
+      character(len=*), intent(out)     :: varu
       real, pointer :: lon(:), lat(:), lev(:)
 !                    ----
       character(len=255)              :: title, source, contact, levunits
@@ -662,6 +865,7 @@ CONTAINS
       do n = 1, nvars
          if ( uppercase(trim(varn)) .EQ. uppercase(trim(vname(n))) ) then
               varn = trim(vname(n))
+              varu = trim(vunits(n))
               exit
          end if
       end do 
@@ -672,6 +876,7 @@ CONTAINS
                   stat=rc )
       
     end subroutine queryFile_
+
 
 end subroutine Chem_UtilMPread
 
@@ -745,8 +950,6 @@ end subroutine Chem_UtilGetTimeInfo
 
       subroutine pmaxmin2d ( qname, a, pmin, pmax, im, jt, fac )
 
-      use parutilitiesmodule, only : commglobal, gid, maxop, parcollective
-
       implicit none
 
       character*(*)  qname
@@ -755,13 +958,18 @@ end subroutine Chem_UtilGetTimeInfo
       real pmax, pmin
       real fac                     ! multiplication factor
 
-      integer :: i, j, maxop_, two=2
+      integer :: i, j, two=2
 
       real qmin(jt), qmax(jt)
       real pm1(2)
+      real pm_res(2)
+      type(ESMF_VM) :: vm
 
-      character(len=16) :: name
+      character(len=32) :: name
+      integer :: status
 
+
+      call ESMF_VmGetCurrent(vm=vm, rc=status)
 !$omp parallel do private(i, j, pmax, pmin)
 
       do j=1,jt
@@ -785,24 +993,24 @@ end subroutine Chem_UtilGetTimeInfo
       enddo
 
 !
-
 #ifndef NEMS
       pm1(1) = pmax
       pm1(2) = -pmin
-      maxop_ = maxop
-      call parcollective(commglobal, maxop_, two, pm1  )
-      pmax=pm1(1)
-      pmin=-pm1(2)
+      call MAPL_CommsAllReduceMax(vm, sendbuf=pm1, recvbuf=pm_res, cnt=two, RC=status)
+      pmax=pm_res(1)
+      pmin=-pm_res(2)
 #endif
      
       if ( fac /= 0.0 ) then  ! trick to prevent printing
-      if ( MAPL_am_I_root() ) then
-           name = '            '
-           name(1:len(qname)) = qname
-           write(*,*) name, ' max = ', pmax*fac, ' min = ', pmin*fac
-           return
+         if ( MAPL_am_I_root() ) then
+            name = '            '
+            name(1:len(qname)) = qname
+            write(*,*) name, ' max = ', pmax*fac, ' min = ', pmin*fac
+            return
+         end if
       end if
-      end if
+
+      return
 
     end subroutine pmaxmin2d
 
@@ -1054,7 +1262,6 @@ end subroutine Chem_UtilGetTimeInfo
 ! Cap q
 ! -----
   where ( q < qmin_ ) q = qmin_
-
 
 ! Enforce conservation of column mass
 ! -----------------------------------
@@ -1524,10 +1731,8 @@ END SUBROUTINE Chem_UtilExtractIntegers
     character(len=*), parameter :: Iam = 'GridGetLatLons'
 
     real(KIND=8), pointer  :: R8D2(:,:)
-!    real, pointer          :: lons2d(:,:), lats2d(:,:)
-!    real, pointer          :: LONSLocal(:,:), LATSlocal(:,:)
-    real, pointer          :: lons2d(:,:)=>null(), lats2d(:,:)=>null()
-    real, pointer          :: LONSLocal(:,:)=>null(), LATSlocal(:,:)=>null()
+    real, pointer          :: lons2d(:,:), lats2d(:,:)
+    real, pointer          :: LONSLocal(:,:), LATSlocal(:,:)
     integer                :: IM_WORLD, JM_WORLD, dims(3), STATUS, RC
 
 !                          ----
@@ -1541,18 +1746,20 @@ END SUBROUTINE Chem_UtilExtractIntegers
 
 !      Allocate memory for output if necessary
 !      ---------------------------------------
-!!       if ( .not. associated(lons) ) then
+       if ( .not. associated(lons) ) then
             allocate(lons(IM_WORLD), stat=STATUS)
-!!       else
-!!            if(size(LONS,1) /= IM_WORLD) STATUS = 1
-!!       end if
-       VERIFY_(status)
-!!       if ( .not. associated(lats) ) then
+            VERIFY_(status)
+       else
+            if(size(LONS,1) /= IM_WORLD) STATUS = 1
+            VERIFY_(status)
+       end if
+       if ( .not. associated(lats) ) then
             allocate(lats(JM_WORLD), stat=STATUS)
-!!       else
-!!            if(size(LATS,1) /= JM_WORLD) STATUS = 1
-!!       end if
-       VERIFY_(status)
+            VERIFY_(status)
+       else
+            if(size(LATS,1) /= JM_WORLD) STATUS = 1
+            VERIFY_(status)
+       end if
 
 !      Local work space
 !      ----------------
@@ -1565,8 +1772,9 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      Get the local longitudes and gather them into a global array
 !      ------------------------------------------------------------
        call ESMF_GridGetCoord(grid, localDE=0, coordDim=1, &
-             staggerloc=ESMF_STAGGERLOC_CENTER, doCopy=ESMF_DATA_REF, &
-             fptr=R8D2, rc=status)
+             staggerloc=ESMF_STAGGERLOC_CENTER, &
+             datacopyFlag = ESMF_DATACOPY_REFERENCE,       &
+             farrayPtr=R8D2, rc=status)
 
        allocate(LONSLOCAL(size(R8D2,1),size(R8D2,2)), STAT=status)             
        VERIFY_(status)
@@ -1578,8 +1786,9 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      Get the local longitudes and gather them into a global array
 !      ------------------------------------------------------------
        call ESMF_GridGetCoord(grid, localDE=0, coordDim=2, &
-             staggerloc=ESMF_STAGGERLOC_CENTER, doCopy=ESMF_DATA_REF, &
-             fptr=R8D2, rc=status)
+             staggerloc=ESMF_STAGGERLOC_CENTER, &
+             datacopyFlag = ESMF_DATACOPY_REFERENCE,       &
+             farrayPtr=R8D2, rc=status)
 
        allocate(LATSLOCAL(size(R8D2,1),size(R8D2,2)), STAT=status)             
        VERIFY_(status)
@@ -1606,7 +1815,7 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !-------------------------------------------------------------------------
 !BOP
 !
-! !ROUTINE:  Chem_UtilExtractIntegers - Extract integers from a delimited string
+! !ROUTINE:  Chem_BiomassDiurnal - Applies diurnal cycle to biomass emissions.
 !
 ! !INTERFACE:
 !
@@ -1621,8 +1830,8 @@ END SUBROUTINE Chem_UtilExtractIntegers
 
        real, intent(out)   :: Eout(:,:) ! Emissions valid at NHMS
        real, intent(in)    :: Ein(:,:)  ! Daily-mean emissions
-       real, intent(in)    :: lons(:)   ! Latitudes in degrees
-       real, intent(in)    :: lats(:)   ! Latitudes in degrees
+       real, intent(in)    :: lons(:,:) ! Latitudes in degrees
+       real, intent(in)    :: lats(:,:) ! Latitudes in degrees
        integer, intent(in) :: nhms
        real, intent(in)    :: cdt       ! time step in seconds
 
@@ -1631,9 +1840,6 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      Applies diurnal cycle to biomass emissions.       
 !
 ! !DESCRIPTION:
-! !REVISION HISTORY:
-!
-!  08Mar2012  Sarah Lu  Adopted GEOS-5 code update
 !
 !  This module implements assorted odds & ends for fvChem.
 !
@@ -1650,48 +1856,52 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      -------------------------------------------
        integer, parameter :: N = 240
        real,    parameter :: DT = 86400. / N
-       real,    parameter :: Boreal(N) =  1.0                        ! UPDATE
-!       real,    parameter :: Boreal(N) = &
-!       (/ 0.0277, 0.0292, 0.0306, 0.0318, 0.0327, 0.0335, &
-!          0.0340, 0.0342, 0.0341, 0.0338, 0.0333, 0.0326, &
-!          0.0316, 0.0305, 0.0292, 0.0278, 0.0263, 0.0248, &
-!          0.0233, 0.0217, 0.0202, 0.0187, 0.0172, 0.0158, &
-!          0.0145, 0.0133, 0.0121, 0.0110, 0.0100, 0.0091, &
-!          0.0083, 0.0075, 0.0068, 0.0062, 0.0056, 0.0051, &
-!          0.0046, 0.0042, 0.0038, 0.0035, 0.0032, 0.0030, &
-!          0.0028, 0.0026, 0.0025, 0.0024, 0.0024, 0.0024, &
-!          0.0024, 0.0026, 0.0027, 0.0030, 0.0033, 0.0036, &
-!          0.0041, 0.0046, 0.0052, 0.0060, 0.0069, 0.0079, &
-!          0.0090, 0.0104, 0.0119, 0.0137, 0.0157, 0.0180, &
-!          0.0205, 0.0235, 0.0268, 0.0305, 0.0346, 0.0393, &
-!          0.0444, 0.0502, 0.0565, 0.0634, 0.0711, 0.0794, &
-!          0.0884, 0.0982, 0.1087, 0.1201, 0.1323, 0.1453, &
-!          0.1593, 0.1742, 0.1900, 0.2069, 0.2249, 0.2439, &
-!          0.2642, 0.2858, 0.3086, 0.3329, 0.3587, 0.3860, &
-!          0.4149, 0.4455, 0.4776, 0.5115, 0.5470, 0.5840, &
-!          0.6227, 0.6628, 0.7043, 0.7470, 0.7908, 0.8355, &
-!          0.8810, 0.9271, 0.9735, 1.0200, 1.0665, 1.1126, &
-!          1.1580, 1.2026, 1.2460, 1.2880, 1.3282, 1.3664, &
-!          1.4023, 1.4356, 1.4660, 1.4933, 1.5174, 1.5379, &
-!          1.5548, 1.5679, 1.5772, 1.5826, 1.5841, 1.5818, &
-!          1.5758, 1.5661, 1.5529, 1.5365, 1.5169, 1.4944, &
-!          1.4693, 1.4417, 1.4119, 1.3801, 1.3467, 1.3117, &
-!          1.2755, 1.2383, 1.2003, 1.1616, 1.1225, 1.0832, &
-!          1.0437, 1.0044, 0.9653, 0.9265, 0.8882, 0.8504, &
-!          0.8134, 0.7771, 0.7416, 0.7070, 0.6734, 0.6407, &
-!          0.6092, 0.5787, 0.5493, 0.5210, 0.4939, 0.4680, &
-!          0.4433, 0.4197, 0.3974, 0.3763, 0.3565, 0.3380, &
-!          0.3209, 0.3051, 0.2907, 0.2777, 0.2662, 0.2561, &
-!          0.2476, 0.2407, 0.2352, 0.2313, 0.2289, 0.2279, &
-!          0.2283, 0.2300, 0.2329, 0.2369, 0.2417, 0.2474, &
-!          0.2536, 0.2602, 0.2670, 0.2738, 0.2805, 0.2869, &
-!          0.2927, 0.2979, 0.3024, 0.3059, 0.3085, 0.3101, &
-!          0.3107, 0.3102, 0.3087, 0.3061, 0.3026, 0.2983, &
-!          0.2931, 0.2871, 0.2806, 0.2735, 0.2659, 0.2579, &
-!          0.2497, 0.2412, 0.2326, 0.2240, 0.2153, 0.2066, &
-!          0.1979, 0.1894, 0.1809, 0.1726, 0.1643, 0.1562, &
-!          0.1482, 0.1404, 0.1326, 0.1250, 0.1175, 0.1101, &
-!          0.1028, 0.0956, 0.0886, 0.0818, 0.0751, 0.0687 /)       
+
+!      Apply flat diurnal cycle for boreal forests as a 
+!      temporary solution to prevent very high aerosol
+!      optical depth during the day
+       real,    parameter :: Boreal(N) = 1.0
+!      real,    parameter :: Boreal(N) = &
+!      (/ 0.0277, 0.0292, 0.0306, 0.0318, 0.0327, 0.0335, &
+!         0.0340, 0.0342, 0.0341, 0.0338, 0.0333, 0.0326, &
+!         0.0316, 0.0305, 0.0292, 0.0278, 0.0263, 0.0248, &
+!         0.0233, 0.0217, 0.0202, 0.0187, 0.0172, 0.0158, &
+!         0.0145, 0.0133, 0.0121, 0.0110, 0.0100, 0.0091, &
+!         0.0083, 0.0075, 0.0068, 0.0062, 0.0056, 0.0051, &
+!         0.0046, 0.0042, 0.0038, 0.0035, 0.0032, 0.0030, &
+!         0.0028, 0.0026, 0.0025, 0.0024, 0.0024, 0.0024, &
+!         0.0024, 0.0026, 0.0027, 0.0030, 0.0033, 0.0036, &
+!         0.0041, 0.0046, 0.0052, 0.0060, 0.0069, 0.0079, &
+!         0.0090, 0.0104, 0.0119, 0.0137, 0.0157, 0.0180, &
+!         0.0205, 0.0235, 0.0268, 0.0305, 0.0346, 0.0393, &
+!         0.0444, 0.0502, 0.0565, 0.0634, 0.0711, 0.0794, &
+!         0.0884, 0.0982, 0.1087, 0.1201, 0.1323, 0.1453, &
+!         0.1593, 0.1742, 0.1900, 0.2069, 0.2249, 0.2439, &
+!         0.2642, 0.2858, 0.3086, 0.3329, 0.3587, 0.3860, &
+!         0.4149, 0.4455, 0.4776, 0.5115, 0.5470, 0.5840, &
+!         0.6227, 0.6628, 0.7043, 0.7470, 0.7908, 0.8355, &
+!         0.8810, 0.9271, 0.9735, 1.0200, 1.0665, 1.1126, &
+!         1.1580, 1.2026, 1.2460, 1.2880, 1.3282, 1.3664, &
+!         1.4023, 1.4356, 1.4660, 1.4933, 1.5174, 1.5379, &
+!         1.5548, 1.5679, 1.5772, 1.5826, 1.5841, 1.5818, &
+!         1.5758, 1.5661, 1.5529, 1.5365, 1.5169, 1.4944, &
+!         1.4693, 1.4417, 1.4119, 1.3801, 1.3467, 1.3117, &
+!         1.2755, 1.2383, 1.2003, 1.1616, 1.1225, 1.0832, &
+!         1.0437, 1.0044, 0.9653, 0.9265, 0.8882, 0.8504, &
+!         0.8134, 0.7771, 0.7416, 0.7070, 0.6734, 0.6407, &
+!         0.6092, 0.5787, 0.5493, 0.5210, 0.4939, 0.4680, &
+!         0.4433, 0.4197, 0.3974, 0.3763, 0.3565, 0.3380, &
+!         0.3209, 0.3051, 0.2907, 0.2777, 0.2662, 0.2561, &
+!         0.2476, 0.2407, 0.2352, 0.2313, 0.2289, 0.2279, &
+!         0.2283, 0.2300, 0.2329, 0.2369, 0.2417, 0.2474, &
+!         0.2536, 0.2602, 0.2670, 0.2738, 0.2805, 0.2869, &
+!         0.2927, 0.2979, 0.3024, 0.3059, 0.3085, 0.3101, &
+!         0.3107, 0.3102, 0.3087, 0.3061, 0.3026, 0.2983, &
+!         0.2931, 0.2871, 0.2806, 0.2735, 0.2659, 0.2579, &
+!         0.2497, 0.2412, 0.2326, 0.2240, 0.2153, 0.2066, &
+!         0.1979, 0.1894, 0.1809, 0.1726, 0.1643, 0.1562, &
+!         0.1482, 0.1404, 0.1326, 0.1250, 0.1175, 0.1101, &
+!         0.1028, 0.0956, 0.0886, 0.0818, 0.0751, 0.0687 /)       
        real,    parameter :: NonBoreal(N) = &
        (/ 0.0121, 0.0150, 0.0172, 0.0185, 0.0189, 0.0184, &
           0.0174, 0.0162, 0.0151, 0.0141, 0.0133, 0.0126, &
@@ -1741,7 +1951,7 @@ END SUBROUTINE Chem_UtilExtractIntegers
        real,   save :: fDT=-1
 
        integer :: hh, mm, ss, ndt, i, j, k
-       integer :: i1, i2, j1, j2, NN                         ! UPDATE: add NN
+       integer :: i1, i2, j1, j2, NN
        real :: secs, secs_local, aBoreal, aNonBoreal, alpha
 
 !                              -----
@@ -1751,15 +1961,17 @@ END SUBROUTINE Chem_UtilExtractIntegers
        if ( fDT /= cdt ) then
             fBoreal = 0.0
             fNonBoreal = 0.0
-            NN = 0                                          ! UPDATE
+            NN = 0
             ndt = max(1,nint(cdt/DT))
+
             do k = 1, N, ndt
-               NN = NN + 1                                  ! UPDATE
-               fBoreal    = fboreal    + Boreal(k)
+               NN = NN + 1
+               fBoreal    = fBoreal    + Boreal(k)
                fNonBoreal = fNonBoreal + NonBoreal(k)
             end do
-            fBoreal    = fBoreal / NN                       ! UPDATE
-            fnonBoreal = fnonBoreal / NN                    ! UPDATE
+
+            fBoreal    = fBoreal / NN
+            fnonBoreal = fnonBoreal / NN
             fDT = cdt ! so it recalculates only if necessary
        end if
 
@@ -1768,44 +1980,133 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      ---------------------------------------------------
        hh = nhms/10000
        mm = (nhms - 10000*hh) / 100
-!      ss = nhms - 10000*hh - 100*ss                        ! UPDATE
-       ss = nhms - 10000*hh - 100*mm                        ! UPDATE
+       ss = nhms - 10000*hh - 100*mm
        secs = 3600.*hh + 60.*mm + ss
 
 !      Apply factors depending on latitude
 !      -----------------------------------
-!
-       do i = lbound(Ein,1), ubound(Ein,1)
+       do j = lbound(Ein,2), ubound(Ein,2)
+         do i = lbound(Ein,1), ubound(Ein,1)
 
 !            Find corresponding index in hardwired diurnal cycle
 !            240 = 24 * 60 * 60 secs / 360 deg
 !            ---------------------------------------------------
-             secs_local = secs + 240. * lons(i)
+             secs_local = secs + 240. * lons(i,j)
              k = 1 + mod(nint(secs_local/DT),N)
              if ( k < 1 ) k = N + k
 
 !            Apply diurnal cycle
 !            -------------------
-             aBoreal = Boreal(k) / fBoreal
+             aBoreal = Boreal(k) / fBoreal 
              aNonBoreal = NonBoreal(k) / fNonBoreal
-             do j = lbound(Ein,2), ubound(Ein,2)
-                if ( lats(j) >= 50. ) then
+
+                if ( lats(i,j) >= 50. ) then
                    Eout(i,j) = aBoreal    * Ein(i,j)
-!                else if ( lats(j) >= 45. ) then                    ! UPDATE
-!                   alpha = (lats(j) - 45. ) / 5.                   ! UPDATE
-                else if ( lats(j) >= 30. ) then
-                   alpha = (lats(j) - 30. ) / 20.
+                else if ( lats(i,j) >= 30. ) then
+                   alpha = (lats(i,j) - 30. ) / 20.
                    Eout(i,j) = (1-alpha) * aNonBoreal * Ein(i,j) + &
                                   alpha  * aBoreal    * Ein(i,j)
                 else                  
                    Eout(i,j) = aNonBoreal * Ein(i,j)
                 end if
-
-
           end do
        end do
 
      end subroutine Chem_BiomassDiurnal
+
+
+!-------------------------------------------------------------------------
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  Chem_UtilResVal --- returns resolution dependent value
+!
+! !INTERFACE:
+!
+   function Chem_UtilResVal( im_World, jm_World, res_value, rc ) result (val)
+
+! !USES:
+
+   implicit NONE
+
+   real :: val                                ! resolution dependent value
+
+! !INPUT/OUTPUT PARAMETERS:
+   integer, intent(in) :: im_World, jm_World  ! number of global grid cells
+   real,    intent(in) :: res_value(:)        ! array with the resolution dependent values:
+                                              ! the 'a', 'b', ..., 'e' resolution values have 
+                                              ! indexes 1, 2, ..., 5.
+
+! !OUTPUT PARAMETERS:
+   integer, intent(inout) :: rc               ! return code
+
+
+! !DESCRIPTION: 
+!
+! !REVISION HISTORY:
+!
+! 13 Feb2012   Anton Darmenov  First crack.
+! 25 Oct2012   Anton Darmenov  Added support for FV3 resolutions.
+!
+!EOP
+!-------------------------------------------------------------------------
+       character(len=*), parameter :: Iam = 'Chem_UtilResVal'
+
+       integer            :: i_res       
+
+       integer, parameter :: res_a = 1  ! 'a' to 'e' resolution indexes
+       integer, parameter :: res_b = 2  !
+       integer, parameter :: res_c = 3  !
+       integer, parameter :: res_d = 4  !
+       integer, parameter :: res_e = 5  !
+
+       i_res = 0
+
+       if ((im_World < 1) .or. (jm_World < 1)) then
+           call die(Iam, 'incorrect model resolution')
+       end if
+
+       if (jm_World == 6*im_World) then
+           if (im_World <= 24) then
+               i_res = res_a
+           else if (im_World <=  48) then
+               i_res = res_b
+           else if (im_World <=  90) then
+               i_res = res_c
+           else if (im_World <= 180) then
+               i_res = res_d
+           else if (im_World <= 360) then
+               i_res = res_e
+           else
+               i_res = res_e
+           end if
+       else
+           if ((im_World <= 72) .and. (jm_World <= 46)) then
+               i_res = res_a
+           else if ((im_World <=  144) .and. (jm_World <=  91)) then
+               i_res = res_b
+           else if ((im_World <=  288) .and. (jm_World <= 181)) then
+               i_res = res_c
+           else if ((im_World <=  576) .and. (jm_World <= 361)) then
+               i_res = res_d
+           else if ((im_World <= 1152) .and. (jm_World <= 721)) then
+               i_res = res_e
+           else
+               i_res = res_e
+           end if
+       end if    
+
+       if ((i_res < 1) .or. (i_res > size(res_value))) then
+           val = 0.0
+           rc  = 42
+       else
+           val = res_value(i_res)
+           rc  = 0
+       end if
+
+   end function Chem_UtilResVal
+
 
  end module Chem_UtilMod
 

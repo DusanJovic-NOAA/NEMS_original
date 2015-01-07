@@ -1,4 +1,4 @@
-! $Id: gather.H,v 1.2 2008/08/28 20:32:12 trayanov Exp $
+! $Id: gather.H,v 1.4 2012-08-23 19:55:28 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_

@@ -1,3 +1,6 @@
+!! #define __NCVERBOS__ NCVERBOS
+#define __NCVERBOS__ 0
+
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -86,13 +89,12 @@
 !                    INTERFACE FOR WRITING A FILE
 !                    ----------------------------
 !
-
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
 !BOP
 !
-! !ROUTINE:  GFIO_Create -- Creates a DAO gridded file for writing
+! !ROUTINE:  GFIO_Create -- Wrapper around GFIO_Create1 
 ! 
 ! !DESCRIPTION: This routine is used to open a new file for a GFIO stream.
 !               Packing is not yet supported.  Information about each opened
@@ -100,20 +102,22 @@
 !               This information is later used by GFIO\_PutVar.  GFIO\_Open
 !               should be used to open an existing file for reading or writing.
 !
+!               The routine call GFIO_Create1 and create a NETCDF4/HDF by
+!               default.
+!
 ! !INTERFACE:
 !
-      subroutine GFIO_Create ( fname, title, source, contact, amiss,
+        subroutine GFIO_Create ( fname, title, source, contact, amiss,
      &                         im, jm, km, lon, lat, levs, levunits, 
      &                         yyyymmdd_beg, hhmmss_beg, timinc,
      &                         nvars, vname, vtitle, vunits, kmvar,
      &                         valid_range, packing_range, prec,
      &                         fid, rc )
-!
-! !USES:
-!
+        
       Implicit NONE  
       include "netcdf.inc"
       include "gfio.h"
+
 !
 ! !INPUT PARAMETERS: 
 !
@@ -176,6 +180,142 @@
                                     !      same file is not supported.
                                     !   * If packing is turned on for a variable,
                                     !      the prec flag is ignored.
+
+!      integer, intent(in), optional ::  nf_kind ! Desired file format NETCDF4/HDF5 or NETCDF3 nf_kind
+      integer        nf_kind           ! Desired file format NETCDF4/HDF5 or NETCDF3 nf_kind
+                                    !  1 = NETCDF4/HDF5
+	                            !  0 = NETCDF3
+
+!
+! !OUTPUT PARAMETERS:
+!
+      integer        fid     ! File handle
+      integer        rc      ! Error return code:
+                             !  rc = 0   all is well
+                             !  rc = -1  time increment is 0
+                             !  rc = -18 incorrect time increment
+                             !
+                             !  NetCDF Errors
+                             !  -------------
+                             !  rc = -30  error from nccre (file create)
+                             !  rc = -31  error from ncddef
+                             !  rc = -32  error from ncvdef (dimension variable)
+                             !  rc = -33  error from ncaptc (dimension attribute)
+                             !  rc = -34  error from ncvdef (variable)
+                             !  rc = -35  error from ncaptc (variable attribute)
+                             !  rc = -36  error from ncaptc/ncapt (global attribute)
+                             !  rc = -37  error from ncendf
+                             !  rc = -38  error from ncvpt (dimension variable)
+
+
+! !REVISION HISTORY: 
+!
+!  2010.09.15  Nadeau             Wrapper to create NetCDF4/HDF5 file
+
+        nf_kind=1
+            call GFIO_Create1 ( fname, title, source, contact, amiss,
+     &       im, jm, km, lon, lat, levs, levunits, 
+     &       yyyymmdd_beg, hhmmss_beg, timinc,
+     &       nvars, vname, vtitle, vunits, kmvar,
+     &       valid_range, packing_range, prec,
+     &       nf_kind, fid,  rc )
+
+        end
+!-------------------------------------------------------------------------
+!         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE:  GFIO_Create1 -- Creates a DAO gridded file for writing
+! 
+! !DESCRIPTION: This routine is used to open a new file for a GFIO stream.
+!               Packing is not yet supported.  Information about each opened
+!               stream is stored in a COMMON block contained in gfio.h.  
+!               This information is later used by GFIO\_PutVar.  GFIO\_Open
+!               should be used to open an existing file for reading or writing.
+!
+! !INTERFACE:
+!
+      subroutine GFIO_Create1 ( fname, title, source, contact, amiss,
+     &                         im, jm, km, lon, lat, levs, levunits, 
+     &                         yyyymmdd_beg, hhmmss_beg, timinc,
+     &                         nvars, vname, vtitle, vunits, kmvar,
+     &                         valid_range, packing_range, prec,
+     &                         nf_kind, fid, rc )
+!
+! !USES:
+!
+      Implicit NONE  
+      include "netcdf.inc"
+      include "gfio.h"
+
+!
+! !INPUT PARAMETERS: 
+!
+                                    ! ------- Global Metadata ------
+      character*(*)   fname         ! File name
+      character*(*)   title         ! A title for the data set
+      character*(*)   source        ! Source of data, e.g. NASA/DAO
+      character*(*)   contact       ! Who to contact about the data set, e.g.,
+                                    ! 'Contact data@gmao.gsfc.nasa.gov'
+      real            amiss         ! Missing value such as 1.0E15
+
+                                    ! ------- Dimension Metadata -------
+      integer         im            ! size of longitudinal dimension
+      integer         jm            ! size of latitudinal  dimension
+      integer         km            ! size of vertical     dimension 
+                                    ! (surface only=1)
+      real            lon(im)       ! longitude of center of gridbox in 
+                                    ! degrees east of Greenwich (can be 
+                                    ! -180 -> 180 or 0 -> 360)
+      real            lat(jm)       ! latitude of center of gridbox in 
+                                    ! degrees north of equator
+      real            levs(km)      ! Level (units given by levunits) of
+                                    !   center of gridbox
+      character*(*)   levunits      ! units of level dimension, e.g.,
+                                    !   "millibar", "hPa", or "sigma_level"
+      integer        yyyymmdd_beg   ! First year-month-day to be written 
+      integer          hhmmss_beg   ! First hour-minute-second to be written
+      integer         timinc        ! Increment between output times (HHMMSS)
+
+                                    ! ------- Variable Metadata -------
+      integer         nvars         ! number of variables in file
+      character*(*)   vname(nvars)  ! variable short name, e.g., "hght"
+      integer         vmode         ! variable type
+      character*(*)   vtitle(nvars) ! variable long name, e.g.,
+                                    !   "Geopotential Height"
+      character*(*)   vunits(nvars) ! variable units, e.g., "meter/second"
+      integer         kmvar(nvars)  ! number of levels for variable; it can
+                                    !  either be 0 (2-D fields) or equal to km
+
+      real    valid_range(2,nvars)  ! Variable valid range; GFIO_PutVar
+                                    ! will return a non-fatal error if a value is 
+                                    ! outside of this range. IMPORTANT: If packing
+                                    ! is not desired for a given variable, YOU MUST
+                                    ! set both components of valid_range to amiss.
+                                    ! ------ Packing Metadata ----
+      real   packing_range(2,nvars) ! Packing range to be used for 16-bit packing 
+                                    ! of each variable. IMPORTANT: If packing is not 
+                                    ! desired for a given variable, YOU MUST set both
+                                    ! components of packing_range to amiss.
+                                    ! NOTE:
+                                    ! * The packing algorithm sets all values
+                                    !    outside the packing range to missing.
+                                    ! * The larger the packing range, the greater
+                                    !    the loss of precision.
+      integer        prec           ! Desired precision of data:
+                                    !   0 = 32 bit
+                                    !   1 = 64 bit
+                                    !   NOTE: mixing precision in the same 
+                                    !   * Mixing 32 and 64 bit precision in the 
+                                    !      same file is not supported.
+                                    !   * If packing is turned on for a variable,
+                                    !      the prec flag is ignored.
+
+!      integer, intent(in), optional ::  nf_kind ! Desired file format NETCDF4/HDF5 or NETCDF3 nf_kind
+      integer        nf_kind           ! Desired file format NETCDF4/HDF5 or NETCDF3 nf_kind
+                                    !  1 = NETCDF4/HDF5
+	                            !  0 = NETCDF3
     
 !
 ! !OUTPUT PARAMETERS:
@@ -233,6 +373,7 @@
       integer timedim, latdim, londim, levdim
       integer dims3D(4), dims2D(3)
       integer corner(4), edges(4)
+      integer chunksizes(4)
       character*80 timeUnits 
       logical surfaceOnly
       character*8 strBuf
@@ -259,9 +400,7 @@ c                           levUnits: specified by user in argument list
 c                           timeUnits: string is built below
       character (len=50) :: conventions = "COARDS"
       character (len=50) :: history = "File written by GFIO v1.0.8"
-        
       amiss_16 = PACK_FILL
-
 
 ! Variable initialization
 
@@ -305,12 +444,17 @@ c                           timeUnits: string is built below
 
 ! Make NetCDF errors non-fatal, but issue warning messages.
 
-      call ncpopt(NCVERBOS)
+      call ncpopt(__NCVERBOS__)
 
 ! Create the new NetCDF file. [ Enter define mode. ]
 
 #if defined(HAS_NETCDF4)
-      rc = nf_create (fname, IOR(NF_CLOBBER,NF_NETCDF4), fid)
+      if( nf_kind  .eq. 1) then
+          rc = nf_create (fname, IOR(IOR(NF_CLOBBER,NF_NETCDF4),NF_CLASSIC_MODEL), fid) !NETCDF4/HDF5
+      else 
+!          rc = nf_create (fname, IOR(NF_CLOBBER,NF_CLASSIC_MODEL), fid)  !NETCDF3
+          fid = nccre (fname, NCCLOB, rc)
+      endif
 #else
       fid = nccre (fname, NCCLOB, rc)
 #endif
@@ -421,10 +565,13 @@ c                           timeUnits: string is built below
       if (err("Create: error creating time attribute",rc,-33) .LT. 0)
      .   return
 
-      dims3D(4) = timedim
-      dims3D(3) = levdim
-      dims3D(2) = latdim
-      dims3D(1) = londim
+
+      if (.NOT. surfaceOnly) then
+	dims3D(4) = timedim
+        dims3D(3) = levdim
+        dims3D(2) = latdim
+        dims3D(1) = londim
+      endif
       
       dims2D(3) = timedim
       dims2D(2) = latdim
@@ -471,6 +618,20 @@ c                           timeUnits: string is built below
             vid(i) = ncvdef (fid, vname(i), NCFLOAT, 3, dims2D, rc)
             vmode=NCFLOAT;
           endif
+          if (err("Create: error defining variable",rc,-34) .LT. 0) 
+     .         return
+
+#if defined(HAS_NETCDF4)
+	  if( nf_kind .eq. 1 ) then 
+              chunksizes(3) = 1          ! time
+              chunksizes(2) = jm
+              chunksizes(1) = im
+              rc = nf_def_var_chunking(fid, vid(i), NF_CHUNKED, chunksizes)
+              if (err("Create: error defining chunking",rc,-34) .LT. 0) 
+     .           return
+          endif
+#endif
+
         else
           if (packflag) then
             vid(i) = ncvdef (fid, vname(i), NCSHORT, 4, dims3D, rc)
@@ -482,9 +643,21 @@ c                           timeUnits: string is built below
             vid(i) = ncvdef (fid, vname(i), NCFLOAT, 4, dims3D, rc)
             vmode=NCFLOAT;
           endif
+          if (err("Create: error defining variable",rc,-34) .LT. 0) 
+     .         return
+
+#if defined(HAS_NETCDF4)
+	  if( nf_kind .eq. 1 ) then 
+              chunksizes(4) = 1           ! time
+              chunksizes(3) = 1           ! level
+              chunksizes(2) = jm
+              chunksizes(1) = im
+              rc = nf_def_var_chunking(fid, vid(i), NF_CHUNKED, chunksizes)
+              if (err("Create: error defining chunking",rc,-34) .LT. 0) 
+     .            return
+           endif
+#endif
         endif
-        if (err("Create: error defining variable",rc,-34) .LT. 0) 
-     .    return
 
         call ncaptc (fid, vid(i), 'long_name', NCCHAR, 
      .               LEN_TRIM(vtitle(i)),vtitle(i), rc)
@@ -836,7 +1009,7 @@ c                           timeUnits: string is built below
 
 ! Make NetCDF errors non-fatal, but issue warning messages.
 
-      call ncpopt(NCVERBOS)
+      call ncpopt(__NCVERBOS__)
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
 ! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
@@ -1149,13 +1322,470 @@ c                           timeUnits: string is built below
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE:  GFIO_PutVarT -- Write a variable to the file over a number of times
+! 
+! !DESCRIPTION: This routine is used to write a variable to an open GFIO 
+!               stream.  Multiple vertical levels can be written at one 
+!               time provided they are contiguous in memory.  Date and time 
+!               must be consistent with the time increment and the starting 
+!               date/time as defined in GFIO\_Create.  Times must fall on 
+!               minute boundaries to allow GrADS to work.  Error checking is 
+!               done for dimensions that are out of bounds.
+!               Extension of GFIO_PutVar to try and do multiple time write
+!
+! !INTERFACE:
+!
+      subroutine GFIO_PutVarT ( fid, vname, yyyymmdd, hhmmss,
+     &                          im, jm, kbeg, kount, nbeg, ncount, grid, 
+     &                          rc )  
+!
+! !USES:
+
+      Implicit NONE  
+      include "netcdf.inc"
+      include "gfio.h"
+!
+! !INPUT PARAMETERS: 
+!
+      integer        fid                 ! File handle
+      character*(*)  vname               ! Variable name
+      integer        yyyymmdd            ! First Year-month-day, e.g., 19971003
+      integer        hhmmss              ! First Hour-minute-second, e.g., 120000
+ 
+      integer         im                 ! size of longitudinal dimension
+      integer         jm                 ! size of latitudinal  dimension
+      integer         kbeg               ! first level to write; if 2-D grid
+                                         !   use kbeg = 0.
+      integer         kount              ! number of levels to write
+      integer         nbeg               ! first time index to write
+      integer         ncount             ! number of time slices to write
+      real            grid(im,jm,kount,ncount)  ! Gridded data to write at this time
+                                     
+
+! !OUTPUT PARAMETERS:
+ 
+      integer        rc  ! Error return code:
+                         !  rc =  0  all is well
+                         !  rc = -2  time is inconsistent with increment 
+                         !  rc = -3  number of levels is incompatible with file
+                         !  rc = -4  im is incompatible with file
+                         !  rc = -5  jm is incompatible with file
+                         !  rc = -6  time must fall on a minute boundary    
+                         !  rc = -7  error in diffdate              
+                         !  rc = -12  error determining default precision
+                         !  rc = -13  error determining variable type
+                         !  rc = -15  data outside of valid range
+                         !  rc = -16  data outside of packing range
+                         !  rc = -17  data outside of pack and valid range
+                         !
+                         !  NetCDF Errors
+                         !  -------------
+                         !  rc = -38  error from ncvpt (dimension variable)
+                         !  rc = -40  error from ncvid
+                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
+                         !  rc = -42  error from ncdid or ncdinq (lev)
+                         !  rc = -43  error from ncvid (time variable)
+                         !  rc = -44  error from ncagt (time attribute)
+                         !  rc = -45  error from ncvpt
+                         !  rc = -46  error from ncvgt
+                         !  rc = -52  error from ncvinq
+                         !  rc = -53  error from ncagtc/ncagt
+
+! !REVISION HISTORY: 
+!
+!  1997.10.13 da Silva/Lucchesi   Initial interface design.
+!  1998.02.10 Lucchesi            Added support for applications running with
+!                                 64-bit reals.
+!  1998.03.30 Lucchesi            Documentation expanded.  Clean-up of code.
+!  1998.07.02 Lucchesi            Replaced vid with vname in argument list &
+!                                 made related mods to code.
+!  1998.09.24 Lucchesi            Changed error codes, removed DIM_CHECK if-def
+!  1998.10.27 Lucchesi            Added support for packing and range checks
+!  1998.12.15 Lucchesi            Added support for skipping times (allTimes)
+!  1999.01.04 Lucchesi            Fixed bug in skipping times (allTimes)/also 
+!                                 changed variable initialization.
+!  1999.07.13 Lucchesi            Changes for REAL or INT time dimension
+!
+!EOP
+!-------------------------------------------------------------------------
+
+      integer timeid, dimSize, dimId, timeType
+      character*(MAXCHR) dimName
+      integer corner(4), edges(4)
+      integer vid
+      integer seconds, DiffDate, timeIndex
+      integer minutes                       ! added as a work-around
+      integer idx, i, j, k, l
+      integer begDate, begTime, timInc
+      integer err
+      character*8 strBuf
+      integer hour,min,sec,incSecs
+      integer, allocatable ::  allTimes(:)
+      integer fillTime
+
+! Variables for dealing with precision
+
+      real*4, allocatable :: grid_32(:,:,:,:)
+      real*8, allocatable :: grid_64(:,:,:,:)
+      real*4 dummy32
+      real*8 dummy64
+      real   dummy
+
+! Variables for NCVINQ
+
+      character*(MAXCHR) varName
+      integer type, nvDims, vdims(MAXVDIMS), nvAtts
+
+! Variables for packing and range checking
+
+      integer*2, allocatable :: grid_16(:,:,:,:)
+      real*4, allocatable :: fminutes_32(:)
+      real*4 high_32, low_32, amiss_32
+      real*4 scale_32, offset_32
+      logical outRange
+      logical outPRange
+
+! Variable initialization
+
+      outRange = .FALSE.
+      outPRange = .FALSE.
+
+! Make NetCDF errors non-fatal, but issue warning messages.
+
+      call ncpopt(NCVERBOS)
+
+! Check to make sure max string lengths are large enough.  NetCDF defines
+! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXCHR is a CPP define in the gfio.h file.
+
+      if (MAXCHR .LT. MAXNCNAM) then
+        print *, 'GFIO_PutVar warning: MAXNCNAM is larger than ',
+     .           'dimName array size.'
+      endif
+
+! Determine NetCDF variable ID.
+
+      vid = ncvid (fid, vname, rc)
+      if (err("PutVar: variable not defined",rc,-40) .NE. 0) return
+
+! Basic error checking
+      dimId = ncdid (fid, 'lon', rc)
+      if (err("PutVar: can't get ID for lon",rc,-41) .NE. 0) return
+      call ncdinq (fid, dimId, dimName, dimSize, rc)
+      if (err("PutVar: can't get info for lon",rc,-41) .NE. 0) return
+      if (dimSize .ne. im) then
+        rc = -4
+        return
+      endif
+
+      dimId = ncdid (fid, 'lat', rc)
+      if (err("PutVar: can't get ID for lat",rc,-41) .NE. 0) return
+      call ncdinq (fid, dimId, dimName, dimSize, rc)
+      if (err("PutVar: can't get info for lat",rc,-41) .NE. 0) return
+      if (dimSize .ne. jm) then
+        rc = -5
+        return
+      endif
+
+      if (kbeg .NE. 0) then
+        dimId = ncdid (fid, 'lev', rc)
+        if (err("PutVar: can't get ID for lev",rc,-42) .NE. 0) return
+        call ncdinq (fid, dimId, dimName, dimSize, rc)
+        if (err("PutVar: can't get info for lev",rc,-42) .NE. 0) return
+        if (kbeg-1 + kount .gt. dimSize) then
+          rc = -3
+          return
+        endif
+      endif
+
+! Determine number of seconds since starting date/time.
+
+      timeId = ncvid (fid, 'time', rc)
+      if (err("PutVar: time not defined",rc,-43) .NE. 0) return
+      call ncagt (fid, timeId, 'begin_date', begDate, rc)
+      if (err("PutVar: missing begin_date",rc,-44) .NE. 0) return
+      call ncagt (fid, timeId, 'begin_time', begTime, rc)
+      if (err("PutVar: missing begin_time",rc,-44) .NE. 0) return
+
+      seconds = DiffDate (begDate, begTime, yyyymmdd, hhmmss)
+
+      if (seconds .lt. 0) then
+        print *, 'GFIO_PutVar: Error code from diffdate.  Problem with',
+     .           ' date/time.'
+        rc = -7
+        return
+      endif
+      if ( MOD (seconds,60) .eq. 0 ) then 
+        minutes = seconds / 60
+      else
+        print *, 'GFIO_PutVar: Currently, times must fall on minute ',
+     .           'boundaries.'
+        rc = -6
+        return
+      endif
+ 
+! Confirm that this time is consistent with the starting time coupled with
+! the time increment.
+
+      call ncagt (fid, timeId, 'time_increment', timInc, rc)
+      if (err("PutVar: missing time increment",rc,-44) .NE. 0) return
+      
+! Convert time increment to seconds.
+
+!      write (strBuf,203) timinc
+!203   format (I6)
+!      read (strBuf,204) hour, min, sec
+!204   format (3I2)
+      call GFIO_parseIntTime ( timinc, hour, min, sec )
+      incSecs = hour*3600 + min*60 + sec
+
+      if ( MOD (seconds, incSecs) .ne. 0 ) then
+        print *, 'GFIO_putvar: Absolute time of ',seconds,' not ',
+     .           'possible with an interval of ',incSecs
+        rc = -2
+        return
+      else
+        timeIndex = seconds/incSecs + 1
+      endif
+
+! Load starting indicies.
+      if ( kbeg .eq. 0 ) then
+        corner(1)=1
+        corner(2)=1
+        corner(3)=timeIndex
+        edges(1)=im
+        edges(2)=jm
+        edges(3)=ncount
+      else
+        corner(1)=1
+        corner(2)=1
+        corner(3)=kbeg
+        corner(4)=timeIndex
+        edges(1)=im
+        edges(2)=jm
+        edges(3)=kount
+        edges(4)=ncount
+      endif
+
+! Check variable against valid range.
+
+      call ncagt (fid, vid, 'vmin', low_32, rc)
+      if (err("PutVar: can't get vmin",rc,-53) .NE. 0) return
+      call ncagt (fid, vid, 'vmax', high_32, rc)
+      if (err("PutVar: can't get vmax",rc,-53) .NE. 0) return
+      call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
+      if (err("PutVar: can't get fmissing_value",rc,-53) .NE. 0) return
+      if (low_32 .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
+       do l = 1, ncount
+        do k=1,kount
+          do j=1,jm
+            do i=1,im
+              if (grid(i,j,k,l) .GT. high_32 .OR. grid(i,j,k,l) .LT. 
+     .        low_32) then
+                outRange = .TRUE.
+                goto 100
+              endif
+            enddo
+          enddo
+        enddo
+       enddo
+100    continue
+      endif
+      
+! Determine if we are writing single- or double-precision.
+
+      call ncvinq (fid, vid, varName, type, nvDims, vDims, nvAtts, rc)
+      if (err("PutVar: error in variable inquire",rc,-52) .NE. 0) return
+
+! Write variable in the appropriate precision.
+
+      if (HUGE(dummy) .EQ. HUGE(dummy32)) then        ! -r4
+        if (type .EQ. NCFLOAT) then                     ! 32-bit
+          call ncvpt (fid, vid, corner, edges, grid, rc)
+        else if (type .EQ. NCDOUBLE) then               ! 64-bit
+          allocate (grid_64(im,jm,kount,ncount))
+          do l = 1, ncount
+           do k=1,kount
+            do j=1,jm
+              do i=1,im
+                grid_64(i,j,k,l) = grid(i,j,k,l)
+              enddo
+            enddo
+           enddo
+          enddo
+          call ncvpt (fid, vid, corner, edges, grid_64, rc)
+          deallocate (grid_64)
+        else if (type .EQ. NCSHORT) then
+          call ncagt (fid, vid, 'packmax', high_32, rc)
+          if (err("PutVar: error getting packmax",rc,-53) .NE. 0) return
+          call ncagt (fid, vid, 'packmin', low_32, rc)
+          if (err("PutVar: error getting packmin",rc,-53) .NE. 0) return
+          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+          if (err("PutVar: error getting scale",rc,-53) .NE. 0) return
+          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          if (err("PutVar: error getting offset",rc,-53) .NE. 0) return
+          allocate (grid_16(im,jm,kount,ncount))
+          do l = 1, ncount
+           do k=1,kount
+            do j=1,jm
+              do i=1,im
+                if ( grid(i,j,k,l) .LT. low_32 .OR. grid(i,j,k,l) .GT. 
+     .          high_32) then
+                  grid_16(i,j,k,l) = PACK_FILL
+                  outPRange = .TRUE.
+                else
+                  grid_16(i,j,k,l) = (grid(i,j,k,l) - offset_32)/scale_32
+                endif
+              enddo
+            enddo
+           enddo
+          enddo
+          call ncvpt (fid, vid, corner, edges, grid_16, rc)
+          deallocate (grid_16)
+        else
+          rc = -13
+          return
+        endif
+      else if (HUGE(dummy) .EQ. HUGE(dummy64)) then   ! -r8
+        if (type .EQ. NCFLOAT) then                     ! 32-bit
+          allocate (grid_32(im,jm,kount,ncount))
+          do l = 1, ncount
+           do k=1,kount
+            do j=1,jm
+              do i=1,im
+                grid_32(i,j,k,l) = grid(i,j,k,l)
+              enddo
+            enddo
+           enddo
+          enddo
+          call ncvpt (fid, vid, corner, edges, grid_32, rc)
+          deallocate (grid_32)
+        else if (type .EQ. NCDOUBLE) then                ! 64-bit
+          call ncvpt (fid, vid, corner, edges, grid, rc)
+        else if (type .EQ. NCSHORT) then
+          call ncagt (fid, vid, 'packmax', high_32, rc)
+          if (err("PutVar: error getting packmax",rc,-53) .NE. 0) return
+          call ncagt (fid, vid, 'packmin', low_32, rc)
+          if (err("PutVar: error getting packmin",rc,-53) .NE. 0) return
+          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+          if (err("PutVar: error getting scale",rc,-53) .NE. 0) return
+          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          if (err("PutVar: error getting offset",rc,-53) .NE. 0) return
+          allocate (grid_16(im,jm,kount,ncount))
+          do l = 1, ncount
+           do k=1,kount
+            do j=1,jm
+              do i=1,im
+                if ( grid(i,j,k,l) .LT. low_32 .OR. grid(i,j,k,l) .GT.
+     .          high_32) then
+                  grid_16(i,j,k,l) = PACK_FILL
+                  outPRange = .TRUE.
+                else
+                  grid_16(i,j,k,l) = (grid(i,j,k,l) - offset_32)/scale_32
+                endif
+              enddo
+            enddo
+           enddo
+          enddo
+          call ncvpt (fid, vid, corner, edges, grid_16, rc)
+          deallocate (grid_16)
+        else
+          rc = -13
+          return
+        endif
+      else
+        rc = -12
+        return
+      endif
+      if (err("PutVar: error writing variable",rc,-45) .NE. 0) return
+
+! Read time dimension scale and fill all values up to the current time.
+! This will insure missing times are defined with the proper time value.
+
+      call ncdinq (fid, timeId, dimName, dimSize, rc)
+!prc
+!      dimSize = dimSize - 1                           ! We've already written the 
+                                                      ! the new time.
+!      allocate ( allTimes (MAX(timeIndex,dimSize)) )
+!      allocate ( fminutes_32 (MAX(timeIndex,dimSize)) )
+
+! PRC
+! This part I don't yet understand.  What I want to do is fill in all times from timeindex:timeindex+ncount-1
+      allocate ( allTimes (MAX(timeIndex+ncount-1,dimSize)) )
+      allocate ( fminutes_32 (MAX(timeIndex+ncount-1,dimSize)) )
+
+! PRC
+!      if (dimSize .GT. 0) then
+!        ! Depending on the version of GFIO used to write the file, the Time
+!        ! dimension variable can either be floating point or integer.
+
+!        corner(1)=1
+!        edges(1)=dimSize
+
+        call ncvinq (fid,timeId,dimName,timeType,nvDims,vDims,nvAtts,rc)
+
+!        if (timeType .EQ. NCFLOAT) then
+!          call ncvgt (fid,timeId,corner,edges,fminutes_32,rc)
+!          do i=1,dimSize
+!            allTimes(i) = INT(fminutes_32(i))
+!          enddo
+!        else if (timeType .EQ. NCLONG) then! prc
+!          call ncvgt (fid,timeId,corner,edges,allTimes,rc)
+!        endif
+!        if (err("PutVar: error reading times from file",rc,-46) .NE. 0)
+!     .      return
+!      endif
+
+      ! This loop fills the time dimension scale based on the time increment 
+      ! specified in GFIO_Create.  If GFIO ever changes to support variable 
+      ! time increments, this code MUST be changed.   
+
+      do i=1,timeIndex+ncount-1
+        fillTime = (i-1) * incSecs/60
+        allTimes(i) = fillTime
+      enddo
+      allTimes(timeIndex) = minutes
+
+! Write filled time array to file.
+
+      corner(1)=timeIndex
+      edges(1)=ncount
+
+      if (timeType .EQ. NCFLOAT) then
+        do i=1,timeIndex
+          fminutes_32(i) = INT(allTimes(i))
+        enddo
+        call ncvpt (fid,timeId,corner,edges,fminutes_32,rc)
+      else if (timeType .EQ. NCLONG) then
+        call ncvpt (fid,timeId,corner,edges,allTimes,rc)
+      endif
+      if (err("PutVar: error writing time",rc,-38) .NE. 0) return
+
+      if (outRange .AND. outPRange) then
+        rc = -17
+      else if (outPRange) then
+        rc = -16
+      else if (outRange) then
+        rc = -15
+      else
+        rc = 0
+      endif
+
+      deallocate ( allTimes )
+      deallocate ( fminutes_32 )
+
+      return
+      end
+
+!-------------------------------------------------------------------------
+!         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!-------------------------------------------------------------------------
 !
 !BOP
 !
 ! !ROUTINE:  GFIO_GetVarT -- Read a variable from the file with interpolation
-!
-! !CAHNGE: Ravi 11082004   GFIO_GetVarT, a wrapper to the original GFIO_GetVar
-!                          to avoild the optional cyclic argument.
 !
 ! !DESCRIPTION: This routine will read one or more levels of "vname"
 !               into the buffer passed in as "grid."  "fid" is the file
@@ -1163,6 +1793,8 @@ c                           timeUnits: string is built below
 !               this routine will interpolate in time if necessary.
 !               If interpolation is required between two times in different
 !               files, two file IDs can be passed in.
+!               GFIO\_GetVarT is a wrapper to the original GFIO\_GetVar
+!                          to avoild the optional cyclic argument.
 !
 ! !INTERFACE:
 !
@@ -1196,6 +1828,7 @@ c                           timeUnits: string is built below
 ! !REVISION HISTORY:
 !
 !  2004.11.08 Ravi        Wrapper for GFIO_GetvarT
+!
 !
 !EOP
 
@@ -1285,7 +1918,7 @@ c                           timeUnits: string is built below
 !     Get beginning time & date.  Calculate offset seconds from start.
 !     ----------------------------------------------------------------
       call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
-      if(err("GetVar: could not determine begin_date/begin_time",rc,-44) 
+      if (err("GetVar: could not determine begin_date/begin_time",rc,-44) 
      &    .NE. 0) return
 
       secs = DiffDate (begDate, begTime, yyyymmdd, hhmmss)
@@ -1293,7 +1926,7 @@ c                           timeUnits: string is built below
       if ( .not. tcyclic ) then
          if (yyyymmdd .LT. begDate .OR. (begDate .EQ. yyyymmdd .AND.
      .        hhmmss .LT. begTime) .or. secs .LT. 0) then
-         print *, 'GFIO_GetVar: Requested time earlier than first time.'
+            print *, 'GFIO_GetVar: Requested time earlier than first time.'
             rc = -7
             return
          endif
@@ -1336,8 +1969,7 @@ c                           timeUnits: string is built below
       if ( rc .ne. 0 ) then
          if ( fid /= fid2 )         
      &       call GFIO_GetVar1 ( fid2, vname, nymd2, nhms2,
-     &                          im, jm, kbeg, kount, grid2, tcyclic, 
-     &                          rc )
+     &                          im, jm, kbeg, kount, grid2, tcyclic, rc )
          
          if ( rc .ne. 0 ) return    
       end if
@@ -1354,8 +1986,7 @@ c                           timeUnits: string is built below
       do k = 1, kount
          do j = 1, jm
             do i = 1, im
-               if ( grid(i,j,k) .ne. amiss .and. grid2(i,j,k) .ne. 
-     &              amiss ) then
+               if ( grid(i,j,k) .ne. amiss .and. grid2(i,j,k) .ne. amiss ) then
                   grid(i,j,k) = grid(i,j,k) 
      &                        + alpha * (grid2(i,j,k) - grid(i,j,k))
                else
@@ -1379,12 +2010,11 @@ c                           timeUnits: string is built below
 !
 ! !ROUTINE:  GFIO_GetVar -- Read a variable from the file
 !
-! !CAHNGE: Ravi 11082004   GFIO_GetVar, a wrapper to the original GFIO_GetVar
-!                          to avoild the optional cyclic argument.
-!
 ! !DESCRIPTION: This routine will read one or more levels of "vname"
 !               into the buffer passed in as "grid."  "fid" is the file
 !               handle returned by Gfio\_open.
+!               GFIO\_GetVar, a wrapper to the original GFIO\_GetVar
+!                          to avoild the optional cyclic argument.
 !
 ! !INTERFACE:
 !
@@ -1497,6 +2127,7 @@ c                           timeUnits: string is built below
 !  2004.02.23 da Silva            Added cyclic option
 !  2008.12.05  Kokron             Changed ncvid of a dimension to ncdid to make NetCDF4 happy
 !  2009.04.07  Lucchesi           Removed assumption that dimension vars are at the top of the file.
+!  2010.06.22  Lucchesi           Fixed dimension var issue introduced in 2009 that prevents reading HDF-EOS
 !
 !
 !EOP
@@ -1517,7 +2148,7 @@ c                           timeUnits: string is built below
       character*(MAXCHR) dimUnits 
       character*(MAXCHR) varName
       integer dimSize, dimId
-      integer nDims,nvars,ngatts
+      integer nDims,nvars,ngatts, dimsFound
       integer varType, index, IdentifyDim
 
 ! Variables for dealing with precision
@@ -1542,7 +2173,7 @@ c                           timeUnits: string is built below
       logical tcyclic
 ! Make NetCDF errors non-fatal, but issue warning messages.
 
-      call ncpopt(NCVERBOS)
+      call ncpopt(__NCVERBOS__)
 
 ! By default time dimension is not periodic
 
@@ -1567,6 +2198,7 @@ c                           timeUnits: string is built below
 ! Subtract dimension variables from the variable count.
 ! Extract dimension information
 
+      dimsFound = 0
       do i=1,nvars
         call ncvinq (fid,i,varName,varType,nvDims,vDims,nvAtts,rc)
         if (err("GFIO_GetVar1: variable inquire error",rc,-52) .NE. 0)
@@ -1574,7 +2206,11 @@ c                           timeUnits: string is built below
         if (nvDims .EQ. 1) then
           nvars = nvars - 1
           dimId = ncdid (fid, varName, rc)
-          if (err("GFIO_GetVar1: ncdid failed",rc,-41) .NE. 0) return
+          if ( rc .ne. 0 ) then   ! Must not be a dim scale
+             cycle
+          endif
+          dimsFound = dimsFound + 1
+!         if (err("GFIO_GetVar1: ncdid failed",rc,-41) .NE. 0) return
           call ncagtc (fid, i, 'units', dimUnits, MAXCHR, rc)
           if (err("DimInqure: could not get units for dimension",rc,-53)
      .       .NE. 0) return
@@ -1608,6 +2244,7 @@ c                           timeUnits: string is built below
             rc = -19
             return
           endif
+          if ( dimsFound .eq. nDims ) exit
         endif
       enddo
 
@@ -1624,7 +2261,7 @@ c                           timeUnits: string is built below
 !ams     if (err("GetVar: missing begin_time",rc,-44) .NE. 0) return
 
       call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
-      if(err("GetVar: could not determine begin_date/begin_time",rc,-44) 
+      if (err("GetVar: could not determine begin_date/begin_time",rc,-44) 
      &    .NE. 0) return
 
       seconds = DiffDate (begDate, begTime, yyyymmdd, hhmmss)
@@ -1636,14 +2273,14 @@ c                           timeUnits: string is built below
 
       if ( .not. tcyclic ) then
          if (seconds .LT. 0) then
-         print *,'GFIO_GetVar: Error code from diffdate.  Problem with',
+            print *, 'GFIO_GetVar: Error code from diffdate.  Problem with',
      .           ' date/time.'
             rc = -7
             return
          endif
          if (yyyymmdd .LT. begDate .OR. (begDate .EQ. yyyymmdd .AND.
      .        hhmmss .LT. begTime) ) then
-         print *, 'GFIO_GetVar: Requested time earlier than first time.'
+            print *, 'GFIO_GetVar: Requested time earlier than first time.'
             rc = -7
             return
          endif
@@ -1877,6 +2514,10 @@ c                           timeUnits: string is built below
 !  1999.01.04  Lucchesi    Changed variable initialization
 !  2008.12.05  Kokron      Changed ncvid of a dimension to ncdid to make NetCDF4 happy
 !  2009.04.07  Lucchesi    Removed assumption that dimension vars are at the top of the file.
+!  2010.06.22  Lucchesi    Fixed dimension var issue introduced in 2009 that prevents reading HDF-EOS
+!  2011.10.11  Lucchesi/   Adjusted the computation of "nvars" to accurately account for two sets of
+!              Govindarahu dimension variables in HDF-EOS files.  (This algorithm fails if 1-D science variables 
+!                          are part of the file).
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1887,11 +2528,11 @@ c                           timeUnits: string is built below
       character*(MAXCHR) dimUnits
       character*(MAXCHR) vname
       integer dimSize
-      integer nDims
+      integer nDims,nvars0
       integer err
       logical surfaceOnly
       integer IdentifyDim, index
-      integer varType, nvDims, vDims(MAXVDIMS), nvAtts
+      integer varType, nvDims, vDims(MAXVDIMS), nvAtts, dimsFound
 
 ! Initialize variables
 
@@ -1899,7 +2540,7 @@ c                           timeUnits: string is built below
 
 ! Make NetCDF errors non-fatal, but issue warning messages.
 
-      call ncpopt(NCVERBOS)
+      call ncpopt(__NCVERBOS__)
 
 ! Check FID here.
 
@@ -1915,7 +2556,7 @@ c                           timeUnits: string is built below
 ! Get basic information from file.
  
     
-      call ncinq (fid, nDims, nvars, ngatts, dimId, rc)
+      call ncinq (fid, nDims, nvars0, ngatts, dimId, rc)
       if (err("DimInquire: ncinq failed",rc,-48) .NE. 0)return
 
       if (nDims .EQ. 3) then
@@ -1925,20 +2566,26 @@ c                           timeUnits: string is built below
 ! Subtract dimension variables from the variable count.
 ! Extract dimension information
 
-      do i=1,nvars
+      dimsFound=0
+      nvars = nvars0
+      do i=1,nvars0
         call ncvinq (fid,i,vname,varType,nvDims,vDims,nvAtts,rc)
         if (err("DimInquire: variable inquire error",rc,-52) .NE. 0) 
      .      return
-        if (nvDims .EQ. 1) then
+        if (nvDims .EQ. 1) then     ! If one dimensional SDS, it must be a dimension scale.
           nvars = nvars - 1
           dimId = ncdid (fid, vname, rc)
-          if (err("DimInquire: ncdid failed",rc,-41) .NE. 0) return
+!         if (err("DimInquire: ncdid failed",rc,-41) .NE. 0) return
+          if ( rc .ne. 0 ) then  ! Must not be a dim scale.
+             cycle
+          endif
+          dimsFound = dimsFound + 1
           call ncdinq (fid, dimId, dimName, dimSize, rc)  
           if (err("DimInqure: can't get dim info",rc,-41) .NE. 0) return
 !         call ncagtc (fid, dimId, 'units', dimUnits, MAXCHR, rc)
           call ncagtc (fid, i, 'units', dimUnits, MAXCHR, rc)
-         if (err("DimInquire: could not get units for dimension",rc,-53)
-     .         .NE. 0) return
+          if (err("DimInquire: could not get units for dimension",rc,-53)
+     .         .NE. 0) cycle
           index = IdentifyDim (dimName, dimUnits)
           if ( index .EQ. 0 ) then
             im = dimSize
@@ -1955,6 +2602,7 @@ c                           timeUnits: string is built below
             rc = -19
             return
           endif
+!         if ( dimsFound .eq. nDims ) exit
         endif
       enddo
 
@@ -2076,6 +2724,7 @@ c                           timeUnits: string is built below
                          !  rc = -51  error from ncagtc/ncagt (global attribute)
                          !  rc = -52  error from ncvinq
                          !  rc = -53  error from ncagtc/ncagt
+                         !  rc = -54  error from ncainq
 
 ! !FUTURE ENHANCEMENT:
 !                   Next release should include a flag for precision.
@@ -2095,6 +2744,7 @@ c                           timeUnits: string is built below
 !  2002.12.24   Takacs/RT  Bug fix in calc of timInc (was dividing by 0)
 !  2008.12.05   Kokron     Changed ncvid of a dimension to ncdid to make NetCDF4 happy
 !  2009.04.07   Lucchesi   Removed assumption that dimension vars are at the top of the file.
+!  2010.06.22   Lucchesi   Fixed dimension var issue introduced in 2009 that prevents reading HDF-EOS
 !
 !
 !EOP
@@ -2113,7 +2763,7 @@ c                           timeUnits: string is built below
       character*(MAXCHR) dimName
       character*(MAXCHR) dimUnits
       character*(MAXCHR) vnameTemp
-      integer IdentifyDim, index
+      integer IdentifyDim, index, dimsFound
       integer dimSize
       integer i
       logical surfaceOnly
@@ -2173,13 +2823,18 @@ c                           timeUnits: string is built below
 
 ! Extract dimension information and check against inputs
 
+      dimsFound = 0
       do i=1,allVars
         call ncvinq (fid,i,vnameTemp,varType,nvDims,vDims,nvAtts,rc)
         if (err("GFIO_Inquire: variable inquire error",rc,-52) .NE. 0)
      .      return
         if (nvDims .EQ. 1) then
            dimId = ncdid (fid, vnameTemp, rc)
-           if (err("Inquire: ncdid failed",rc,-40) .NE. 0) return
+           if ( rc .ne. 0 ) then   ! Must not be a dim scale.
+             cycle
+           endif
+           dimsFound = dimsFound + 1
+!          if (err("Inquire: ncdid failed",rc,-40) .NE. 0) return
            call ncdinq (fid, dimId, dimName, dimSize, rc)
            if (err("Inqure: can't get dim info",rc,-41) .NE. 0) return
 !          call ncagtc (fid, dimId, 'units', dimUnits, MAXCHR, rc)
@@ -2230,6 +2885,7 @@ c                           timeUnits: string is built below
              rc = -19
              return
            endif
+           if ( dimsFound .eq. nDims ) exit
         endif
       enddo
 
@@ -2244,40 +2900,36 @@ c                           timeUnits: string is built below
       call ncvinq (fid,lonId,dimName,dimType,nvDims,vDims,nvAtts,rc)
       if ( dimType .eq. NCFLOAT ) then
          call ncvgt (fid,lonId,start1D,im,lon_32,rc)
-         if (err("Inquire: error reading 32-bit lons",rc,-49) .LT. 0) 
-     &       return
+         if (err("Inquire: error reading 32-bit lons",rc,-49) .LT. 0) return
          do i=1,im
             lon(i)=lon_32(i)
          enddo
       else if ( dimType .eq. NCDOUBLE ) then
          is_gfio = .false.  ! this is not a GFIO file, probably LATS4D
          call ncvgt (fid,lonId,start1D,im,lon_64,rc)
-         if (err("Inquire: error reading 64-bit lons",rc,-49) .LT. 0) 
-     &       return
+         if (err("Inquire: error reading 64-bit lons",rc,-49) .LT. 0) return
          do i=1,im
             lon(i)=lon_64(i)
          enddo
       else
-         if(err("Inquire: unsupported lon type",-1,-49) .LT. 0) return
+         if (err("Inquire: unsupported lon type",-1,-49) .LT. 0) return
       endif
 
       call ncvinq (fid,latId,dimName,dimType,nvDims,vDims,nvAtts,rc)
       if ( dimType .eq. NCFLOAT ) then
          call ncvgt (fid,latId,start1D,jm,lat_32,rc)
-         if (err("Inquire: error reading 32-bit lats",rc,-49) .LT. 0) 
-     &       return
+         if (err("Inquire: error reading 32-bit lats",rc,-49) .LT. 0) return
          do i=1,jm
             lat(i)=lat_32(i)
          enddo
       else  if ( dimType .eq. NCDOUBLE ) then
          call ncvgt (fid,latId,start1D,jm,lat_64,rc)
-         if (err("Inquire: error reading 32-bit lats",rc,-49) .LT. 0) 
-     &       return
+         if (err("Inquire: error reading 32-bit lats",rc,-49) .LT. 0) return
          do i=1,jm
             lat(i)=lat_64(i)
          enddo
       else
-         if(err("Inquire: unsupported lat type",-1,-49) .LT. 0) return
+         if (err("Inquire: unsupported lat type",-1,-49) .LT. 0) return
       endif
 
 
@@ -2285,21 +2937,18 @@ c                           timeUnits: string is built below
          call ncvinq (fid,levId,dimName,dimType,nvDims,vDims,nvAtts,rc)
          if ( dimType .eq. NCFLOAT ) then
             call ncvgt (fid,levId,start1D,km,levs_32,rc)
-            if (err("Inquire: error reading 32-bit levs",rc,-49) .LT. 0) 
-     &          return
+            if (err("Inquire: error reading 32-bit levs",rc,-49) .LT. 0) return
             do i=1,km
                levs(i)=levs_32(i)
             enddo
          else  if ( dimType .eq. NCDOUBLE ) then
             call ncvgt (fid,levId,start1D,km,levs_64,rc)
-            if (err("Inquire: error reading 32-bit levs",rc,-49) .LT. 0) 
-     &          return
+            if (err("Inquire: error reading 32-bit levs",rc,-49) .LT. 0) return
             do i=1,km
                levs(i)=levs_64(i)
             enddo
          else
-            if (err("Inquire: unsupported lev type",-1,-49) .LT. 0) 
-     &          return
+            if (err("Inquire: unsupported lev type",-1,-49) .LT. 0) return
          endif
       end if
 
@@ -2353,8 +3002,7 @@ c                           timeUnits: string is built below
 !ams         noTimeInfo = .TRUE.
 !ams      endif
 
-          call GetBegDateTime ( fid, yyyymmdd_beg, hhmmss_beg, 
-     &          incSecs, rc )
+          call GetBegDateTime ( fid, yyyymmdd_beg, hhmmss_beg, incSecs, rc )
           if ( rc .ne. 0 ) noTimeInfo = .TRUE.
 
 !ams          print *, '--- incSecs, begDate, begTime: ', incsecs, yyyymmdd_beg, hhmmss_beg
@@ -2369,8 +3017,7 @@ c                           timeUnits: string is built below
            if (hour == 0) hour=1
            min = mod(incSecs,3600*hour)/60
 !_RT       timInc = hour*10000 + min*100
-           timInc = incSecs/3600*10000 + mod(incSecs,3600)/60*100 
-     &          + mod(incSecs,60)
+           timInc = incSecs/3600*10000 + mod(incSecs,3600)/60*100 + mod(incSecs,60)
         end if
 !RL     hour = incTime/60
 !RL     min  = mod(incTime,60)
@@ -2429,8 +3076,7 @@ c                           timeUnits: string is built below
 
       do i= 1, allVars
         call ncvinq (fid,i,vnameTemp,varType,nvDims,vDims,nvAtts,rc)
-        if (err("Inquire: variable inquire error",rc,-52) .NE. 0) 
-     &          return
+        if (err("Inquire: variable inquire error",rc,-52) .NE. 0) return
         if (nvDims .EQ. 1) then   ! coord variable
           cycle
         else                      ! noon-coord variable
@@ -2440,17 +3086,18 @@ c                           timeUnits: string is built below
               rc = -1
            end if
            if (rc .NE. 0) then
-              call ncainq (fid, i, 'missing_value', attType, attLen, rc)
+               call ncainq (fid, i, 'missing_value', attType, attLen, rc)
               if (rc.eq.0 .and. attType .EQ. NCFLOAT) then
-                call ncagt (fid, allVars, 'missing_value', amiss_32, rc)
-                 if (rc .ne. 0) call ncagt (fid, 1, 'missing_value', 
-     &                      amiss_32, rc)
+
+!RL 04/15/2012   call ncagt (fid, allVars, 'missing_value', amiss_32, rc)  BUG FIXED
+                 call ncagt (fid, i, 'missing_value', amiss_32, rc)
+                 
+                 if (rc .ne. 0) call ncagt (fid, 1, 'missing_value', amiss_32, rc)
                  if (err("Inquire: error getting missing value",rc,-53) 
      .                .NE. 0) return
               else
                     print *, 
-     .              'GFIO_Inquire: Cannot find missing value, assuming 
-     &                 1E+15'
+     .              'GFIO_Inquire: Cannot find missing value, assuming 1E+15'
                     amiss_32 = 1.0E+15
               end if
            endif
@@ -2463,8 +3110,7 @@ c                           timeUnits: string is built below
 
       do i=1,allVars
         call ncvinq (fid,i,vnameTemp,varType,nvDims,vDims,nvAtts,rc)
-        if (err("Inquire: variable inquire error",rc,-52) .NE. 0) 
-     &                 return
+        if (err("Inquire: variable inquire error",rc,-52) .NE. 0) return
         if (nvDims .EQ. 1) then
           cycle
         else
@@ -2480,8 +3126,9 @@ c                           timeUnits: string is built below
         if (err("Inquire: variable attribute error",rc,-53) .NE. 0) 
      .     return
         call ncagtc (fid,i,'units',vunits(fV),LEN(vunits(fV)),rc)
-        if (err("Inquire: variable attribute error",rc,-53) .NE. 0) 
-     .     return
+        if ( rc .NE. 0 ) then 
+           print *, "Inquire: Cannot find variable units attribute"
+        endif
         
         ! Get packing ranges and valid ranges.  Errors are not fatal 
         ! since these attributes are optional.
@@ -2520,7 +3167,7 @@ c                           timeUnits: string is built below
       endif
 
       rc=0
-      call ncpopt(NCVERBOS)  ! back to chatty netcdf
+      call ncpopt(__NCVERBOS__)  ! back to chatty netcdf
 
       return
       end
@@ -2571,7 +3218,7 @@ c                           timeUnits: string is built below
 
 ! Make NetCDF errors non-fatal, but issue warning messages.
 
-      call ncpopt(NCVERBOS)
+      call ncpopt(__NCVERBOS__)
 
       call ncclos (fid, rc)
       if (err("Close: error closing file",rc,-54) .NE. 0) return
@@ -2902,7 +3549,7 @@ c                           timeUnits: string is built below
 
 ! Make NetCDF errors non-fatal, but issue warning messages.
 
-      call ncpopt(NCVERBOS)
+      call ncpopt(__NCVERBOS__)
 
 ! Check number of attributes against file
 
@@ -3315,3 +3962,81 @@ c                           timeUnits: string is built below
       rc = 0
       return
       end
+
+
+!-------------------------------------------------------------------------
+!         NASA/GSFC, Data Assimilation Office, Code 610.1                !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE:  GFIO_GetVarUnits --- Read variable attribute 'units'
+!
+! !DESCRIPTION: Read variable attribute 'units'
+!
+! !INTERFACE:
+
+      subroutine GFIO_GetVarUnits ( fid, name, units, rc )
+
+!
+! !USES:
+!
+      Implicit NONE
+      include "netcdf.inc"
+      include "gfio.h"
+!
+! !INPUT PARAMETERS:
+
+      integer          fid      ! file id
+      character(len=*) name     ! variable name
+
+!
+! !OUTPUT PARAMETERS:
+!
+      character(len=*) units    ! variable units
+      integer          rc       ! error code
+
+!
+! !REVISION HISTORY:
+!
+!  2013.07.05  Darmenov, A.  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+
+! Local 
+      integer vid
+      integer attType, attLen
+      integer err
+
+      
+      call ncpopt(0)
+
+! Initialize units
+      units = 'unknown'
+
+! Determine NetCDF variable ID
+      vid = ncvid (fid, name, rc)
+      if (err("GFIO_GetVarUnits: variable not defined",rc,-40) .ne. 0)
+     .       return
+      
+! Determine the type of attribute units
+      call ncainq (fid, vid, 'units', attType, attLen, rc)
+
+      if (err("GFIO_GetVarUnits: could not get attribute 'units'",
+     .        rc,-54) .ne. 0) return
+
+! Read the attribute 'units'
+      if (attType .eq. NCCHAR) then
+          call ncagtc (fid, vid, 'units', units, len(units), rc)
+
+          if (err("GFIO_GetVarUnits: could not get attribute 'units'",
+     .        rc,-53) .NE. 0) return
+      else
+          if (err("GFIO_GetVarUnits: attribute 'units' is not " //
+     .            "of type NCCHAR", rc,-54) .ne. 0) return
+      end if
+
+      rc = 0
+      return
+      end
+      

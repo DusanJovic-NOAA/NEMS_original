@@ -12,7 +12,6 @@
 !
 ! !USES:
 !
-
    Implicit NONE
 
 ! !DESCRIPTION: Computing fvdas monthly means.
@@ -27,6 +26,8 @@
 !                          scalar (and the name to field_val) which also
 !                          removed unnecessary use of memory.(Bug affected
 !                          only the program efficiency, not the results)
+!  14Oct2012  Todling      Fix for time increment when specified at command
+!                          line (program was not listening to command line)
 !-------------------------------------------------------------------------
 !EOP
 
@@ -38,9 +39,13 @@
 !                               Hardwired Parameters
 !                              -----------------------
 
-      integer, parameter :: mFiles = 256       ! Max. number of input files
-      integer, parameter :: mVars  = 256       ! Max. number of variables
-      integer, parameter :: mLevs  = 256       ! Max. number of levels    
+!     integer, parameter :: mFiles = 256       ! Max. number of input files
+!     integer, parameter :: mVars  = 256       ! Max. number of variables
+!     integer, parameter :: mLevs  = 256       ! Max. number of levels    
+
+      integer, parameter :: mFiles = 1000      ! Max. number of input files
+      integer, parameter :: mVars  = 500       ! Max. number of variables
+      integer, parameter :: mLevs  = 300       ! Max. number of levels    
 
 
 !                              -----------------------
@@ -158,7 +163,9 @@
       integer           :: lm_e                ! input time dimension    
       integer           :: nVars_e             ! input number of variables   
       integer           :: buf(3)
+      integer           :: iundef0
       real              :: undef               ! Missing value
+      real              :: undef0              ! Missing value
       real, pointer     :: lon_e(:)            ! longitudes in deg (im)
       real, pointer     :: lat_e(:)            ! latitudes in deg (jm)
       real, pointer     :: lev_e(:)            ! levels in hPa (km)
@@ -169,7 +176,7 @@
       real              :: packing_range(2, mVars)
       integer           :: ngatts              ! Number of attributes for GFIO
       integer           :: imin,jmin,xmin,imax,jmax,xmax
-      logical              initial,file_exist,rms
+      logical              initial,file_exist,rms,define
 !.................................................................................
 
 
@@ -330,7 +337,11 @@
      if(initial) then
       yyyymmdd1    = yyyymmdd(1)
       hhmmss1    = 120000
-      timinc_new = 060000
+      if(inc_hhmmss==999999) then
+         timinc_new = 060000
+      else
+         timinc_new = inc_hhmmss
+      endif
      endif
 
       if ( iff == 1 ) then
@@ -360,7 +371,11 @@
 
 
          yyyymmdd1    = yyyymmdd(1)
-         timinc_new = 060000
+         if(inc_hhmmss==999999) then
+            timinc_new = 060000
+         else
+            timinc_new = inc_hhmmss
+         endif
 
       end if
 !        yyyymmdd1    = yyyymmdd(1)
@@ -380,6 +395,7 @@
 !        Loop over variables
 !        -------------------
          do iv = 1, nVars 
+            !print *,' ',trim(outVars(iv))
       
 !           Read variable from GFIO file
 !           ----------------------------
@@ -405,11 +421,23 @@
 !           -------------------------------------------------
 !            print *,' nLevs ==> ',nLevs,outKm(iv),trim(outVars(iv))
 
+            undef0 = undef
+            if(undef > 1.e+10) then
+             undef0 = 1.e+10
+            endif
+
+            if(undef > 900.0 .and. undef < 10000.0) then
+             iundef0 = int(undef)
+             undef0  = float(iundef0) 
+            endif
+
             if ( outKm(iv) > 0 ) then
                do k = 1, nLevs    
                  do  j = 1,jm_e
                   do  i = 1,im_e
-                   if(inField(i,j,k) < 1.e+10) then
+!                  if(inField(i,j,k) < 1.e+10) then
+!                  if(inField(i,j,k) < undef0) then
+                   if( defined(inField(i,j,k),undef)) then
                     field_val = alpha(iff) * inField(i,j,k)
                     if(rms) then
                      field_val = field_val * field_val
@@ -425,7 +453,9 @@
 !               print *, ' Computing totals for ',trim(outVars(iv)),' in ',trim(inFiles(iff))
                  do  j = 1,jm_e
                   do  i = 1,im_e
-                   if(inField(i,j,1) < 1.e+10) then
+!                  if(inField(i,j,1) < 1.e+10) then
+!                  if(inField(i,j,1) < undef0) then
+                   if( defined(inField(i,j,1),undef)) then
                     field_val = alpha(iff) * inField(i,j,1)
                     if(rms) then
                      field_val = field_val * field_val
@@ -447,7 +477,7 @@
    end do ! input files
 !
      if ( inc_hhmmss .ne. 999999 ) then
-         timinc = inc_hhmmss
+         timinc_new = inc_hhmmss
      else
          timinc_new = timinc_save
      end if
@@ -782,7 +812,7 @@ print *
    iflag  = 1
    irflag = 2
    rms    = .false.
-   inc_hhmmss = 99999999
+   inc_hhmmss = 999999
    append = '288x181'
    yyyymmdd_new = 999999
    hhmmss_new = 999999
@@ -1351,4 +1381,22 @@ print *, "   ',' in the file name to trigger the linear combination mode."
           call GFIO_Close ( fidt, rc )
           call GFIO_Close ( fidc, rc )
         end subroutine  tot2mean
+
+        function defined ( q,undef )
+        use m_fpe, only: isnan
+
+        implicit none
+        logical  defined
+
+        real     q,undef,q0
+!
+!         Check for NaNs
+!
+        if(isNan(q)) then
+!        print *,' q: ',q,undef
+         q = undef
+        endif
+
+        defined = abs(q-undef).gt.0.1*abs(undef)
+        end function defined
 end Program GFIO_mean

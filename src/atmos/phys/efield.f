@@ -41,6 +41,7 @@
 !   S_aM(corrected) = 90*(S_aM+1) to get variation in fig 1 Scherliess draft
 !
 !   Apr 06 2012 Henry Juang, initial implement for nems
+!   Nov 20 2014 Jun   Wang,  change JULDAY to JULDAY_WAM
 !
 ! Author: A. Maute Dec 2003  am 12/30/03 
 !------------------------------------------------------------------------------ 
@@ -2222,8 +2223,8 @@ c1000 FORMAT(3I8)
 !
 !-------------------------External Functions----------------------------
 !
-        integer julday
-        external julday
+        integer julday_wam
+        external julday_wam
 !
 !-----------------------------------------------------------------------
 !
@@ -2244,7 +2245,7 @@ c1000 FORMAT(3I8)
 	  IYR=YEAR
 	ENDIF
 	UT=HOUR
-	JD=JULDAY(MONTH,DAY,IYR)
+	JD=JULDAY_WAM(MONTH,DAY,IYR)
 	MJD=JD-2400001
 !       T0=(real(MJD,r8)-51544.5)/36525.0
 	T0=(float(MJD)-51544.5)/36525.0
@@ -2620,7 +2621,7 @@ c1000 FORMAT(3I8)
 
 !================================================================================================
 
-      INTEGER FUNCTION JULDAY(MM,ID,IYYY)
+      INTEGER FUNCTION JULDAY_WAM(MM,ID,IYYY)
 !
 !-----------------------------------------------------------------------
 !
@@ -2652,13 +2653,13 @@ c1000 FORMAT(3I8)
         JY=IYYY-1
         JM=MM+13
       ENDIF
-      JULDAY=INT(365.25*JY)+INT(30.6001*JM)+ID+1720995
+      JULDAY_WAM=INT(365.25*JY)+INT(30.6001*JM)+ID+1720995
       IF (ID+31*(MM+12*IYYY).GE.IGREG) THEN
         JA=INT(0.01*JY)
-        JULDAY=JULDAY+2-JA+INT(0.25*JA)
+        JULDAY_WAM=JULDAY_WAM+2-JA+INT(0.25*JA)
       ENDIF
       RETURN
-      END FUNCTION JULDAY
+      END FUNCTION JULDAY_WAM
 
 !================================================================================================
 

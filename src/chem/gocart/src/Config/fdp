@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #
 # Simple script for automatic dependency generation of (primarily) FORTRAN
 # and C programs. See usage() for more info.
@@ -7,16 +7,11 @@
 # 1. Some files contain more than one module. When this occurs, the basename
 #    of the .mod files will not necessarily match the basename of the source
 #    file in which they are found.
-# 2. Therefore, module dependencies must be made to the .mod file rather than
-#    to the source or object file (since there may not be a source or object
-#    file to match the module name).
-# 3. Because of the above, a line must be added showing the dependency of the
-#    .mod file to the object file, so that the makefile will know how to create
-#    the .mod file if it does not exist. Recall that the .mod files and the
-#    object file get created together when the source file is compiled.
-# 4. It is important that the .mod files have a later time stamp than the object
-#    file; otherwise, unnecessary recompilations will occur. Therefore a sleep
-#    and touch are added to the .mod file target commands.
+# 2. Because of #1, module dependencies must be made to the .mod file rather
+#    than to the source or object file (since there may not be a source or
+#    object file to match the module name).
+# 3. Because of #2, a line is added showing the dependency of the .mod file
+#    to object file associated with the source file.
 #
 # REVISION HISTORY:
 # 25Feb2005  da Silva  First crack.
@@ -26,8 +21,13 @@
 #                      the include refular expression rule and added elsif's
 #                      for efficiency
 # 17Jul2008  Stassi    Divided code into subs; use strict standards
+# 17May2011  Stassi    Simplified .mod.o dependency
+# 24Feb2012  Stassi    Added addkey() to handle file with variable named "use"
+# 03Feb2014  Thompson  Remove standard C libraries from dependency checks.
+#                      If the compiler can't find them, we are in trouble.
 #........................................................................
 use strict;
+use warnings;
 
 # global variables
 #-----------------
@@ -36,6 +36,7 @@ my ($script, $srcfn, $infile);
 my (%deps, $mstring);
 my ($base, $suffix);
 my ($ncase, $mcase);
+my (@stdcinc);
 
 # main program
 #-------------
@@ -81,7 +82,7 @@ sub init {
     $mcase = "lower";
 
     $mncase = $default unless $mncase;
-    ($name, $mod) = split /\./, $mncase;
+    ($name, $mod) = split /[.]/, $mncase;
     $ncase = "upper" if ($name eq uc $name);
     $mcase = "upper" if ($mod  eq uc $mod);
 
@@ -105,6 +106,21 @@ sub init {
     #----------------------------
     %deps = ();
     $mstring = "";   # string of space-delimited mod names
+
+    # stdcinc is an array of Standard C include files
+    # as retrieved on 2014-Feb-03 from:
+    # http://en.cppreference.com/w/c/header
+    # -----------------------------------------------
+    @stdcinc = ("assert.h",      "complex.h",  "ctype.h",
+                "errno.h",       "fenv.h",     "float.h",
+                "inttypes.h",    "iso646.h",   "limits.h",
+                "locale.h",      "math.h",     "setjmp.h",
+                "signal.h",      "stdalign.h", "stdarg.h",
+                "stdatomic.h",   "stdbool.h",  "stddef.h",
+                "stdint.h",      "stdio.h",    "stdlib.h",
+                "stdnoreturn.h", "string.h",   "tgmath.h",
+                "threads.h",     "time.h",     "uchar.h", 
+                "wchar.h",       "wctype.h");
 }
 
 #=======================================================================
@@ -133,20 +149,20 @@ sub read_input {
             $name =~ s/<//g;
             $name =~ s/>//g;
             #--print $name;
-            $deps{$name} = 1;
+            addkey(\%deps, $name);
 
         } elsif (/^[Ii][Nn][Cc][Ll][Uu][Dd][Ee]\s/ and $name) {
             $name =~ s/\"//g;
             $name =~ s/\'//g;
             #--print $name;
-            $deps{$name} = 1;
+            addkey(\%deps, $name);
 
         } elsif (/^[Uu][Ss][Ee]\s/ and $name) {
             $name =~ s/;//g;
             $name =~ s/,.*//gi;
             $name = fix_mod("$name");
             #--print $name;
-            $deps{$name} = 1;
+            addkey(\%deps, $name);
 
         } elsif (/^[Mm][Oo][Dd][Uu][Ll][Ee]\s/ and $name) {
             if (uc $name ne "PROCEDURE") {
@@ -165,8 +181,28 @@ sub read_input {
 }        
 
 #=======================================================================
+# name - addkey
+# purpose - add key to hash if key's value begins with \w character.
+#=======================================================================
+sub addkey {
+    my ($hashAddr, $key, $first);
+    ($hashAddr, $key) = @_;
+    
+    if ($key) {
+        $first = substr($key, 0, 1);
+        $$hashAddr{$key} = 1 unless $first =~ /\W/;
+    }
+}
+
+#=======================================================================
 # name - write_output
 # purpose - write the dependency file to disk or standard output
+#
+# note:
+# => The semi-colon at the end of the $mstring line explicitly tells the
+#    system to do nothing, i.e. there are no instructions for building the
+#    target from the dependencies; this over-rides any implicit instructions
+#    that may exist.
 #=======================================================================
 sub write_output {
     my $dep;
@@ -183,20 +219,13 @@ sub write_output {
     # write to output file
     #---------------------
     print OUTFL "$base.d : $srcfn\n";
-    if ($mstring) {
-        #------------------------------------------------------------------
-        # NOTE: The sleep and touch commands are needed to force .mod files
-        #       to have a later time stamp than the .o file.  The touch
-        #       alone without the sleep is not sufficient on some machines.
-        #       See file prologue notes for more information.
-        #------------------------------------------------------------------
-        print OUTFL "$mstring : $base.o\n"
-            .       "\t\@sleep 1\n"
-            .       "\t\@touch \$\@\n";
-    }
+    if ($mstring) { print OUTFL "$mstring : $base.o;\n" }
     print OUTFL "$base.o : $srcfn";
-    foreach $dep ( keys %deps ) { 
-        print OUTFL " $dep" unless ( $mstring =~ /\b$dep\b/ ); 
+    foreach $dep ( keys %deps ) {
+        print OUTFL " $dep" unless ( $mstring =~ /\b$dep\b/ 
+                                     or  $dep ~~ @stdcinc       # Is the dep a standard C library?
+                                     or  $dep =~ /^sys\//       # Is the dep in the sys/ folder?
+                                     or  $dep =~ /^mpif.*h$/ ); # Is the dep an included mpif-/_ file?
     }
     print OUTFL "\n";
     close OUTFL;

@@ -479,7 +479,7 @@ end subroutine close_
       use m_die,   only : perr
       implicit none
       integer,     intent(in)  :: lu
-      type(CFIO_wGrADS),intent(inout)  :: gs
+      type(CFIO_wGrADS),intent(in)  :: gs
       integer,     intent(out) :: ier
 
 ! !REVISION HISTORY:
@@ -590,7 +590,7 @@ end subroutine writeCtrl_
       use m_die,   only : perr
       implicit none
       integer,     intent(in)  :: lu
-      type(CFIO_wGrADS), intent(inout)  :: gs  
+      type(CFIO_wGrADS), intent(in)  :: gs  
       integer,     intent(out) :: ier
 
 ! !REVISION HISTORY:
@@ -613,8 +613,6 @@ end subroutine writeCtrl_
    do i = 1, gs%wGrADS_meta_ct
        write(lu,'(a,2x,a)') '@ ', trim(gs%wGrADS_meta(i)) 
    enddo
-   deallocate(gs%wGrADS_meta)
-!   return
 
    nCharAtt = 0
    if (associated(gs%cList)) then
@@ -970,10 +968,11 @@ end subroutine opendset_
 	endif
 
   deallocate(gs%zdef,gs%vname,gs%lnvar,gs%dbuf,stat=ier)
-	if(ier/=0) then
-	  call perr(myname_,'deallocate()',ier)
-	  return
-	endif
+  if(ier/=0) then
+    call perr(myname_,'deallocate()',ier)
+    return
+  endif
+  if(associated(gs%wGrADS_meta)) deallocate(gs%wGrADS_meta,stat=ier)
 
 end subroutine clean_
 

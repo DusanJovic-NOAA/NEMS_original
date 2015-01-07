@@ -3,7 +3,7 @@
 !!! TO DO: Please revise Prologues!!!!
 
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
@@ -16,15 +16,15 @@
 
 ! !USES:
 
-   USE ESMF_Mod
+   USE ESMF
    USE MAPL_Mod
 
-   USE Chem_Mod 	     ! Chemistry Base Class
-   USE Chem_StateMod	     ! Chemistry State
+   USE Chem_Mod                        ! Chemistry Base Class
+   USE Chem_StateMod                   ! Chemistry State
    USE Chem_ConstMod, only: grav
-   USE Chem_UtilMod	     ! I/O
+   USE Chem_UtilMod                    ! I/O
 
-   USE m_inpak90	     ! Resource file management
+   USE m_inpak90                       ! Resource file management
    USE m_die, ONLY: die
    USE m_chars, ONLY: lowercase
 
@@ -33,8 +33,8 @@
 ! !PUBLIC TYPES:
 !
    PRIVATE
-   PUBLIC  CO_GridComp       ! Multiple instance CO object 
-   PUBLIC  CO_GridComp1      ! Single instance CO object
+   PUBLIC  CO_GridComp                 ! Multiple instance CO object 
+   PUBLIC  CO_GridComp1                ! Single instance CO object
 
 !
 ! !PUBLIC MEMBER FUNCTIONS:
@@ -69,6 +69,7 @@
 !                      measurements, and satellite MOPITT and AIRS retrieves. 
 !  01Aug2006 da Silva  Extensions for GEOS-5.
 !  10Mar2008 da Silva  Multiple instances for ARCTAS.
+!  18Mar2011  Nielsen  Simplified PBL partitioning for biomass burning emissions  
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -89,14 +90,16 @@
 
         INTEGER :: instance                   ! instance number
 
-        INTEGER :: nymd_ff
-        INTEGER :: nymd_bf
-        INTEGER :: nymd_oh
-        INTEGER :: nymd_ch4
-        INTEGER :: nymd_p
+        INTEGER :: nymd_ff  = 0
+        INTEGER :: nymd_bf  = 0
+        INTEGER :: nymd_oh  = 0
+        INTEGER :: nymd_ch4 = 0
+        INTEGER :: nymd_p   = 0
 
         INTEGER :: BCnymd   ! Date of last emissions/prodction read
         REAL    :: BBconFac ! conversion factor of BB emissions to CO
+
+        REAL            :: fbb, fbf, fff     ! Acceleration/supression constants
 
         REAL, POINTER :: eCO_bioburn_(:,:)   ! molec/cm2/s  (before diurnal)
         REAL, POINTER :: eCO_bioburn(:,:)    ! molec/cm2/s
@@ -112,17 +115,20 @@
 
         REAL, POINTER :: COsfcFlux(:,:)      ! CO surface flux kg m^-2 s^-1
 
+        LOGICAL :: DBG                      ! Run-time debug switch
   END TYPE CO_GridComp1
 
   TYPE CO_GridComp
-     integer                     ::  n        ! number of instances 
-     TYPE(CO_GridComp1), pointer ::  gcs(:)   ! instances
+     INTEGER                     ::  n        ! number of instances 
+     TYPE(CO_GridComp1), POINTER ::  gcs(:)   ! instances
   END TYPE CO_GridComp
+
+  REAL, PARAMETER :: radToDeg = 57.2957795
 
 CONTAINS
 
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
@@ -140,19 +146,19 @@ CONTAINS
 
 ! !INPUT PARAMETERS:
 
-   TYPE(Chem_Bundle), intent(in) :: w_c        ! Chemical tracer fields      
-   INTEGER, INTENT(IN) :: nymd, nhms	       ! time
-   REAL,    INTENT(IN) :: cdt		       ! chemical timestep (secs)
+   TYPE(Chem_Bundle), intent(in) :: w_c          ! Chemical tracer fields      
+   INTEGER, INTENT(IN) :: nymd, nhms             ! time
+   REAL,    INTENT(IN) :: cdt                    ! chemical timestep (secs)
 
 
 ! !OUTPUT PARAMETERS:
 
-   TYPE(CO_GridComp), INTENT(INOUT) :: gcCO   ! Grid Component
-   TYPE(ESMF_State), INTENT(INOUT)  :: impChem  ! Import State
-   TYPE(ESMF_State), INTENT(INOUT)  :: expChem  ! Export State
-   INTEGER, INTENT(OUT) ::  rc                  ! Error return code:
-                                                !  0 - all is well
-                                                !  1 - 
+   TYPE(CO_GridComp), INTENT(INOUT) :: gcCO      ! Grid Component
+   TYPE(ESMF_State), INTENT(INOUT)  :: impChem   ! Import State
+   TYPE(ESMF_State), INTENT(INOUT)  :: expChem   ! Export State
+   INTEGER, INTENT(OUT) ::  rc                   ! Error return code:
+                                                 !  0 - all is well
+                                                 !  1 - 
 
 ! !DESCRIPTION: Initializes the CO Grid Component. Multiple instance
 !               version.
@@ -268,7 +274,7 @@ CONTAINS
  end subroutine CO_GridCompInitialize
 
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
@@ -286,19 +292,19 @@ CONTAINS
 
 ! !INPUT PARAMETERS:
 
-   TYPE(Chem_Bundle), intent(in) :: w_c        ! Chemical tracer fields      
-   INTEGER, INTENT(IN) :: nymd, nhms	       ! time
-   REAL,    INTENT(IN) :: cdt		       ! chemical timestep (secs)
+   TYPE(Chem_Bundle), intent(in) :: w_c          ! Chemical tracer fields      
+   INTEGER, INTENT(IN) :: nymd, nhms             ! time
+   REAL,    INTENT(IN) :: cdt                    ! chemical timestep (secs)
 
 
 ! !OUTPUT PARAMETERS:
 
-   TYPE(CO_GridComp), INTENT(INOUT) :: gcCO   ! Grid Component
-   TYPE(ESMF_State), INTENT(INOUT)  :: impChem  ! Import State
-   TYPE(ESMF_State), INTENT(INOUT)  :: expChem  ! Export State
-   INTEGER, INTENT(OUT) ::  rc                  ! Error return code:
-                                                !  0 - all is well
-                                                !  1 - 
+   TYPE(CO_GridComp), INTENT(INOUT) :: gcCO      ! Grid Component
+   TYPE(ESMF_State), INTENT(INOUT)  :: impChem   ! Import State
+   TYPE(ESMF_State), INTENT(INOUT)  :: expChem   ! Export State
+   INTEGER, INTENT(OUT) ::  rc                   ! Error return code:
+                                                 !  0 - all is well
+                                                 !  1 - 
 
 ! !DESCRIPTION: Runs the CO Grid Component. Multiple instance
 !               version.
@@ -326,7 +332,7 @@ CONTAINS
 
 
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
@@ -344,19 +350,19 @@ CONTAINS
 
 ! !INPUT PARAMETERS:
 
-   TYPE(Chem_Bundle), intent(in) :: w_c        ! Chemical tracer fields      
-   INTEGER, INTENT(IN) :: nymd, nhms	       ! time
-   REAL,    INTENT(IN) :: cdt		       ! chemical timestep (secs)
+   TYPE(Chem_Bundle), intent(in) :: w_c          ! Chemical tracer fields      
+   INTEGER, INTENT(IN) :: nymd, nhms             ! time
+   REAL,    INTENT(IN) :: cdt                    ! chemical timestep (secs)
 
 
 ! !OUTPUT PARAMETERS:
 
-   TYPE(CO_GridComp), INTENT(INOUT) :: gcCO   ! Grid Component
-   TYPE(ESMF_State), INTENT(INOUT)  :: impChem  ! Import State
-   TYPE(ESMF_State), INTENT(INOUT)  :: expChem  ! Export State
-   INTEGER, INTENT(OUT) ::  rc                  ! Error return code:
-                                                !  0 - all is well
-                                                !  1 - 
+   TYPE(CO_GridComp), INTENT(INOUT) :: gcCO      ! Grid Component
+   TYPE(ESMF_State), INTENT(INOUT)  :: impChem   ! Import State
+   TYPE(ESMF_State), INTENT(INOUT)  :: expChem   ! Export State
+   INTEGER, INTENT(OUT) ::  rc                   ! Error return code:
+                                                 !  0 - all is well
+                                                 !  1 - 
 
 ! !DESCRIPTION: Finalizes the CO Grid Component. Multiple instance
 !               version.
@@ -390,7 +396,7 @@ CONTAINS
 !                      Single Instance Methods
 
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
@@ -408,19 +414,19 @@ CONTAINS
 
 ! !INPUT PARAMETERS:
 
-   TYPE(Chem_Bundle), intent(in) :: w_c        ! Chemical tracer fields      
-   INTEGER, INTENT(IN) :: nymd, nhms	       ! time
-   REAL,    INTENT(IN) :: cdt		       ! chemical timestep (secs)
+   TYPE(Chem_Bundle), intent(in) :: w_c          ! Chemical tracer fields      
+   INTEGER, INTENT(IN) :: nymd, nhms             ! time
+   REAL,    INTENT(IN) :: cdt                    ! chemical timestep (secs)
 
 
 ! !OUTPUT PARAMETERS:
 
-   TYPE(CO_GridComp1), INTENT(INOUT) :: gcCO   ! Grid Component
-   TYPE(ESMF_State), INTENT(INOUT)  :: impChem  ! Import State
-   TYPE(ESMF_State), INTENT(INOUT)  :: expChem  ! Export State
-   INTEGER, INTENT(OUT) ::  rc                  ! Error return code:
-                                                !  0 - all is well
-                                                !  1 - 
+   TYPE(CO_GridComp1), INTENT(INOUT) :: gcCO     ! Grid Component
+   TYPE(ESMF_State), INTENT(INOUT)  :: impChem   ! Import State
+   TYPE(ESMF_State), INTENT(INOUT)  :: expChem   ! Export State
+   INTEGER, INTENT(OUT) ::  rc                   ! Error return code:
+                                                 !  0 - all is well
+                                                 !  1 - 
 
 ! !DESCRIPTION: Initializes the CO Grid Component. It primarily sets
 !               the import state for each active constituent package.
@@ -447,13 +453,12 @@ CONTAINS
    INTEGER :: nbeg, nend, nymd1, nhms1
    LOGICAL :: NoRegionalConstraint 
 
-   REAL :: limitN, limitS, radTODeg
+   REAL :: limitN, limitS
    REAL, ALLOCATABLE :: var2d(:,:)
 
    rcfilen = gcCO%rcfilen
    gcCO%name = 'GEOS-5/GOCART Parameterized CO Package'
    gcCO%BCnymd = -1
-   radTODeg = 57.2957795
 
 !  Initialize local variables
 !  --------------------------
@@ -510,11 +515,32 @@ CONTAINS
    CALL I90_label ( 'CO_biogenic_filename:', ier(11) )
    CALL I90_gtoken( gcCO%pFilen, ier(12) )
 
+! Reserved for partitioning emissions to CO
+! -----------------------------------------
    CALL I90_label ( 'CO_biomass_emission_factor:', ier(13) )
    gcCO%BBconFac = i90_gfloat ( ier(14) )
 
    CALL I90_label ( 'CH4_concentration_filename:', ier(15) )
    CALL I90_gtoken( gcCO%CH4FileName, ier(16) )
+
+!  Run-time debug switch
+!  ---------------------
+   CALL I90_label ( 'DEBUG:', ier(17) )
+   n = I90_gint ( ier(18) )
+   IF(n /= 0) THEN
+    gcCO%DBG = .TRUE.
+   ELSE
+    gcCO%DBG = .FALSE.
+   END IF
+
+! Acceleration/supression constants
+! ---------------------------------
+   CALL I90_label ( 'CO_fossil_fuel_acceleration:', ier(19) )
+   gcCO%fff = I90_gfloat ( ier(20) )
+   CALL I90_label ( 'CO_bio_fuel_acceleration:', ier(21) )
+   gcCO%fbf = I90_gfloat ( ier(22) )
+   CALL I90_label ( 'CO_biomass_burning_acceleration:', ier(23) )
+   gcCO%fbb = I90_gfloat ( ier(24) )
 
    IF( ANY( ier(:) /= 0 ) ) THEN
     CALL final_(21)
@@ -524,28 +550,38 @@ CONTAINS
 !  Check initial date of inventory emission/oxidant files.  These files are valid for a
 !  particular YYYY or YYYYMMDD (if 1x year in file).  We need to request the correct date.
 !  ---------------------------------------------------------------------------------------
+  if( index(gcCO%OHFileName,'%') .le. 0) then
    call Chem_UtilGetTimeInfo( gcCO%OHFileName, gcCO%nymd_oh, &
                               begTime, nTimes, incSecs )
+  endif
+  if( index(gcCO%ffFilen,'%') .le. 0) then
    call Chem_UtilGetTimeInfo( gcCO%ffFilen, gcCO%nymd_ff, &
                               begTime, nTimes, incSecs )
+  endif
+  if( index(gcCO%bfFilen,'%') .le. 0) then
    call Chem_UtilGetTimeInfo( gcCO%bfFilen, gcCO%nymd_bf, &
                               begTime, nTimes, incSecs )
+  endif
+  if( index(gcCO%pFilen,'%') .le. 0) then
    call Chem_UtilGetTimeInfo( gcCO%pFilen, gcCO%nymd_p, &
                               begTime, nTimes, incSecs )
+  endif
+  if( index(gcCO%CH4FileName,'%') .le. 0) then
    call Chem_UtilGetTimeInfo( gcCO%CH4FileName, gcCO%nymd_ch4, &
                               begTime, nTimes, incSecs )
-   ier(1) = gcCO%nymd_oh
-   ier(2) = gcCO%nymd_ff
-   ier(3) = gcCO%nymd_bf
-   ier(4) = gcCO%nymd_p
-   ier(5) = gcCO%nymd_ch4
+  endif
+  ier(1) = gcCO%nymd_oh
+  ier(2) = gcCO%nymd_ff
+  ier(3) = gcCO%nymd_bf
+  ier(4) = gcCO%nymd_p
+  ier(5) = gcCO%nymd_ch4
 
-   if( any(ier(1:5) < 0 ) ) then
-     call final_(31)
-     return
-   endif
+  if( any(ier(1:5) < 0 ) ) then
+    call final_(31)
+    return
+  endif
 
-   ier(:)=0
+  ier(:)=0
 
 !  Obtain geographical region mask
 !  -------------------------------
@@ -562,8 +598,9 @@ CONTAINS
    if(nymd1 < 0) call final_(15)
    nhms1 = 120000
    CALL Chem_UtilMPread ( gcCO%maskFileName, 'REGION_MASK', nymd1, nhms1, &
-   			  i1, i2, 0, im, j1, j2, 0, jm, 0, &
-   			  var2d=gcCO%regionMask, grid=w_c%grid_esmf )
+                          i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                          var2d=gcCO%regionMask, grid=w_c%grid_esmf, &
+                          voting=.true. )
 
 !  Grab the region string.
 !  -----------------------
@@ -610,11 +647,9 @@ CONTAINS
 
 !  Within the latitude range specified, set land boxes to 1
 !  --------------------------------------------------------
-     DO j = j1,j2
-      WHERE(gcCO%regionMask(i1:i2,j) > 0 .AND. &
-            (limitS <= w_c%grid%lat(j)*radTODeg .AND. &
-	     w_c%grid%lat(j)*radTODeg <= limitN) ) var2d(i1:i2,j) = 1.00
-     END DO
+      WHERE(gcCO%regionMask > 0 .AND. &
+            (limitS <= w_c%grid%lat*radToDeg .AND. &
+             w_c%grid%lat*radToDeg <= limitN) ) var2d = 1.00
 
 !  Reset the region mask in gcCO
 !  -----------------------------
@@ -683,7 +718,7 @@ CONTAINS
               gcCO%regionMask(i1:i2,j1:j2), &
               gcCO%CH4(i1:i2,j1:j2,km), &
               gcCO%OHnd(i1:i2,j1:j2,km), &
-	      ier(nerr),STAT=ios )
+              ier(nerr),STAT=ios )
    IF ( ios /= 0 ) rc = 100
    END SUBROUTINE init_
 
@@ -702,7 +737,7 @@ CONTAINS
  END SUBROUTINE CO_GridCompInitialize1_
 
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
@@ -723,22 +758,22 @@ CONTAINS
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-   TYPE(CO_GridComp1), INTENT(INOUT) :: gcCO   ! Grid Component
-   TYPE(Chem_Bundle), INTENT(INOUT) :: w_c	! Chemical tracer fields   
+   TYPE(CO_GridComp1), INTENT(INOUT) :: gcCO     ! Grid Component
+   TYPE(Chem_Bundle), INTENT(INOUT) :: w_c       ! Chemical tracer fields   
 
 ! !INPUT PARAMETERS:
 
    TYPE(ESMF_State), INTENT(inout) :: impChem    ! Import State
-   INTEGER, INTENT(IN) :: nymd, nhms	      ! time
-   REAL,    INTENT(IN) :: cdt		      ! chemical timestep (secs)
+   INTEGER, INTENT(IN) :: nymd, nhms             ! time
+   REAL,    INTENT(IN) :: cdt                    ! chemical timestep (secs)
 
 
 ! !OUTPUT PARAMETERS:
 
-   TYPE(ESMF_State), intent(inout) :: expChem     ! Export State
-   INTEGER, INTENT(OUT) ::  rc                  ! Error return code:
-                                                !  0 - all is well
-                                                !  1 -
+   TYPE(ESMF_State), intent(inout) :: expChem    ! Export State
+   INTEGER, INTENT(OUT) ::  rc                   ! Error return code:
+                                                 !  0 - all is well
+                                                 !  1 -
  
 ! !DESCRIPTION: This routine implements the CO Driver for INTEX. That 
 !               is, adds chemical tendencies to each of the constituents,
@@ -760,9 +795,10 @@ CONTAINS
 
 !  Input fields from fvGCM
 !  -----------------------
-   REAL, POINTER, DIMENSION(:,:)   ::  PBLH  => null()
+   REAL, POINTER, DIMENSION(:,:)   ::  pblh  => null()
    REAL, POINTER, DIMENSION(:,:,:) ::  T     => null()
-   REAL, POINTER, DIMENSION(:,:,:) ::  RHOA  => null()
+   REAL, POINTER, DIMENSION(:,:,:) ::  rhoa  => null()
+   REAL, POINTER, DIMENSION(:,:,:) ::  zle   => null()
 
    INTEGER :: i1, i2, im, j1, j2, jm, km, ios, idiag, iXj
    INTEGER :: i, j, k, kReverse, n, nbeg, nend
@@ -775,12 +811,19 @@ CONTAINS
    REAL, PARAMETER :: rstar=8.3143E+03
    REAL, PARAMETER :: rpstd=1.00E-05
 
-   REAL    :: qmin, qmax, toMass, BBconFac, c2co
+   REAL    :: qmin, qmax, toMass, FFconFac, BFconFac, BBconFac, c2co
    REAL    :: fiso, fmtn, fmon
 
    REAL, ALLOCATABLE :: CH4nd(:,:,:)
+   REAL, ALLOCATABLE :: OHnd(:,:,:)
    REAL, ALLOCATABLE :: pe(:,:,:),p(:,:,:),nd(:,:,:)
    REAL, ALLOCATABLE :: rkoh(:,:,:),rkch4(:,:,:)
+
+   LOGICAL:: doingBB
+
+   CHARACTER(LEN=ESMF_MAXSTR) :: units_oh
+   CHARACTER(LEN=ESMF_MAXSTR) :: units_ff
+   CHARACTER(LEN=ESMF_MAXSTR) :: units_bf
 
 #define EXPORT   expChem
 #define iNAME    TRIM(gcCO%iname)
@@ -820,6 +863,14 @@ CONTAINS
       return 
    end if
 
+!  Is this a biomass burning instantiation?
+!  ----------------------------------------
+   IF(INDEX(gcCO%eFilen_biomass,'null') .GT. 0 ) THEN
+    doingBB = .FALSE.
+   ELSE
+    doingBB = .TRUE.
+   END IF
+
 !  Conversion factor, molecules CO cm^-2 s^-1 to kg CO m^-2 s^-1
 !  -------------------------------------------------------------
    toMass = 1.00E+04*mwtCO/nsuba
@@ -846,9 +897,9 @@ CONTAINS
      nhms1 = 120000
      BBconFac = toMass
      CALL Chem_UtilMPread ( gcCO%eFilen_biomass, 'emcobu', nymd1, nhms1, &
-        		    i1, i2, 0, im, j1, j2, 0, jm, 0, &
-        		    var2d=gcCO%eCO_bioburn, cyclic=.true., &
-        		    grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
+                            i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                            var2d=gcCO%eCO_bioburn, cyclic=.true., &
+                            grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
                             gridMask=gcCO%regionMask)
     ELSE
  
@@ -856,10 +907,8 @@ CONTAINS
 !    Note: We need to take care of the /dev/null case, too.
 !    -------------------------------------------------------
      IF(INDEX(gcCO%eFilen_biomass,    '%') .GT. 0 .OR. INDEX(gcCO%eFilen_biomass, 'gfed') .GT. 0 .OR. &
-     	INDEX(gcCO%eFilen_biomass,'GFED2') .GT. 0 .OR. INDEX(gcCO%eFilen_biomass, 'null') .GT. 0) THEN  
-      nymd1 = nymd      ! gfed: 1997-2004, modisfire: 2005, qfed: 2006
-      if (nymd == 20041231)  nymd1=20050101
-      if (nymd == 20051231)  nymd1=20060101
+        INDEX(gcCO%eFilen_biomass,'GFED2') .GT. 0 .OR. INDEX(gcCO%eFilen_biomass, 'null') .GT. 0) THEN  
+      nymd1 = nymd
       nhms1 = 120000
       BBconFac = gcCO%BBconFac
      ELSE   ! Assume Duncan/Martin climatology
@@ -869,85 +918,114 @@ CONTAINS
      ENDIF
 
      CALL Chem_UtilMPread ( gcCO%eFilen_biomass, 'biomass', nymd1, nhms1, &
-        		    i1, i2, 0, im, j1, j2, 0, jm, 0, &
-        		    var2d=gcCO%eCO_bioburn, cyclic=.true., &
-        		    grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
-     			    gridMask=gcCO%regionMask)
+                            i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                            var2d=gcCO%eCO_bioburn, cyclic=.true., &
+                            grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
+                            gridMask=gcCO%regionMask)
     ENDIF
 
 ! Background OH, for loss term
 ! ----------------------------
-    nymd1 = (gcCO%nymd_oh/10000)*10000 + MOD ( nymd, 10000 )
-    nhms1 = 120000
+    if(index(gcCO%OHFileName,'%') .gt. 0) then
+     nymd1 = nymd
+     nhms1 = 120000
+    else
+     nymd1 = (gcCO%nymd_oh/10000)*10000 + MOD ( nymd, 10000 )
+     nhms1 = 120000
+    endif     
     CALL Chem_UtilMPread ( gcCO%OHFileName, 'oh', nymd1, nhms1, &
                            i1, i2, 0, im, j1, j2, 0, jm, km, &
-                           var3d=gcCO%OHnd, cyclic=.true., &
+                           var3d=gcCO%OHnd, units=units_oh, cyclic=.true., &
                            grid=w_c%grid_esmf )
 
 ! Background CH4, for source term.
 ! NOTE: Return zeroes in all but the global instantiation.
 ! --------------------------------------------------------
-    CALL Chem_UtilMPread ( gcCO%OHFileName, 'ch4', nymd1, nhms1, &
-    			   i1, i2, 0, im, j1, j2, 0, jm, km, &
-    			   var3d=gcCO%CH4, cyclic=.true., &
-    			   grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
-    			   gridMask=gcCO%regionMask)
+    CALL Chem_UtilMPread ( gcCO%CH4FileName, 'ch4', nymd1, nhms1, &
+                           i1, i2, 0, im, j1, j2, 0, jm, km, &
+                           var3d=gcCO%CH4, cyclic=.true., &
+                           grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
+                           gridMask=gcCO%regionMask)
 
 ! Biofuel source
 ! --------------
-    nymd1 = (gcCO%nymd_bf/10000)*10000 + MOD ( nymd, 10000 )
-    nhms1 = 120000
+    if(index(gcCO%bfFilen,'%') .gt. 0) then
+     nymd1 = nymd
+     nhms1 = 120000
+    else
+     nymd1 = (gcCO%nymd_bf/10000)*10000 + MOD ( nymd, 10000 )
+     nhms1 = 120000
+    endif     
     CALL Chem_UtilMPread ( gcCO%bfFilen, 'emcobf', nymd1, nhms1, &
-        		   i1, i2, 0, im, j1, j2, 0, jm, 0, &
-        		   var2d=gcCO%eCO_biofuel, cyclic=.true., &
-    			   grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
-    			   gridMask=gcCO%regionMask)
+                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                           var2d=gcCO%eCO_biofuel, units=units_bf, cyclic=.true., &
+                           grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
+                           gridMask=gcCO%regionMask)
 
 ! Fossil fuel source
 ! ------------------
-    nymd1 = (gcCO%nymd_ff/10000)*10000 + MOD ( nymd, 10000 )
-    nhms1 = 120000
+    if( (index(gcCO%ffFilen,'%') .gt. 0) .or. &
+        (index(gcCO%ffFilen, '19700703T12z_20200703T00z') .gt. 0) ) then
+     nymd1 = nymd
+     nhms1 = 120000
+    else
+     nymd1 = (gcCO%nymd_ff/10000)*10000 + MOD ( nymd, 10000 )
+     nhms1 = 120000
+    endif     
     CALL Chem_UtilMPread ( gcCO%ffFilen, 'emcofs', nymd1, nhms1, &
-    			   i1, i2, 0, im, j1, j2, 0, jm, 0, &
-    			   var2d=gcCO%eCO_fosfuel, cyclic=.true., &
-    			   grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
-    			   gridMask=gcCO%regionMask)
+                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                           var2d=gcCO%eCO_fosfuel, units=units_ff, cyclic=.true., &
+                           grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
+                           gridMask=gcCO%regionMask)
 
 ! Isoprene source
 ! ---------------
-    nymd1 = (gcCO%nymd_p/10000)*10000 + MOD ( nymd, 10000 )
-    nhms1 = 120000
+    if(index(gcCO%pFilen,'%') .gt. 0) then
+     nymd1 = nymd
+     nhms1 = 120000
+    else
+     nymd1 = (gcCO%nymd_p/10000)*10000 + MOD ( nymd, 10000 )
+     nhms1 = 120000
+    endif     
     CALL Chem_UtilMPread ( gcCO%pFilen, 'emcoisop', nymd1, nhms1, &
-    			   i1, i2, 0, im, j1, j2, 0, jm, 0, &
-    			   var2d=gcCO%eCO_iso, cyclic=.true., &
-    			   grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
-    			   gridMask=gcCO%regionMask)
+                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                           var2d=gcCO%eCO_iso, cyclic=.true., &
+                           grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
+                           gridMask=gcCO%regionMask)
 
 ! VOC source
 ! ----------
     CALL Chem_UtilMPread ( gcCO%pFilen, 'emconvoc', nymd1, nhms1, &
-    			   i1, i2, 0, im, j1, j2, 0, jm, 0, &
-    			   var2d=gcCO%eCO_mon, cyclic=.true., &
-    			   grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
-    			   gridMask=gcCO%regionMask)
+                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                           var2d=gcCO%eCO_mon, cyclic=.true., &
+                           grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
+                           gridMask=gcCO%regionMask)
 
 ! Monoterpene source
 ! ------------------
     CALL Chem_UtilMPread ( gcCO%pFilen, 'emcoterp', nymd1, nhms1, &
-    			   i1, i2, 0, im, j1, j2, 0, jm, 0, &
-    			   var2d=gcCO%eCO_mtn, cyclic=.true., &
-    			   grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
-    			   gridMask=gcCO%regionMask)
+                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
+                           var2d=gcCO%eCO_mtn, cyclic=.true., &
+                           grid=w_c%grid_esmf, maskString=TRIM(gcCO%regionsString), &
+                           gridMask=gcCO%regionMask)
 
 ! Amplification/supression factors
-! PRC: Huisheng: check here to see if you like these
-!      Now that I had to change the emission names.
-! --------------------------------------------------
-    IF ( index(gcCO%ffFilen,'bian')          .GT. 0   .OR. &
-         index(gcCO%ffFilen,'co_fossilfuel') .GT. 0   .OR. &
-         index(gcCO%bfFilen,'co_biofuel')    .GT. 0 ) THEN  
-       toMass = 1.0
+! --------------------------------
+    IF ( (index(gcCO%ffFilen,'bian')          .GT. 0   .OR. &
+          index(gcCO%ffFilen,'co_fossilfuel') .GT. 0)  .OR. &
+         (trim(units_ff) .EQ. 'kg m-2 s-1') ) THEN
+       FFconFac = 1.0
+    ELSE
+       FFconFac = toMass
     ENDIF
+
+    IF ( (index(gcCO%bfFilen,'co_biofuel')    .GT. 0)  .OR. &
+         (trim(units_bf) .EQ. 'kg m-2 s-1') ) THEN
+       BFconFac = 1.0
+    ELSE
+       BFconFac = toMass
+    ENDIF
+
     IF      ( index(gcCO%pFilen,'fvgcm') .GT. 0 ) THEN  
        fiso = 0.2 * 1.00E-06 * c2co
        fmtn = 1.0 * 1.00E-06 * c2co
@@ -957,66 +1035,38 @@ CONTAINS
        fmtn = 0.2  * 1.00E-06 * c2co
        fmon = 0.2  * 1.00E-06 * c2co
     ELSE IF ( index(gcCO%pFilen,'co_biogenic') .GT. 0 ) THEN  
-       fiso = 0.2 * c2co
-       fmtn = 1.0 * c2co
-       fmon = 1.0 * c2co
+       fiso = 0.2
+       fmtn = 1.0
+       fmon = 1.0
     ELSE IF ( index(gcCO%pFilen,'null') .GT. 0 ) THEN  
        fiso = 0.00
        fmtn = 0.00
        fmon = 0.00
+    ELSE
+      IF(MAPL_AM_I_ROOT( )) PRINT *,myname,": Cannot determine amplification/supression factors."
+      rc = 2
+      RETURN
     ENDIF
 
-#ifdef DEBUG
+   IF(gcCO%DBG) THEN
     CALL pmaxmin('CO: eCO_bioburn', gcCO%eCO_bioburn, qmin, qmax, iXj,1, 1. )
     CALL pmaxmin('CO: eCO_biofuel', gcCO%eCO_biofuel, qmin, qmax, iXj,1, 1. )
     CALL pmaxmin('CO: eCO_fosfuel', gcCO%eCO_fosfuel, qmin, qmax, iXj,1, 1. )
     CALL pmaxmin('CO: eCO_iso',     gcCO%eCO_iso,     qmin, qmax, iXj,1, 1. )
     CALL pmaxmin('CO: eCO_mon',     gcCO%eCO_mon,     qmin, qmax, iXj,1, 1. )
     CALL pmaxmin('CO: eCO_mtn',     gcCO%eCO_mtn,     qmin, qmax, iXj,1, 1. )
-#endif
+   END IF
 
     gcCO%BCnymd = nymd 
 
 !  Units for surface flux must be kgCO m^-2 s^-1
 !  -------------------------------------------
-    gcCO%eCO_fosfuel(i1:i2,j1:j2) = gcCO%eCO_fosfuel(i1:i2,j1:j2)*toMass
-    gcCO%eCO_biofuel(i1:i2,j1:j2) = gcCO%eCO_biofuel(i1:i2,j1:j2)*toMass
+    gcCO%eCO_fosfuel(i1:i2,j1:j2) = gcCO%eCO_fosfuel(i1:i2,j1:j2)*FFconFac
+    gcCO%eCO_biofuel(i1:i2,j1:j2) = gcCO%eCO_biofuel(i1:i2,j1:j2)*BFconFac
     gcCO%eCO_bioburn(i1:i2,j1:j2) = gcCO%eCO_bioburn(i1:i2,j1:j2)*BBconFac
     gcCO%eCO_iso(i1:i2,j1:j2) = gcCO%eCO_iso(i1:i2,j1:j2) * fiso
-    gcCO%eCO_mon(i1:i2,j1:j2) = gcCO%eCO_mon(i1:i2,j1:j2) * fmtn
-    gcCO%eCO_mtn(i1:i2,j1:j2) = gcCO%eCO_mtn(i1:i2,j1:j2) * fmon
-
-!  OH number density from molecules cm^-3 to molecules m^-3
-!  --------------------------------------------------------
-    gcCO%OHnd(i1:i2,j1:j2,1:km) = gcCO%OHnd(i1:i2,j1:j2,1:km)*1.00E+06
-
-! In ARCTAS, the vertical order in the OH and CH4 input file is ground-to-lid.
-! ----------------------------------------------------------------------------
-    ALLOCATE(CH4nd(i1:i2,j1:j2,km), STAT=ios)
-    IF(ios /= 0) THEN
-      rc = 1
-      PRINT *,myname,": Unable to ALLOCATE reversing array."
-      RETURN
-    END IF
-
-    ch4nd(i1:i2,j1:j2,1:km) = gcCO%OHnd(i1:i2,j1:j2,1:km)
-    DO k=1,km
-     kReverse = km-k+1
-     gcCO%OHnd(i1:i2,j1:j2,k) = ch4nd(i1:i2,j1:j2,kReverse)
-    END DO
-
-    ch4nd(i1:i2,j1:j2,1:km) = gcCO%CH4(i1:i2,j1:j2,1:km)
-    DO k=1,km
-     kReverse = km-k+1
-     gcCO%CH4(i1:i2,j1:j2,k) = ch4nd(i1:i2,j1:j2,kReverse)
-    END DO
-
-    DEALLOCATE(CH4nd, STAT=ios)
-    IF(ios /= 0) THEN
-      rc = 2
-      PRINT *,myname,": Unable to DEALLOCATE reversing array."
-      RETURN
-    END IF
+    gcCO%eCO_mon(i1:i2,j1:j2) = gcCO%eCO_mon(i1:i2,j1:j2) * fmon
+    gcCO%eCO_mtn(i1:i2,j1:j2) = gcCO%eCO_mtn(i1:i2,j1:j2) * fmtn
 
 !   Save this in case we need to apply diurnal cycle
 !   ------------------------------------------------
@@ -1030,7 +1080,8 @@ CONTAINS
 !  ---------------------------------
    if ( w_c%diurnal_bb ) then
       call Chem_BiomassDiurnal ( gcCO%eCO_bioburn, gcCO%eCO_bioburn_,   &
-                                 w_c%grid%lon(:), w_c%grid%lat(:), nhms, cdt )      
+                                 w_c%grid%lon(:,:)*radToDeg, &
+                                 w_c%grid%lat(:,:)*radToDeg, nhms, cdt )      
    end if
 
 
@@ -1038,7 +1089,7 @@ CONTAINS
 !  ----------------------------
    allocate ( pe(i1:i2,j1:j2,km+1), p(i1:i2,j1:j2,km), nd(i1:i2,j1:j2,km), &
               rkoh(i1:i2,j1:j2,km), rkch4(i1:i2,j1:j2,km), &
-              CH4nd(i1:i2,j1:j2,km), stat = ios )
+              CH4nd(i1:i2,j1:j2,km), OHnd(i1:i2,j1:j2,km), stat = ios )
 
    if ( ios /= 0 ) then
       rc = 3
@@ -1063,17 +1114,19 @@ CONTAINS
    call MAPL_GetPointer( impChem, pblh,  'ZPBL',    rc=ier(1) ) 
    call MAPL_GetPointer( impChem, T,     'T',       rc=ier(2) ) 
    call MAPL_GetPointer( impChem, rhoa,  'AIRDENS', rc=ier(3) ) 
+   call MAPL_GetPointer( impChem, zle,   'ZLE',     rc=ier(4) ) 
 
-   if ( any(ier(1:3) /= 0) ) then
+   if ( any(ier(1:4) /= 0) ) then
         rc = 10
         return
    end if
 
-#ifdef DEBUG
-    CALL pmaxmin('CO: pblh',   pblh, qmin, qmax, iXj,  1, 1. )
-    CALL pmaxmin('CO:  T  ',      T, qmin, qmax, iXj, km, 1. )
-    CALL pmaxmin('CO: rhoa',   rhoa, qmin, qmax, iXj, km, 1. )
-#endif
+   IF(gcCO%DBG) THEN
+    CALL pmaxmin('CO: pblh', pblh, qmin, qmax, iXj,    1, 1. )
+    CALL pmaxmin('CO:    T',    T, qmin, qmax, iXj,   km, 1. )
+    CALL pmaxmin('CO: rhoa', rhoa, qmin, qmax, iXj,   km, 1. )
+    CALL pmaxmin('CO:  zle',  zle, qmin, qmax, iXj, km+1, 1. )
+   END IF
 
 !  Number density
 !  --------------
@@ -1084,7 +1137,17 @@ CONTAINS
 !  -----------------------------------------------------
    CH4nd(i1:i2,j1:j2,1:km)=gcCO%CH4(i1:i2,j1:j2,1:km)* &
                                  nd(i1:i2,j1:j2,1:km)
- 
+
+!  OH number density. Handle mole fraction or number density.
+!  ----------------------------------------------------------
+   if ( (trim(units_oh) .eq. 'mol/mol') .or. (trim(units_oh) .eq. 'mol mol-1') ) then
+       OHnd(i1:i2,j1:j2,1:km) = gcCO%OHnd(i1:i2,j1:j2,1:km)* &
+                                       nd(i1:i2,j1:j2,1:km)
+   else
+       ! assume that units are 'molecules cm-3' and convert to 'molecules m^-3'
+       OHnd(i1:i2,j1:j2,1:km) = gcCO%OHnd(i1:i2,j1:j2,1:km)*1.00E+06
+   end if    
+
 !  Clear surface flux array
 !  ------------------------
    gcCO%COsfcFlux(i1:i2,j1:j2) = 0.0
@@ -1092,8 +1155,7 @@ CONTAINS
 #if defined( MR_PBL)
 !  Emissions, direct update of mixing ratio 
 !  ----------------------------------------
-   call CO_Emission ( i1, i2, j1, j2, km, cdt, gcCO, w_c, &
-                      pblh, T, rhoa, rc)
+   call CO_Emission(rc)
 #endif
 
 !  Convert carbon monoxide from mole fraction to number density
@@ -1110,13 +1172,13 @@ CONTAINS
    DO k = 1, km
 
     IF(ASSOCIATED(CO_loss)) CO_loss(i1:i2,j1:j2) = CO_loss(i1:i2,j1:j2) &
-   	 + w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k)*rkoh(i1:i2,j1:j2,k) &
-   	 * gcCO%OHnd(i1:i2,j1:j2,k)/nd(i1:i2,j1:j2,k) &
-   	 * mwtCO/mwtAir*w_c%delp(i1:i2,j1:j2,k)/grav
+       + w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k)*rkoh(i1:i2,j1:j2,k) &
+       * OHnd(i1:i2,j1:j2,k)/nd(i1:i2,j1:j2,k) &
+       * mwtCO/mwtAir*w_c%delp(i1:i2,j1:j2,k)/grav
 
     w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k) = &
-   		     w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k)*(1.00-cdt* &
-   		     rkoh(i1:i2,j1:j2,k)*gcCO%OHnd(i1:i2,j1:j2,k))
+         w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k)*(1.00-cdt* &
+         rkoh(i1:i2,j1:j2,k)*OHnd(i1:i2,j1:j2,k))
 
    END DO ! Next layer, k
 
@@ -1129,12 +1191,12 @@ CONTAINS
    DO k = 1, km
 
     IF(ASSOCIATED(CO_prod)) CO_prod(i1:i2,j1:j2) = CO_prod(i1:i2,j1:j2) &
-       + rkch4(i1:i2,j1:j2,k)*gcCO%OHnd(i1:i2,j1:j2,k)*CH4nd(i1:i2,j1:j2,k) &
+       + rkch4(i1:i2,j1:j2,k)*OHnd(i1:i2,j1:j2,k)*CH4nd(i1:i2,j1:j2,k) &
        / nd(i1:i2,j1:j2,k) * mwtCO/mwtAir*w_c%delp(i1:i2,j1:j2,k)/grav
 
     w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k)=w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k)+cdt* &
-   		      rkch4(i1:i2,j1:j2,k)*gcCO%OHnd(i1:i2,j1:j2,k)* &
-   		      CH4nd(i1:i2,j1:j2,k)
+         rkch4(i1:i2,j1:j2,k)*OHnd(i1:i2,j1:j2,k)* &
+         CH4nd(i1:i2,j1:j2,k)
 
    END DO ! Next layer, k
 
@@ -1167,7 +1229,7 @@ CONTAINS
     if(associated(CO_emis)) &
          CO_emis(i1:i2,j1:j2) = gcCO%COsfcFlux(i1:i2,j1:j2)
 
-#ifdef DEBUG
+   IF(gcCO%DBG) THEN
      n = gcCO%instance 
      if(associated(CO_emis)) &
      CALL pmaxmin('CO: emis', CO_emis(i1:i2,j1:j2), qmin, qmax, &
@@ -1184,25 +1246,20 @@ CONTAINS
      if(associated(CO_surface)) &
      CALL pmaxmin('CO: surface', CO_surface(i1:i2,j1:j2), qmin, qmax,&
                    iXj,1, 1. )
-#endif
+   END IF
 
 !  Housekeeping
 !  ------------
-   DEALLOCATE(nd,p,pe,rkoh,rkch4,CH4nd,STAT=ier(1))
+   DEALLOCATE(nd,p,pe,rkoh,rkch4,CH4nd,OHnd,STAT=ier(1))
 
    RETURN
 
 CONTAINS
-
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 ! !DESCRIPTION: Updates the CO concentration with emissions every timestep
-!
-! !REVISION HISTORY:
-!
-!  17Oct2005, Bian   
 !
 ! !IROUTINE:  CO_Emission - Adds emissions for CO for one timestep
 !             We have emissions from 4 sources, which are distributed
@@ -1214,150 +1271,121 @@ CONTAINS
 !                           include: isoprene, converting factor 0.15
 !                                    terpene,  converting factor 0.2
 !                                    nvoc,     converting factor 0.2
+! !REVISION HISTORY:
+!
+!  17Oct2005, Bian!
 !  14Apr2006, Bian: Add indirect NMHC from FF (0.20), BF (0.19), BB (0.11)
 !                   Add seasonality for FF
 !                   Modify FF & BF over Asia region (1.39) for Streets' data
+!  18Mar2011, Nielsen: Simplified PBL partitioning for biomass burning emissions   
 !
 ! !INTERFACE:
 !
 !EOP
-
-   subroutine CO_Emission ( i1, i2, j1, j2, km, cdt, gcCO, w_c, &
-                            pblh, T, rhoa, rc )
+!-------------------------------------------------------------------------
+   SUBROUTINE CO_Emission ( rc )
+!-------------------------------------------------------------------------
 
 ! !USES:
 
-  implicit NONE
+  IMPLICIT NONE
 
 ! !INPUT PARAMETERS:
 
-   integer, intent(in) :: i1, i2, j1, j2, km
-   real, intent(in)    :: cdt
-   type(CO_GridComp1), intent(inout)    :: gcCO       ! CO Grid Component
-   real, pointer, dimension(:,:)    :: pblh
-   real, pointer, dimension(:,:,:)  :: T
-   real, pointer, dimension(:,:,:)  :: rhoa
-
 ! !OUTPUT PARAMETERS:
 
-   type(Chem_Bundle), intent(inout) :: w_c         ! Chemical tracer fields
-   integer, intent(out)             :: rc          ! Error return code:
-                                                   !  0 - all is well
-                                                   !  1 - 
-   character(len=*), parameter :: myname = 'CO_Emission'
+   INTEGER, INTENT(OUT) :: rc  ! Error return code
 
-! !Local Variables
-   integer  ::  i, j, k, m, n, ios
-   integer  ::  nbeg, nend
-   real, dimension(i1:i2,j1:j2) :: pPblh  ! pressure at PBLH
-   real, dimension(i1:i2,j1:j2) :: p0, z0, ps
-   real :: p1, z1, dz, delz, delp, fPblh, fs
-   real :: fff, fbf, fbb, fu
-   real :: qmax, qmin, eBiofuel, eBiomass, fTerpene
-   real :: srctot, srcff, srcbf, srcbb, srcbi, src
+! !LOCAL VARIABLES
+
+   CHARACTER(LEN=*), PARAMETER :: myname = 'CO_Emission'
+
+   INTEGER :: i, j, k, kt, minkPBL
+   INTEGER, ALLOCATABLE :: index(:)
 
    REAL, PARAMETER :: mwtAir=28.97
    REAL, PARAMETER :: mwtCO=28.01
+   REAL, ALLOCATABLE :: pblLayer(:,:),sfcFlux(:,:),fPBL(:,:,:)
 
-   LOGICAL:: doingBB
+   rc    = 0
 
-!  Initialize local variables
-!  --------------------------
-   nbeg  = w_c%reg%i_CO
-   nend  = w_c%reg%j_CO
-   fff   = 1.20
-   fbf   = 1.19
-   fbb   = 1.11
+! Grab some memory for manipulating surface fluxes
+! ------------------------------------------------
+   ALLOCATE(sfcFlux(i1:i2,j1:j2),STAT=ios)
 
-!  It requires 1 bin
-!  -----------------
-   if ( nbeg /= nend ) then
-      IF(MAPL_AM_I_ROOT()) PRINT *,myname,": Must have only 1 bin at the single instance level"
-      rc = 1
-      return 
-   end if
+! Biomass burning
+! ---------------
+   BioBurn: IF(doingBB) THEN
 
-!  Is this a biomass burning instantiation?
-!  ----------------------------------------
-   IF(INDEX(gcCO%eFilen_biomass,'null') > 0 ) THEN
-    doingBB = .FALSE.
-   ELSE
-    doingBB = .TRUE.
-   END IF
+    sfcFlux(i1:i2,j1:j2)=gcCO%eCO_bioburn(i1:i2,j1:j2)*gcCO%fbb
+    gcCO%COsfcFlux(i1:i2,j1:j2)=gcCO%COsfcFlux(i1:i2,j1:j2)+sfcFlux(i1:i2,j1:j2)
 
-   ps = 0.0
-   do k = 1, km
-    ps(i1:i2,j1:j2) = ps(i1:i2,j1:j2) + w_c%delp(i1:i2,j1:j2,k)
-   end do
-   p0 = ps
-   z0(i1:i2,j1:j2) = 0.
-   do k = km, 1, -1
-    do j = j1, j2
-     do i = i1, i2
-      p1 = p0(i,j) - w_c%delp(i,j,k)
-      dz = w_c%delp(i,j,k)/rhoa(i,j,k)/grav
-      z1 = z0(i,j)+dz
-      if(z0(i,j) .lt. pblh(i,j) .and. z1 .ge. pblh(i,j)) then
-       delz = z1-pblh(i,j)
-       delp = delz*rhoa(i,j,k)*grav
-       pPblh(i,j) = p1+delp
-      endif
-      p0(i,j) = p1
-      z0(i,j) = z1
-     end do
-    end do
-   end do
+! Find the layer that contains the PBL.
+! Layer thicknesses are ZLE(:,:,0:km).
+! -------------------------------------
+    ALLOCATE(index(0:km),STAT=ios)
+    ALLOCATE(pblLayer(i1:i2,j1:j2),STAT=ios)
+    DO j=j1,j2
+     DO i=i1,i2
+      index(0:km)=0
+      WHERE(zle(i,j,0:km)-zle(i,j,km) > pblh(i,j)) index(0:km)=1
+      pblLayer(i,j)=SUM(index)
+     END DO
+    END DO
+    DEALLOCATE(index,STAT=ios)
+    minkPBL=MINVAL(pblLayer)
 
-!  Now update the tracer mixing ratios with the CO sources
-   p0 = ps
-   do k = km, 1, -1
-      if ( k .eq. km) fs = 1.00
-      if ( k .ne. km) fs = 0.00
-    do j = j1, j2
-     do i = i1, i2
-      p1 = p0(i,j) - w_c%delp(i,j,k)
+! Determine partitioning fraction based on layer thicknesses
+! ----------------------------------------------------------
+    ALLOCATE(fPBL(i1:i2,j1:j2,1:km),STAT=ios)
+    fPBL(i1:i2,j1:j2,1:km)=0.00
+    DO j=j1,j2
+     DO i=i1,i2
+      kt=pblLayer(i,j)
+      DO k=kt,km
+       fPBL(i,j,k)=(zle(i,j,k-1)-zle(i,j,k))/(zle(i,j,kt-1)-zle(i,j,km))
+      END DO
+     END DO
+    END DO
 
-      fPblh = 0.
+! Partition surface flux into layers within the PBL
+! -------------------------------------------------
+    DO k=minkPBL,km
+     w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k) = w_c%qa(nbeg)%data3d(i1:i2,j1:j2,k)+ &
+                                          sfcFlux(i1:i2,j1:j2)*fPBL(i1:i2,j1:j2,k)*cdt* &
+                                          (mwtAir/mwtCO)/(w_c%delp(i1:i2,j1:j2,k)/grav)
+    END DO
 
-!  Provision to skip this time-consuming calculation when instantiation is not BB
-!  ------------------------------------------------------------------------------
-      IF(doingBB) THEN
-       if(p1 .ge. pPblh(i,j)) fPblh = w_c%delp(i,j,k)/(ps(i,j)-pPblh(i,j))
-       if(p1 .lt. pPblh(i,j) .and. p0(i,j) .ge. pPblh(i,j)) &
-                fPblh = (p0(i,j)-pPblh(i,j))/(ps(i,j)-pPblh(i,j))
-      END IF
+! Release memory
+! --------------
+    DEALLOCATE(fPBL,STAT=ios)
+    DEALLOCATE(pblLayer,STAT=ios)
 
-!  Convert emission from Kg CO/m2/s to mixing ratio/m2/s (TVVMM/(delz*airden))
-!  -----------------------------------------------------
-   fu = (mwtAir/mwtCO)/(w_c%delp(i,j,k)/grav)
+   END IF BioBurn
 
-      srcbi = (gcCO%eCO_iso(i,j)*fiso+gcCO%eCO_mon(i,j)*fmon+gcCO%eCO_mtn(i,j)*fmtn)*fs*fu
-      srcff = (gcCO%eCO_fosfuel(i,j) * fff * fs ) * fu
-      srcbf = (gcCO%eCO_biofuel(i,j) * fbf * fs  ) * fu
-      srcbb = (gcCO%eCO_bioburn(i,j) * fbb * fPblh ) * fu
-
-      srctot = srcff + srcbf + srcbb + srcbi
-
-!
-! Get tagged CO to regions
+! Biogenic
+! --------
+   sfcFlux(i1:i2,j1:j2) = gcCO%eCO_iso(i1:i2,j1:j2)+gcCO%eCO_mon(i1:i2,j1:j2)+gcCO%eCO_mtn(i1:i2,j1:j2)
+   gcCO%COsfcFlux(i1:i2,j1:j2) = gcCO%COsfcFlux(i1:i2,j1:j2)+sfcFlux(i1:i2,j1:j2)
+   w_c%qa(nbeg)%data3d(i1:i2,j1:j2,km) = w_c%qa(nbeg)%data3d(i1:i2,j1:j2,km)+sfcFlux(i1:i2,j1:j2)*cdt* &
+                                         (mwtAir/mwtCO)/(w_c%delp(i1:i2,j1:j2,km)/grav)
+! Fossil fuel and biofuel
 ! -----------------------
-      w_c%qa(nbeg)%data3d(i,j,k) = w_c%qa(nbeg)%data3d(i,j,k) + srctot*cdt
-      gcCO%COsfcFlux(i,j) = gcCO%COsfcFlux(i,j) + srctot/fu
+   sfcFlux(i1:i2,j1:j2) = gcCO%eCO_fosfuel(i1:i2,j1:j2)*gcCO%fff+gcCO%eCO_biofuel(i1:i2,j1:j2)*gcCO%fbf
+   gcCO%COsfcFlux(i1:i2,j1:j2) = gcCO%COsfcFlux(i1:i2,j1:j2)+sfcFlux(i1:i2,j1:j2)
+   w_c%qa(nbeg)%data3d(i1:i2,j1:j2,km) = w_c%qa(nbeg)%data3d(i1:i2,j1:j2,km)+sfcFlux(i1:i2,j1:j2)*cdt* &
+                                        (mwtAir/mwtCO)/(w_c%delp(i1:i2,j1:j2,km)/grav)
+! Release memory
+! --------------
+   DEALLOCATE(sfcFlux,STAT=ios)
 
-      p0(i,j) = p1 
-
-     end do
-    end do
-   end do
-
-   rc = 0
-
-   end subroutine CO_Emission
+   RETURN
+   END SUBROUTINE CO_Emission
 
  END SUBROUTINE CO_GridCompRun1_
 
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
@@ -1375,22 +1403,22 @@ CONTAINS
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-   TYPE(CO_GridComp1), INTENT(INOUT) :: gcCO   ! Grid Component
+   TYPE(CO_GridComp1), INTENT(INOUT) :: gcCO     ! Grid Component
 
 ! !INPUT PARAMETERS:
 
-   TYPE(Chem_Bundle), INTENT(IN)  :: w_c      ! Chemical tracer fields   
-   INTEGER, INTENT(IN) :: nymd, nhms	      ! time
-   REAL,    INTENT(IN) :: cdt		      ! chemical timestep (secs)
+   TYPE(Chem_Bundle), INTENT(IN)  :: w_c         ! Chemical tracer fields   
+   INTEGER, INTENT(IN) :: nymd, nhms             ! time
+   REAL,    INTENT(IN) :: cdt                    ! chemical timestep (secs)
 
 
 ! !OUTPUT PARAMETERS:
 
-   TYPE(ESMF_State), INTENT(INOUT) :: impChem	! Import State
-   TYPE(ESMF_State), INTENT(INOUT) :: expChem	! Import State
-   INTEGER, INTENT(OUT) ::  rc                  ! Error return code:
-                                                !  0 - all is well
-                                                !  1 -
+   TYPE(ESMF_State), INTENT(INOUT) :: impChem    ! Import State
+   TYPE(ESMF_State), INTENT(INOUT) :: expChem    ! Import State
+   INTEGER, INTENT(OUT) ::  rc                   ! Error return code:
+                                                 !  0 - all is well
+                                                 !  1 -
  
 ! !DESCRIPTION: This routine finalizes this Grid Component.
 !
@@ -1422,7 +1450,7 @@ CONTAINS
 !                     Single Instance Wrapper
 
 !-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 610.1     !
 !-------------------------------------------------------------------------
 !BOP
 !
@@ -1437,7 +1465,7 @@ CONTAINS
 ! !USES:
 
   Use CO_GridCompMod
-  Use ESMF_Mod
+  Use ESMF
   Use MAPL_Mod
   Use Chem_Mod 
 
@@ -1450,7 +1478,7 @@ CONTAINS
    interface 
      subroutine Method_ (gc, w, imp, exp, ymd, hms, dt, rcode )
        Use CO_GridCompMod
-       Use ESMF_Mod
+       Use ESMF
        Use MAPL_Mod
        Use Chem_Mod 
        type(CO_GridComp1),  intent(inout)  :: gc
@@ -1458,26 +1486,26 @@ CONTAINS
        type(ESMF_State),    intent(inout)  :: imp
        type(ESMF_State),    intent(inout)  :: exp
        integer,             intent(in)     :: ymd, hms
-       real,                intent(in)     :: dt	
+       real,                intent(in)     :: dt
        integer,             intent(out)    :: rcode
      end subroutine Method_
    end interface
 
-   integer, intent(in)           :: instance   ! instance number
+   integer, intent(in)           :: instance     ! instance number
 
-   TYPE(Chem_Bundle), intent(inout) :: w_c     ! Chemical tracer fields      
-   INTEGER, INTENT(IN) :: nymd, nhms	       ! time
-   REAL,    INTENT(IN) :: cdt		       ! chemical timestep (secs)
+   TYPE(Chem_Bundle), intent(inout) :: w_c       ! Chemical tracer fields      
+   INTEGER, INTENT(IN) :: nymd, nhms             ! time
+   REAL,    INTENT(IN) :: cdt                    ! chemical timestep (secs)
 
 
 ! !OUTPUT PARAMETERS:
 
-   TYPE(CO_GridComp1), INTENT(INOUT) :: gcCO    ! Grid Component
-   TYPE(ESMF_State), INTENT(INOUT)  :: impChem  ! Import State
-   TYPE(ESMF_State), INTENT(INOUT)  :: expChem  ! Export State
-   INTEGER, INTENT(OUT) ::  rc                  ! Error return code:
-                                                !  0 - all is well
-                                                !  1 - 
+   TYPE(CO_GridComp1), INTENT(INOUT) :: gcCO     ! Grid Component
+   TYPE(ESMF_State), INTENT(INOUT)  :: impChem   ! Import State
+   TYPE(ESMF_State), INTENT(INOUT)  :: expChem   ! Export State
+   INTEGER, INTENT(OUT) ::  rc                   ! Error return code:
+                                                 !  0 - all is well
+                                                 !  1 - 
 
 ! !DESCRIPTION: Finalizes the CO Grid Component. Multiple instance
 !               version.

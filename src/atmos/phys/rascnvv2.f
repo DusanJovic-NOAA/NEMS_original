@@ -322,6 +322,8 @@
           fscav_(i) = fscav(i)
         enddo
       endif
+!     if (lprnt) write(0,*)' in RAS fscav=',fscav_,' ccwfac=',
+!    &                      ccwfac(ipr)
 !
       km1    = k - 1
       kp1    = k + 1

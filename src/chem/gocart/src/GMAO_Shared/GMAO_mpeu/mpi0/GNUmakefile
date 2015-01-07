@@ -123,10 +123,11 @@ DEPS    	= $(SRCS_f:.f=.d)	\
 FOPT = $(FOPT3)
 COPT = $(COPT3)
 
+USER_FINCS  = $(I). $(I)$(INC_MPI)
+USER_CINCS  = $(I). $(I)$(INC_MPI)
 MOD_DIRS = . $(INC_MPI)
-USER_FFLAGS = $(BIG_ENDIAN) $(M). $(M)$(INC_MPI) $(M)../jic
+USER_FFLAGS = $(BIG_ENDIAN) $(M). $(M)../jic
 USER_FDEFS  = $(D)LANGUAGE_FORTRAN
-CAT		= /bin/cat
 FREAL =
 
 vpath % $(MOD_DIRS)

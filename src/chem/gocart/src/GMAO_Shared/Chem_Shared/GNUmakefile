@@ -25,7 +25,6 @@ BINS = # Chem_SettlingCalculator.x
   include $(ESMADIR)/Config/GMAO_base.mk  # GMAO stuff
   include $(ESMADIR)/Config/NCEP_base.mk  # NCEP stuff
 
-
 #                  ---------------------
 #                  Standard ESMA Targets
 #                  ---------------------
@@ -77,7 +76,10 @@ ifeq ($(DOING_NEMS),TRUE)
 endif
 
 SRCS = $(FVGCM_SRCS) Chem_ConstMod.F90 Chem_SettlingMod.F90 \
-       Chem_DepositionMod.F90 $(CHEM_UTIL)
+       DryDepositionMod.F90 DustEmissionMod.F90 \
+       WetRemovalMod.F90 SeasaltEmissionMod.F90 \
+       SulfateChemDriverMod.F90 ConvectionMod.F90 \
+       SmokeEmissionMod.F90 $(CHEM_UTIL)
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS))) \
         $(addsuffix .d, $(basename $(BINS)))
@@ -86,19 +88,20 @@ DEBUG = # $(D)DEBUG
 
 ifeq ($(ESMA_REAL),$(FREAL8))
 	THIS_GFIO = GMAO_gfio_r8
+	THIS_CFIO = MAPL_cfio_r8
 	FREAL = $(FREAL8)
 else
 	THIS_GFIO = GMAO_gfio_r4
+	THIS_CFIO = MAPL_cfio_r4
 	FREAL = $(FREAL4)
 endif
 
-INC_DIRS = . $(INC_MAPL_BASE) $(INC_ESMF)
-MOD_DIRS = . $(INC_ESMF) $(INC_MPEU) $(INC_CHEM_BASE) \
+INC_DIRS = . $(INC_MAPL_BASE) $(INC_ESMF) $(INC_SDF)
+MOD_DIRS = . $(INC_ESMF) $(INC_CFIO) $(INC_MPEU) $(INC_CHEM_BASE) \
              $(INC_PILGRIM) $(INC_CHEM_SHARED) \
              $(INC_MAPL_BASE) $(INC_GEOS_SHARED)
 
 USER_FFLAGS = $(BIG_ENDIAN) 
-##USER_FDEFS  = $(DEBUG) $(SPMD) $(D)FVCHEM 
 USER_FDEFS  = $(DEBUG) $(SPMD) $(D)FVCHEM ${DNEMS}
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
@@ -114,8 +117,8 @@ $(LIB) lib : $(OBJS)
 %.x : $(LIB) %.o 
 	$(LD) $(LDFLAGS) -o $@ $*.o $(LIB) $(LIB_CHEM_BASE) $(LIB_MAPL_BASE) \
                                     $(LIB_CFIO) $(LIB_EU) $(LIB_GFIO) \
-                                    $(LIB_MFHDF3) $(LIB_PILGRIM) $(LIB_SDF) \
-                                    $(LIB_ESMF) $(LIB_SYS) $(LIB_MPI)
+                                    $(LIB_MFHDF3) $(LIB_PILGRIM) $(LIB_ESMF) \
+                                    $(LIB_SDF) $(LIB_SYS) $(LIB_MPI)
 
 # Hack to prevent remaking dep files during cleaning
 # --------------------------------------------------

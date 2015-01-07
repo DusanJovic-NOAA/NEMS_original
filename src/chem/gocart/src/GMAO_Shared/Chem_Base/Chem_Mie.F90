@@ -128,7 +128,7 @@
 !    so divide by 100
      call Chem_MieQuery(mie_tables, 'du001', channel, &
                          w_c%q(i,j,k,iq)*w_c%delp(i,j,k)/9.81, &
-                         w_c%rh(i,j,k)/100., &
+                         w_c%rh(i,j,k), &
                          tau=tau, ssa=ssa, gasym=gasym,rc=ier)
 
 !    Fill in the values

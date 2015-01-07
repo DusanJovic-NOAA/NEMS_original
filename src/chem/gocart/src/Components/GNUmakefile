@@ -13,6 +13,7 @@ endif
 # -----------------------------
   include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
   include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
+  include $(ESMADIR)/Config/GMAO_base.mk
 
 #                  ---------------------
 #                  Standard ESMA Targets
@@ -36,12 +37,16 @@ esma_help :
 #                   Recurse Make in Sub-directories
 #                  --------------------------------
 
-ALLDIRS = GEOSaana_GridComp GOCART_GridComp
+ALLDIRS = GEOSaana_GridComp GSI_GridComp GOCART_GridComp GEOSCHEMchem_GridComp \
+          pr GEOScatch_GridComp GEOSlana_GridComp NCEPgsi_Coupler \
+          RTSI sixsv scat gritas clouds \
+          FVdycoreCubed_GridComp  GEOSpchem_GridComp  GEOSradiation_GridComp
 
 SUBDIRS = $(wildcard $(ALLDIRS) )
 
 TARGETS = esma_install esma_clean esma_distclean esma_doc \
           help install clean doc
+
 export ESMADIR BASEDIR ARCH SITE
 
 $(TARGETS): 
@@ -63,6 +68,12 @@ distclean:
 	$(RM) -f *~ *.[aoxd] *.[Mm][Oo][Dd]
 	$(MAKE) esma_distclean
 
+
+#              ------------------------------------------
+#              Package Dependencies for Parallel Install
+#              ------------------------------------------
+
+  GEOSlana_GridComp_install : GEOScatch_GridComp_install
 
   -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
 

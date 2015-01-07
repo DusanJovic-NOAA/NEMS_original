@@ -1865,7 +1865,7 @@
 
       diag(iAIRDENS )%name = 'AIRDENS '
       diag(iAIRDENS )%desc = 'Air Density'
-      diag(iAIRDENS )%unit = 'Kg/m3'
+      diag(iAIRDENS )%unit = 'Kg m-3'
 
       diag(iCAPE    )%name = 'CAPE    '
       diag(iCAPE    )%desc = 'CAPE'

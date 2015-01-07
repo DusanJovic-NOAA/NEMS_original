@@ -11,6 +11,7 @@
   use Chem_MieMod
   use Chem_RegistryMod
   use Chem_BundleMod
+  use m_fpe, only: isnan
 
   implicit none
 
@@ -40,13 +41,16 @@
   logical :: doing_dry
   logical :: new
   logical :: found_airdensfile, found_hghtefile
-  real :: channel, tau_, ssa_, bbck_, bext_, taulev, gasym_, scaleRH, maxRH, qMass
-  integer :: itau, iext, issa, immr, ibbck, iabck0, iabck1, ietob, igasym
+  real    :: channel, tau_, ssa_, bbck_, bext_, taulev, gasym_, scaleRH, maxRH, &
+             qMass, p11_, p22_
+  integer :: itau, iext, issa, immr, ibbck, iabck0, iabck1, ietob, igasym, idepol
   integer, parameter :: READ_ONLY = 1
   real, pointer :: delz(:,:,:), t(:,:,:), q(:,:,:), hghte(:,:,:)
   real, pointer :: airdens(:,:,:) => null()
   character(len=255) :: infile, outfile, filename, airdensfile, hghtefile, rcfile, argv
   character(len=8)   :: datestr
+  character(len=11)  :: chstr
+  character(len=3)   :: chnstr
 
 ! Parse the command line (see usage() below)
   argc = iargc()
@@ -151,6 +155,7 @@
   iabck0 = -1
   iabck1 = -1
   igasym = -1
+  idepol = -1
   do iq = 1, regOut%nq
    if(trim(regOut%vname(iq)) .eq. 'tau')        itau   = iq
    if(trim(regOut%vname(iq)) .eq. 'extinction') iext   = iq
@@ -163,6 +168,7 @@
    if(trim(regOut%vname(iq)) .eq. 'aback_toa')  iabck1 = iq ! alias
    if(trim(regOut%vname(iq)) .eq. 'backscat')   ibbck  = iq
    if(trim(regOut%vname(iq)) .eq. 'gasym')      igasym = iq
+   if(trim(regOut%vname(iq)) .eq. 'depol')      idepol = iq
   enddo
 
 ! At this point should do some checking that certain fields are
@@ -173,12 +179,13 @@
   if(ietob .gt. 0  .and. (itau .lt. 0 .or. ibbck .lt. 0))  ier = 4
   if((iabck0 .gt. 0 .or. iabck1 .gt. 0) .and. &
      (itau .lt. 0 .or.ibbck .lt. 0) )                      ier = 5
+  if(idepol .gt. 0 .and. (itau .lt. 0 .or. issa .lt. 0))   ier = 6
 
   if(ier /= 0) then
      print *,'----------------------------------------------------'
      print *,'ier = ', ier
-     print *,'issa, itau, igasym, ibbck, ietob, iabck0, iabck1 = ', &
-            issa, itau, igasym, ibbck, ietob, iabck0, iabck1
+     print *,'issa, itau, igasym, ibbck, ietob, iabck0, iabck1, idepol = ', &
+            issa, itau, igasym, ibbck, ietob, iabck0, iabck1, idepol
      call die(myname,'inconsistency in output registry')
   end if
 
@@ -326,21 +333,22 @@
 
 !  ==================================================================================
 !  The enclosed bundle of code selects on what calculation we run and what is written
+   do ik = 1, mie_tables%nch
 
-!  Create and initialize output chemistry bundle
-   call create_species_bundle(w_tau)
-
-!  If doing species
-   if(doing_dust) call create_species_bundle(w_taudu)
-   if(doing_anthro) call create_species_bundle(w_tauant)
-   if(doing_ss) call create_species_bundle(w_tauss)
-   if(doing_su) call create_species_bundle(w_tausu)
-   if(doing_oc) call create_species_bundle(w_tauoc)
-   if(doing_bc) call create_species_bundle(w_taubc)
-   if(doing_cc) call create_species_bundle(w_taucc)
-
-   do ik = 1, 1
     channel = mie_tables%channels(ik)
+
+!   Create and initialize output chemistry bundle
+    call create_species_bundle(w_tau)
+
+!   If doing species
+    if(doing_dust) call create_species_bundle(w_taudu)
+    if(doing_anthro) call create_species_bundle(w_tauant)
+    if(doing_ss) call create_species_bundle(w_tauss)
+    if(doing_su) call create_species_bundle(w_tausu)
+    if(doing_oc) call create_species_bundle(w_tauoc)
+    if(doing_bc) call create_species_bundle(w_taubc)
+    if(doing_cc) call create_species_bundle(w_taucc)
+
 
     do iq = 1, mie_tables%nq
 
@@ -360,11 +368,11 @@
       if(isnan(w_c%qa(iq)%data3d(i,j,k))) &
         w_c%qa(iq)%data3d(i,j,k) = tiny(w_c%qa(iq)%data3d(i,j,k))
 #endif
-      qMass = w_c%qa(iq)%data3d(i,j,k)*w_c%delp(i,j,k)/9.81
+      qMass = w_c%qa(iq)%data3d(i,j,k)*w_c%delp(i,j,k)/grav
       call Chem_MieQuery(mie_tables, idxTable, 1.*ik, &
                          qMass, &
                          w_c%rh(i,j,k) * scaleRH, tau=tau_, ssa=ssa_, &
-                         bbck=bbck_, bext=bext_, gasym=gasym_)
+                         bbck=bbck_, bext=bext_, gasym=gasym_, p11=p11_, p22=p22_)
 
 !     Fill in the total values
 !     Note the weighting of the ssa, backscatter, and e_to_b ratio
@@ -409,7 +417,7 @@
      endif   
     enddo    ! iq
 
-call Chem_RegistryPrint(regout)
+!    call Chem_RegistryPrint(regout)
 
 !   Normalize the ssa calculation
     call normal(w_tau)
@@ -431,69 +439,78 @@ call Chem_RegistryPrint(regout)
     if(doing_cc)   call backscatter(w_taucc)
     if(doing_anthro) call backscatter(w_tauant)
 
-   enddo
+!   Write the Chem_Bundle out
+    write(datestr,'(i8.8)') nymd
+    chstr = ''
+    write(chnstr,'(i3.3)') ik
+    if(mie_tables%nch > 1) chstr = '.channel'//chnstr
+    filename = trim(outfile(1:lenfile)//trim(chstr))
+    w_tau%rh = w_c%rh
+    call Chem_BundleWrite( filename, nymd, nhms, 0, w_tau, rc, &
+                           verbose=.true., new=new)
+    if(doing_dust) then 
+     filename = trim(outfile(1:lenfile)//trim(chstr)//'.dust')
+     w_taudu%rh = w_c%rh
+     call Chem_BundleWrite( filename, nymd, nhms, 0, w_taudu, rc, &
+                            verbose=.true., new=new)
+    endif
+    if(doing_ss) then 
+     filename = trim(outfile(1:lenfile)//trim(chstr)//'.ss')
+     w_tauss%rh = w_c%rh
+     call Chem_BundleWrite( filename, nymd, nhms, 0, w_tauss, rc, &
+                            verbose=.true., new=new)
+    endif
+    if(doing_su) then 
+     filename = trim(outfile(1:lenfile)//trim(chstr)//'.su')
+     w_tausu%rh = w_c%rh
+     call Chem_BundleWrite( filename, nymd, nhms, 0, w_tausu, rc, &
+                            verbose=.true., new=new)
+    endif
+    if(doing_oc) then 
+     filename = trim(outfile(1:lenfile)//trim(chstr)//'.oc')
+     w_tauoc%rh = w_c%rh
+     call Chem_BundleWrite( filename, nymd, nhms, 0, w_tauoc, rc, &
+                            verbose=.true., new=new)
+    endif
+    if(doing_bc) then 
+     filename = trim(outfile(1:lenfile)//trim(chstr)//'.bc')
+     w_taubc%rh = w_c%rh
+     call Chem_BundleWrite( filename, nymd, nhms, 0, w_taubc, rc, &
+                            verbose=.true., new=new)
+    endif
+    if(doing_cc) then 
+     filename = trim(outfile(1:lenfile)//trim(chstr)//'.cc')
+     w_taucc%rh = w_c%rh
+     call Chem_BundleWrite( filename, nymd, nhms, 0, w_taucc, rc, &
+                            verbose=.true., new=new)
+    endif
+    if(doing_anthro) then 
+     filename = trim(outfile(1:lenfile)//trim(chstr)//'.anthro')
+     w_tauant%rh = w_c%rh
+     call Chem_BundleWrite( filename, nymd, nhms, 0, w_tauant, rc, &
+                            verbose=.true., new=new)
+    endif
+
+
+!   Clean up pointers
+!   -----------------
+    call Chem_BundleDestroy(w_tau,rc)
+    if(doing_anthro) call Chem_BundleDestroy(w_tauant,rc)
+    if(doing_dust)   call Chem_BundleDestroy(w_taudu,rc)
+    if(doing_ss)     call Chem_BundleDestroy(w_tauss,rc)
+    if(doing_su)     call Chem_BundleDestroy(w_tausu,rc)
+    if(doing_oc)     call Chem_BundleDestroy(w_tauoc,rc)
+    if(doing_bc)     call Chem_BundleDestroy(w_taubc,rc)
+    if(doing_cc)     call Chem_BundleDestroy(w_taucc,rc)
+
+
+   enddo  ! channels
 
 !  Clean up allocation of space for delz if doing extinction
    if(iext .gt. 0 .or. ibbck .gt. 0) deallocate(delz)
 
-!  Write the Chem_Bundle out
-   write(datestr,'(i8.8)') nymd
-   filename = trim(outfile(1:lenfile))
-   call Chem_BundleWrite( filename, nymd, nhms, 0, w_tau, rc, &
-                          verbose=.true., new=new)
-   if(doing_dust) then 
-    filename = trim(outfile(1:lenfile)//'.dust')
-    call Chem_BundleWrite( filename, nymd, nhms, 0, w_taudu, rc, &
-                           verbose=.true., new=new)
-   endif
-   if(doing_ss) then 
-    filename = trim(outfile(1:lenfile)//'.ss')
-    call Chem_BundleWrite( filename, nymd, nhms, 0, w_tauss, rc, &
-                           verbose=.true., new=new)
-   endif
-   if(doing_su) then 
-    filename = trim(outfile(1:lenfile)//'.su')
-    call Chem_BundleWrite( filename, nymd, nhms, 0, w_tausu, rc, &
-                           verbose=.true., new=new)
-   endif
-   if(doing_oc) then 
-    filename = trim(outfile(1:lenfile)//'.oc')
-    call Chem_BundleWrite( filename, nymd, nhms, 0, w_tauoc, rc, &
-                           verbose=.true., new=new)
-   endif
-   if(doing_bc) then 
-    filename = trim(outfile(1:lenfile)//'.bc')
-    call Chem_BundleWrite( filename, nymd, nhms, 0, w_taubc, rc, &
-                           verbose=.true., new=new)
-   endif
-   if(doing_cc) then 
-    filename = trim(outfile(1:lenfile)//'.cc')
-    call Chem_BundleWrite( filename, nymd, nhms, 0, w_taucc, rc, &
-                           verbose=.true., new=new)
-   endif
-   if(doing_anthro) then 
-    filename = trim(outfile(1:lenfile)//'.anthro')
-    call Chem_BundleWrite( filename, nymd, nhms, 0, w_tauant, rc, &
-                           verbose=.true., new=new)
-   endif
-
 
 !  ==================================================================================
-
-!  Don't overwrite the file
-!  ------------------------
-   new = .false.
-
-!  Clean up pointers
-!  -----------------
-   call Chem_BundleDestroy(w_tau,rc)
-   if(doing_anthro) call Chem_BundleDestroy(w_tauant,rc)
-   if(doing_dust)   call Chem_BundleDestroy(w_taudu,rc)
-   if(doing_ss)     call Chem_BundleDestroy(w_tauss,rc)
-   if(doing_su)     call Chem_BundleDestroy(w_tausu,rc)
-   if(doing_oc)     call Chem_BundleDestroy(w_tauoc,rc)
-   if(doing_bc)     call Chem_BundleDestroy(w_taubc,rc)
-   if(doing_cc)     call Chem_BundleDestroy(w_taucc,rc)
 
    call Chem_BundleDestroy(w_c,rc)
 
@@ -547,7 +564,9 @@ call Chem_RegistryPrint(regout)
                          this, ier)
   if(ier /= 0) call die(myname, 'cannot create bundle')
   this%delp = w_c%delp
-  this%rh   = w_c%rh
+  this%rh   = 0.
+! NB: as a hack I may use this%rh as a storage variable;
+!     I'll reset at the end
   do n = 1, regOut%nq
    this%qa(n)%data3d = 0.0
   end do
@@ -568,6 +587,13 @@ call Chem_RegistryPrint(regout)
                          = this%qa(immr)%data3d(i,j,k) + w_c%qa(iq)%data3d(i,j,k)
       if(ibbck .gt. 0)  this%qa(ibbck)%data3d(i,j,k) &
                          = this%qa(ibbck)%data3d(i,j,k) + bbck_*qMass/delz(i,j,k)
+      if(idepol .gt. 0) then
+        this%qa(idepol)%data3d(i,j,k) &
+         = this%qa(idepol)%data3d(i,j,k) + (p11_-p22_)*ssa_*tau_
+!       See how we are using this%rh; don't forget!
+        this%rh(i,j,k) = this%rh(i,j,k) + (p11_+p22_)*ssa_*tau_
+      endif
+
   end subroutine fill
 
 
@@ -590,9 +616,12 @@ call Chem_RegistryPrint(regout)
                                                            tiny(this%qa(igasym)%data3d(i,j,k)))
          if(igasym .gt. 0) this%qa(igasym)%data3d(i,j,k) = this%qa(igasym)%data3d(i,j,k) &
                                                     /(this%qa(issa)%data3d(i,j,k)*this%qa(itau)%data3d(i,j,k))
-         if(ietob .gt. 0)  this%qa(ietob)%data3d(i,j,k) = this%qa(itau)%data3d(i,j,k)/delz(i,j,k)/this%qa(ibbck)%data3d(i,j,k)
+         if(ietob .gt. 0) this%qa(ietob)%data3d(i,j,k) = this%qa(itau)%data3d(i,j,k)/delz(i,j,k)/this%qa(ibbck)%data3d(i,j,k)
          if(ietob .gt. 0) this%qa(ietob)%data3d(i,j,k) = max(     this%qa(ietob)%data3d(i,j,k), &
                                                            tiny(this%qa(ietob)%data3d(i,j,k)))
+         if(idepol .gt. 0) this%qa(idepol)%data3d(i,j,k) = this%qa(idepol)%data3d(i,j,k)/max(this%rh(i,j,k),tiny(this%rh))
+         if(idepol .gt. 0) this%qa(idepol)%data3d(i,j,k) = max(     this%qa(idepol)%data3d(i,j,k), &
+                                                           tiny(this%qa(idepol)%data3d(i,j,k)))
         enddo
        enddo
       enddo
