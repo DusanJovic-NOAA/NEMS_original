@@ -3247,9 +3247,20 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
         ntask=mype-inpes+1
         call mpi_send(eastx,length,mpi_real,ntask,mype &
                      ,mpi_comm_comp,isend)
-      endif
 !
-      if(w_bdy)then
+        call mpi_recv(westx,length,mpi_real,ntask,ntask &
+                     ,mpi_comm_comp,jstat,irecv)
+!
+        do l=1,km
+        do j=jts_h1,jte_h1
+          ave=(westx(1,j,l)+hn(ite-1,j,l))*0.5
+          hn(ite-1,j,l)=ave
+          hn(ite,j,l)=westx(2,j,l) 
+        enddo
+        enddo
+!-----------------------------------------------------------------------
+      elseif(w_bdy)then
+!
         ntask=mype+inpes-1  
         call mpi_recv(eastx,length,mpi_real,ntask,ntask &
                      ,mpi_comm_comp,jstat,irecv)
@@ -3271,21 +3282,9 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
           hn(its+1,j,l)=ave
         enddo
         enddo
+!
+!-----------------------------------------------------------------------
       endif
-!
-      if(e_bdy)then
-        call mpi_recv(westx,length,mpi_real,ntask,ntask &
-                     ,mpi_comm_comp,jstat,irecv)
-!
-        do l=1,km
-        do j=jts_h1,jte_h1
-          ave=(westx(1,j,l)+hn(ite-1,j,l))*0.5
-          hn(ite-1,j,l)=ave
-          hn(ite,j,l)=westx(2,j,l) 
-        enddo
-        enddo
-      endif
-!
 !-----------------------------------------------------------------------
 !
                         endsubroutine swaphn
@@ -3327,35 +3326,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,km),intent(inout):: &
 !
 integer(kind=kint) :: &
  i &
-,iadd &
-,ierr &
-,ind &
-,ipe &
-,irecv &
-,isend &
-,istat &
-,jpe &
-,kount &
-,l &
-,npe_end &
-,npe_start &
-,num_pes &
-,nwords_max &
-,nwords_mine &
-,nwords_remote
-!
-integer(kind=kint),dimension(2) :: &
- i_index
-integer(kind=kint),dimension(4) :: &
- ihandle
-!
-real(kind=kfpt),dimension(ids-3:ide+3,km) :: &
- h_northpole &
-,h_southpole
-!
-real(kind=kfpt),allocatable,dimension(:) :: &
- h_recv &
-,h_send
+,l
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -3365,105 +3336,13 @@ real(kind=kfpt),allocatable,dimension(:) :: &
 !
       south_tasks: if(s_bdy)then
 !
-!----------------------------------------------------------------
-!***  Allocate the arrays that will hold all local mass points in
-!***  the latitude circle of interest.
-!----------------------------------------------------------------
-!
-        nwords_max=(ide-ids+1)*km
-        allocate(h_recv(1:nwords_max),stat=istat)
-        allocate(h_send(1:nwords_max),stat=istat)
-!
-        nwords_mine=(ite-its+1)*km
-        kount=0
-!
-!------------------------------------------------------------
-!***  Each task inserts its local values into the full circle
-!***  and also bundles those values.
 !------------------------------------------------------------
 !
         do l=1,km
-        do i=its,ite
-          h_southpole(i,l)=hn(i,3,l)
-!
-          kount=kount+1
-          h_send(kount)=h_southpole(i,l)
-        enddo
-        enddo
-!
-!------------------------------------------------------
-!***  Each task sends its word count and polar winds to
-!***  the other pole tasks.
-!------------------------------------------------------
-!
-        do ipe=0,inpes-1    !<-- senders
-          do jpe=0,inpes-1  !<-- receivers
-!
-            if(jpe/=ipe)then
-!
-              if(mype==ipe)then
-!
-                i_index(1)=its
-                i_index(2)=ite
-!
-                call mpi_issend(i_index,2,mpi_integer,jpe,ipe &             !<-- send my word count to other tasks
-                               ,mpi_comm_comp,ihandle(1),isend)
-                call mpi_wait(ihandle(1),istatw,ierr)
-!
-                call mpi_issend(h_send,nwords_mine,mpi_real,jpe,ipe &       !<-- send my mass points to other tasks
-                               ,mpi_comm_comp,ihandle(3),isend)
-                call mpi_wait(ihandle(3),istatw,ierr)
-!
-!------------------------------------------------------------
-!***  Each task receives the word count and mass point values
-!***  from the other pole tasks.
-!------------------------------------------------------------
-!
-              elseif(mype==jpe)then
-                call mpi_irecv(i_index,2,mpi_integer,ipe,ipe &              !<-- receive word count from other tasks
-                              ,mpi_comm_comp,ihandle(2),irecv)
-                call mpi_wait(ihandle(2),istatw,ierr)
-!
-                nwords_remote=(i_index(2)-i_index(1)+1)*km                  !<-- number of words sent by remote task
-                call mpi_irecv(h_recv,nwords_remote,mpi_real,ipe,ipe &      !<-- receive mass points from other tasks
-                              ,mpi_comm_comp,ihandle(4),irecv)
-                call mpi_wait(ihandle(4),istatw,ierr)
-!
-!------------------------------------------------------------------
-!***  Each task inserts the mass values on the full latitude circle
-!***  from the other pole tasks.
-!------------------------------------------------------------------
-!
-                kount=0
-                do l=1,km
-                do i=i_index(1),i_index(2)
-                  kount=kount+1
-                  h_southpole(i,l)=h_recv(kount)
-                enddo
-                enddo
-!
-              endif
-!
-            endif
-!
+          do i=i_start,i_end
+            hn(i,1,l)=hn(i,3,l)
           enddo
         enddo
-!
-!-----------------------------------------------------------
-!***  Update mass points with values on the opposite side of
-!***  of the latitude circle.
-!-----------------------------------------------------------
-!
-        iadd=(ide-3)/2
-        do l=1,km
-        do i=its,ite
-          ind=i+iadd
-          if(ind>ide)ind=ind-ide+3
-          hn(i,1,l)=h_southpole(ind,l)
-        enddo
-        enddo
-!
-        deallocate(h_send,h_recv)
 !
 !-----------------------------------------------------------------
 !
@@ -3476,109 +3355,13 @@ real(kind=kfpt),allocatable,dimension(:) :: &
 !
       north_tasks: if(n_bdy)then
 !
-!----------------------------------------------------------------
-!***  Allocate the arrays that will hold all local mass points in
-!***  the latitude circle of interest.
-!----------------------------------------------------------------
-!
-        nwords_max=(ide-ids+1)*km
-        allocate(h_recv(1:nwords_max),stat=istat)
-        allocate(h_send(1:nwords_max),stat=istat)
-!
-        nwords_mine=(ite-its+1)*km
-        kount=0
-!
-!--------------------------------------------------------------
-!***  Each task inserts its local values into the full circle
-!***  and bundles those values.
 !--------------------------------------------------------------
 !
         do l=1,km
-        do i=its,ite
-          h_northpole(i,l)=hn(i,jde-2,l)
-!
-          kount=kount+1
-          h_send(kount)=h_northpole(i,l)
-        enddo
-        enddo
-!
-!---------------------------------------------------------
-!***  Each task sends its word count and polar mass points
-!***  to the other pole tasks.
-!---------------------------------------------------------
-!
-        num_pes=inpes*jnpes
-        npe_start=num_pes-inpes
-        npe_end=num_pes-1
-!
-        do ipe=npe_start,npe_end       !<-- senders
-          do jpe=npe_start,npe_end     !<-- receivers
-!
-            if(jpe/=ipe)then
-!
-              if(mype==ipe)then
-!
-                i_index(1)=its
-                i_index(2)=ite
-!
-                call mpi_issend(i_index,2,mpi_integer,jpe,ipe &             !<-- send my word count to other tasks
-                               ,mpi_comm_comp,ihandle(1),isend)
-                call mpi_wait(ihandle(1),istatw,ierr)
-!
-                call mpi_issend(h_send,nwords_mine,mpi_real,jpe,ipe &       !<-- send my mass points to other tasks
-                               ,mpi_comm_comp,ihandle(3),isend)
-                call mpi_wait(ihandle(3),istatw,ierr)
-!
-!------------------------------------------------------
-!***  Each task receives the word count and mass points
-!***  from the other pole tasks.
-!------------------------------------------------------
-!
-              elseif(mype==jpe)then
-                call mpi_irecv(i_index,2,mpi_integer,ipe,ipe &              !<-- receive word count from other tasks
-                              ,mpi_comm_comp,ihandle(2),irecv)
-                call mpi_wait(ihandle(2),istatw,ierr)
-!
-                nwords_remote=(i_index(2)-i_index(1)+1)*km                  !<-- number of words sent by remote task
-                call mpi_irecv(h_recv,nwords_remote,mpi_real,ipe,ipe &      !<-- receive mass points from other tasks
-                              ,mpi_comm_comp,ihandle(4),irecv)
-                call mpi_wait(ihandle(4),istatw,ierr)
-!
-!------------------------------------------------------------------
-!***  Each task inserts the mass values on the full latitude circle
-!***  from the other pole tasks.
-!------------------------------------------------------------------
-!
-                kount=0
-                do l=1,km
-                do i=i_index(1),i_index(2)
-                  kount=kount+1
-                  h_northpole(i,l)=h_recv(kount)
-                enddo
-                enddo
-!
-              endif
-!
-            endif
-!
+          do i=i_start,i_end
+            hn(i,jte,l)=hn(i,jte-2,l)
           enddo
         enddo
-!
-!--------------------------------------------------------
-!***  Update mass points with values on the opposite side
-!***  of the latitude circle.
-!--------------------------------------------------------
-!
-        iadd=(ide-3)/2
-        do l=1,km
-        do i=its,ite
-          ind=i+iadd
-          if(ind>ide)ind=ind-ide+3
-          hn(i,jte,l)=h_northpole(ind,l)
-        enddo
-        enddo
-!
-        deallocate(h_send,h_recv)
 !
 !-----------------------------------------------------------------------
 !
@@ -3661,9 +3444,19 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
         ntask=mype-inpes+1
         call mpi_send(eastx,length_e,mpi_real,ntask,mype &
                      ,mpi_comm_comp,isend)
-      endif
 !
-      if(w_bdy)then
+        call mpi_recv(westx,length_w,mpi_real,ntask,ntask &
+                     ,mpi_comm_comp,jstat,irecv)
+!
+        do l=1,km
+        do j=jts_h1,jte_h1
+          wn(ite-1,j,l)=westx(1,j,l)
+          wn(ite,j,l)=westx(2,j,l)
+        enddo
+        enddo
+!-----------------------------------------------------------------------
+      elseif(w_bdy)then
+!
         ntask=mype+inpes-1
         call mpi_recv(eastx,length_e,mpi_real,ntask,ntask &
                      ,mpi_comm_comp,jstat,irecv)
@@ -3683,20 +3476,9 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
 !
         call mpi_send(westx,length_w,mpi_real,ntask,mype &
                      ,mpi_comm_comp,isend)
+!
+!-----------------------------------------------------------------------
       endif
-!
-      if(e_bdy)then
-        call mpi_recv(westx,length_w,mpi_real,ntask,ntask &
-                     ,mpi_comm_comp,jstat,irecv)
-!
-        do l=1,km
-        do j=jts_h1,jte_h1
-          wn(ite-1,j,l)=westx(1,j,l)
-          wn(ite,j,l)=westx(2,j,l)
-        enddo
-        enddo
-      endif
-!
 !-----------------------------------------------------------------------
 !
                         endsubroutine swapwn
@@ -3739,37 +3521,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,km),intent(inout):: &
 !
 integer(kind=kint) :: &
  i &
-,iadd &
-,ierr &
-,ind &
-,ipe &
-,irecv &
-,isend &
-,istat &
-,jpe &
-,kount &
-,l &
-,npe_end &
-,npe_start &
-,num_pes &
-,nwords_max &
-,nwords_mine &
-,nwords_remote
-!
-integer(kind=kint),dimension(2) :: &
- i_index
-integer(kind=kint),dimension(4) :: &
- ihandle
-!
-real(kind=kfpt),dimension(ids-3:ide+3,km) :: &
- u_northpole &
-,u_southpole &
-,v_northpole &
-,v_southpole
-!
-real(kind=kfpt),allocatable,dimension(:) :: &
- wind_recv &
-,wind_send
+,l
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -3779,109 +3531,14 @@ real(kind=kfpt),allocatable,dimension(:) :: &
 !
       south_tasks: if(s_bdy)then
 !
-!--------------------------------------------------------------------
-!***  Allocate the arrays that will hold all local wind components in
-!***  the latitude circle of interest.
-!--------------------------------------------------------------------
-!
-        nwords_max=(ide-ids+1)*km*2
-        allocate(wind_recv(1:nwords_max),stat=istat)
-        allocate(wind_send(1:nwords_max),stat=istat)
-!
-        nwords_mine=(ite-its+1)*km*2
-        kount=-1
-!
-!--------------------------------------------------------------
-!***  Each task inserts its local values into the full circle
-!***  and also bundles those values.
 !--------------------------------------------------------------
 !
         do l=1,km
-        do i=its,ite
-          u_southpole(i,l)=u(i,2,l)
-          v_southpole(i,l)=v(i,2,l)
-!
-          kount=kount+2
-          wind_send(kount)  =u_southpole(i,l)
-          wind_send(kount+1)=v_southpole(i,l)
-        enddo
-        enddo
-!
-!------------------------------------------------------
-!***  Each task sends its word count and polar winds to
-!***  the other pole tasks.
-!------------------------------------------------------
-!
-        do ipe=0,inpes-1    !<-- senders
-          do jpe=0,inpes-1  !<-- receivers
-!
-            if(jpe/=ipe)then
-!
-              if(mype==ipe)then
-!
-                i_index(1)=its
-                i_index(2)=ite
-!
-                call mpi_issend(i_index,2,mpi_integer,jpe,ipe &             !<-- send my word count to other tasks
-                               ,mpi_comm_comp,ihandle(1),isend)
-                call mpi_wait(ihandle(1),istatw,ierr)
-!
-                call mpi_issend(wind_send,nwords_mine,mpi_real,jpe,ipe &    !<-- send my winds to other tasks
-                               ,mpi_comm_comp,ihandle(3),isend)
-                call mpi_wait(ihandle(3),istatw,ierr)
-!
-!-----------------------------------------------------
-!***  Each task receives the word count and winds from
-!***  the other pole tasks.
-!-----------------------------------------------------
-!
-              elseif(mype==jpe)then
-                call mpi_irecv(i_index,2,mpi_integer,ipe,ipe &              !<-- receive word count from other tasks
-                              ,mpi_comm_comp,ihandle(2),irecv)
-                call mpi_wait(ihandle(2),istatw,ierr)
-!
-                nwords_remote=(i_index(2)-i_index(1)+1)*km*2                !<-- number of words sent by remote task
-                call mpi_irecv(wind_recv,nwords_remote,mpi_real,ipe,ipe &   !<-- receive winds from other tasks
-                              ,mpi_comm_comp,ihandle(4),irecv)
-                call mpi_wait(ihandle(4),istatw,ierr)
-!
-!------------------------------------------------------------------
-!***  Each task inserts the wind values on the full latitude circle
-!***  from the other pole tasks.
-!------------------------------------------------------------------
-!
-                kount=-1
-                do l=1,km
-                do i=i_index(1),i_index(2)
-                  kount=kount+2
-                  u_southpole(i,l)=wind_recv(kount)
-                  v_southpole(i,l)=wind_recv(kount+1)
-                enddo
-                enddo
-!
-              endif
-!
-            endif
-!
+          do i=i_start,i_end
+            u(i,1,l)=-u(i,2,l)
+            v(i,1,l)=-v(i,2,l)
           enddo
         enddo
-!
-!-----------------------------------------------------
-!***  Update winds with values on the opposite side of
-!***  the latitude circle.
-!-----------------------------------------------------
-!
-        iadd=(ide-3)/2
-        do l=1,km
-        do i=its,ite
-          ind=i+iadd
-          if(ind>ide)ind=ind-ide+3
-          u(i,1,l)=-u_southpole(ind,l)
-          v(i,1,l)=-v_southpole(ind,l)
-        enddo
-        enddo
-!
-        deallocate(wind_send,wind_recv)
 !
 !-----------------------------------------------------------------
 !
@@ -3895,114 +3552,15 @@ real(kind=kfpt),allocatable,dimension(:) :: &
       north_tasks: if(n_bdy)then
 !
 !--------------------------------------------------------------------
-!***  Allocate the arrays that will hold all local wind components in
-!***  the latitude circle of interest.
-!--------------------------------------------------------------------
-!
-        nwords_max=(ide-ids+1)*km*2
-        allocate(wind_recv(1:nwords_max),stat=istat)
-        allocate(wind_send(1:nwords_max),stat=istat)
-!
-        nwords_mine=(ite-its+1)*km*2
-        kount=-1
-!
-!--------------------------------------------------------------
-!***  Each task inserts its local values into the full circle
-!***  and bundles those values.
-!--------------------------------------------------------------
 !
         do l=1,km
-        do i=its,ite
-          u_northpole(i,l)=u(i,jde-2,l)
-          v_northpole(i,l)=v(i,jde-2,l)
-!
-          kount=kount+2
-          wind_send(kount)  =u_northpole(i,l)
-          wind_send(kount+1)=v_northpole(i,l)
-        enddo
-        enddo
-!
-!------------------------------------------------------
-!***  Each task sends its word count and polar winds to
-!***  the other pole tasks.
-!------------------------------------------------------
-!
-        num_pes=inpes*jnpes
-        npe_start=num_pes-inpes
-        npe_end=num_pes-1
-!
-        do ipe=npe_start,npe_end       !<-- senders
-          do jpe=npe_start,npe_end     !<-- receivers
-!
-            if(jpe/=ipe)then
-!
-              if(mype==ipe)then
-!
-                i_index(1)=its
-                i_index(2)=ite
-!
-                call mpi_issend(i_index,2,mpi_integer,jpe,ipe &             !<-- send my word count to other tasks
-                               ,mpi_comm_comp,ihandle(1),isend)
-                call mpi_wait(ihandle(1),istatw,ierr)
-!
-                call mpi_issend(wind_send,nwords_mine,mpi_real,jpe,ipe &    !<-- send my winds to other tasks
-                               ,mpi_comm_comp,ihandle(3),isend)
-                call mpi_wait(ihandle(3),istatw,ierr)
-!
-!-----------------------------------------------------
-!***  Each task receives the word count and winds from
-!***  the other pole tasks.
-!-----------------------------------------------------
-!
-              elseif(mype==jpe)then
-                call mpi_irecv(i_index,2,mpi_integer,ipe,ipe &              !<-- receive word count from other tasks
-                              ,mpi_comm_comp,ihandle(2),irecv)
-                call mpi_wait(ihandle(2),istatw,ierr)
-!
-                nwords_remote=(i_index(2)-i_index(1)+1)*km*2                !<-- number of words sent by remote task
-                call mpi_irecv(wind_recv,nwords_remote,mpi_real,ipe,ipe &   !<-- receive winds from other tasks
-                              ,mpi_comm_comp,ihandle(4),irecv)
-                call mpi_wait(ihandle(4),istatw,ierr)
-!
-!------------------------------------------------------------------
-!***  Each task inserts the wind values on the full latitude circle
-!***  from the other pole tasks.
-!------------------------------------------------------------------
-!
-                kount=-1
-                do l=1,km
-                do i=i_index(1),i_index(2)
-                  kount=kount+2
-                  u_northpole(i,l)=wind_recv(kount)
-                  v_northpole(i,l)=wind_recv(kount+1)
-                enddo
-                enddo
-!
-              endif
-!
-            endif
-!
+          do i=i_start,i_end
+            u(i,jte-1,l)=-u(i,jte-2,l)
+            v(i,jte-1,l)=-v(i,jte-2,l)
+            u(i,jte  ,l)=-u(i,jte-2,l)
+            v(i,jte  ,l)=-v(i,jte-2,l)
           enddo
         enddo
-!
-!-----------------------------------------------------
-!***  Update winds with values on the opposite side of
-!***  the latitude circle.
-!-----------------------------------------------------
-!
-        iadd=(ide-3)/2
-        do l=1,km
-        do i=its,ite
-          ind=i+iadd
-          if(ind>ide)ind=ind-ide+3
-          u(i,jte-1,l)=-u_northpole(ind,l)
-          u(i,jte  ,l)=-u_northpole(ind,l)
-          v(i,jte-1,l)=-v_northpole(ind,l)
-          v(i,jte  ,l)=-v_northpole(ind,l)
-        enddo
-        enddo
-!
-        deallocate(wind_send,wind_recv)
 !
 !-----------------------------------------------------------------------
 !

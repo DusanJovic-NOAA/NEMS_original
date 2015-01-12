@@ -3243,7 +3243,14 @@
 !-----------------------------------------------------------------------
 !***  Forecast task 0 renders all the boundary data into 
 !***  a single 1-D string to send to the lead write task.
+!***  Be sure the BC data buffer for the ISend to the lead
+!***  quilt task is clear.
 !-----------------------------------------------------------------------
+!
+          btim=timef()
+          CALL MPI_WAIT(RST_IH_BC,JSTAT,IERR)
+          wait_time=timef()-btim
+          if(wait_time>1.e3)write(0,*)' Long BC buffer WAIT =',wait_time*1.e-3
 !
           KOUNT=0
 !
@@ -3587,15 +3594,6 @@
 !***  Now forecast task 0 must send the full-domain boundary data
 !***  to the lead write task for inserting it into the restart file.
 !-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Be sure the BC data buffer is available for ISend to
-!***  the lead write task.
-!-----------------------------------------------------------------------
-!
-          CALL MPI_WAIT(RST_IH_BC,JSTAT,IERR) 
-          wait_time=timef()-btim
-          if(wait_time>1.e3)write(0,*)' Long BC buffer WAIT =',wait_time*1.e-3
 !
           CALL MPI_ISSEND(wrt_int_state%RST_ALL_BC_DATA                 &  !<-- 1-D String of full domain BC data
                          ,wrt_int_state%NUM_WORDS_SEND_BC(1)            &  !<-- # of words in the BC data string

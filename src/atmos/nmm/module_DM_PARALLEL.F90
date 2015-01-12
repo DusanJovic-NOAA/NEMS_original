@@ -1520,6 +1520,9 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
           handle(n)=mpi_request_null
         enddo
         allocate(dummy_recv(msize_dummy_fft))
+        if(my_domain_has_fft_lats(mype))then
+          allocate(dummy_send(msize_dummy_fft,ipe_start:ipe_end))
+        endif
       endif
 !
 !-----------------------------------------------------------------------
@@ -1549,8 +1552,6 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
 !-----------------------------------------------------------------------
 !
       if(my_domain_has_fft_lats(mype))then
-!
-        allocate(dummy_send(msize_dummy_fft,ipe_start:ipe_end))
 !
         send_to_npe: do npe=ipe_start,ipe_end     !<--- Send subsets of my FFT points to all
                                                   !     other tasks in this hemisphere.
@@ -1661,8 +1662,6 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
         do npe=ipe_start,ipe_end  
           call mpi_wait(handle(npe),jstat,ierr)
         enddo
-!
-        deallocate(dummy_send)
 !
       endif
 !
@@ -1790,6 +1789,7 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
         enddo
 !
         allocate(dummy_recv(msize_dummy_fft))
+        allocate(dummy_send(msize_dummy_fft,ipe_start:ipe_end))
       endif
 !
 !-----------------------------------------------------------------------
@@ -1812,8 +1812,6 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
 !***  and the receiver's J extent that spans the appropriate
 !***  FFT latitude rows computed by the sender.
 !-----------------------------------------------------------------------
-!
-      allocate(dummy_send(msize_dummy_fft,ipe_start:ipe_end))
 !
       k1=k1_fft(mype)
       k2=k2_fft(mype)
@@ -1921,8 +1919,6 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
         endif
 !
       enddo
-!
-      deallocate(dummy_send)
 !
 !-----------------------------------------------------------------------
 !

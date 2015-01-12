@@ -377,7 +377,7 @@
       INTEGER :: LDIM1,LDIM2,LDIM3,LDIM4,UDIM1,UDIM2,UDIM3,UDIM4
 
       CHARACTER(3)           :: MODEL_LEVEL
-      CHARACTER(2)           :: TRACERS_KIND
+      CHARACTER(3)           :: TRACERS_KIND
       CHARACTER(6)           :: FMT3='(I3.3)'
       CHARACTER(6)           :: FMT2='(I2.2)'
       CHARACTER(ESMF_MAXSTR) :: VBL_NAME,VBL_NAME_X
@@ -817,7 +817,7 @@
 
           DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
-            WRITE(TRACERS_KIND,FMT2)M
+            WRITE(TRACERS_KIND,FMT3)M
             WRITE(MODEL_LEVEL,FMT3)K
 !
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//TRACERS_KIND//'_'//MODEL_LEVEL//'_2D'
@@ -873,7 +873,7 @@
 !
           DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
-            WRITE(TRACERS_KIND,FMT2)M
+            WRITE(TRACERS_KIND,FMT3)M
             WRITE(MODEL_LEVEL,FMT3)K
 !
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//TRACERS_KIND//'_'//MODEL_LEVEL//'_2D'

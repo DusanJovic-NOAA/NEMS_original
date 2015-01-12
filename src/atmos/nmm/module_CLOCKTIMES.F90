@@ -31,6 +31,7 @@
         REAL(kind=KDBL) :: adv1_tim,adv2_tim,bocoh_tim,bocov_tim        &
                           ,cdwdt_tim,cdzdt_tim,consts_tim               &
                           ,ddamp_tim,dht_tim                            &
+                          ,exch_dyn,exch_phy                            &
                           ,exch_tim                                     &
                           ,fftfhn_tim,fftfwn_tim                        &
                           ,hdiff_tim,mono_tim                           &
@@ -132,7 +133,7 @@
                   +td%cdzdt_tim                                         &
                   +td%dht_tim                                           &
                   +td%ddamp_tim                                         &
-                  +td%exch_tim                                          &
+                  +td%exch_dyn                                          &
                   +td%fftfhn_tim                                        &
                   +td%fftfwn_tim                                        &
                   +td%hdiff_tim                                         &
@@ -151,6 +152,7 @@
 !
       td%totalsum_tim=td%totalsum_tim                                   &
                   +td%cucnvc_tim                                        &
+                  +td%exch_phy                                          &
                   +td%gsmdrive_tim                                      &
                   +td%h_to_v_tim                                        &
                   +td%pole_swap_tim                                     &
@@ -172,14 +174,17 @@
 !
         write(0,FMT='(" ntsd= ",I6," total_integration_tim=  ",g12.5)') ntimestep,td%total_integ_tim
 !
-        write(0,*)' DYNAMICS'
-!
-        write(0,FMT='("   solver_dyn=           ",g12.5," pct= ",f7.2)') td%solver_dyn_tim &
-                 ,td%solver_dyn_tim/td%total_integ_tim*100.
         write(0,FMT='("   solver_init=          ",g12.5," pct= ",f7.2)') td%solver_init_tim &
                  ,td%solver_init_tim/td%total_integ_tim*100.
         write(0,FMT='("   consts=               ",g12.5," pct= ",f7.2)') td%consts_tim &
                  ,td%consts_tim/td%total_integ_tim*100.
+!
+        write(0,*)' DYNAMICS'
+!
+        write(0,FMT='("   solver_dyn_total=     ",g12.5," pct= ",f7.2)') td%solver_dyn_tim &
+                 ,td%solver_dyn_tim/td%total_integ_tim*100.
+        write(0,FMT='("   solver_dyn_w/o_exch=  ",g12.5," pct= ",f7.2)') td%solver_dyn_tim-td%exch_dyn &
+                 ,(td%solver_dyn_tim-td%exch_dyn)/td%total_integ_tim*100.
         write(0,FMT='("   pgforce=              ",g12.5," pct= ",f7.2)') td%pgforce_tim &
                  ,td%pgforce_tim/td%total_integ_tim*100.
         write(0,FMT='("   dht=                  ",g12.5," pct= ",f7.2)') td%dht_tim &
@@ -241,8 +246,10 @@
         endif
         write(0,*)' PHYSICS '
 !
-        write(0,FMT='("   solver_phy=           ",g12.5," pct= ",f7.2)') td%solver_phy_tim &
+        write(0,FMT='("   solver_phy_total=     ",g12.5," pct= ",f7.2)') td%solver_phy_tim &
                  ,td%solver_phy_tim/td%total_integ_tim*100.
+        write(0,FMT='("   solver_phy_w/o_exch=  ",g12.5," pct= ",f7.2)') td%solver_phy_tim-td%exch_phy &
+                 ,(td%solver_phy_tim-td%exch_phy)/td%total_integ_tim*100.
         write(0,FMT='("   cucnvc=               ",g12.5," pct= ",f7.2)') td%cucnvc_tim &
                 ,td%cucnvc_tim/td%total_integ_tim*100.
         write(0,FMT='("   gsmdrive=             ",g12.5," pct= ",f7.2)') td%gsmdrive_tim &
@@ -263,7 +270,14 @@
 !
         write(0,*)' EXCHANGE TIMES '
 !
-        write(0,FMT='("   exch_dyn=             ",g12.5," pct= ",f7.2)') td%exch_tim &
+        write(0,FMT='("   exch_dyn=             ",g12.5," pct= ",f7.2)') td%exch_dyn &
+                ,td%exch_dyn/td%total_integ_tim*100.
+!
+        write(0,FMT='("   exch_phy=             ",g12.5," pct= ",f7.2)') td%exch_phy &
+                ,td%exch_phy/td%total_integ_tim*100.
+!
+        td%exch_tim=td%exch_dyn+td%exch_phy
+        write(0,FMT='("   exch_tim=             ",g12.5," pct= ",f7.2)') td%exch_tim &
                 ,td%exch_tim/td%total_integ_tim*100.
 !
         if(td%swaphn_tim/=0.)then

@@ -11872,7 +11872,8 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Finally the extreme northeast parent task V point.
+!***  The extreme northeast V point on all parent tasks that do not
+!***  lie along the northern and eastern side of the parent domain.
 !-----------------------------------------------------------------------
 !
         IF(ITE<IDE.AND.JTE<JDE)THEN
@@ -11882,10 +11883,16 @@
 !
           NEST_FIS_V_ON_PARENT(N)%DATA(IEND,JEND)=(NEST_FIS_ON_PARENT(N)%DATA(IEND,JEND) &
                                                     +ROW(IEND)+COL(JEND)+VAL_NE)*0.25
-        ENDIF
 !
-        IF(ITE==IDE.AND.JTE==JDE)THEN
+!-----------------------------------------------------------------------
+!***  The extreme northeast V point on all parent tasks that DO
+!***  lie along the northern and eastern side of the parent domain.
+!-----------------------------------------------------------------------
+!
+        ELSE
+!
           NEST_FIS_V_ON_PARENT(N)%DATA(IEND,JEND)=0.
+!
         ENDIF
 !
 !-----------------------------------------------------------------------

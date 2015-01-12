@@ -7580,8 +7580,6 @@
 !
 !-----------------------------------------------------------------------
 !
-            NEXT_MOVE_TIMESTEP=NTIMESTEP+TIME_RATIO_MY_PARENT*LAG_STEPS    !<-- Nest will shift after LAG_STEPS parent timesteps
-!
 !-----------------------------------------------------------------------
 !***  Do not permit the nest to shift at what would be the first
 !***  timestep of a restarted run.  That is because of the large
@@ -7595,6 +7593,8 @@
                NTIMESTEP<NTIMESTEP_FINAL-TIME_RATIO_MY_PARENT*(LAG_STEPS+1))THEN
 !
 !-----------------------------------------------------------------------
+!
+              NEXT_MOVE_TIMESTEP=NTIMESTEP+TIME_RATIO_MY_PARENT*LAG_STEPS    !<-- Nest will shift after LAG_STEPS parent timesteps
 !
               NEXT_MOVE_TIMESTEP_PARENT=NEXT_MOVE_TIMESTEP/TIME_RATIO_MY_PARENT  !<-- Nest will shift after LAG_STEPS parent timesteps
               LAST_STEP_MOVED=NEXT_MOVE_TIMESTEP                                 !<-- Reset to this to the most recent move
@@ -7680,6 +7680,16 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  If this child wants to shift too soon after a restart output
+!***  time or too near the end of the forecast then its desire to
+!***  do so is ignored.
+!-----------------------------------------------------------------------
+!
+            ELSE
+!
+              I_WANT_TO_MOVE=.FALSE.
 !
 !-----------------------------------------------------------------------
 !

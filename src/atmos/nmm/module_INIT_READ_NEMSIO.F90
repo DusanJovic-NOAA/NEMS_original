@@ -92,7 +92,7 @@ integer(kind=kint) :: &
 
 integer(kind=kint) :: idate(7)
 integer(kind=kint) :: fcstdate(7)
-character(2)       ::tn
+character(3)       ::tn
  
 real(kind=kfpt):: &
  tend,tend_max
@@ -3501,7 +3501,7 @@ integer,allocatable       :: reclev(:)
 !-- tracers_prev
       do n=1,int_state%num_tracers_total
         int_state%tracers_prev(:,:,:,n)=0.
-        write(tn,'(I2.2)')n
+        write(tn,'(I3.3)')n
         do l=1,lm
           call getrecn(recname,reclevtyp,reclev,nrec,'tracers_prev_'//tn,  &
                'mid layer',l,recn)
@@ -3657,7 +3657,7 @@ integer,allocatable       :: reclev(:)
 !-- rest of tracers
       int_state%tracers(:,:,:,int_state%indx_o3+1:int_state%num_tracers_total)=0.
       do n=int_state%indx_o3+1,int_state%num_tracers_total                     !<-- The first 'indx_o3' arrays are unallocated pointers
-        write(tn,'(I2.2)')n
+        write(tn,'(I3.3)')n
         do l=1,lm
           call getrecn(recname,reclevtyp,reclev,nrec,'tracers_'//tn,     &
                        'mid layer',l,recn)

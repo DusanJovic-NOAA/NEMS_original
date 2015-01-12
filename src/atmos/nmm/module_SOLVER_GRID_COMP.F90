@@ -1156,6 +1156,8 @@
         td%consts_tim=0.
         td%ddamp_tim=0.
         td%dht_tim=0.
+        td%exch_dyn=0.
+        td%exch_phy=0.
         td%exch_tim=0.
         td%fftfhn_tim=0.
         td%fftfwn_tim=0.
@@ -1342,7 +1344,7 @@
         btim=timef()
 !
 
-        write(0,*)'int_state%NEMSIO_INPUT=',int_state%NEMSIO_INPUT  !wang
+!       write(0,*)'int_state%NEMSIO_INPUT=',int_state%NEMSIO_INPUT  !wang
         IF(.NOT.int_state%NEMSIO_INPUT)THEN
 !
           CALL READ_BINARY(INT_STATE                                    &
@@ -1366,7 +1368,7 @@
 !
         ELSE
 !
-         write(0,*) 'mype=',mype,'call read_nemsio'
+!        write(0,*) 'mype=',mype,'call read_nemsio'
           CALL READ_NEMSIO(int_state,MY_DOMAIN_ID,RC)
 !
           IF (RC /= 0) THEN
@@ -3036,6 +3038,7 @@
 !
       IF(MOVE_NOW)THEN
 !
+        btim=timef()
         CALL HALO_EXCH                                                  &
            (int_state%GLAT,1                                            &
            ,int_state%GLON,1                                            &
@@ -3049,6 +3052,7 @@
            ,int_state%HDACVX,1                                          &
            ,int_state%HDACVY,1                                          &
            ,2,2)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Also the geography information for the gravity wave drag
@@ -3221,6 +3225,7 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          btim=timef()
           CALL HALO_EXCH                                                &
              (int_state%T,LM                                            &
              ,int_state%Q,LM                                            &
@@ -3236,6 +3241,7 @@
           CALL HALO_EXCH                                                &
              (int_state%PD,1                                            &
              ,2,2)
+          td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
           IF(.NOT.int_state%GLOBAL)THEN
             CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                     &
@@ -3364,7 +3370,7 @@
         btim=timef()
         CALL HALO_EXCH(int_state%T,LM                                   &
                       ,2,2)
-        td%exch_tim=td%exch_tim+(timef()-btim)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  The pressure gradient routine.
@@ -3396,7 +3402,7 @@
         CALL HALO_EXCH(int_state%U,LM                                   &
                       ,int_state%V,LM                                   &
                       ,2,2)
-        td%exch_tim=td%exch_tim+(timef()-btim)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Divergence and horizontal pressure advection in thermo eqn
@@ -3485,7 +3491,7 @@
          ,int_state%U,LM                                                &
          ,int_state%V,LM                                                &
          ,2,2)
-        td%exch_tim=td%exch_tim+(timef()-btim)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -3611,7 +3617,7 @@
         CALL HALO_EXCH(int_state%U,LM                                   &
                       ,int_state%V,LM                                   &
                       ,1,1)
-        td%exch_tim=td%exch_tim+(timef()-btim)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Regional domains that have no children or are uppermost parents
@@ -3998,7 +4004,7 @@
         CALL HALO_EXCH(int_state%U,LM                                   &
                       ,int_state%V,LM                                   &
                       ,2,2)
-        td%exch_tim=td%exch_tim+(timef()-btim)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Update the boundary velocity points for the regional forecast.
@@ -4113,7 +4119,7 @@
         CALL HALO_EXCH(int_state%DIV,LM                                 &
                       ,int_state%OMGALF,LM                              &
                       ,2,2)
-        td%exch_tim=td%exch_tim+(timef()-btim)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Divergence damping
@@ -4169,7 +4175,7 @@
         CALL HALO_EXCH(int_state%U,int_state%LM                         &
                       ,int_state%V,int_state%LM                         &
                       ,2,2)
-        td%exch_tim=td%exch_tim+(timef()-btim)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -4233,7 +4239,7 @@
                     ,int_state%PSDT,1                                   &
                     ,int_state%PSGDT,LM-1                               &
                     ,2,2)
-      td%exch_tim=td%exch_tim+(timef()-btim)
+      td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Advection of T, U, and V
@@ -4400,6 +4406,7 @@
                       ,int_state%O3,LM                                  &
                       ,int_state%Q2,LM                                  &
                       ,2,2)
+        td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
         IF(int_state%SPEC_ADV)THEN
           DO KS=KSS,KSE1
@@ -4409,9 +4416,11 @@
                KS /= int_state%INDX_O3 .AND.                            &
                KS /= int_state%INDX_Q2 ) THEN
 !
+          btim=timef()
               CALL HALO_EXCH(                                           &
                 int_state%TRACERS(IMS:IME,JMS:JME,1:LM,KS),LM           &
                ,2,2)
+          td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
               IF (RIME_FACTOR_ADVECT) THEN
 !--------------- F_RIMEF(:,:,:)=QG(:,:,:)/QS(:,:,:) for physics
@@ -4428,8 +4437,6 @@
 !
           ENDDO
         ENDIF
-!
-        td%exch_tim=td%exch_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -4516,7 +4523,7 @@
                     ,2,2)
       CALL HALO_EXCH(int_state%T,LM                                     &
                     ,2,2)
-      td%exch_tim=td%exch_tim+(timef()-btim)
+      td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Nonhydrostatic advection of height
@@ -4572,7 +4579,7 @@
       btim=timef()
       CALL HALO_EXCH(int_state%W,LM                                     &
                     ,3,3)
-      td%exch_tim=td%exch_tim+(timef()-btim)
+      td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Advection of W (with internal halo exchange)
@@ -4629,7 +4636,7 @@
       btim=timef()
       CALL HALO_EXCH(int_state%DWDT,LM                                  &
                     ,2,2)
-      td%exch_tim=td%exch_tim+(timef()-btim)
+      td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Vertically propagating fast waves
@@ -4698,7 +4705,7 @@
       CALL HALO_EXCH(int_state%W,LM                                     &
                     ,int_state%PINT,LM+1                                &
                     ,2,2)
-      td%exch_tim=td%exch_tim+(timef()-btim)
+      td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Save DT to compare and see if sign has changed for filtering.
@@ -5345,7 +5352,7 @@
 !
           CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,1,1)
 !
-          td%exch_tim=td%exch_tim+(timef()-btim)
+          td%exch_phy=td%exch_phy+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Now interpolate wind tendencies from H to V points.
@@ -5404,8 +5411,6 @@
                         ,int_state%Q2,LM                                &
                         ,1,1)
 !
-          td%exch_tim=td%exch_tim+(timef()-btim)
-!
 !-----------------------------------------------------------------------
 !***  Exchange other variables that are needed for parents' 
 !***  interpolations to interior points of moving nests.
@@ -5428,6 +5433,8 @@
           CALL HALO_EXCH(int_state%SMC,NUM_SOIL_LAYERS                  &
                         ,int_state%SH2O,NUM_SOIL_LAYERS                 &
                         ,int_state%STC,NUM_SOIL_LAYERS,1,1)
+!
+          td%exch_phy=td%exch_phy+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -5583,7 +5590,7 @@
 !
             btim=timef()
             CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,1,1)
-            td%exch_tim=td%exch_tim+(timef()-btim)
+            td%exch_phy=td%exch_phy+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Now interpolate wind tendencies from H to V points.
@@ -5622,7 +5629,7 @@
             btim=timef()
             CALL HALO_EXCH(int_state%U,LM,int_state%V,LM                &
                           ,2,2)
-            td%exch_tim=td%exch_tim+(timef()-btim)
+            td%exch_phy=td%exch_phy+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
@@ -5763,7 +5770,7 @@
           CALL HALO_EXCH(int_state%Q,LM,int_state%CW,LM                 &
                         ,2,2)
 !
-          td%exch_tim=td%exch_tim+(timef()-btim)
+          td%exch_phy=td%exch_phy+(timef()-btim)
 
 !
 !-----------------------------------------------------------------------
@@ -5801,6 +5808,7 @@
 !
         CALL HALO_EXCH(int_state%T,LM,2,2)
 !
+        td%exch_phy=td%exch_phy+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Synchronize mixing ratio with specific humidity.
@@ -5819,6 +5827,7 @@
 !-----------------------------------------------------------------------
 !
         IF(int_state%SPEC_ADV)THEN
+          btim=timef()
           IF(int_state%F_QV) CALL HALO_EXCH(int_state%QV,LM,2,2)
           IF(int_state%F_QC) CALL HALO_EXCH(int_state%QC,LM,2,2)
           IF(int_state%F_QR) CALL HALO_EXCH(int_state%QR,LM,2,2)
@@ -5827,10 +5836,8 @@
           IF(int_state%F_QG) CALL HALO_EXCH(int_state%QG,LM,2,2)
           IF(int_state%F_NI) CALL HALO_EXCH(int_state%NI,LM,2,2)
           IF(int_state%F_NR) CALL HALO_EXCH(int_state%NR,LM,2,2)
+          td%exch_phy=td%exch_phy+(timef()-btim)
         ENDIF
-
-!
-        td%exch_tim=td%exch_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  NOTE:  The Physics export state is fully updated now
@@ -6754,7 +6761,7 @@
 !
           CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,3,3)
 !
-          td%exch_tim=td%exch_tim+(timef()-btim)
+          td%exch_phy=td%exch_phy+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Now interpolate wind tendencies from H to V points.
@@ -6818,7 +6825,7 @@
           CALL HALO_EXCH(int_state%U,LM,int_state%V,LM                  &
                         ,3,3)
 !
-          td%exch_tim=td%exch_tim+(timef()-btim)
+          td%exch_phy=td%exch_phy+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------

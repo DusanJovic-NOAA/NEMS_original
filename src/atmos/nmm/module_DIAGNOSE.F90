@@ -1852,7 +1852,8 @@ vloop3:   IF (ZCTOP >= Z1KM) THEN
       REAL :: UPHL   (IMS:IME,JMS:JME)
       INTEGER :: I,J,L
       REAL :: R2DX,R2DY,DZ,ZMIDLOC
-      REAL :: DUDY,DVDX
+      REAL :: RD2,RDY,RDX
+      REAL :: DUDY,DVDX,VM1,VM2,UM1,UM2
 
       REAL, PARAMETER:: HLOWER=2000.
       REAL, PARAMETER:: HUPPER=5000.
@@ -1864,6 +1865,7 @@ vloop3:   IF (ZCTOP >= Z1KM) THEN
       enddo
 
       R2DY=1./(2.*DY)
+      RDY=2.*R2DY
  J_LOOP: DO J=MAX(JTS,2),MIN(JTE,JDE-1)
 
 	IF (DX(J) .LT. 0.1) THEN
@@ -1871,6 +1873,7 @@ vloop3:   IF (ZCTOP >= Z1KM) THEN
 	ENDIF
 
         R2DX=1./(2.*DX(J))
+        RDX=2.*R2DX
         DO I=MAX(ITS,2),MIN(ITE,IDE-1)
   L_LOOP:  DO L=1,LM-1
              ZMIDLOC=Z(I,J,L)
@@ -1886,8 +1889,12 @@ vloop3:   IF (ZCTOP >= Z1KM) THEN
                  EXIT l_loop
                ENDIF
 
-               DVDX=(V(I+1,J,L)-V(I-1,J,L))*R2DX
-               DUDY=(U(I,J+1,L)-U(I,J-1,L))*R2DY
+               VM1=0.5*(V(I,  J,L)+V(I,  J-1,L))
+               VM2=0.5*(V(I-1,J,L)+V(I-1,J-1,L))
+               DVDX=(VM1-VM2)*RDX
+               UM1=0.5*(U(I-1,  J,L)+U(I,J  ,L))
+               UM2=0.5*(U(I-1,J-1,L)+U(I,J-1,L))
+               DUDY=(UM1-UM2)*RDY
                UPHL(I,J)=UPHL(I,J)+(DVDX-DUDY)*W(I,J,L)*DZ
              ENDIF
            ENDDO L_LOOP

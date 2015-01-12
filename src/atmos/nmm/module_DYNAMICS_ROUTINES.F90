@@ -3762,7 +3762,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !
       btim=timef()
       call halo_exch(dwdt,lm,1,1)
-      timers(my_domain_id)%exch_tim=timers(my_domain_id)%exch_tim+(timef()-btim)
+      timers(my_domain_id)%exch_dyn=timers(my_domain_id)%exch_dyn+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !------------spatial filtering of dwdt----------------------------------

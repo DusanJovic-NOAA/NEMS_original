@@ -2490,6 +2490,9 @@
             zrp1 = f_one + zrp
             zrm1 = f_one - zrp
             zrpp = f_one - zrp*zrp
+            if ( abs(zrpp) < eps1 )then
+              zrpp = sign ( eps1 , zrpp )
+            endif
             zrkg1= zrk + zgam1
             zrkg3= zrk * zgam3
             zrkg4= zrk * zgam4
@@ -2715,6 +2718,9 @@
                 zrp1 = f_one + zrp
                 zrm1 = f_one - zrp
                 zrpp = f_one - zrp*zrp
+                if ( abs(zrpp) < eps1 )then
+                  zrpp = sign ( eps1 , zrpp )
+                endif
                 zrkg1= zrk + zgam1
                 zrkg3= zrk * zgam3
                 zrkg4= zrk * zgam4
