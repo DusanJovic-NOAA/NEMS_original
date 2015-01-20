@@ -100,7 +100,7 @@
                               ,STENCIL_SFC_H_ODD                        &
                               ,STENCIL_SFC_V_ODD  
 !
-      USE module_CONSTANTS,ONLY: G,P608,R_D
+      USE module_CONSTANTS,ONLY: A,G,P608,R_D
 !
       USE MODULE_MY_DOMAIN_SPECS, IDS_share=>IDS,IDE_share=>IDE         &
                                  ,IMS_share=>IMS,IME_share=>IME         &
@@ -270,7 +270,7 @@
         INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE,LM
         INTEGER(kind=KINT) :: IMS,IME,JMS,JME
         INTEGER(kind=KINT) :: IDS,IDE,JDS,JDE
-        INTEGER(kind=KINT) :: IM_1,JM_1
+        INTEGER(kind=KINT) :: IM_1,JM_1,JM
         INTEGER(kind=KINT) :: INPES,JNPES
         INTEGER(kind=KINT) :: INPES_PARENT,JNPES_PARENT
         INTEGER(kind=KINT) :: KOUNT_2WAY_CHILDREN
@@ -370,6 +370,7 @@
 !
         INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: SHIFT_INFO_CHILDREN
 !
+        REAL(kind=KFPT) :: DPH
         REAL(kind=KFPT) :: DYH
         REAL(kind=KFPT) :: PDTOP
         REAL(kind=KFPT) :: PT
@@ -435,11 +436,13 @@
         LOGICAL(kind=KLOG) :: MOVE_FLAG_SENT
         LOGICAL(kind=KLOG) :: MY_PARENT_MOVES
         LOGICAL(kind=KLOG) :: PARENT_WANTS_TO_MOVE
+        LOGICAL(kind=KLOG) :: STOP_MY_MOTION
 !
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MOVE_FLAG
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SEND_CHILD_DATA
         LOGICAL(kind=KLOG),DIMENSION(:),ALLOCATABLE :: CALLED_PARENT_2WAY_BOOKKEEPING
         LOGICAL(kind=KLOG),DIMENSION(:),ALLOCATABLE :: SIGNAL_2WAY_SEND_READY
+        LOGICAL(kind=KLOG),DIMENSION(:),ALLOCATABLE :: SKIP_2WAY_UPDATE
 !
         TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: I_2WAY_UPDATE
         TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: J_2WAY_UPDATE
@@ -647,6 +650,7 @@
                                    ,IM_1,JM_1                           &
                                    ,INPES,JNPES                         &
                                    ,INPES_PARENT,JNPES_PARENT           &
+                                   ,JM                                  &
                                    ,KOUNT_2WAY_CHILDREN                 &
                                    ,LAST_STEP_MOVED                     &
                                    ,MYPE                                &
@@ -745,7 +749,8 @@
 !
       INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: SHIFT_INFO_CHILDREN
 !
-      REAL(kind=KFPT),POINTER :: DYH                                    &
+      REAL(kind=KFPT),POINTER :: DPH                                    &
+                                ,DYH                                    &
                                 ,PDTOP                                  &
                                 ,PT                                     &
                                 ,SB_1                                   &
@@ -810,11 +815,13 @@
       LOGICAL(kind=KLOG),POINTER :: MOVE_FLAG_SENT
       LOGICAL(kind=KLOG),POINTER :: MY_PARENT_MOVES
       LOGICAL(kind=KLOG),POINTER :: PARENT_WANTS_TO_MOVE
+      LOGICAL(kind=KLOG),POINTER :: STOP_MY_MOTION
 !
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: CALLED_PARENT_2WAY_BOOKKEEPING
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MOVE_FLAG
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SEND_CHILD_DATA
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SIGNAL_2WAY_SEND_READY
+      LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SKIP_2WAY_UPDATE
 !
       TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: I_2WAY_UPDATE          &
                                                 ,J_2WAY_UPDATE          &
@@ -1000,7 +1007,7 @@
                                 ,MOVING_BC_TAG=1112                     &  !<-- Arbitrary tag used for moving nests' BC updates
                                 ,PARENT_SHIFT_TAG=1e8                      !<-- Arbitrary tag used for parent's move.
 !
-      INTEGER(kind=KINT),SAVE :: MAX_FORCED_SHIFT=10                       !<-- # parent points a child forces its parent to shift
+      INTEGER(kind=KINT),SAVE :: MAX_FORCED_SHIFT                          !<-- # parent points a child forces its parent to shift
 !
       INTEGER(kind=KINT),SAVE :: CHILD_ID                               &
                                 ,COMM_FCST_TASKS                        &
@@ -1032,7 +1039,10 @@
       REAL(kind=KDBL),SAVE :: HYPER_A
 !
       REAL(kind=KFPT),SAVE :: EPS=1.E-4                                 &
-                             ,MIN_DIST_PARENT=8.                           !<-- # of parent gridpoints a child can be from parent
+                             ,MIN_DIST_PARENT                              !<-- # of parent gridpoints a child can be from parent
+!
+      REAL(kind=KFPT),SAVE :: NORTH_LAT_MAX_MVG_NEST                    &  !<-- Do not let nests move north of this latitude (rad)
+                             ,SOUTH_LAT_MAX_MVG_NEST                       !<-- Do not let nests move south of this latitude (rad)
 !
       REAL(kind=KDBL) :: btim,btim0
 !
@@ -1794,8 +1804,10 @@
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
-      REAL(kind=KFPT) :: DIST_NESTV_SOUTH_TO_PARENTV_SOUTH              &
+      REAL(kind=KFPT) :: CONST1,CONST2,CONST3,CONST4                    &
+                        ,DIST_NESTV_SOUTH_TO_PARENTV_SOUTH              &
                         ,DT_PARENT                                      &
+                        ,GRID_DIST_KM                                   &
                         ,REAL_I                                         &
                         ,REAL_J
 !
@@ -2883,6 +2895,34 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-------------
+!***  DPHD,JM
+!-------------
+!
+      DPH=>cc%DPH
+      JM=>cc%JM
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~~~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract DPHD from Parent-Child Coupler Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~~~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='DPHD'                               &  !<-- Extract grid's latitude increment (deg)
+                            ,value=DPH                                  &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='JM'                                 &  !<-- Extract J extent of domain
+                            ,value=JM                                   &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      DPH=DPH*ACOS(-1.)/180.                                               !<-- Convert from degrees to radians
+!
 !------------
 !***  INDX_Q
 !------------
@@ -3641,7 +3681,38 @@
 !              write(0,*)'MOVE_MINUTE(N),MOVE_I_SW(N),MOVE_J_SW(N)',N,MOVE_MINUTE(N),MOVE_I_SW(N),MOVE_J_SW(N)
 !            END DO
 !
-            END IF
+          END IF
+!
+!-----------------------------------------------------------------------
+!***  Collisions must be avoided between a moving nest and its 
+!***  independently moving child.  When the inner nest gets too
+!***  close to the outer nest's boundary then the inner nest will
+!***  inform the outer nest that it (outer) must move away.  
+!***  Use a totally empirical relation to determine the distance
+!***  measured in parent gridpoints that the parent is pushed
+!***  by the child.  Likewise compute the minimum distance in parent 
+!***  grid increments that the child can be to its parent's
+!***  boundary.  These values are used by moving children and are
+!***  are only relevant if the parent also moves.
+!-----------------------------------------------------------------------
+!
+          MAX_FORCED_SHIFT=-999
+          MIN_DIST_PARENT=-999.
+!
+          IF(MY_PARENT_ID>1)THEN
+            GRID_DIST_KM=DPH*A*1.E-3                                         !<-- Approximate grid increment in km
+            CONST1=-8./15.
+            CONST2=15.33333
+            MAX_FORCED_SHIFT=NINT(GRID_DIST_KM*SPACE_RATIO_MY_PARENT*CONST1+CONST2)
+            MAX_FORCED_SHIFT=MIN(MAX_FORCED_SHIFT,10)
+            MAX_FORCED_SHIFT=MAX(MAX_FORCED_SHIFT, 2)
+!
+            CONST3=-1./3.
+            CONST4=11.33333
+            MIN_DIST_PARENT=GRID_DIST_KM*SPACE_RATIO_MY_PARENT*CONST3+CONST4
+            MIN_DIST_PARENT=MIN(MIN_DIST_PARENT,8.)
+            MIN_DIST_PARENT=MAX(MIN_DIST_PARENT,3.)
+          ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -4760,6 +4831,8 @@
                         ,SBD_1,WBD_1                                    &
                         ,TPH0D_1,TLM0D_1
 !
+      REAL(kind=KFPT) :: LATITUDE_LIMIT
+!
       REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: DUMMY_3D=>NULL()
 !
       REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,FACTOR1,FACTOR2,PI
@@ -4822,6 +4895,11 @@
 !
       NUM_CHILDREN=>cc%NUM_CHILDREN                                        !<-- How many children does this domain have?
 !
+      D_ONE=1.
+      D_180=180.
+      PI=DACOS(-D_ONE)
+      D2R=PI/D_180
+!
 !-----------------------------------------------------------------------
 !***  Begin the work of the parents.
 !-----------------------------------------------------------------------
@@ -4847,6 +4925,18 @@
           DO N=1,NUM_2WAY_CHILDREN
             SIGNAL_2WAY_SEND_READY(N)=.FALSE.
           ENDDO
+!
+          ALLOCATE(cc%SKIP_2WAY_UPDATE(1:NUM_CHILDREN),stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Failed to allocate cpl_composite%SKIP_2WAY_UPDATE stat=',ISTAT
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
+          ENDIF
+          SKIP_2WAY_UPDATE=>cc%SKIP_2WAY_UPDATE
+!
+          DO N=1,NUM_CHILDREN
+            SKIP_2WAY_UPDATE(N)=.FALSE.
+          ENDDO
+!
         ENDIF
 !
         ALLOCATE(cc%HANDLE_SEND_ALLCLEAR(1:NUM_CHILDREN),stat=ISTAT)
@@ -5347,7 +5437,7 @@
             MOVING_CHILD_UPDATE(N)%TASKS=>NULL()
           ENDDO
 !
-          ALLOCATE(cc%SHIFT_INFO_CHILDREN(1:3,1:NUM_MOVING_CHILDREN),stat=ISTAT)
+          ALLOCATE(cc%SHIFT_INFO_CHILDREN(1:4,1:NUM_MOVING_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%SHIFT_INFO_CHILDREN stat=',ISTAT
             CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
@@ -5355,7 +5445,7 @@
           SHIFT_INFO_CHILDREN=>cc%SHIFT_INFO_CHILDREN
 !
           DO N2=1,NUM_MOVING_CHILDREN
-          DO N1=1,3
+          DO N1=1,4
             SHIFT_INFO_CHILDREN(N1,N2)=0
           ENDDO
           ENDDO
@@ -5400,14 +5490,14 @@
 !***  Both parent and child need to know the child's shift information.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(cc%SHIFT_INFO_MINE(1:3),stat=ISTAT)
+      ALLOCATE(cc%SHIFT_INFO_MINE(1:4),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%SHIFT_INFO_MINE stat=',ISTAT
         CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       SHIFT_INFO_MINE=>cc%SHIFT_INFO_MINE
 !
-      DO N=1,3
+      DO N=1,4
         SHIFT_INFO_MINE(N)=-99999
       ENDDO
 !
@@ -5570,6 +5660,7 @@
 !
 !     ALLCLEAR=.TRUE.
       ALLCLEAR_SIGNAL_PRESENT=.FALSE.
+      STOP_MY_MOTION=.FALSE.
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="P-C Init2: Insert Initial ALLCLEAR Flag"
@@ -6043,11 +6134,6 @@
 !
 !-----------------------------------------------------------------------
 !
-          D_ONE=1.
-          D_180=180.
-          PI=DACOS(-D_ONE)
-          D2R=PI/D_180
-!
           TPH0_1=TPH0D_1*D2R                                               !<-- Central geo lat of domain (radians, positive north)
           TLM0_1=TLM0D_1*D2R                                               !<-- Central geo lon of domain (radians, positive east)
           WB_1=WBD_1*D2R                                                   !<-- Rotated lon of west boundary (radians, positive east)
@@ -6124,6 +6210,28 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  What is the latitude (degrees) past which no nests will be 
+!***  allowed to move?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="P-C Init2: Nest Reads Latitude Limit"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigGetAttribute(config=CF_MINE                   &  !<-- The nest's config object
+                                      ,value =LATITUDE_LIMIT            &  !<-- Max distance nest bndry can move from equator (deg)
+                                      ,label ='latitude_limit:'         &  !<-- The configure label
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          NORTH_LAT_MAX_MVG_NEST=LATITUDE_LIMIT*D2R                        !<-- Mvg nest Nbndry must not pass this latitude (rad)
+          SOUTH_LAT_MAX_MVG_NEST=-NORTH_LAT_MAX_MVG_NEST                   !<-- Mvg nest Sbndry must not pass this latitude (rad)
 !
 !-----------------------------------------------------------------------
 !***  Moving nests set up some variables for computing motion.
@@ -6744,7 +6852,7 @@
 !
                 CALL MPI_RECV(SIGNAL_2WAY_SEND_READY(N)                 &  !<-- Recv the signal and clear this child's ISend
                              ,1                                         &  !<-- # of words in signal
-                             ,MPI_LOGICAL                               &  !<-- The signal is type Logical (it is TRUE)
+                             ,MPI_LOGICAL                               &  !<-- The signal is type Logical
                              ,CHILDTASK_0                               &  !<-- The signal was sent by child N's fcst task 0.
                              ,TWOWAY_SIGNAL_TAG                         &  !<-- Tag associated with 2way signal from children
                              ,COMM_TO_MY_CHILDREN(N)                    &  !<-- MPI communicator between parent and moving child N
@@ -6884,7 +6992,7 @@
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
       REAL(kind=KFPT) :: CHILD_DOMAIN_EW,CHILD_DOMAIN_NS                &
-                        ,DT_GRANDPARENT
+                        ,DT_GRANDPARENT,SHIFT_LAT
 !
       REAL(kind=KFPT) :: DIST_EAST,DIST_WEST                            &
                         ,DIST_NORTH,DIST_SOUTH                          &
@@ -6893,6 +7001,9 @@
       REAL(kind=KFPT) :: DISTN_TO_PARENT_BNDRY                          &
                         ,DISTN_EAST,DISTN_WEST                          &
                         ,DISTN_NORTH,DISTN_SOUTH
+!
+      REAL(kind=KFPT) :: DOMAIN_NBND,DOMAIN_SBND                        &
+                        ,PARENT_NBND,PARENT_SBND
 !
       LOGICAL(kind=KLOG) :: ALLCLEAR_SIGNAL_IS_PRESENT                  &
                            ,ALLCLEAR_SIGNAL
@@ -7359,10 +7470,14 @@
 !
 !-----------------------------------------------------------------------
 !
-        motion: IF(.NOT.I_WANT_TO_MOVE.AND..NOT.FORCED_PARENT_SHIFT)THEN
+        motion: IF(.NOT.I_WANT_TO_MOVE                                  &
+                         .AND.                                          &
+                   .NOT.FORCED_PARENT_SHIFT                             &
+                         .AND.                                          &
+                   .NOT.STOP_MY_MOTION)THEN
 !
           IF (TRIM(MOVE_TYPE) == 'storm') THEN
-
+!
             CALL COMPUTE_STORM_MOTION(NTIMESTEP                         &
                                      ,LAST_STEP_MOVED                   &
                                      ,DT_DOMAIN(MY_DOMAIN_ID)           &
@@ -7387,7 +7502,7 @@
                                      ,I_SW_PARENT_NEW                   &
                                      ,J_SW_PARENT_NEW                   &
                                      ,MY_DOMAIN_ID )
-
+!
           ELSE IF (TRIM(MOVE_TYPE) == 'prescribed') THEN
 
             CALL PRESCRIBED_MOVE(NTIMESTEP,DT_DOMAIN(MY_DOMAIN_ID)      &
@@ -7563,22 +7678,57 @@
 !***  parent domain.
 !-----------------------------------------------------------------------
 !
-          CHILD_DOMAIN_EW=REAL(IDE-IDS)*RECIP_PARENT_SPACE_RATIO           !<-- E-W extent of child domain in terms of parent grid
-          CHILD_DOMAIN_NS=REAL(JDE-JDS)*RECIP_PARENT_SPACE_RATIO           !<-- N-S extent of child domain in terms of parent grid
+            CHILD_DOMAIN_EW=REAL(IDE-IDS)*RECIP_PARENT_SPACE_RATIO         !<-- E-W extent of child domain in terms of parent grid
+            CHILD_DOMAIN_NS=REAL(JDE-JDS)*RECIP_PARENT_SPACE_RATIO         !<-- N-S extent of child domain in terms of parent grid
 !
-          DIST_SOUTH=J_SW_PARENT_NEW-PARENT_DOMAIN_LIMITS(3)                   !<-- Distance of child sbdry from parent sbdry
-          DIST_NORTH=PARENT_DOMAIN_LIMITS(4)-(J_SW_PARENT_NEW+CHILD_DOMAIN_NS) !<-- Distance of child nbdry from parent nbdry
-          DIST_WEST =I_SW_PARENT_NEW-PARENT_DOMAIN_LIMITS(1)                   !<-- Distance of child wbdry from parent wbdry
-          DIST_EAST =PARENT_DOMAIN_LIMITS(2)-(I_SW_PARENT_NEW+CHILD_DOMAIN_EW) !<-- Distance of child ebdry from parent ebdry
+            DIST_SOUTH=J_SW_PARENT_NEW-PARENT_DOMAIN_LIMITS(3)                   !<-- Distance of child sbdry from parent sbdry
+            DIST_NORTH=PARENT_DOMAIN_LIMITS(4)-(J_SW_PARENT_NEW+CHILD_DOMAIN_NS) !<-- Distance of child nbdry from parent nbdry
+            DIST_WEST =I_SW_PARENT_NEW-PARENT_DOMAIN_LIMITS(1)                   !<-- Distance of child wbdry from parent wbdry
+            DIST_EAST =PARENT_DOMAIN_LIMITS(2)-(I_SW_PARENT_NEW+CHILD_DOMAIN_EW) !<-- Distance of child ebdry from parent ebdry
 !
-          DIST_TO_PARENT_BNDRY=MIN(DIST_SOUTH,DIST_NORTH,DIST_WEST,DIST_EAST)  !<-- Min distance between child and parent boundaries
-                                                                               !    in terms of the parent grid.
-!
-!-----------------------------------------------------------------------
-!
-          parent_bdy: IF(DIST_TO_PARENT_BNDRY>MIN_DIST_PARENT)THEN         !<-- If true, the child is not too close to the parent boundary.
+            DIST_TO_PARENT_BNDRY=MIN(DIST_SOUTH,DIST_NORTH,DIST_WEST,DIST_EAST)  !<-- Min distance between child and parent boundaries
+                                                                                 !    in terms of the parent grid.
 !
 !-----------------------------------------------------------------------
+!
+            parent_bdy: IF(DIST_TO_PARENT_BNDRY>MIN_DIST_PARENT)THEN       !<-- If true, the child is not too close to the parent boundary.
+!
+!-----------------------------------------------------------------------
+!***  If this child's shift will take its poleward boundary beyond
+!***  the latitude limit then let it execute that shift after which
+!***  it will not move again.  Likewise if this child's parent is a
+!***  moving nest and has reached the latitude limit then the child 
+!***  must stop its own motion as the parent has already done.
+!-----------------------------------------------------------------------
+!
+              J_SHIFT=J_SW_PARENT_NEW-J_SW_PARENT_CURRENT                  !<-- This nest's shift in terms of its parent's grid
+              SHIFT_LAT=J_SHIFT*SPACE_RATIO_MY_PARENT*DPH                  !<-- This nest's shift in geographic latitude (rad)
+              DOMAIN_NBND=GLAT(ITS,JTS)+DPH*(JDE-JTS)+SHIFT_LAT            !<-- Post-shift geog latitude (rad) of child's north bndry
+              DOMAIN_SBND=GLAT(ITS,JTS)-DPH*(JTS-JDS)+SHIFT_LAT            !<-- Post-shift geog latitude (rad) of child's south bndry
+!
+              PARENT_NBND=((PARENT_DOMAIN_LIMITS(4)-J_SW_PARENT_NEW)    &  !<--
+                           *SPACE_RATIO_MY_PARENT                       &  !    Geographic latitude (rad)
+                           -(JTS-JDS))*DPH                              &  !    of parent's north boundary.
+                          +GLAT(ITS,JTS)                                   !<--
+!
+              PARENT_SBND=((PARENT_DOMAIN_LIMITS(3)-J_SW_PARENT_NEW)    &  !<--
+                           *SPACE_RATIO_MY_PARENT                       &  !    Geographic latitude (rad)
+                           -(JTS-JDS))*DPH                              &  !    of parent's south boundary.
+                          +GLAT(ITS,JTS)                                   !<--
+!
+              IF(DOMAIN_NBND>NORTH_LAT_MAX_MVG_NEST-EPS                 &  !<-- Has the nest's north boundary reached too far north?
+                              .OR.                                      &
+                 DOMAIN_SBND<SOUTH_LAT_MAX_MVG_NEST+EPS                 &  !<-- Has the nest's south boundary reached too far south?
+                              .OR.                                      &
+                         MY_PARENT_MOVES                                &  !<-- Is my parent a moving nest?
+                              .AND.                                     &
+                 (PARENT_NBND>NORTH_LAT_MAX_MVG_NEST-EPS                &  !<-- Has the parent's north boundary reached too far north?
+                              .OR.                                      &
+                  PARENT_SBND<SOUTH_LAT_MAX_MVG_NEST+EPS))THEN             !<-- Has the parent's south boundary reached too far south?
+!
+                STOP_MY_MOTION=.TRUE.                                      !<-- This domain will never move again.
+!
+              ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Do not permit the nest to shift at what would be the first
@@ -7588,98 +7738,106 @@
 !***  nest shift very near the end of the forecast.
 !-----------------------------------------------------------------------
 !
-            IF(NTIMESTEPS_RESTART-MOD(NTIMESTEP,NTIMESTEPS_RESTART)>TIME_RATIO_MY_PARENT*LAG_STEPS &
-                                         .AND.                                                     &
-               NTIMESTEP<NTIMESTEP_FINAL-TIME_RATIO_MY_PARENT*(LAG_STEPS+1))THEN
+              IF(NTIMESTEPS_RESTART-MOD(NTIMESTEP,NTIMESTEPS_RESTART)>TIME_RATIO_MY_PARENT*LAG_STEPS &
+                                           .AND.                                                     &
+                 NTIMESTEP<NTIMESTEP_FINAL-TIME_RATIO_MY_PARENT*(LAG_STEPS+1))THEN
 !
 !-----------------------------------------------------------------------
 !
-              NEXT_MOVE_TIMESTEP=NTIMESTEP+TIME_RATIO_MY_PARENT*LAG_STEPS    !<-- Nest will shift after LAG_STEPS parent timesteps
+                IF(.NOT.STOP_MY_MOTION)THEN
+                  NEXT_MOVE_TIMESTEP=NTIMESTEP+TIME_RATIO_MY_PARENT*LAG_STEPS  !<-- Nest will shift after LAG_STEPS parent timesteps
+                ENDIF
 !
-              NEXT_MOVE_TIMESTEP_PARENT=NEXT_MOVE_TIMESTEP/TIME_RATIO_MY_PARENT  !<-- Nest will shift after LAG_STEPS parent timesteps
-              LAST_STEP_MOVED=NEXT_MOVE_TIMESTEP                                 !<-- Reset to this to the most recent move
+                NEXT_MOVE_TIMESTEP_PARENT=NEXT_MOVE_TIMESTEP/TIME_RATIO_MY_PARENT  !<-- Nest will shift after LAG_STEPS parent timesteps
+                LAST_STEP_MOVED=NEXT_MOVE_TIMESTEP                                 !<-- Reset to this to the most recent move
 !
-              IF(I_AM_LEAD_FCST_TASK)THEN                                  !<-- Lead forecast task on this moving nest
+!-----------------------------------------------------------------------
 !
-                CALL MPI_WAIT(HANDLE_MOVE_FLAG                          &  !<-- Handle for ISend of child's move flag to parent
-                             ,JSTAT                                     &  !<-- MPI status
-                             ,IERR)
+                IF(I_AM_LEAD_FCST_TASK)THEN                                !<-- Lead forecast task on this moving nest
 !
-                MOVE_TAG=1111+10*MY_DOMAIN_ID+25*ID_PARENTS(MY_DOMAIN_ID)  !<-- Unique MPI tag uses child and parent domain IDs
+                  CALL MPI_WAIT(HANDLE_MOVE_FLAG                        &  !<-- Handle for ISend of child's move flag to parent
+                               ,JSTAT                                   &  !<-- MPI status
+                               ,IERR)
 !
-                SHIFT_INFO_MINE(1)=NEXT_MOVE_TIMESTEP_PARENT               !<-- Nest will shift at start of this parent timestep
-                SHIFT_INFO_MINE(2)=I_SW_PARENT_NEW-I_SW_PARENT_CURRENT     !<-- Nest's shift in I on its parent's grid
-                SHIFT_INFO_MINE(3)=J_SW_PARENT_NEW-J_SW_PARENT_CURRENT     !<-- Nest's shift in J on its parent's grid
+                  MOVE_TAG=1111+10*MY_DOMAIN_ID+25*ID_PARENTS(MY_DOMAIN_ID)  !<-- Unique MPI tag uses child and parent domain IDs
 !
-                CALL MPI_ISSEND(SHIFT_INFO_MINE                         &  !<-- Key shift information 
-                               ,3                                       &  !<-- There are 3 words in the flag
-                               ,MPI_INTEGER                             &  !<-- Signal is type Integer
-                               ,0                                       &  !<-- Signal sent to parent task 0
-                               ,MOVE_TAG                                &  !<-- Arbitrary tag used for this data exchange
-                               ,COMM_TO_MY_PARENT                       &  !<-- MPI communicator between this child and its parent
-                               ,HANDLE_MOVE_FLAG                        &  !<-- Communication request handle for ISend to parent
-                               ,IERR )
+                  SHIFT_INFO_MINE(1)=NEXT_MOVE_TIMESTEP_PARENT             !<-- Nest will shift at start of this parent timestep
+                  SHIFT_INFO_MINE(2)=I_SW_PARENT_NEW-I_SW_PARENT_CURRENT   !<-- Nest's shift in I on its parent's grid
+                  SHIFT_INFO_MINE(3)=J_SW_PARENT_NEW-J_SW_PARENT_CURRENT   !<-- Nest's shift in J on its parent's grid
 !
-              ENDIF
+                  IF(STOP_MY_MOTION)THEN
+                    SHIFT_INFO_MINE(4)=-22222                              !<-- Signal to parent that the child will not move again.
+                  ENDIF
 !
-              MOVE_FLAG_SENT=.TRUE.
+                  CALL MPI_ISSEND(SHIFT_INFO_MINE                       &  !<-- Key shift information 
+                                 ,4                                     &  !<-- There are 3 words in the flag
+                                 ,MPI_INTEGER                           &  !<-- Signal is type Integer
+                                 ,0                                     &  !<-- Signal sent to parent task 0
+                                 ,MOVE_TAG                              &  !<-- Arbitrary tag used for this data exchange
+                                 ,COMM_TO_MY_PARENT                     &  !<-- MPI communicator between this child and its parent
+                                 ,HANDLE_MOVE_FLAG                      &  !<-- Communication request handle for ISend to parent
+                                 ,IERR )
 !
-              IF(CHILD_FORCES_MY_SHIFT)THEN
-                CHILD_FORCES_MY_SHIFT=.FALSE.                              !<-- If my child forced this move then reset the flag now.
-              ENDIF
+                ENDIF
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert NEXT_MOVE_TIMESTEP into P-C export start"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                MOVE_FLAG_SENT=.TRUE.
 !
-              CALL ESMF_AttributeSet(state=EXP_STATE                    &  !<-- The Parent-Child coupler export state
-                                    ,name ='NEXT_MOVE_TIMESTEP'         &  !<-- Insert Attribute with this name
-                                    ,value=NEXT_MOVE_TIMESTEP           &  !<-- Nest will shift during this timestep
-                                    ,rc   =RC )
+                IF(CHILD_FORCES_MY_SHIFT)THEN
+                  CHILD_FORCES_MY_SHIFT=.FALSE.                            !<-- If my child forced this move then reset the flag now.
+                ENDIF
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert NEXT_MOVE_TIMESTEP into P-C export start"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-              I_SHIFT_CHILD=(I_SW_PARENT_NEW-I_SW_PARENT_CURRENT)       &  !<-- The shift in I in this domain's space
-                            *SPACE_RATIO_MY_PARENT
-              J_SHIFT_CHILD=(J_SW_PARENT_NEW-J_SW_PARENT_CURRENT)       &  !<-- The shift in J in this domain's space
-                            *SPACE_RATIO_MY_PARENT
+                CALL ESMF_AttributeSet(state=EXP_STATE                  &  !<-- The Parent-Child coupler export state
+                                      ,name ='NEXT_MOVE_TIMESTEP'       &  !<-- Insert Attribute with this name
+                                      ,value=NEXT_MOVE_TIMESTEP         &  !<-- Nest will shift during this timestep
+                                      ,rc   =RC )
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert I_SHIFT/J_SHIFT in RUN_RECV"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
+!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-              CALL ESMF_AttributeSet(state=EXP_STATE                    &  !<-- The Parent-Child coupler export state
-                                    ,name ='I_SHIFT'                    &  !<-- Insert Attribute with this name
-                                    ,value=I_SHIFT_CHILD                &  !<-- Motion of nest in I on its grid
-                                    ,rc   =RC )
+                I_SHIFT_CHILD=(I_SW_PARENT_NEW-I_SW_PARENT_CURRENT)     &  !<-- The shift in I in this domain's space
+                              *SPACE_RATIO_MY_PARENT
+                J_SHIFT_CHILD=(J_SW_PARENT_NEW-J_SW_PARENT_CURRENT)     &  !<-- The shift in J in this domain's space
+                              *SPACE_RATIO_MY_PARENT
 !
-              CALL ESMF_AttributeSet(state=EXP_STATE                    &  !<-- The Parent-Child coupler export state
-                                    ,name ='J_SHIFT'                    &  !<-- Insert Attribute with this name
-                                    ,value=J_SHIFT_CHILD                &  !<-- Motion of nest in J on its grid
-                                    ,rc   =RC )
+!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert I_SHIFT/J_SHIFT in RUN_RECV"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-              CALL ESMF_AttributeSet(state=EXP_STATE                    &  !<-- The Parent-Child coupler export state
-                                    ,name ='I_SW_PARENT_NEW'            &  !<-- Insert Attribute with this name
-                                    ,value=I_SW_PARENT_NEW              &  !<-- Motion of nest in I on its grid
-                                    ,rc   =RC )
+                CALL ESMF_AttributeSet(state=EXP_STATE                  &  !<-- The Parent-Child coupler export state
+                                      ,name ='I_SHIFT'                  &  !<-- Insert Attribute with this name
+                                      ,value=I_SHIFT_CHILD              &  !<-- Motion of nest in I on its grid
+                                      ,rc   =RC )
 !
-              CALL ESMF_AttributeSet(state=EXP_STATE                    &  !<-- The Parent-Child coupler export state
-                                    ,name ='J_SW_PARENT_NEW'            &  !<-- Insert Attribute with this name
-                                    ,value=J_SW_PARENT_NEW              &  !<-- Motion of nest in J on its grid
-                                    ,rc   =RC )
+                CALL ESMF_AttributeSet(state=EXP_STATE                  &  !<-- The Parent-Child coupler export state
+                                      ,name ='J_SHIFT'                  &  !<-- Insert Attribute with this name
+                                      ,value=J_SHIFT_CHILD              &  !<-- Motion of nest in J on its grid
+                                      ,rc   =RC )
 !
-              CALL ESMF_AttributeSet(state=EXP_STATE                    &  !<-- The Parent-Child coupler export state
-                                    ,name ='LAST_STEP_MOVED'            &  !<-- Insert Attribute with this name
-                                    ,value=LAST_STEP_MOVED              &  !<-- Motion of nest in J on its grid
-                                    ,rc   =RC )
+                CALL ESMF_AttributeSet(state=EXP_STATE                  &  !<-- The Parent-Child coupler export state
+                                      ,name ='I_SW_PARENT_NEW'          &  !<-- Insert Attribute with this name
+                                      ,value=I_SW_PARENT_NEW            &  !<-- Motion of nest in I on its grid
+                                      ,rc   =RC )
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                CALL ESMF_AttributeSet(state=EXP_STATE                  &  !<-- The Parent-Child coupler export state
+                                      ,name ='J_SW_PARENT_NEW'          &  !<-- Insert Attribute with this name
+                                      ,value=J_SW_PARENT_NEW            &  !<-- Motion of nest in J on its grid
+                                      ,rc   =RC )
+!
+                CALL ESMF_AttributeSet(state=EXP_STATE                  &  !<-- The Parent-Child coupler export state
+                                      ,name ='LAST_STEP_MOVED'          &  !<-- Insert Attribute with this name
+                                      ,value=LAST_STEP_MOVED            &  !<-- Motion of nest in J on its grid
+                                      ,rc   =RC )
+!
+!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
+!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  If this child wants to shift too soon after a restart output
@@ -7687,65 +7845,69 @@
 !***  do so is ignored.
 !-----------------------------------------------------------------------
 !
-            ELSE
+              ELSE
 !
-              I_WANT_TO_MOVE=.FALSE.
+                I_WANT_TO_MOVE=.FALSE.
 !
 !-----------------------------------------------------------------------
 !
-            ENDIF
+              ENDIF
 !
 !-----------------------------------------------------------------------
 !***  The child wants to move too close to its parent's boundary.
 !***  The child will not shift and what would have been its shift
 !***  message will instead tell the parent it must move in a
-!***  direction similar to what the child wanted to move.
+!***  direction similar to what the child wanted to move.  However
+!***  if the parent's domain is static then the child ignores its
+!***  desire to shift and proceeds.
 !-----------------------------------------------------------------------
 !
-          ELSE parent_bdy                                                  !<-- Child shift would put it too close to parent boundary.
+            ELSE parent_bdy                                                !<-- Child shift would put it too close to parent boundary.
 !
-            IF(NTIMESTEP>NTIMESTEP_WAIT_FORCED_PARENT)THEN                 !<-- If true, previous forced move of parent is done.
+              IF(MY_PARENT_MOVES)THEN
 !
-              FORCED_PARENT_SHIFT=.TRUE.                                   !<-- Flag remains true until the parent shifts as told.
+                IF(NTIMESTEP>NTIMESTEP_WAIT_FORCED_PARENT)THEN             !<-- If true, previous forced move of parent is done.
 !
-              IF(I_AM_LEAD_FCST_TASK)THEN                                  !<-- Lead forecast task on this moving nest
+                  FORCED_PARENT_SHIFT=.TRUE.                               !<-- Flag remains true until the parent shifts as told.
 !
-                CALL MPI_WAIT(HANDLE_MOVE_FLAG                          &  !<-- Handle for ISend of child's move flag to parent
-                             ,JSTAT                                     &  !<-- MPI status
-                             ,IERR)
+                  IF(I_AM_LEAD_FCST_TASK)THEN                              !<-- Lead forecast task on this moving nest
 !
-                SHIFT_INFO_MINE(1)=-11111                                  !<-- This tells the parent it is being forced to shift.
+                    CALL MPI_WAIT(HANDLE_MOVE_FLAG                      &  !<-- Handle for ISend of child's move flag to parent
+                                 ,JSTAT                                 &  !<-- MPI status
+                                 ,IERR)
 !
-                IF(DIST_WEST<=MIN_DIST_PARENT)THEN
-                  SHIFT_INFO_MINE(2)=-MAX_FORCED_SHIFT                     !<-- Child pushes parent to the west (parent grid increments)
-                ELSEIF(DIST_EAST<=MIN_DIST_PARENT)THEN
-                  SHIFT_INFO_MINE(2)=MAX_FORCED_SHIFT                      !<-- Child pushes parent to the east (parent grid increments)
-                ENDIF
+                    SHIFT_INFO_MINE(1)=-11111                              !<-- This tells the parent it is being forced to shift.
 !
-                IF(DIST_SOUTH<=MIN_DIST_PARENT)THEN
-                  SHIFT_INFO_MINE(3)=-MAX_FORCED_SHIFT                     !<-- Child pushes parent to the south (parent grid increments)
-                ELSEIF(DIST_NORTH<=MIN_DIST_PARENT)THEN
-                  SHIFT_INFO_MINE(3)=MAX_FORCED_SHIFT                      !<-- Child pushes parent to the north (parent grid increments)
-                ENDIF
+                    IF(DIST_WEST<=MIN_DIST_PARENT)THEN
+                      SHIFT_INFO_MINE(2)=-MAX_FORCED_SHIFT                 !<-- Child pushes parent to the west (parent grid increments)
+                    ELSEIF(DIST_EAST<=MIN_DIST_PARENT)THEN
+                      SHIFT_INFO_MINE(2)=MAX_FORCED_SHIFT                  !<-- Child pushes parent to the east (parent grid increments)
+                    ENDIF
 !
-                MOVE_TAG=1111+10*MY_DOMAIN_ID+25*ID_PARENTS(MY_DOMAIN_ID)  !<-- Unique MPI tag uses child and parent domain IDs
+                    IF(DIST_SOUTH<=MIN_DIST_PARENT)THEN
+                      SHIFT_INFO_MINE(3)=-MAX_FORCED_SHIFT                 !<-- Child pushes parent to the south (parent grid increments)
+                    ELSEIF(DIST_NORTH<=MIN_DIST_PARENT)THEN
+                      SHIFT_INFO_MINE(3)=MAX_FORCED_SHIFT                  !<-- Child pushes parent to the north (parent grid increments)
+                    ENDIF
 !
-                CALL MPI_ISSEND(SHIFT_INFO_MINE                         &  !<-- Key shift information
-                               ,3                                       &  !<-- There are 3 words in the flag
-                               ,MPI_INTEGER                             &  !<-- Signal is type Integer
-                               ,0                                       &  !<-- Signal sent to parent task 0
-                               ,MOVE_TAG                                &  !<-- Arbitrary tag used for this data exchange
-                               ,COMM_TO_MY_PARENT                       &  !<-- MPI communicator between this child and its parent
-                               ,HANDLE_MOVE_FLAG                        &  !<-- Communication request handle for ISend to parent
-                               ,IERR )
+                    MOVE_TAG=1111+10*MY_DOMAIN_ID+25*ID_PARENTS(MY_DOMAIN_ID)  !<-- Unique MPI tag uses child and parent domain IDs
 !
-                WRITE(0,55551)MY_DOMAIN_ID,NTIMESTEP
-                WRITE(0,55552)SHIFT_INFO_MINE,MOVE_TAG
-55551           FORMAT(' CHILDREN_RECV forcing parent to shift'         &
-                      ,' my_domain_id=',I2,' ntimestep=',I5)
-55552           FORMAT(' SHIFT_INFO=',3(1X,I6),' move_tag=',I6)
+                    CALL MPI_ISSEND(SHIFT_INFO_MINE                     &  !<-- Key shift information
+                                   ,4                                   &  !<-- There are 3 words in the flag
+                                   ,MPI_INTEGER                         &  !<-- Signal is type Integer
+                                   ,0                                   &  !<-- Signal sent to parent task 0
+                                   ,MOVE_TAG                            &  !<-- Arbitrary tag used for this data exchange
+                                   ,COMM_TO_MY_PARENT                   &  !<-- MPI communicator between this child and its parent
+                                   ,HANDLE_MOVE_FLAG                    &  !<-- Communication request handle for ISend to parent
+                                   ,IERR )
 !
-              ENDIF
+                    WRITE(0,55551)MY_DOMAIN_ID,NTIMESTEP
+                    WRITE(0,55552)SHIFT_INFO_MINE,MOVE_TAG
+55551               FORMAT(' CHILDREN_RECV forcing parent to shift'     &
+                          ,' my_domain_id=',I2,' ntimestep=',I5)
+55552               FORMAT(' SHIFT_INFO=',4(1X,I6),' move_tag=',I6)
+!
+                  ENDIF
 !
 !-----------------------------------------------------------------------
 !***  This child has just sent its parent a message saying that the
@@ -7759,18 +7921,36 @@
 !***  child's grandparent's timesteps from now.
 !-----------------------------------------------------------------------
 !
-              ID_GRANDPARENT=ID_PARENTS(ID_PARENTS(MY_DOMAIN_ID))          !<-- My parent's parent's domain ID
-              DT_GRANDPARENT=DT_DOMAIN(ID_GRANDPARENT)                     !<-- My parent's parent's timestep interval (sec)
+                  ID_GRANDPARENT=ID_PARENTS(ID_PARENTS(MY_DOMAIN_ID))      !<-- My parent's parent's domain ID
+                  DT_GRANDPARENT=DT_DOMAIN(ID_GRANDPARENT)                 !<-- My parent's parent's timestep interval (sec)
 !
-              NTIMESTEP_WAIT_FORCED_PARENT=NTIMESTEP                          &  !<--  The next timestep this domain
-                                           +NINT(DT_GRANDPARENT*(LAG_STEPS+1) &  !     will be allowed to initiate a
-                                                /DT_DOMAIN(MY_DOMAIN_ID))        !     forced move of its parent.
+                  NTIMESTEP_WAIT_FORCED_PARENT=NTIMESTEP                          &  !<--  The next timestep this domain
+                                               +NINT(DT_GRANDPARENT*(LAG_STEPS+1) &  !     will be allowed to initiate a
+                                                    /DT_DOMAIN(MY_DOMAIN_ID))        !     forced move of its parent.
 !
-            ENDIF
+                ENDIF
 !
 !-----------------------------------------------------------------------
 !
-          ENDIF parent_bdy
+              ELSE                                                         !<-- This child's parent is static.
+!
+                I_WANT_TO_MOVE=.FALSE.                                     !<-- The parent cannot be pushed so do nothing.
+!
+                WRITE(0,55553)MY_DOMAIN_ID,NTIMESTEP
+                WRITE(0,55554)
+                WRITE(0,55555)
+55553           FORMAT(' CHILDREN_RECV my_domain_id=',I2                &
+                      ,' ntimestep=',I5)
+55554           FORMAT(' Child wants to move too close to parent bndry!')
+55555           FORMAT(' Parent cannot be pushed away so do not shift.')
+!
+!-----------------------------------------------------------------------
+!
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!
+            ENDIF parent_bdy
 !
 !-----------------------------------------------------------------------
 !
@@ -8824,7 +9004,7 @@
                 MOVE_FLAG(N)=.TRUE.                                        !<-- Moving child N is saying it wants to move
 !
                 CALL MPI_RECV(SHIFT_INFO_CHILDREN(1,N)                  &  !<-- Recv the message and clear the nest's ISEND 
-                             ,3                                         &  !<-- # of words in message
+                             ,4                                         &  !<-- # of words in message
                              ,MPI_INTEGER                               &  !<-- The message is type Integer.
                              ,CHILDTASK_0                               &  !<-- The message was sent by moving child N's fcst task 0.
                              ,MOVE_TAG                                  &  !<-- Arbitrary tag used for this data exchange
@@ -8883,16 +9063,16 @@
             IF(MOVE_FLAG(N))THEN                                           !<-- If true then moving child N sent shift information.
 !
               CALL MPI_BCAST(SHIFT_INFO_CHILDREN(1,N)                   &  !<-- Moving child N's shift information
-                            ,3                                          &  !<-- # of words in message
+                            ,4                                          &  !<-- # of words in message
                             ,MPI_INTEGER                                &  !<-- The message is type Integer
                             ,0                                          &  !<-- Broadcast from parent forecast task 0
                             ,COMM_FCST_TASKS                            &  !<-- Intracommunicator for this parent's forecast tasks
                             ,IRTN )
 !
-              IF(SHIFT_INFO_CHILDREN(1,N)/=-11111)THEN
+              IF(SHIFT_INFO_CHILDREN(1,N)>0)THEN
                 NTIMESTEP_CHILD_MOVES(N)=SHIFT_INFO_CHILDREN(1,N)          !<-- The parent timestep in which the child will move
 !
-              ELSE
+              ELSEIF(SHIFT_INFO_CHILDREN(1,N)==-11111)THEN                 !<-- Child is forcing the parent to move.
                 IF(.NOT.I_WANT_TO_MOVE)THEN                                !<-- Parent already wants to shift so do not force it again.
                   CHILD_FORCES_MY_SHIFT=.TRUE.                             !<-- Child N too close to parent boundary
                   MY_FORCED_SHIFT(1)=SHIFT_INFO_CHILDREN(2,N)              !<-- Parent must shift this many gridspaces in I
@@ -8906,7 +9086,6 @@
                 ENDIF
 !
               ENDIF
-!
 !
             ENDIF
 !
@@ -8927,13 +9106,6 @@
 !
             I_PARENT_SW_OLD=I_PARENT_SW(N_MOVING)                          !<-- Save the previous location of the nest.
             J_PARENT_SW_OLD=J_PARENT_SW(N_MOVING)                          !<--
-!
-!-----------------------------------------------------------------------
-!***  Parent task 0 needs to broadcast the moving child's new SW corner
-!***  location to the other parent tasks.  Then the parent tasks who
-!***  will contain child boundary tasks after the child moves must
-!***  fill their working arrays with the child boundary topography.
-!-----------------------------------------------------------------------
 !
             CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N_MOVING)%DATA(0) !<-- Local rank of child's lead task in p-c intracomm
 !
@@ -9051,7 +9223,7 @@
 !
               NR=M_NEST_RATIO(N)                                           !<-- Child's space ratio with uppermost parent.
               NTIMESTEP_CHILD=(NTIMESTEP+1)                             &  !<-- The nest's timestep in which it will recv 
-                              *PARENT_CHILD_SPACE_RATIO(N_MOVING)          !    parent shift data.
+                              *TIME_RATIO_MY_CHILDREN(N_MOVING)            !    parent shift data.
 !
               CALL PARENT_UPDATES_MOVING('H'                                 &
                                         ,N_UPDATE_CHILD_TASKS                &
@@ -9147,6 +9319,24 @@
 !
             parent_update_moving_tim=parent_update_moving_tim           &
                                     +(timef()-btim)
+!
+!-----------------------------------------------------------------------
+!***  If the child has executed its final shift before stopping due to
+!***  its having reached the specified latitude limit then the parent
+!***  sets its own flag to stop incorporating 2-way data from this
+!***  child.
+!-----------------------------------------------------------------------
+!
+            IF(SHIFT_INFO_CHILDREN(4,N)==-22222)THEN                       !<-- Child motion has stopped so skip 2-way updates.
+              IF(NUM_2WAY_CHILDREN>0)THEN
+                SKIP_2WAY_UPDATE(N_MOVING)=.TRUE.
+              ENDIF
+!
+              IF(I_AM_LEAD_FCST_TASK)THEN
+                WRITE(0,70110)N
+70110           FORMAT(' Parent knows its moving child #',I2,' is now frozen.')
+              ENDIF
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -10667,24 +10857,26 @@
             J_2WAY_UPDATE_START=PTR%JL(1)                                  !<-- Starting parent J updated by child N's task NT
             J_2WAY_UPDATE_END  =PTR%JL(2)                                  !<-- Ending parent J updated by child N's task NT
 !
-            CALL PARENT_2WAY_UPDATE(I_2WAY_UPDATE_START                 &  !<-- # of tasks on 2-way child N that update this parent task
-                                   ,I_2WAY_UPDATE_END                   &  !<-- Info for 2-way child N's update on this parent task
-                                   ,J_2WAY_UPDATE_START                 &  !<-- Info for 2-way child N's update on this parent task
-                                   ,J_2WAY_UPDATE_END                   &  !<-- Info for 2-way child N's update on this parent task
-                                   ,LM                                  &  !<-- # of model layers (all domains)
-                                   ,NPTS_UPDATE_HORIZ                   &  !<-- # of update parent sfc H,V points
-                                   ,NPTS_UPDATE_TOTAL                   &  !<-- Total # of words in 2-way 3D update data from child
-                                   ,NVARS_2WAY_UPDATE                   &  !<-- # of variables updated in 2-way exchange
-                                   ,VAR_2WAY                            &  !<-- String of all 2-way update data from child
-                                   ,CHILD_SFC_ON_PARENT_GRID            &  !<-- Child's FIS,PD interpolated to parent update points
-                                   ,CHILD_2WAY_WGT(N)                   &  !<-- Weight (0-1) given to child 2-way data in the update
-                                   ,FIS                                 &  !<-- Parent's sfc geopotential
-                                   ,PD,PDTOP,PT                         &  !<-- Parent's PD
-                                   ,SG1,SG2                             &  !<-- Interface 'sigma' values in pressure/hybrid regions
-                                   ,IMS,IME,JMS,JME                     &  !<-- Memory limits of parent subdomains
+            IF(.NOT.SKIP_2WAY_UPDATE(N_ALL))THEN                           !<-- IF test passes => nest N lies within latitude limits
+              CALL PARENT_2WAY_UPDATE(I_2WAY_UPDATE_START               &  !<-- # of tasks on 2-way child N that update this parent task
+                                     ,I_2WAY_UPDATE_END                 &  !<-- Info for 2-way child N's update on this parent task
+                                     ,J_2WAY_UPDATE_START               &  !<-- Info for 2-way child N's update on this parent task
+                                     ,J_2WAY_UPDATE_END                 &  !<-- Info for 2-way child N's update on this parent task
+                                     ,LM                                &  !<-- # of model layers (all domains)
+                                     ,NPTS_UPDATE_HORIZ                 &  !<-- # of update parent sfc H,V points
+                                     ,NPTS_UPDATE_TOTAL                 &  !<-- Total # of words in 2-way 3D update data from child
+                                     ,NVARS_2WAY_UPDATE                 &  !<-- # of variables updated in 2-way exchange
+                                     ,VAR_2WAY                          &  !<-- String of all 2-way update data from child
+                                     ,CHILD_SFC_ON_PARENT_GRID          &  !<-- Child's FIS,PD interpolated to parent update points
+                                     ,CHILD_2WAY_WGT(N)                 &  !<-- Weight (0-1) given to child 2-way data in the update
+                                     ,FIS                               &  !<-- Parent's sfc geopotential
+                                     ,PD,PDTOP,PT                       &  !<-- Parent's PD
+                                     ,SG1,SG2                           &  !<-- Interface 'sigma' values in pressure/hybrid regions
+                                     ,IMS,IME,JMS,JME                   &  !<-- Memory limits of parent subdomains
 !
-                                   ,BUNDLE_2WAY                         &  !<-- Bundle holding pointers to the 2-way exchange variables
+                                     ,BUNDLE_2WAY                       &  !<-- Bundle holding pointers to the 2-way exchange variables
                                                  )
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -11071,20 +11263,21 @@
 !
         IF(I_AM_LEAD_FCST_TASK)THEN                                        !<-- Local task 0 on this child domain ISends
 !
-          TWOWAY_SIGNAL_TAG=1115+1000*MY_DOMAIN_ID+10*NTIMESTEP              !<-- Use child's domain ID,timestep to create a unique tag
+          TWOWAY_SIGNAL_TAG=1115+1000*MY_DOMAIN_ID+10*NTIMESTEP            !<-- Use child's domain ID,timestep to create a unique tag
 !
           CALL MPI_WAIT(HANDLE_SEND_2WAY_SIGNAL                         &  !<-- Handle for this ISend
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR)
 !
           CALL MPI_ISSEND(MY_2WAY_SIGNAL                                &  !<-- The child's affirmative 2-way signal
-                         ,1                                             &  !<-- The signal is 1 word
+                         ,1                                             &  !<-- The signal has 1 word
                          ,MPI_LOGICAL                                   &  !<-- The signal is type Logical
                          ,0                                             &  !<-- Target the parent lead task in the p-c intracomm
                          ,TWOWAY_SIGNAL_TAG                             &  !<-- Tag associated with 2way signal from children
                          ,COMM_TO_MY_PARENT                             &  !<-- The intracommunicator between this child and its parent
                          ,HANDLE_SEND_2WAY_SIGNAL                       &  !<-- Handle for this ISend
                          ,IERR )
+!
         ENDIF
 !
       ELSE
@@ -11765,6 +11958,7 @@
                            ,IHANDLE_RECV,IHANDLE_SEND                   &
                            ,INDX_CW,INDX_Q                              &
                            ,I_PAR_STA,J_PAR_STA                         &
+                           ,JM                                          &
                            ,LAST_STEP_MOVED                             &
                            ,KOUNT,LM,LMP1,MYPE,MYPE_DOMAIN              &
                            ,N,N_BLEND_H,N_BLEND_V,NHALO                 &
@@ -11781,7 +11975,7 @@
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: PARENT_CHILD_RATIO
 !
 !
-      REAL(kind=KFPT) :: DYH,PDTOP,PT
+      REAL(kind=KFPT) :: DPHD,DYH,PDTOP,PT
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ARRAY_1D
 !
@@ -12885,7 +13079,7 @@
       ALLOCATE(ARRAY_1D(1:NKOUNT))
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract DY from Parent DOMAIN Export State"
+      MESSAGE_CHECK="Extract DY,DX from Parent DOMAIN Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -12916,6 +13110,39 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DEALLOCATE(ARRAY_1D)
+!
+!------------------------
+!***  Transfer DPHD,JM
+!------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract DPHD,JM from DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='DPHD'                               &  !<-- Extract DYH
+                            ,value=DPHD                                 &  !<-- Put the extracted value here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='DPHD'                               &  !<-- Insert DYH
+                            ,value=DPHD                                 &  !<-- Insert this value
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='JM'                                 &  !<-- Extract DYH
+                            ,value=JM                                   &  !<-- Put the extracted value here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='JM'                                 &  !<-- Insert DYH
+                            ,value=JM                                   &  !<-- Insert this value
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !
@@ -13704,6 +13931,7 @@
       ITE                  =>cc%ITE
       JTS                  =>cc%JTS
       JTE                  =>cc%JTE
+      JM                   =>cc%JM
       LM                   =>cc%LM
       IMS                  =>cc%IMS
       IME                  =>cc%IME
@@ -13827,6 +14055,7 @@
       NUM_TASKS_SEND_V_W=>cc%NUM_TASKS_SEND_V_W
       NUM_TASKS_SEND_V_E=>cc%NUM_TASKS_SEND_V_E
 !
+      DPH        =>cc%DPH
       DYH        =>cc%DYH
       PDTOP      =>cc%PDTOP
       PT         =>cc%PT
@@ -13897,6 +14126,7 @@
       MOVE_FLAG             =>cc%MOVE_FLAG
       SEND_CHILD_DATA       =>cc%SEND_CHILD_DATA
       SIGNAL_2WAY_SEND_READY=>cc%SIGNAL_2WAY_SEND_READY
+      SKIP_2WAY_UPDATE      =>cc%SKIP_2WAY_UPDATE
 !
       I_2WAY_UPDATE=>cc%I_2WAY_UPDATE
       J_2WAY_UPDATE=>cc%J_2WAY_UPDATE
@@ -14060,6 +14290,7 @@
       FIRST_PASS_M   =>cc%FIRST_PASS_M
       FIRST_STEP_2WAY=>cc%FIRST_STEP_2WAY
       IN_WINDOW      =>cc%IN_WINDOW
+      STOP_MY_MOTION =>cc%STOP_MY_MOTION
 !
       I_HOLD_CENTER_POINT=>cc%I_HOLD_CENTER_POINT
       I_HOLD_PG_POINT=>cc%I_HOLD_PG_POINT
@@ -16852,7 +17083,7 @@
 !               ,' child task count=',CHILDTASK_BNDRY_H_RANKS(N)%SOUTH(NTX,1) &
 !              ,' intracomm rank=',id_childtask,' ierr=',ierr
 !     write(0,*)' south_h info=',info
-!
+! 
               CYCLE sh_loop                                                !<-- Move on to next child task
             ENDIF
           ENDDO

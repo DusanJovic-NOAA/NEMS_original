@@ -3457,6 +3457,34 @@ integer,allocatable       :: reclev(:)
 !
       ENDDO
 !-----------------------------------------------------------------------
+!***  Radar-derived T tendencies from GSI analysis
+!-----------------------------------------------------------------------
+!
+      if(int_state%USE_RADAR) then
+      DO K=1,LM
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%DFI_TTEN(I,J,K)=0.
+        ENDDO
+        ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'dfi_tten','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              if(tmp(i-its+1+js+fldst)>0.0 .and. tmp(i-its+1+js+fldst)<0.1)then
+                int_state%DFI_TTEN(i,j,k)=tmp(i-its+1+js+fldst)*0.05
+              end if
+            enddo
+          enddo
+        endif
+!
+      ENDDO
+      end if
+!
+!-----------------------------------------------------------------------
 !***  SH2O, SMC, STC
 !-----------------------------------------------------------------------
 !

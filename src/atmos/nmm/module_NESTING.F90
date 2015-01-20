@@ -4775,7 +4775,7 @@
 !
       INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE                             &
                            ,IDS,IDE,JDS,JDE                             &
-                           ,I_PAR_STA,J_PAR_STA                         &
+                           ,I_PAR_STA,J_PAR_STA,J,JM                    &
                            ,INDX_CW,INDX_Q                              &
                            ,LMP1,LNSH,LNSV                              &      
                            ,N,NHALO,NKOUNT,NUM_DIMS
@@ -4786,7 +4786,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(1:3) :: LBND_3D,UBND_3D
 !
-      REAL(kind=KFPT) :: DYH,PDTOP,PT
+      REAL(kind=KFPT) :: DPHD,DYH,PDTOP,PT
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ARRAY_1D
 !
@@ -5469,6 +5469,41 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DEALLOCATE(ARRAY_1D)
+!
+!------------------------
+!***  Transfer DPHD,JM
+!------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract DPHD,JM from Solver Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
+                            ,name ='DPHD'                               &  !<-- Name of DYH scalar
+                            ,value=DPHD                                 &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='DPHD'                               &  !<-- Name of DYH scalar
+                            ,value=DPHD                                 &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
+                            ,name ='JM'                                 &  !<-- Name of DYH scalar
+                            ,value=JM                                   &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='JM'                                 &  !<-- Name of DYH scalar
+                            ,value=JM                                   &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !
       CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Domain export state
                         ,itemcount   =itemcount                         &  !<-- # of items in the state
