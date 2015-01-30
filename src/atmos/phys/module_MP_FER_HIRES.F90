@@ -43,8 +43,8 @@
 !
       REAL, PRIVATE,PARAMETER :: DMImin=.05e-3, DMImax=1.e-3,            &
      &      DelDMI=1.e-6,XMImin=1.e6*DMImin
-      INTEGER, PUBLIC,PARAMETER :: XMImax=1.e6*DMImax, XMIexp=.0536,     &
-     &                             MDImin=XMImin, MDImax=XMImax
+      REAL, PUBLIC,PARAMETER :: XMImax=1.e6*DMImax, XMIexp=.0536
+      INTEGER, PUBLIC,PARAMETER :: MDImin=XMImin, MDImax=XMImax
       REAL, PRIVATE,DIMENSION(MDImin:MDImax) ::                          &
      &      ACCRI,VSNOWI,VENTI1,VENTI2
       REAL, PUBLIC,DIMENSION(MDImin:MDImax) :: SDENS    !-- For RRTM
@@ -61,8 +61,8 @@
 !
       INTEGER,PARAMETER :: NX=7501
       REAL, PARAMETER :: XMIN=180.0,XMAX=330.0
-      REAL, DIMENSION(NX),PRIVATE,SAVE :: TBPVS,TBPVS0
-      REAL, PRIVATE,SAVE :: C1XPVS0,C2XPVS0,C1XPVS,C2XPVS
+      REAL, DIMENSION(NX),PUBLIC,SAVE :: TBPVS,TBPVS0
+      REAL, PUBLIC,SAVE :: C1XPVS0,C2XPVS0,C1XPVS,C2XPVS
 !
       REAL, PRIVATE,PARAMETER ::                                        &
 !--- Physical constants follow:
@@ -2668,9 +2668,19 @@ ENDIF
       real XJ
       integer :: JX
 !-----------------------------------------------------------------------
-      XJ=MIN(MAX(C1XPVS+C2XPVS*T,1.),FLOAT(NX))
-      JX=MIN(XJ,NX-1.)
-      FPVS=TBPVS(JX)+(XJ-JX)*(TBPVS(JX+1)-TBPVS(JX))
+      IF (T>=XMIN .AND. T<=XMAX) THEN
+         XJ=MIN(MAX(C1XPVS+C2XPVS*T,1.),FLOAT(NX))
+         JX=MIN(XJ,NX-1.)
+         FPVS=TBPVS(JX)+(XJ-JX)*(TBPVS(JX+1)-TBPVS(JX))
+      ELSE IF (T>XMAX) THEN
+!-- Magnus Tetens formula for water saturation (Murray, 1967)
+!   (saturation vapor pressure in kPa)
+         FPVS=0.61078*exp(17.2694*(T-273.16)/(T-35.86))
+      ELSE 
+!-- Magnus Tetens formula for ice saturation(Murray, 1967)
+!   (saturation vapor pressure in kPa)
+         FPVS=0.61078*exp(21.8746*(T-273.16)/(T-7.66))
+      ENDIF
 !
       END FUNCTION FPVS
 !-----------------------------------------------------------------------
@@ -2682,9 +2692,15 @@ ENDIF
       real :: XJ1
       integer :: JX1
 !-----------------------------------------------------------------------
-      XJ1=MIN(MAX(C1XPVS0+C2XPVS0*T,1.),FLOAT(NX))
-      JX1=MIN(XJ1,NX-1.)
-      FPVS0=TBPVS0(JX1)+(XJ1-JX1)*(TBPVS0(JX1+1)-TBPVS0(JX1))
+      IF (T>=XMIN .AND. T<=XMAX) THEN
+         XJ1=MIN(MAX(C1XPVS0+C2XPVS0*T,1.),FLOAT(NX))
+         JX1=MIN(XJ1,NX-1.)
+         FPVS0=TBPVS0(JX1)+(XJ1-JX1)*(TBPVS0(JX1+1)-TBPVS0(JX1))
+      ELSE
+!-- Magnus Tetens formula for water saturation (Murray, 1967)
+!   (saturation vapor pressure in kPa)
+         FPVS0=0.61078*exp(17.2694*(T-273.16)/(T-35.86))
+      ENDIF
 !
       END FUNCTION FPVS0
 !-----------------------------------------------------------------------

@@ -64,6 +64,7 @@
 !
       USE MODULE_DIAGNOSE,ONLY : EXIT,FIELD_STATS                       &
                                 ,MAX_FIELDS,MAX_FIELDS_HR,MAX_FIELDS_W6 &
+                                ,MAX_FIELDS_THO                         &
                                 ,HMAXMIN,TWR,VMAXMIN,VWR,WRT_PCP        &
                                 ,LAT_LON_BNDS
 !
@@ -4854,7 +4855,7 @@
 !     IF (mod(int_state%NTSD,NSTEPS_PER_CHECK) == 0) THEN
       IF (mod(int_state%NTSD,NSTEPS_PER_CHECK) == 0 .and. FILTER_METHOD==0 ) THEN
 !
-        IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
+max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 !
           CALL MAX_FIELDS(int_state%T,int_state%Q,int_state%U            &
                          ,int_state%V,int_state%CW                       &
@@ -4891,7 +4892,7 @@
                          ,MY_DOMAIN_ID                                   &
                                         )
 !
-        ELSEIF (TRIM(int_state%MICROPHYSICS) == 'fer_hires') THEN
+        ELSEIF (TRIM(int_state%MICROPHYSICS) == 'fer_hires') THEN  max_hrly
 !
           CALL MAX_FIELDS_HR(int_state%T,int_state%Q,int_state%U         &
                             ,int_state%V,int_state%CW                    &
@@ -4928,7 +4929,7 @@
                             ,MY_DOMAIN_ID                                &
                                            )
 !
-       ELSEIF (TRIM(int_state%MICROPHYSICS) == 'wsm6') THEN
+       ELSEIF (TRIM(int_state%MICROPHYSICS) == 'wsm6') THEN  max_hrly
 !
          CALL MAX_FIELDS_W6(int_state%T,int_state%Q,int_state%U         &
                            ,int_state%V,int_state%Z,int_state%W_TOT     &
@@ -4964,7 +4965,43 @@
                            ,MY_DOMAIN_ID                                &
                                            )
 !
-        ENDIF
+       ELSEIF (TRIM(int_state%MICROPHYSICS) == 'thompson') THEN  max_hrly
+!
+         CALL MAX_FIELDS_THO(int_state%T,int_state%Q,int_state%U        &
+                           ,int_state%V,int_state%Z,int_state%W_TOT     &
+                           ,int_state%refl_10cm                         &
+                           ,int_state%PINT,int_state%PD                 &
+                           ,int_state%CPRATE,int_state%HTOP             &
+                           ,int_state%T2,int_state%U10,int_state%V10    &
+                           ,int_state%PSHLTR,int_state%TSHLTR           &
+                           ,int_state%QSHLTR                            &
+                           ,int_state%SGML2,int_state%PSGML1            &
+                           ,int_state%REFDMAX                           &
+                           ,int_state%UPVVELMAX,int_state%DNVVELMAX     &
+                           ,int_state%TLMAX,int_state%TLMIN             &
+                           ,int_state%T02MAX,int_state%T02MIN           &
+                           ,int_state%RH02MAX,int_state%RH02MIN         &
+                           ,int_state%U10MAX,int_state%V10MAX           &
+                           ,int_state%TH10,int_state%T10                &
+                           ,int_state%SPD10MAX,int_state%T10AVG         &
+                           ,int_state%PSFCAVG                           &
+                           ,int_state%AKHS,int_state%AKMS               &
+                           ,int_state%AKHSAVG,int_state%AKMSAVG         &
+                           ,int_state%SNO,int_state%SNOAVG              &
+                           ,int_state%UPHLMAX                           &
+                           ,int_state%DT,int_state%NPHS,int_state%NTSD  &
+                           ,int_state%DXH,int_state%DYH                 &
+                           ,int_state%FIS                               &
+                           ,ITS,ITE,JTS,JTE                             &
+                           ,IMS,IME,JMS,JME                             &
+                           ,IDE,JDE                                     &
+                           ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 &
+                           ,LM                                          &
+                           ,int_state%NCOUNT,int_state%FIRST_NMM        &
+                           ,MY_DOMAIN_ID                                &
+                                           )
+!
+        ENDIF  max_hrly
 !
       ENDIF
 !
@@ -5560,6 +5597,7 @@
                        ,int_state%AVCNVC,int_state%ACUTIM                 &
                        ,int_state%RSWIN,int_state%RSWOUT                  &
                        ,int_state%CONVECTION,int_state%CU_PHYSICS         &
+                       ,int_state%MICROPHYSICS                            &
                        ,int_state%SICE,int_state%QWBS,int_state%TWBS      &
                        ,int_state%PBLH,int_state%DUDT,int_state%DVDT      &
 !!!  added for SAS-hurricane
@@ -9754,6 +9792,8 @@
 !-----------------------------------------------------------------------
 !
       USE FUNCPHYS
+      USE MODULE_MP_FER_HIRES, ONLY : GPVS_HR
+
       USE MERSENNE_TWISTER
       USE N_LAYOUT1,        ONLY : LATS_NODE_R,IPT_LATS_NODE_R
       USE TRACER_CONST,     ONLY : SET_TRACER_CONST
@@ -10417,6 +10457,8 @@
 
             CALL GPKAP    ! for ozone by using the unified RRTM from GFS
             CALL GPVS     ! for aerosol by using the unified RRTM from GFS
+
+            CALL GPVS_HR  !- Initialize regional version of FPVS, FPVS0 functions
 !
 !-----------------------------------------------------------------------
 !***  For threading safe  (rad_initialize). Default value
@@ -11204,8 +11246,12 @@
                          LIQW = MAX(0., (1.-F_ICE(I,J,K))*CWM(I,J,K))
                          QR(I,J,K) = LIQW*F_RAIN(I,J,K)*CWM(I,J,K)
                          QC(I,J,K) = LIQW*(1.-F_RAIN(I,J,K))*CWM(I,J,K)
-                         FRACTION = MAX(0., MIN(QG(I,J,K) &
-                                  / (QG(I,J,K)+QS(I,J,K)), 1.) )
+                         IF (QG(I,J,K) .gt. EPSQ) THEN
+                            FRACTION = MAX(0., MIN(QG(I,J,K)            &
+                                       / (QG(I,J,K)+QS(I,J,K)), 1.) )
+                         ELSE
+                            FRACTION = 0.
+                         ENDIF
                          QG(I,J,K) = FRACTION*F_ICE(I,J,K)*CWM(I,J,K)
                          QI(I,J,K) = 0.1*(1.-FRACTION)*F_ICE(I,J,K)*CWM(I,J,K)
                          QS(I,J,K) = 0.9*(1.-FRACTION)*F_ICE(I,J,K)*CWM(I,J,K)
@@ -11241,7 +11287,11 @@
                          LIQW = MAX(0., CWM(I,J,K) - QI(I,J,K)  &
                                                    - QS(I,J,K)  &
                                                    - QG(I,J,K))
-                         F_ICE(I,J,K) = (1.0-LIQW)/CWM(I,J,K)
+                         IF (CWM(I,J,K) .gt. EPSQ) THEN
+                            F_ICE(I,J,K) = (1.0-LIQW)/CWM(I,J,K)
+                         ELSE
+                            F_ICE(I,J,K) = 0.
+                         ENDIF
                          IF (QR(I,J,K) .gt. EPSQ) THEN
                             F_RAIN(I,J,K) = QR(I,J,K)           &
                                     / (QC(I,J,K)+QR(I,J,K))

@@ -64,7 +64,7 @@
                        ,HBOT,HBOTD,HBOTS                                &
                        ,AVCNVC,ACUTIM                                   &
                        ,RSWIN,RSWOUT                                    &
-                       ,CONVECTION,CU_PHYSICS                           &
+                       ,CONVECTION,CU_PHYSICS,MICROPHYSICS              &
 !!!! added for SAS
                        ,SICE,QWBS,TWBS,PBLH,DUDT_PHY,DVDT_PHY           &
 !!!
@@ -109,7 +109,7 @@
 !
 !-----------------------------------------------------------------------
       character(99),intent(in):: &
-       convection
+       convection,microphysics
 !
       logical(kind=klog),intent(in):: &
        hydro,restrt &
@@ -165,30 +165,29 @@
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm-1),intent(in)::PSGDT !vertical mass flux
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
-       f_ice &
-      ,f_rain &
-      ,omgalf,u,v
+       omgalf,u,v
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out):: &
        dudt_phy,dvdt_phy
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
        q,t &
+      ,f_ice &
+      ,f_rain &
       ,cwm &
       ,tcucn
 !
       real(kind=kfpt),dimension(ims:ime,1:lm+1,jms:jme),intent(inout):: &
        w0avg
 !
-
-      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
-       qv,qc,qr,qi,qs,qg
+      REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) ::         &
+     &                                                QV,QC,QI,QR,QS,QG
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
       logical(kind=klog):: &
-       restart,warm_rain
+       restart,warm_rain,F_QGr
 !
       logical(kind=klog),dimension(ims:ime,jms:jme):: &
        cu_act_flag
@@ -203,8 +202,9 @@
        KPBL,LBOT,LTOP
 !
       real(kind=kfpt):: &
-       cf_hi,dqdt,dtcnvc,dtdt,fice,frain,g_inv &
+       cf_hi,dtcnvc,dtdt,fice,frain,g_inv &
       ,pcpcol,pdsl,ql,ql_k,rdtcnvc &
+      ,QCW,QCI,QRain,QSnow,QGraup &
       ,tl
 !
       REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME):: &
@@ -281,6 +281,11 @@
 !
 !-----------------------------------------------------------------------
 !
+      IF(MICROPHYSICS=='fer' .OR. MICROPHYSICS=='fer_hires') THEN
+         F_QGr=.FALSE.
+      ELSE
+         F_QGr=F_QG
+      ENDIF
       IF(CONVECTION=='kf')THEN
 !
         IF(.NOT.RESTART.AND.NTSD==0)THEN
@@ -467,9 +472,10 @@
                       ,dt,ntsd,ncnvc &
                       ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy & !zj orig u&v 
                       ,q,qc,qr,qi,qs,qg &
-                      ,f_qc,f_qr,f_qi,f_qs,f_qg &
+                      ,f_qc,f_qr,f_qi,f_qs,F_QGr &
                       ,phint,phmid,exner,rr,dz &
                       ,xland,cu_act_flag &
+                      ,psgdt &
                       ,raincv,cutop,cubot &
                       ,dudt_phy,dvdt_phy &
                       ! optional
@@ -487,7 +493,7 @@
                       ,dt,ntsd,ncnvc &
                       ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy & !zj orig u&v 
                       ,q,qc,qr,qi,qs,qg &
-                      ,f_qc,f_qr,f_qi,f_qs,f_qg &
+                      ,f_qc,f_qr,f_qi,f_qs,F_QGr &
                       ,phint,phmid,exner,rr,dz &
                       ,xland,cu_act_flag &
                       ,MOMMIX,PGCON,SAS_MASS_FLUX   &   ! hwrf,namelist
@@ -538,7 +544,7 @@
 !-----------------------------------------------------------------------
 !.......................................................................
 !zj$omp parallel do                                                       &
-!zj$omp& private(j,k,i,dqdt,dtdt,tchange,pcpcol,ncubot,ncutop)
+!zj$omp& private(j,k,i,dtdt,tchange,pcpcol,ncubot,ncutop,QCW,QRain,QCI,QSnow,QGraup)
 !.......................................................................
 !-----------------------------------------------------------------------
       do j=jts_b1,jte_b1
@@ -556,15 +562,38 @@
           Q(I,J,K)=Q(I,J,K)+RQCUTEN(I,J,K)*DTCNVC
           TCUCN(I,J,K)=TCUCN(I,J,K)+DTDT
 
-!!! WANG, 11-2-2010 SAS convection
-                IF(CONVECTION=='sas') THEN
-                 IF(F_QC) QC(I,J,K)=QC(I,J,K)+DTCNVC*RQCCUTEN(I,J,K)
-                 IF(F_QR) QR(I,J,K)=QR(I,J,K)+DTCNVC*RQRCUTEN(I,J,K)
-                 IF(F_QI) QI(I,J,K)=QI(I,J,K)+DTCNVC*RQICUTEN(I,J,K)
-                 IF(F_QS) QS(I,J,K)=QS(I,J,K)+DTCNVC*RQSCUTEN(I,J,K)
-                 IF(F_QG) QG(I,J,K)=QG(I,J,K)+DTCNVC*RQGCUTEN(I,J,K)
-                ENDIF
-!!! wang, 11-2-2010
+!!! WANG, 11-2-2010 SAS convection; modified on 11-20-2014 by BSF
+sas_test: IF(CONVECTION=='sas') THEN
+            QC(I,J,K)=QC(I,J,K)+DTCNVC*RQCCUTEN(I,J,K)
+            QCW=QC(I,J,K)
+            QRain=0.
+            QCI=0.
+            QSnow=0.
+            QGraup=0.
+            IF(F_QR) THEN
+              QR(I,J,K)=QR(I,J,K)+DTCNVC*RQRCUTEN(I,J,K)
+              QRain=QR(I,J,K)
+            ENDIF
+            IF(F_QI) THEN
+              QI(I,J,K)=QI(I,J,K)+DTCNVC*RQICUTEN(I,J,K)
+              QCI=QI(I,J,K)
+            ENDIF
+            IF(F_QS) THEN
+              QS(I,J,K)=QS(I,J,K)+DTCNVC*RQSCUTEN(I,J,K)
+              QSnow=QS(I,J,K)
+            ENDIF
+            IF(F_QGr) THEN
+              QG(I,J,K)=QG(I,J,K)+DTCNVC*RQGCUTEN(I,J,K)
+              QGraup=QG(I,J,K)
+            ENDIF
+!-- Couple CWM, F_ice, & F_rain arrays
+            CWM(I,J,K)=QCW+QRain+QCI+QSnow+QGraup
+            F_ICE(I,J,K)=0.
+            F_RAIN(I,J,K)=0.
+            IF(CWM(I,J,K)>EPSQ) F_ICE(I,J,K)=(QCI+QSnow+QGraup)/CWM(I,J,K)
+            IF(QRain>EPSQ) F_RAIN(I,J,K)=QRain/(QCW+QRain)
+          ENDIF  sas_test
+!!! wang, 11-2-2010; modified on 11-20-2014 by BSF
 !
 !zj          TCHANGE=DTDT*DTCNVC
 !zj          IF(ABS(TCHANGE)>DTEMP_CHECK)THEN

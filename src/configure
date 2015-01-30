@@ -82,6 +82,12 @@ elif [[ $1 = 6_gaea ]]; then
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 6.3.0r library on gaea"
+elif [[ $1 = 6_yellowstone ]]; then
+     set -x
+     cp conf/configure.nems.Yellowstone.intel   conf/configure.nems
+     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 6.3.0r series library on yellowstone"
 
 #
 # NUOPC
@@ -152,6 +158,7 @@ else
      echo " 'configure 6.3r_gsm_wcoss'     : ESMF 6.3.0r library on wcoss for gsm"
      echo " 'configure 6_nmm_zeus'         : ESMF 6.3.0r series library on zeus nmm"
      echo " 'configure 6_gsm_zeus'         : ESMF 6.3.0r series library on zeus gsm"
+     echo " 'configure 6_yellowstone'      : ESMF 6.3.0r series library on yellowstone"
      echo;
      echo " 'configure nuopc_zeus'         : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on zeus"
      echo " 'configure nuopc_gaea'         : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on gaea"

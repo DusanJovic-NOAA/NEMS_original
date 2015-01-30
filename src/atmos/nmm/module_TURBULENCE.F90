@@ -252,7 +252,7 @@
                                                                       ,Q,Q2   &
                                                                       ,T,U,V
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QC,QR,QI,QS,QG
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: QV,QC,QI,QR,QS,QG
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE  &
                                                                        ,F_RAIN
@@ -304,10 +304,10 @@
 !
       INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME) :: UTYPE_URB2D
 !
-      REAL(kind=KFPT) :: ALTITUDE,DECLIN_URB,DTBL,DTDT,DTMIN,DTPHS,DZHALF &
+      REAL(kind=KFPT) :: ALTITUDE,DECLIN_URB,DTBL,DTMIN,DTPHS,DZHALF           &
                         ,FACTOR,FACTRL,G_INV,PDSL,PLM,PLYR,PSFC                &
-                        ,QIce,QL,QLOWX,QOLD,QRain,QW,QSnow,QGraup                 &
-                        ,RATIOMX,RDTPHS,ROG,RXNER,SNO_FACTR                    &
+                        ,QL,QLOWX,QCW,QRain,QCI,QSnow,QGraup                   &
+                        ,RDTPHS,ROG,RXNER,SNO_FACTR                            &
                         ,TL,TLMH,TSFC2,XLVRW
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME) :: BR,CHKLOWQ,CHS,CHS2,CPM,CQS2  &
@@ -340,10 +340,7 @@
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: RTHBLTEN       &
                                                         ,RQBLTEN        &
                                                         ,RQCBLTEN       &
-                                                        ,RQIBLTEN       &
-                                                        ,RQRBLTEN       &
-                                                        ,RQSBLTEN       &
-                                                        ,RQGBLTEN
+                                                        ,RQIBLTEN
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DUDT_GWD,DVDT_GWD
 
@@ -642,9 +639,6 @@
           RQIBLTEN(I,J,K)=0.
           RTHBLTEN(I,J,K)=0.
           RQBLTEN(I,J,K)=0.
-          RQRBLTEN(I,J,K)=0.
-          RQSBLTEN(I,J,K)=0.
-          RQGBLTEN(I,J,K)=0.
 !
           DZ(I,J,K)=T(I,J,K)*(P608*QL+1.)*R_D                           &
                     *(PHINT(I,J,K+1)-PHINT(I,J,K))                      &
@@ -1046,9 +1040,8 @@
               CALL GFSPBL(DT=DT,NPHS=NPHS,DP=DELP,AIRDEN=RR              &
                          ,RIB=RIB                                        &
                          ,PHMID=PHMID,PHINT=PHINT,T=T,ZINT=Z             &
-                         ,Q=Q,QC=QC,QR=QR,QI=QI,QS=QS,QG=QG              &
-                         ,F_QC=F_QC,F_QR=F_QR                            &
-                         ,F_QI=F_QI,F_QS=F_QS,F_QG=F_QG                  &
+                         ,Q=Q,QC=QC,QI=QI                                &
+                         ,F_QC=F_QC,F_QI=F_QI                            &
                          ,U=U_PHY,V=V_PHY                                &
                          ,USTAR=USTAR                                    &
                          ,SHEAT=TWBS, LHEAT=QWBS*XLV*CHKLOWQ             &
@@ -1067,10 +1060,7 @@
                          ,RTHBLTEN=RTHBLTEN                              &
                          ,RQBLTEN=RQBLTEN                                &
                          ,RQCBLTEN=RQCBLTEN                              &
-                         ,RQRBLTEN=RQRBLTEN                              &
                          ,RQIBLTEN=RQIBLTEN                              &
-                         ,RQSBLTEN=RQSBLTEN                              &
-                         ,RQGBLTEN=RQGBLTEN                              &
                          ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1 &
                          ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1 &
                          ,ITS=ITS_B1,ITE=ITE_B1                          &
@@ -1336,45 +1326,33 @@
 
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,k,i,dtdt,qold,ratiomx,qw,QIce,QRain,QSnow,QGraup)
+!$omp& private(j,k,i,QCW,QRain,QCI,QSnow,QGraup)
 !.......................................................................
       DO K=1,LM
         DO J=JTS_B1,JTE_B1
           DO I=ITS_B1,ITE_B1
-            DTDT=RTHBLTEN(I,J,K)*EXNER(I,J,K)
-            T(I,J,K)=T(I,J,K)+DTDT*DTPHS
+            T(I,J,K)=T(I,J,K)+DTPHS*RTHBLTEN(I,J,K)*EXNER(I,J,K)
             Q(I,J,K)=Q(I,J,K)+RQBLTEN(I,J,K)*DTPHS
 !           Q(I,J,K)=MAX(Q(I,J,K),EPSQ)
-            QW=MAX(0.,QC(I,J,K)+RQCBLTEN(I,J,K)*DTPHS )
-            QC(I,J,K)=QW
+            QC(I,J,K)=MAX(0.,QC(I,J,K)+RQCBLTEN(I,J,K)*DTPHS )
+            QCW=QC(I,J,K)
             QRain=0.
-            IF (F_QR) QRain=QR(I,J,K)
+            QCI=0.
             QSnow=0.
-            IF (F_QS) QSnow=QS(I,J,K)
-            QIce=0.
             QGraup=0.
-            IF(.NOT.FER_MIC)THEN
-              IF(F_QI) THEN
-                QIce=MAX(0.,QI(I,J,K)+RQIBLTEN(I,J,K)*DTPHS )
-                QI(I,J,K)=QIce
-              ENDIF
-              IF(F_QG) THEN
-                QGraup=QG(I,J,K)
-              ENDIF
+            IF(F_QR) QRain=QR(I,J,K)
+            IF(F_QI) THEN
+              QCI=MAX(0.,QI(I,J,K)+RQIBLTEN(I,J,K)*DTPHS )
+              QI(I,J,K)=QCI
             ENDIF
-            CWM(I,J,K)=QW+QRain+QIce+QSnow+QGraup
-            IF(FER_MIC)THEN
-              IF(QSnow<=EPSQ)THEN
-                F_ICE(I,J,K)=0.
-              ELSE
-                F_ICE(I,J,K)=QSnow/CWM(I,J,K)
-              ENDIF
-              IF(QRain<=EPSQ)THEN
-                F_RAIN(I,J,K)=0.
-              ELSE
-                F_RAIN(I,J,K)=QRain/(QW+QRain)
-              ENDIF
-            ENDIF
+            IF(F_QS) QSnow=QS(I,J,K)
+            IF(F_QG .AND. .NOT.FER_MIC) QGraup=QG(I,J,K)
+!-- Couple CWM, F_ice, & F_rain arrays
+            CWM(I,J,K)=QCW+QRain+QCI+QSnow+QGraup
+            F_ICE(I,J,K)=0.
+            F_RAIN(I,J,K)=0.
+            IF(CWM(I,J,K)>EPSQ) F_ICE(I,J,K)=(QCI+QSnow+QGraup)/CWM(I,J,K)
+            IF(QRain>EPSQ) F_RAIN(I,J,K)=QRain/(QCW+QRain)
           ENDDO
         ENDDO
 

@@ -3670,6 +3670,13 @@
 !
             ENDIF
 !
+!-----------------------------------------------------------------------
+!***  We need to update the Solver internal state's values for the
+!***  'new' location of the nest's SW corner every timestep to 
+!***  also include those cases where the parent shifts when the
+!***  nest does not or else the restart file will be incorrect.
+!-----------------------------------------------------------------------
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Domain_Run: Get I_SW_PARENT_NEW,J_SW_PARENT_NEW from Domain Import State"
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)

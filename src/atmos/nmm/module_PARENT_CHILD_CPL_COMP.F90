@@ -7594,15 +7594,19 @@
 !***  If this child wants to shift and it knows that its parent
 !***  had already initiated its own shift but has not yet moved
 !***  then this child simply ignores its own desire to shift and
-!***  sets NTIMESTEP_WAIT_PARENT telling it when its parent will
-!***  have executed its shift at which time this child will then
-!***  be free to initiate a shift.
+!***  waits NTIMESTEP_WAIT_PARENT after which its parent will
+!***  have executed its shift.  The child will then be free to
+!***  initiate a shift.
 !-----------------------------------------------------------------------
 !
         IF(I_WANT_TO_MOVE.AND.PARENT_WANTS_TO_MOVE)THEN
 !
           I_WANT_TO_MOVE=.FALSE.
-!                                                                          !    child timestep NTIMESTEP_WAIT_PARENT.
+          I_SW_PARENT_NEW=I_SW_PARENT_CURRENT                  
+          J_SW_PARENT_NEW=J_SW_PARENT_CURRENT
+          NEXT_MOVE_TIMESTEP=-999
+          MOVE_FLAG_SENT=.FALSE.
+!
         ENDIF
 !
         IF(NTIMESTEP_WAIT_PARENT>0                                      &  !<-- Parent has wanted to shift at least once
@@ -7764,6 +7768,7 @@
                   SHIFT_INFO_MINE(1)=NEXT_MOVE_TIMESTEP_PARENT             !<-- Nest will shift at start of this parent timestep
                   SHIFT_INFO_MINE(2)=I_SW_PARENT_NEW-I_SW_PARENT_CURRENT   !<-- Nest's shift in I on its parent's grid
                   SHIFT_INFO_MINE(3)=J_SW_PARENT_NEW-J_SW_PARENT_CURRENT   !<-- Nest's shift in J on its parent's grid
+
 !
                   IF(STOP_MY_MOTION)THEN
                     SHIFT_INFO_MINE(4)=-22222                              !<-- Signal to parent that the child will not move again.
@@ -9012,10 +9017,12 @@
                              ,JSTAT                                     &
                              ,IERR)
 !
+                IF(I_WANT_TO_MOVE.AND.MOVE_FLAG(N))THEN
+                  MOVE_FLAG(N)=.FALSE.                                     !<-- Turn off the child's shift if parent also wants to move.
+                ENDIF
+!
                 IF(NTIMESTEP>=NTIMESTEP_FINAL-2)THEN   
-!
                   MOVE_FLAG(N)=.FALSE.                                     !<--  Children must not move just before the fcst ends
-!
                 ENDIF
 !
               ENDIF

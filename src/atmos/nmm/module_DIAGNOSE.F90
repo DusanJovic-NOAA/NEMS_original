@@ -1,4 +1,4 @@
-!----------------------------------------------------------------------
+ !----------------------------------------------------------------------
 !
       MODULE MODULE_DIAGNOSE
 !
@@ -1719,7 +1719,7 @@ new_nlice: IF (NLICE<NLImin .OR. NLICE>NLImax) THEN
         IF (CUPRATE>0.) CUREFL=CU_A*CUPRATE**CU_B
         ZFRZ=Z(I,J,LM)
 !
- culoop: IF (CUREFL > 0) THEN
+ culoop: IF (CUREFL>0. .AND. NINT(HTOP(I,J)) > 0) THEN
  vloop2:  DO L=1,LM
             IF (T(I,J,L) >= TFRZ) THEN
               ZFRZ=Z(I,J,L)
@@ -2317,7 +2317,7 @@ dbz_mix: IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
         IF (CUPRATE>0.) CUREFL=CU_A*CUPRATE**CU_B
         ZFRZ=Z(I,J,LM)
 !
- culoop: IF (CUREFL > 0) THEN
+ culoop: IF (CUREFL>0. .AND. NINT(HTOP(I,J))>0) THEN
  vloop2:  DO L=1,LM
             IF (T(I,J,L) >= 273.15) THEN
               ZFRZ=Z(I,J,L)
@@ -2715,6 +2715,270 @@ vloop3:   IF (ZCTOP >= Z1KM) THEN
       ENDDO
 
       END SUBROUTINE MAX_FIELDS_W6
+!
+!----------------------------------------------------------------------
+!
+!----------------------------------------------------------------------
+!
+
+      SUBROUTINE MAX_FIELDS_THO(T,Q,U,V,Z,W            &
+                           ,REFL_10CM,PINT,PD         &
+                           ,CPRATE,HTOP               &
+                           ,T2,U10,V10                &
+                           ,PSHLTR,TSHLTR,QSHLTR      &
+                           ,SGML2,PSGML1              &
+                           ,REFDMAX                   &
+                           ,UPVVELMAX,DNVVELMAX       &
+                           ,TLMAX,TLMIN               &
+                           ,T02MAX,T02MIN             &
+                           ,RH02MAX,RH02MIN           &
+                           ,U10MAX,V10MAX,TH10,T10    &
+                           ,SPD10MAX,T10AVG,PSFCAVG   &
+                           ,AKHS,AKMS                 &
+                           ,AKHSAVG,AKMSAVG           &
+                           ,SNO,SNOAVG                &
+                           ,UPHLMAX                   &
+                           ,DT,NPHS,NTSD              &
+                           ,DXH,DYH                   &
+                           ,FIS                       &
+                           ,ITS,ITE,JTS,JTE           & 
+                           ,IMS,IME,JMS,JME           &
+                           ,IDE,JDE                   & 
+                           ,ITS_B1,ITE_B1             &
+                           ,JTS_B1,JTE_B1             &
+                           ,LM                        &
+                           ,NCOUNT,FIRST_NMM          &
+                           ,MY_DOMAIN_ID)
+
+      USE MODULE_MP_THOMPSON, ONLY : RSLF
+
+      IMPLICIT NONE
+       
+      INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
+      INTEGER,INTENT(IN) :: ITS_B1,ITE_B1,JTS_B1,JTE_B1
+      INTEGER,INTENT(IN) :: IDE,JDE,NPHS
+      INTEGER,INTENT(IN) :: MY_DOMAIN_ID
+
+      REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T,Q,U,V,Z,W
+
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: REFL_10CM
+
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PINT
+
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: PD,CPRATE,HTOP         &
+                                                    ,T2,U10,V10            &
+                                                    ,PSHLTR,TSHLTR,QSHLTR  &
+                                                    ,TH10,AKHS             &
+                                                    ,AKMS,SNO,FIS   
+
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT):: REFDMAX               & 
+                                                   ,UPVVELMAX,DNVVELMAX     &
+                                                   ,TLMAX,TLMIN             &
+                                                   ,T02MAX,T02MIN           &
+                                                   ,RH02MAX,RH02MIN         &
+                                                   ,U10MAX,V10MAX           &
+                                                   ,SPD10MAX,T10AVG,PSFCAVG &
+                                                   ,UPHLMAX,T10,AKHSAVG     &
+                                                   ,AKMSAVG,SNOAVG 
+
+      REAL, INTENT(IN) :: DYH, DXH(1:JDE)
+      LOGICAL,INTENT(INOUT) :: FIRST_NMM
+      REAL, INTENT(IN) :: SGML2(LM),PSGML1(LM), DT
+ 
+      INTEGER :: UPINDX(IMS:IME,JMS:JME)
+      REAL, DIMENSION(IMS:IME,JMS:JME) :: P10
+
+      REAL, DIMENSION(IMS:IME,JMS:JME) :: ZINTSFC 
+      REAL, DIMENSION(IMS:IME,JMS:JME,LM) :: PMID 
+
+      REAL :: PLOW, PUP,WGTa,WGTb,ZMIDloc,ZMIDP1
+      REAL :: P1Da,P1Db,P1D(2)
+      REAL :: T1Da,T1Db,T1D(2),fact
+      REAL :: Q1Da,Q1Db,Q1D(2)
+      REAL :: QQR(2),QQS(2),QQG(2),QPCP,DENS,N0S
+      REAL :: REFL,DBZ1(2)
+      REAL, PARAMETER :: N0S0=2.E6,N0Smax=1.E11,ALPHA=0.12   &
+             ,N0G=4.E6,RHOS=100.,RHOG=500.,ZRADR=3.631E9     &
+             ,DBZmin=-20.
+
+      REAL :: CUPRATE, CUREFL, CUREFL_I, ZFRZ, DBZ1avg, FCTR, DELZ
+      REAL :: T02, RH02, TERM, TREF
+      REAL,SAVE :: CAPPA_MOIST, QVSHLTR, QVSAT
+      REAL, SAVE:: DTPHS, RDTPHS, ZRADS,ZRADG,ZMIN
+      REAL :: MAGW2
+
+      INTEGER :: LCTOP
+      INTEGER :: I,J,L,NCOUNT,LL, RC, Ilook,Jlook
+
+
+!***  COMPUTE AND SAVE THE FACTORS IN R AND CP TO ACCOUNT FOR
+!***  WATER VAPOR IN THE AIR.
+!***
+!***  RECALL: R  = Rd * (1. + Q * (1./EPSILON - 1.))
+!***          CP = CPd * (1. + Q * (CPv/CPd - 1.))
+
+      Ilook=99
+      Jlook=275
+
+      DTPHS=DT*NPHS
+      RDTPHS=3.6e6/DTPHS
+!-- For calculating radar reflectivity
+      ZMIN=10.**(0.1*DBZmin)
+
+      DO L=1,LM
+       DO J=JTS,JTE
+        DO I=ITS,ITE
+         PMID(I,J,L)=PSGML1(L)+SGML2(L)*PD(I,J)
+        ENDDO
+       ENDDO
+      ENDDO
+!
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+         ZINTSFC(I,J)=FIS(I,J)/g
+       ENDDO
+      ENDDO
+!
+!     WON'T BOTHER TO REBUILD HEIGHTS AS IS DONE IN POST.
+!     THE NONHYDROSTATIC MID-LAYER Z VALUES MATCH CLOSELY ENOUGH
+!     AT 1000 m AGL
+!
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+ L_LOOP: DO L=1,LM-1
+          PLOW= PMID(I,J,L+1)
+          PUP=  PMID(I,J,L)
+          IF (PLOW .ge. 40000. .and. PUP .le. 40000.) THEN
+            UPINDX(I,J)=L
+            exit L_LOOP
+          ENDIF 
+         ENDDO L_LOOP
+       ENDDO
+      ENDDO
+!
+!!      DO J=JTS,JTE
+!!       DO I=ITS,ITE
+      DO J=JTS_B1,JTE_B1
+       DO I=ITS_B1,ITE_B1
+  vloop: DO L=8,LM-1
+          IF ( (Z(I,J,L+1)-ZINTSFC(I,J)) .LE. 1000.                &
+          .AND.(Z(I,J,L)-ZINTSFC(I,J))   .GE. 1000.)  THEN
+            ZMIDP1=Z(I,J,L)
+            ZMIDloc=Z(I,J,L+1)
+            P1D(1)=PMID(I,J,L)
+            P1D(2)=PMID(I,J,L+1)
+            T1D(1)=T(I,J,L)
+            T1D(2)=T(I,J,L+1)
+            Q1D(1)=Q(I,J,L)
+            Q1D(2)=Q(I,J,L+1)
+            DBZ1(1)=REFL_10CM(I,J,L)   !- dBZ (not Z) values
+            DBZ1(2)=REFL_10CM(I,J,L+1) !- dBZ values
+            EXIT vloop
+          ENDIF
+         ENDDO vloop
+!
+!!! INITIAL CUREFL VALUE WITHOUT REDUCTION ABOVE FREEZING LEVEL
+!
+         CUREFL=0.
+         IF (CPRATE(I,J)>0.) THEN
+           CUPRATE=RDTPHS*CPRATE(I,J)
+           CUREFL=CU_A*CUPRATE**CU_B
+         ENDIF
+!
+!-- Ignore convective vertical profile effects when the freezing 
+!   level is below 1000 m AGL, approximate using the surface value
+!
+         DO LL=1,2
+           REFL=0.
+           IF (DBZ1(LL)>DBZmin) REFL=10.**(0.1*DBZ1(LL))
+           DBZ1(LL)=CUREFL+REFL    !- in Z units
+         ENDDO
+!-- Vertical interpolation of Z (units of mm**6/m**3)
+         FACT=(1000.+ZINTSFC(I,J)-ZMIDloc)/(ZMIDloc-ZMIDP1)
+         DBZ1avg=DBZ1(2)+(DBZ1(2)-DBZ1(1))*FACT
+!-- Convert to dBZ (10*logZ) as the last step
+         IF (DBZ1avg>ZMIN) THEN
+           DBZ1avg=10.*ALOG10(DBZ1avg)
+         ELSE
+           DBZ1avg=DBZmin
+         ENDIF
+         REFDMAX(I,J)=max(REFDMAX(I,J),DBZ1avg)
+       ENDDO
+      ENDDO
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      DO L=1,LM
+       DO J=JTS,JTE
+        DO I=ITS,ITE
+         IF (L >= UPINDX(I,J)) THEN
+           UPVVELMAX(I,J)=max(UPVVELMAX(I,J),W(I,J,L))
+           DNVVELMAX(I,J)=min(DNVVELMAX(I,J),W(I,J,L))
+         ENDIF
+        ENDDO
+       ENDDO
+      ENDDO
+!
+      DO J=JTS,JTE
+      DO I=ITS,ITE
+        TLMAX(I,J)=MAX(TLMAX(I,J),T(I,J,LM))  !<--- Hourly max lowest layer T
+        TLMIN(I,J)=MIN(TLMIN(I,J),T(I,J,LM))  !<--- Hourly min lowest layer T
+        IF (NTSD > 0) THEN
+          CAPPA_MOIST=RCP*(1.+QSHLTR(I,J)*R_FACTOR)/(1.+QSHLTR(I,J)*CP_FACTOR)
+          T02=TSHLTR(I,J)*(P00_INV*PSHLTR(I,J))**CAPPA_MOIST
+          T02MAX(I,J)=MAX(T02MAX(I,J),T02)  !<--- Hourly max 2m T
+          T02MIN(I,J)=MIN(T02MIN(I,J),T02)  !<--- Hourly min 2m T
+!
+          QVSHLTR=QSHLTR(I,J)/(1.-QSHLTR(I,J))  !<-- 2-m water vapor mixing ratio
+!
+!-- Adapted from Thompson code:
+!
+          TREF=T02-273.15
+          QVSAT=RSLF(PSHLTR(I,J),TREF)
+!
+          RH02=MIN(QVSHLTR/QVSAT,0.99)
+!
+          RH02MAX(I,J)=MAX(RH02MAX(I,J),RH02)     !<--- Hourly max shelter RH
+          RH02MIN(I,J)=MIN(RH02MIN(I,J),RH02)     !<--- Hourly min shelter RH
+!
+          MAGW2=(U10(I,J)**2.+V10(I,J)**2.)
+          IF (MAGW2 .gt. SPD10MAX(I,J)) THEN
+            U10MAX(I,J)=U10(I,J)                 !<--- U assoc with Hrly max 10m wind speed
+            V10MAX(I,J)=V10(I,J)                 !<--- V assoc with Hrly max 10m wind speed
+            SPD10MAX(I,J)=MAGW2
+          ENDIF
+	ENDIF
+      ENDDO
+      ENDDO
+
+      CALL CALC_UPHLCY(U,V,W,Z,ZINTSFC,UPHLMAX,DXH,DYH          & 
+                      ,IMS,IME,JMS,JME                          &
+                      ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
+
+      NCOUNT=NCOUNT+1
+      DO J=JTS,JTE
+       DO I=ITS,ITE
+        TERM=-0.273133/T2(I,J)
+        P10(I,J)=PSHLTR(I,J)*exp(TERM)
+        T10(I,J)=TH10(I,J)*(P10(I,J)/1.e5)**RCP
+        T10AVG(I,J)=T10AVG(I,J)*(NCOUNT-1)+T10(I,J)
+        T10AVG(I,J)=T10AVG(I,J)/NCOUNT
+        PSFCAVG(I,J)=PSFCAVG(I,J)*(NCOUNT-1)+PINT(I,J,LM+1)
+        PSFCAVG(I,J)=PSFCAVG(I,J)/NCOUNT
+        AKHSAVG(I,J)=AKHSAVG(I,J)*(NCOUNT-1)+AKHS(I,J)
+        AKHSAVG(I,J)=AKHSAVG(I,J)/NCOUNT
+        AKMSAVG(I,J)=AKMSAVG(I,J)*(NCOUNT-1)+AKMS(I,J)
+        AKMSAVG(I,J)=AKMSAVG(I,J)/NCOUNT
+        IF (SNO(I,J) > 0.) THEN
+         SNOAVG(I,J)=SNOAVG(I,J)*(NCOUNT-1)+1
+        ELSE 
+         SNOAVG(I,J)=SNOAVG(I,J)*(NCOUNT-1)
+        ENDIF
+        SNOAVG(I,J)=SNOAVG(I,J)/NCOUNT
+       ENDDO
+      ENDDO
+
+      END SUBROUTINE MAX_FIELDS_THO
 !
 !----------------------------------------------------------------------
 !

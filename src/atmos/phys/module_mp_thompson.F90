@@ -40,7 +40,7 @@
       IMPLICIT NONE
 
 
-      PUBLIC:: calc_effectRad
+      PUBLIC:: calc_effectRad, RSLF
 
 
       LOGICAL, PARAMETER, PRIVATE:: iiwarm = .false.
@@ -987,9 +987,9 @@
                         ' at i,j,k=', i,j,k
              CALL wrf_debug(150, mp_debug)
              if (k.lt.kte-2 .and. k.gt.kts+1) then
-                write(mp_debug,*) '   below and above are: ', qv(i,k-1,j), qv(i,k+1,j)
+                write(mp_debug,*) '   below and above are: ', qv(i,j,k-1), qv(i,j,k+1)
                 CALL wrf_debug(150, mp_debug)
-                qv(i,j,k) = MAX(1.E-7, 0.5*(qv(i,k-1,j) + qv(i,k+1,j)))
+                qv(i,j,k) = MAX(1.E-7, 0.5*(qv(i,j,k-1) + qv(i,j,k+1)))
              else
                 qv(i,j,k) = 1.E-7
              endif

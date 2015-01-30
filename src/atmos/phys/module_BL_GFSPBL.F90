@@ -8,6 +8,7 @@
 !
 !     2010-0910    Created by Weiguo Wang to use GFS PBL 
 !     2014-0703    Weiguo Wang, use F_QI, in some MP, QI is not defined/used.
+!     2014-11-21   Brad Ferrier, removed F_QR, F_QS, F_QG, etc. dependencies
 !-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
@@ -49,8 +50,8 @@
         SUBROUTINE GFSPBL(DT,NPHS,DP,AIRDEN                              &
      &                    ,RIB                                            &
      &                    ,PHMID,PHINT,T,ZINT                             &
-     &                    ,Q,QC,QR,QI,QS,QG                               &
-     &                    ,F_QC,F_QR,F_QI,F_QS,F_QG                       &
+     &                    ,Q,QC,QI                                        &
+     &                    ,F_QC,F_QI                                      &
      &                    ,U,V                                            &
      &                    ,USTAR                                          &
      &                    ,SHEAT, LHEAT                                   &
@@ -67,10 +68,7 @@
      &                    ,RTHBLTEN                                       &
      &                    ,RQBLTEN                                        &
      &                    ,RQCBLTEN                                       &
-     &                    ,RQRBLTEN                                       &
      &                    ,RQIBLTEN                                       &
-     &                    ,RQSBLTEN                                       &
-     &                    ,RQGBLTEN                                       &
      &                   ,IDS,IDE,JDS,JDE,KDS,KDE                        &
      &                   ,IMS,IME,JMS,JME,KMS,KME                        &
      &                   ,ITS,ITE,JTS,JTE,KTS,KTE)
@@ -102,8 +100,8 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: PHINT,ZINT
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) :: U,V,T
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN):: Q,QC,QR,QI,QS,QG
-      LOGICAL,INTENT(IN) :: F_QC,F_QR,F_QI,F_QS,F_QG
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN):: Q,QC,QI
+      LOGICAL,INTENT(IN) :: F_QC,F_QI
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: MIXHT,PBLH,QSFC
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: PBLK
@@ -111,11 +109,9 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE)                            &
      &    ,INTENT(OUT) ::                                              &
-     &                                         RQCBLTEN                &
+     &                                         RQCBLTEN,RQIBLTEN       &
      &                                        ,RUBLTEN,RVBLTEN         &
-     &                                        ,RTHBLTEN,RQBLTEN        &
-     &                                        ,RQRBLTEN,RQIBLTEN       &
-     &                                        ,RQSBLTEN,RQGBLTEN       
+     &                                        ,RTHBLTEN,RQBLTEN
 
 !
 !
@@ -144,7 +140,10 @@
       ipr=0
       lprnt=.false.
     !  dtp=DT*float(NPHS)
-      dtp=DT*float(NPHS)/2.0
+!
+!-- Time step is reduced by 0.5 because it is doubled (2x) in subroutine moninq (BSF, 4 Dec 2014)
+!   
+      dtp=0.5*DT*float(NPHS)
 
       LM = KTE
       levs = LM
@@ -164,12 +163,9 @@
       DO K=1,LM
       DO J=JMS,JME
       DO I=IMS,IME
-      RQCBLTEN(I,J,K) = 0.0
       RQBLTEN(I,J,K) = 0.0
-      RQRBLTEN(I,J,K) = 0.0
+      RQCBLTEN(I,J,K) = 0.0
       RQIBLTEN(I,J,K) = 0.0
-      RQSBLTEN(I,J,K) = 0.0
-      RQGBLTEN(I,J,K) = 0.0
       RTHBLTEN(I,J,K) = 0.0
       RUBLTEN(I,J,K) = 0.0
       RVBLTEN(I,J,K) = 0.0
@@ -202,7 +198,7 @@
    
        if(lpr) write(0,*)'old qsfc,qz0,thz0,tsk',qsfc(35,17),qz0(35,17),thz0(35,17),tsk(35,17)         
        !write(0,*)'JTS,JTE,its,ite,LM=',JTS,JTE,its,ite,LM
-       !write(0,*)'F_QC,F_QR,F_QI,F_QS,F_QG=',F_QC,F_QR,F_QI,F_QS,F_QG
+       !write(0,*)'F_QC,F_QI=',F_QC,F_QI
        !write(0,*)'Qc=',qc(5,5,LM)
        !if(F_QI) write(0,*)'Qi=',qi(5,5,LM)
 !--------------------------------------------------------------

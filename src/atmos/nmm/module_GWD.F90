@@ -17,7 +17,8 @@
       INTEGER, PARAMETER :: KIND_PHYS=SELECTED_REAL_KIND(13,60) ! the '60' maps to 64-bit real
       INTEGER,PRIVATE,SAVE :: NMTVR, IDBG, JDBG
       REAL (KIND=KIND_PHYS),PRIVATE :: DELTIM,RDELTIM
-      REAL,PRIVATE,SAVE :: DBneg=-5.e-9, DBng=-5.e-9, DBprnt=.001, Rtot=0.     !-- 20140210 dbg
+      REAL,PARAMETER :: DBng=-1.e-10
+      REAL,PRIVATE,SAVE :: DBneg=DBng, DBprnt=.001, Rtot=0.     !-- 20140210 dbg
 
 !
 !-----------------------------------------------------------------------
@@ -322,6 +323,11 @@ NDBneg=0   !-- 20140210 dbg
 !
 !=======================================================================
 !
+
+!-- 20140210 dbg
+DBmin=0
+KDBmin=-1
+
           CALL GWD_col(DVDTcol,DUDTcol, DUsfc,DVsfc                     & ! Output
      &,              Ucol,Vcol,Tcol,Qcol,PINTcol,DPcol,Pcol,EXNcol      & ! Met input
      &,              PHILIcol,PHIcol                                    & ! Met input
@@ -336,8 +342,9 @@ NDBneg=0   !-- 20140210 dbg
 IF (DBmin<DBng) THEN
    NDBneg=NDBneg+1
    IF (DBmin<DBneg) THEN
-      WRITE(0,*) 'Mtn Block Warn: I,J,K (k=1 sfc),DBIM=',I,J,KDBmin,DBmin
-      DBneg=5.*DBneg
+      WRITE(6,"(a,2i5,i4,g12.5)") 'Mtn Block Warn: I,J,K (k=1 sfc),DBIM='  &
+        ,I,J,KDBmin,DBmin
+      DBneg=5.*DBmin
    ENDIF
 ENDIF
 
@@ -377,12 +384,14 @@ ENDIF
 !-- 20140210 dbg
 IF (Rtot<=0.) THEN
    Rtot=1./REAL((ITE-ITS+1)*(JTE-JTS+1))
-ELSE
+ENDIF
+
+IF(NDBneg>0) THEN
 !-- Activate the prints only when the scheme is called after the first time
    DBprint=real(NDBneg)*Rtot
    IF (DBprint>0) THEN
-      WRITE(0,*) 'Mtn Block Stats:  NDBneg=',NDBneg,' or ',  &
-         100.*DBprint,' % grid points with DBIM<0'
+      WRITE(6,"(a,i6,a,f8.3,a)") 'Mtn Block Stats:  NDBneg=',NDBneg,    &
+         ' or ',100.*DBprint,' % grid points with DBIM<0'
       DBprnt=5.*DBprint
    ENDIF
 ENDIF
@@ -1129,8 +1138,6 @@ ENDIF
            ENDIF
         ENDDO
       ENDDO
-
-DBmin=0.     !-- 20140210 dbg
 
       DO K = 1,KM
         DO I = 1,npt

@@ -169,8 +169,8 @@
                                                     ,CFRACM,CZMEAN      &
                                                     ,SIGT4
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QR,QG
-      REAL,DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: QC,QI,QS,NI
+      ! REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QR,QG,NI
+      REAL,DIMENSION(:,:,:),POINTER,INTENT(INOUT)::QC,QI,QS,QV,QR,QG,NI
 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
@@ -325,21 +325,6 @@
 !-----------------------------------------------------------------------
 !***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
 !-----------------------------------------------------------------------
-!
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
-      DO K=1,LM                                            
-        DO J=JMS,JME                                      
-          DO I=IMS,IME                                   
-            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))    
-          ENDDO                                        
-        ENDDO                                         
-      ENDDO                                          
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
 !
 !-----------------------------------------------------------------------
 !

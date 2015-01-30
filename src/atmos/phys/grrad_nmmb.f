@@ -1878,7 +1878,7 @@
             enddo
           enddo
 
-        else                   ! if_nday_block
+        else                   ! if_isday_block
 
           do k = 1, LM
             do i = 1, IM
@@ -1903,7 +1903,7 @@
             enddo
           endif
 
-        endif                  ! end_if_nday
+        endif                  ! end_if_isday
 
         topfsw(1:IM) = topfsw_loc(1:IM)
         sfcfsw(1:IM) = sfcfsw_loc(1:IM)

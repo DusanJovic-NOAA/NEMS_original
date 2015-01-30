@@ -142,7 +142,8 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,Q,T     &
                                                            ,TRAIN
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QC,QR,QI,QS,QG,NI,NR
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) ::         &
+     &                                          QV,QC,QI,QR,QS,QG,NI,NR
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: F_ICE       &
                                                            ,F_RAIN      &

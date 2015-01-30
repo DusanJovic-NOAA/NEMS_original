@@ -44,6 +44,7 @@
                        ,F_QC,F_QR,F_QI,F_QS,F_QG &
                        ,PHINT,PHMID,exner,RR,DZ &
                        ,XLAND,CU_ACT_FLAG &
+                       ,PSGDT &
                        ,RAINCV,CUTOP,CUBOT &   !! out below
                        ,DUDT,DVDT &
                       ! optional
@@ -68,6 +69,8 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),INTENT(IN):: &
        dz,exner,OMGALF,phmid,rr,t,th,U,V 
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm-1),INTENT(IN):: PSGDT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm+1),INTENT(IN):: &
        phint
@@ -100,14 +103,11 @@
 !***  LOCAL VARIABLES
 !***
 !-----------------------------------------------------------------------
-!      INTEGER :: LBOT,LPBL,LTOP
-! 
-!      REAL,DIMENSION(1:lm) :: DPCOL,DQDT,DTDT,PCOL,QCOL,TCOL
 !
-      INTEGER :: I,J,K,ICLDCK,KFLIP
+      INTEGER :: I,J,K,ICLDCK,KFLIP,idbg,jdbg
 
 ! For SAS
-      INTEGER :: KM
+      INTEGER :: KM,NUM_ICE,NSHAL,NDEEP
       INTEGER, PARAMETER :: IX=1, IM=1, ncloud=1
       INTEGER :: jcap, kcnv(IX), KBOT(IX), KTOP(IX)
       REAL(kind=kind_phys), DIMENSION(IX,lm) :: delp, prsl,phil,q1,t1,u1,v1,VVEL,     &
@@ -115,29 +115,38 @@
       REAL(kind=kind_phys), DIMENSION(IX) :: psp,cldwrk,rn,slimsk,hpbl,hflx,evap
       REAL(kind=kind_phys), DIMENSION(IX,lm,2) :: CLW, CLW0  !! 1-ice  2-liquid 
       REAL(kind=kind_phys) :: triggerpert(im)
-      REAL(kind=kind_phys) :: fract, tmp, delt, landmask, DTCNVC, mommix
+      REAL(kind=kind_phys) :: TMP, DELT, RDELT, landmask
+      REAL(kind=kind_phys), PARAMETER :: H1=1., H0=0.,    &
+                         mommix=1.0    !HWRF uses this to adjust/tune moment mixing
       REAL, DIMENSION(lm+1)    :: ZF
-      LOGICAL :: lpr
-       lpr=.true.
-       lpr=.false.
-
-      DEEP = .TRUE.
-      SHALLOW = .TRUE.
-      KM = lm
-       mommix = 1.0    !!! HWRF uses this to adjust/tune moment mixing
-
+      LOGICAL, PARAMETER :: LPR=.FALSE.  !- Set to .TRUE. for debugging
+      LOGICAL :: MULTI_ICE
+!
+!------------------------------------------------------------------------
+!
+      KM = LM
+!
+      NUM_ICE=0
+      IF(F_QI) NUM_ICE=1
+      IF(F_QS) NUM_ICE=NUM_ICE+1
+      IF(F_QG) NUM_ICE=NUM_ICE+1
+      IF(NUM_ICE>1) THEN
+        MULTI_ICE=.TRUE.
+      ELSE
+        MULTI_ICE=.FALSE.
+      ENDIF
 !.......................................................................
 !$omp parallel do                &
 !$omp     private(k,j,i)
 !.......................................................................
-       DO K=1,lm
+      DO K=1,lm
         DO J=JMS,JME
-         DO I=IMS,IME
-          DUDT(I,J,K) = 0.0
-          DVDT(I,J,K) = 0.0
-         ENDDO
+          DO I=IMS,IME
+            DUDT(I,J,K) = 0.0
+            DVDT(I,J,K) = 0.0
+          ENDDO
         ENDDO
-       ENDDO
+      ENDDO
 !.......................................................................
 !$omp end parallel do              
 !.......................................................................
@@ -145,24 +154,33 @@
 !$omp parallel do                &
 !$omp     private(k,j,i)
 !.......................................................................
-       DO K=1,lm
+      DO K=1,lm
         DO J=JMS,JME
-         DO I=IMS,IME
+          DO I=IMS,IME
             RTHCUTEN(I,J,K) = 0.0
             RQCUTEN(I,J,K) = 0.0
             RQCCUTEN(I,J,K) = 0.0
-            RQRCUTEN(I,J,K) = 0.0
-            RQICUTEN(I,J,K) = 0.0
-            RQSCUTEN(I,J,K) = 0.0
-            RQGCUTEN(I,J,K) = 0.0
-         ENDDO
+            IF(F_QR) RQRCUTEN(I,J,K) = 0.0
+            IF(F_QI) RQICUTEN(I,J,K) = 0.0
+            IF(F_QS) RQSCUTEN(I,J,K) = 0.0
+            IF(F_QG) RQGCUTEN(I,J,K) = 0.0
+          ENDDO
         ENDDO
-       ENDDO
+      ENDDO
 !.......................................................................
 !$omp end parallel do                
 !.......................................................................
-      IF ( (.NOT. DEEP) .AND. (.NOT. SHALLOW) ) RETURN
-
+!
+      DELT=DT*NCNVC
+      RDELT=1./DELT
+dbg1: IF(LPR) THEN
+        write(0,*)'delt,rdelt=',delt,rdelt
+        idbg=(ims+ime+1)/2   !- or set to fixed "I"
+        jdbg=(jms+jme+1)/2   !- or set to fixed "J"
+        NSHAL=0
+        NDEEP=0
+      ENDIF dbg1
+!
 !-----------------------------------------------------------------------
 !
 !***  PREPARE TO CALL SAS CONVECTION SCHEME
@@ -172,35 +190,27 @@
 !***  CHECK TO SEE IF THIS IS A CONVECTION TIMESTEP
 !                                                                        
       ICLDCK=MOD(ntsd,NCNVC)                                              
+      IF(ICLDCK/=0) RETURN
+!
 !-----------------------------------------------------------------------
 !                                                                      
 !***  COMPUTE CONVECTION EVERY NCNVC*DT/60.0 MINUTES
 !                                                                     
-
-      IF(ICLDCK==0.OR.ntsd==0)THEN                       !!! call convection
-!
-        DO J=JTS,JTE
+      DO J=JTS,JTE
         DO I=ITS,ITE
           CU_ACT_FLAG(I,J)=.TRUE.
         ENDDO
-        ENDDO
+      ENDDO
 !
-        DTCNVC=DT*NCNVC
 !
 !.......................................................................
 !$omp parallel do                &
-!$omp     private(j,i,k,landmask,slimsk,zf,kflip,delt,psp,prsl,delp,phil,u1,&
+!$omp     private(j,i,k,landmask,slimsk,zf,kflip,psp,prsl,delp,phil,u1,    &
 !$omp             v1,t1,q1,clw,ud_mf,dd_mf,dt_mf,cldwrk,vvel,hflx,evap,hpbl,&
-!$omp             kcnv,kbot,ktop,u0,v0,t0,q0,clw0,tmp,fract,rn,jcap)
+!$omp             kcnv,kbot,ktop,u0,v0,t0,q0,clw0,tmp,rn,jcap)
 !.......................................................................
-        DO J=JTS,JTE  
+      DO J=JTS,JTE  
         DO I=ITS,ITE
-!
-      !    DO K=1,lm
-      !      DQDT(K)=0.
-      !      DTDT(K)=0.
-      !    ENDDO
-!
           triggerpert(1) = 0.0
           RAINCV(I,J)=0.
 !
@@ -214,195 +224,213 @@
 !
           ZF(1) = 0.0
           DO K=2,LM+1 
-           KFLIP = LM + 1 + 1 -K
-           ZF(K) = ZF(K-1) + DZ(I,J,KFLIP)
+            KFLIP = LM + 1 + 1 -K
+            ZF(K) = ZF(K-1) + DZ(I,J,KFLIP)
           ENDDO
-           delt = 2.0 * DTCNVC
-           PSP(1) = PHINT(I,J,lm+1)        ! Surface pressure, Pa
-          DO K=1,lm
-           kflip = LM + 1 -K
-           prsl(1,K)  = phmid(I,J,KFLIP)
-           delp(1,K)  = RR(I,J,KFLIP)*g99*DZ(I,J,KFLIP) 
-           phil(1,K)  = 0.5*(ZF(K) + ZF(K+1) )*g99              
-           u1(1,K)    = (U(I,J  ,KFLIP)+U(I-1,J  ,KFLIP)                       & 
-                        +U(I,J-1,KFLIP)+U(I-1,J-1,KFLIP))*0.25
-           v1(1,K)    = (V(I,J  ,KFLIP)+V(I-1,J  ,KFLIP)                       &
-                        +V(I,J-1,KFLIP)+V(I-1,J-1,KFLIP))*0.25
-           t1(1,K)    = T(I,J,KFLIP)
-           q1(1,K)    = MAX(EPSQ,Q(I,J,KFLIP)) 
-           clw(1,K,1) = 0.0
-        !   clw(1,K,1) = QC(I,J,KFLIP)+QR(I,J,KFLIP)                 ! Liquid
-           if (f_qc) clw(1,K,1) = clw(1,K,1) + QC(I,J,KFLIP)
-           if (f_qr) clw(1,K,1) = clw(1,K,1) + QR(I,J,KFLIP)
-        !   clw(1,K,2) = QI(I,J,KFLIP)+QS(I,J,KFLIP)+QG(I,J,KFLIP)   ! ICE
-           clw(1,K,2) = 0.0
-           if (f_qi) clw(1,K,2) = clw(1,K,2) + QI(I,J,KFLIP)
-           if (f_qs) clw(1,K,2) = clw(1,K,2) + QS(I,J,KFLIP)
-           if (f_qg) clw(1,K,2) = clw(1,K,2) + QG(I,J,KFLIP)
-           ud_mf(1,K) = 0.0
-           dd_mf(1,K) = 0.0
-           dt_mf(1,K) = 0.0 
-           cldwrk(1) = 0.0
-           VVEL(1,K)    = omgalf(I,J,KFLIP)*CP*RR(I,J,KFLIP)    !! dp/dt pa/s
-          ENDDO
-            hflx(1) = SHEAT(I,J)/RR(I,J,LM)/CP            ! W/m2 to K m/s
-            evap(1) = LHEAT(I,J)/RR(I,J,LM)/XLV
-            hpbl(1) = PBLH(I,J)
-
-           KCNV(1)  = 0     
-           KBOT(1)  = KM 
-           KTOP(1)  = 1       
-           u0 = u1
-           v0 = v1
-           t0 = t1
-           q0 = q1
-           clw0 = clw   
-
-
+          PSP(1) = PHINT(I,J,lm+1)        ! Surface pressure, Pa
+vloop1:   DO K=1,lm
+            kflip = LM + 1 -K
+            prsl(1,K) = phmid(I,J,KFLIP)
+            delp(1,K) = RR(I,J,KFLIP)*g99*DZ(I,J,KFLIP) 
+            phil(1,K) = 0.5*(ZF(K) + ZF(K+1) )*g99              
+            u1(1,K) = U(I,J,KFLIP)
+            v1(1,K) = V(I,J,KFLIP)
+            t1(1,K) = T(I,J,KFLIP)
+            q1(1,K) = MAX(EPSQ,Q(I,J,KFLIP)) 
+            clw(1,K,1) = 0.0
+            if (f_qc) clw(1,K,1) = QC(I,J,KFLIP)
+            if (f_qr) clw(1,K,1) = clw(1,K,1) + QR(I,J,KFLIP)
+            clw(1,K,2) = 0.0
+            if (f_qi) clw(1,K,2) = QI(I,J,KFLIP)
+            if (f_qs) clw(1,K,2) = clw(1,K,2) + QS(I,J,KFLIP)
+            if (f_qg) clw(1,K,2) = clw(1,K,2) + QG(I,J,KFLIP)
+            ud_mf(1,K) = 0.0
+            dd_mf(1,K) = 0.0
+            dt_mf(1,K) = 0.0 
+            cldwrk(1) = 0.0
+!            VVEL(1,K)    = omgalf(I,J,KFLIP)*CP*RR(I,J,KFLIP)    !! dp/dt pa/s
+            VVEL(1,K) = 0.
+            if(kflip-1 <= lm-1 .and. kflip-1 >= 1 )     &
+              VVEL(1,K)=PSGDT(I,J,KFLIP-1)
+          ENDDO  vloop1
+          hflx(1) = SHEAT(I,J)/RR(I,J,LM)/CP            ! W/m2 to K m/s
+          evap(1) = LHEAT(I,J)/RR(I,J,LM)/XLV
+          hpbl(1) = PBLH(I,J)
+          KCNV(1) = 0     
+          KBOT(1) = KM 
+          KTOP(1) = 1       
+          u0 = u1
+          v0 = v1
+          t0 = t1
+          q0 = q1
+          clw0 = clw   
 !
-!-----------------------------------------------------------------------
-!***
-!***  CALL CONVECTION
-!***
-      IF(DEEP) THEN                      !! DEEP
-
-       CALL sascnvn(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,           &
-          q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,slimsk,                     &
-          VVEL,ncloud,ud_mf,dd_mf,dt_mf,triggerpert)
-!***  CONVECTIVE CLOUD TOP AND BOTTOM FROM THIS CALL
+!---  CALL CONVECTION
 !
-       !   CUTOP(I,J) = REAL( lm+1-KTOP(1) )   !BMJ
-       !   CUBOT(I,J) = REAL( lm+1-KBOT(1) )   !BMJ
-          CUTOP(I,J) = KTOP(1)
-          CUBOT(I,J) = KBOT(1)
-
-!***  ALL UNITS IN BMJ SCHEME ARE MKS, THUS CONVERT PRECIP FROM METERS
-!***  TO MILLIMETERS PER STEP FOR OUTPUT.
+          CALL sascnvn(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,       &
+               q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,slimsk,             &
+               VVEL,ncloud,ud_mf,dd_mf,dt_mf,triggerpert)
+          IF(KCNV(1)>0) THEN
+            DEEP=.TRUE.
+            SHALLOW=.FALSE.
+          ELSE
+            DEEP=.FALSE.
+            SHALLOW=.TRUE.
+          ENDIF
 !
-          if(lpr .and. i == 20 .and. j == 10)write(0,*)'deep rain=',0.5*rn(1)*1e3/ncnvc 
-          
-          RAINCV(I,J)=RAINCV(I,J) + 0.5 * rn(1)*1.E3/NCNVC    !! Rain from Deep conv 
+          IF(SHALLOW) THEN
+            CALL shalcnv(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,     &
+                q1,t1,u1,v1,rn,kbot,ktop,kcnv,slimsk,                   &
+                VVEL,ncloud,hpbl,hflx,evap,ud_mf,dt_mf)
+            IF(KTOP(1)<1) SHALLOW=.FALSE.
+          ENDIF
 !
-      ENDIF                             !! DEEP
-
-      IF (SHALLOW) THEN                 !! Shallow
-       CALL shalcnv(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,          &
-            q1,t1,u1,v1,rn,kbot,ktop,kcnv,slimsk,                          &
-            VVEL,ncloud,hpbl,hflx,evap,ud_mf,dt_mf)
-
-          if(lpr .and.i == 20 .and. j == 10)write(0,*)'shallow rain=',0.5*rn(1)*1.E3/NCNVC 
-
-          RAINCV(I,J)=RAINCV(I,J) + 0.5 * rn(1)*1.E3/NCNVC   !! Rain from shallow conv
-
-      ENDIF                             !! Shallow
-
-!   compute tendency , either shallow or deep happens. only one of them happens
-!***  COMPUTE HEATING AND MOISTENING TENDENCIES
+          CUTOP(I,J) = REAL(KTOP(1))
+          CUBOT(I,J) = REAL(KBOT(1))
+          RAINCV(I,J) = RN(1)*1.E3/NCNVC
 !
-              DO K=1,LM
-                KFLIP = LM+1-K
-                DUDT(I,J,KFLIP) = mommix*(u1(1,K)-u0(1,K))/delt
-                DVDT(I,J,KFLIP) = mommix*(v1(1,K)-v0(1,K))/delt
-              ENDDO
-
-            IF(PRESENT(RTHCUTEN).AND.PRESENT(RQCUTEN))THEN
-              DO K=1,lm
-                KFLIP = LM+1-K
-                RTHCUTEN(I,J,KFLIP)=(t1(1,K)-t0(1,K))/delt/exner(I,J,KFLIP)
-                RQCUTEN(I,J,KFLIP)=(q1(1,K)-q0(1,K))/DELT
-              ENDDO
-            ENDIF
-            IF(    PRESENT(RQCCUTEN).OR.PRESENT(RQRCUTEN)     &
-               .OR.PRESENT(RQICUTEN).OR.PRESENT(RQSCUTEN)     &
-               .OR.PRESENT(RQGCUTEN))THEN
-                 DO K=1,LM                           !! K
-                   KFLIP=LM+1-K
-                   tmp   = (CLW(1,K,1)-CLW0(1,K,1))/DELT
-              ! IF liquid water=0 at t0, then change is assigned to QC tendency
-                   RQCCUTEN(I,J,KFLIP) = tmp             
-                    IF(CLW0(1,K,1) .GT. EPSQ ) THEN
-                       fract = QC(I,J,KFLIP)/CLW0(1,K,1)
-                       RQCCUTEN(I,J,KFLIP) = tmp*fract
-                       RQRCUTEN(I,J,KFLIP) = tmp*(1.0-fract)
-                           
-                          if(abs(rqccuten(i,j,kflip)) .gt. 0.1) then
-                            write(0,*)'i=,j=',i,j,kflip
-                            write(0,*)'qc=',qc(i,j,kflip)
-                            write(0,*)'qr=',qr(i,j,kflip)
-                            write(0,*)'clw,clw0=',clw(1,k,1),clw0(1,k,1)
-                            write(0,*)'rqccuten=',rqccuten(i,j,kflip)
-                            write(0,*)'delt=',delt
-                            write(0,*)'q1,q0=',q1(1,k),q0(1,k)
-                            write(0,*)'t1,t0=',t1(1,k),t0(1,k)
-                            stop
-                          endif
-                    ENDIF
-
-                   tmp   = (CLW(1,K,2)-CLW0(1,K,2))/DELT 
-                   RQICUTEN(I,J,KFLIP) = tmp             
-                    IF(CLW0(1,K,2) .GT. EPSQ ) THEN
-
-                       RQICUTEN(I,J,KFLIP) = 0.0
-                       IF (F_QI) RQICUTEN(I,J,KFLIP) = tmp*QI(I,J,KFLIP)/CLW0(1,K,2)
-
-                       RQSCUTEN(I,J,KFLIP) = 0.0
-                       IF (F_QS) RQSCUTEN(I,J,KFLIP) = tmp*QS(I,J,KFLIP)/CLW0(1,K,2)
-
-                       RQGCUTEN(I,J,KFLIP) = 0.0
-                       IF (F_QG) RQGCUTEN(I,J,KFLIP) = tmp*QG(I,J,KFLIP)/CLW0(1,K,2)
-
-                    ENDIF
-                   
-                 ENDDO                              !! K 
-            ENDIF 
-
-
+!-- Consistency checks
+!
+          IF(DEEP .OR. SHALLOW) THEN
+            IF(KTOP(1)<1) write(0,*)'WARNING: KTOP,DEEP,SHALLOW=',      &
+              KTOP(1),DEEP,SHALLOW
+            IF(KBOT(1)>LM) write(0,*)'WARNING: KBOT,DEEP,SHALLOW=',     &
+              KBOT(1),DEEP,SHALLOW
+          ENDIF
+          IF(.NOT.DEEP .AND. .NOT.SHALLOW) THEN
+            IF(RN(1)>EPSQ) write(0,*)'WARNING: RAIN,DEEP,SHALLOW=',     &
+              RN(1),DEEP,SHALLOW
+          ENDIF
+!
+!*** COMPUTE HEATING, MOISTENING, AND MOMENTUM TENDENCIES
+!
+convect:  IF (SHALLOW .OR. DEEP) THEN
+vloop2:     DO K=1,LM
+              KFLIP = LM+1-K
+              RTHCUTEN(I,J,KFLIP)=(t1(1,K)-t0(1,K))*RDELT/exner(I,J,KFLIP)
+              RQCUTEN(I,J,KFLIP)=(q1(1,K)-q0(1,K))*RDELT
+              DUDT(I,J,KFLIP) = mommix*(u1(1,K)-u0(1,K))*RDELT
+              DVDT(I,J,KFLIP) = mommix*(v1(1,K)-v0(1,K))*RDELT
+!
+              TMP = (CLW(1,K,1)-CLW0(1,K,1))*RDELT   !- DETRAINED LIQUID WATER
+              RQCCUTEN(I,J,KFLIP) = TMP             
+              IF(CLW0(1,K,1)>EPSQ) THEN
+                RQCCUTEN(I,J,KFLIP)=TMP*QC(I,J,KFLIP)/CLW0(1,K,1)
+                IF(F_QR) RQRCUTEN(I,J,KFLIP)=TMP*QR(I,J,KFLIP)/CLW0(1,K,1)
+              ENDIF
+dbg2:         if(abs(TMP)>0.1) then
+                write(0,*)'WARNING: DETRAINED LIQUID IS TOO LARGE. TMP=',TMP
+                write(0,*)'i,j,k,kflip,exner=',i,j,k,kflip,exner(I,J,kflip)
+                write(0,*)'t1,t0,rthcuten=',t1(1,k),t0(1,k),rthcuten(i,j,kflip)
+                write(0,*)'q1,q0,rqcuten=',q1(1,k),q0(1,k),rqcuten(i,j,kflip)
+                write(0,*)'clw,clw0=',clw(1,k,1),clw0(1,k,1)
+                write(0,*)'qc,rqccuten=',qc(i,j,kflip),rqccuten(i,j,kflip)
+                IF(F_QR) write(0,*)'qr,rqrcuten=',qr(i,j,kflip),rqrcuten(i,j,kflip)
+              endif dbg2
+!
+              TMP = (CLW(1,K,2)-CLW0(1,K,2))/DELT    !- DETRAINED ICE
+              IF(F_QI) THEN
+                RQICUTEN(I,J,KFLIP) = TMP
+              ELSE IF(F_QS) THEN
+                RQSCUTEN(I,J,KFLIP) = TMP
+              ENDIF
+              IF(MULTI_ICE .AND. CLW0(1,K,2)>EPSQ) THEN
+                IF(F_QI) RQICUTEN(I,J,KFLIP)=TMP*QI(I,J,KFLIP)/CLW0(1,K,2)
+                IF(F_QS) RQSCUTEN(I,J,KFLIP)=TMP*QS(I,J,KFLIP)/CLW0(1,K,2)
+                IF(F_QG) RQGCUTEN(I,J,KFLIP)=TMP*QG(I,J,KFLIP)/CLW0(1,K,2)
+              ENDIF
+dbg3:         if(abs(TMP)>0.1) then
+                write(0,*)'WARNING: DETRAINED ICE IS TOO LARGE. TMP=',TMP
+                write(0,*)'i,j,k,kflip,exner=',i,j,k,kflip,exner(I,J,kflip)
+                write(0,*)'t1,t0,rthcuten=',t1(1,k),t0(1,k),rthcuten(i,j,kflip)
+                write(0,*)'q1,q0,rqcuten=',q1(1,k),q0(1,k),rqcuten(i,j,kflip)
+                write(0,*)'clw,clw0,delt=',clw(1,k,1),clw0(1,k,1),delt
+                IF(F_QI) write(0,*)'qi,rqicuten=',qi(i,j,kflip),rqicuten(i,j,kflip)
+                IF(F_QS) write(0,*)'qs,rqscuten=',qs(i,j,kflip),rqscuten(i,j,kflip)
+                IF(F_QG) write(0,*)'qg,rqgcuten=',qg(i,j,kflip),rqgcuten(i,j,kflip)
+              endif  dbg3
+            ENDDO  vloop2
 !
 !-----------------------------------------------------------------------
 !
-        IF(LPR) THEN
-          if(i == 20 .and. j == 10) then
-           write(0,*)'u1=,',u1
-           write(0,*)'v1=,',v1
-           write(0,*)'q1=,',q1
-           write(0,*)'W=,',vvel
-           write(0,*)'psp=,',psp
-           write(0,*)'prsl=,',prsl
-           write(0,*)'delp=,',delp
-           write(0,*)'phil=,',phil
-           write(0,*)'dudt=',dudt(i,j,:)
-           write(0,*)'dvdt=',dvdt(i,j,:)
-           write(0,*)'dthdt=',rthcuten(i,j,:)
-           write(0,*)'dqdt=',rqcuten(i,j,:)
-           write(0,*)'dqcdt=',rqccuten(i,j,:)
-           write(0,*)'dqidt=',rqicuten(i,j,:)
-           write(0,*)'dqsdt=',rqscuten(i,j,:)
-           write(0,*)'dqgdt=',rqgcuten(i,j,:)
-           write(0,*)'max dqdt,location=', maxval(abs(rqcuten)),maxloc(abs(rqcuten))
-           write(0,*)'max dqcdt,location=', maxval(abs(rqccuten)),maxloc(abs(rqccuten))
-           write(0,*)'max dqrdt,location=', maxval(abs(rqrcuten)),maxloc(abs(rqrcuten))
-           write(0,*)'max dqidt,location=', maxval(abs(rqicuten)),maxloc(abs(rqicuten))
-           write(0,*)'max dqsdt,location=', maxval(abs(rqscuten)),maxloc(abs(rqscuten))
-           write(0,*)'max dqgdt,location=', maxval(abs(rqgcuten)),maxloc(abs(rqgcuten))
-           write(0,*)'clw0(1,2)=',clw0(1,10,1),clw0(1,10,2)
-           write(0,*)'water(p_qc,p_qr)=',qc(i,j,lm+1-10),qr(i,j,lm+1-10)
-           write(0,*)'water(p_qi,p_qs,p_qg)=',qi(i,j,lm+1-10),qs(i,j,lm+1-10),qg(i,j,lm+1-10)
-           write(0,*)'EXNER=',exner(i,j,:)
-           write(0,*)'hPBL=',hpbl(1)
-           write(0,*)'SICE=',sice(i,j)
-           write(0,*)'RAIN=,',raincv(I,J)
-           write(0,*)'kbot=,',kbot
-           write(0,*)'ktop=,',ktop
-          endif           
-
-        ENDIF
-        ENDDO
-        ENDDO
+dbg4:       IF(LPR) THEN
+              IF(DEEP) NDEEP=NDEEP+1
+              IF(SHALLOW) NSHAL=NSHAL+1
+              if(i==idbg .and. j==jdbg) then
+                write(0,*)'Conv rain=',rn(1)*1.E3/NCNVC 
+                write(0,*)'kbot,ktop,hpbl=,',kbot(1),ktop(1),hpbl(1)
+                write(0,*)'shallow,deep=,',shallow,deep
+                write(0,*)'slimsk,psp=,',slimsk(1),psp
+                write(0,*)'prsl=,',prsl
+                write(0,*)'delp=,',delp
+                write(0,*)'phil=,',phil
+                write(0,*)'exner=',exner(i,j,:)
+                write(0,*)'w=,',vvel
+                write(0,*)'u0=,',u0
+                write(0,*)'u1=,',u1
+                write(0,*)'dudt=',dudt(i,j,:)
+                write(0,*)'v0=,',v0
+                write(0,*)'v1=,',v1
+                write(0,*)'dvdt=',dvdt(i,j,:)
+                write(0,*)'t0=,',t0
+                write(0,*)'t1=,',t1
+                write(0,*)'dthdt=',rthcuten(i,j,:)
+                write(0,*)'q0=,',q0
+                write(0,*)'q1=,',q1
+                write(0,*)'dqdt=',rqcuten(i,j,:)
+                if(F_QC) THEN
+                  write(0,*)'qc=',qc(i,j,:)
+                  write(0,*)'dqcdt=',rqccuten(i,j,:)
+                endif
+                if(F_QR) THEN
+                  write(0,*)'qr=',qr(i,j,:)
+                  write(0,*)'dqrdt=',rqrcuten(i,j,:)
+                endif
+                if(F_QI) THEN
+                  write(0,*)'qi=',qi(i,j,:)
+                  write(0,*)'dqidt=',rqicuten(i,j,:)
+                endif
+                if(F_QS) THEN
+                  write(0,*)'qs=',qs(i,j,:)
+                  write(0,*)'dqsdt=',rqscuten(i,j,:)
+                endif
+                if(F_QG) THEN
+                  write(0,*)'qg=',qg(i,j,:)
+                  write(0,*)'dqgdt=',rqgcuten(i,j,:)
+                endif
+                write(0,*)'clw0(1)=',clw0(1,:,1)
+                write(0,*)'clw0(2)=',clw0(1,:,2)
+              endif           
+            ENDIF  dbg4
+!
+          ENDIF  convect
+!
+        ENDDO  !- i loop
+      ENDDO    !- j loop
+!
 !.......................................................................
 !$omp end parallel do              
 !.......................................................................
 !
-      ENDIF                                               !! end of convection
+dbg5: IF(LPR) THEN
+        write(0,*)'NSHAL,NDEEP=',NSHAL,NDEEP
+        write(0,*)'max sfc_rain,location=', maxval(raincv),maxloc(raincv)
+        write(0,*)'max dudt,location=', maxval(abs(dudt)),maxloc(abs(dudt))
+        write(0,*)'max dvdt,location=', maxval(abs(dvdt)),maxloc(abs(dvdt))
+        write(0,*)'max dthdt,location=', maxval(abs(rthcuten)),maxloc(abs(rthcuten))
+        write(0,*)'max dqdt,location=', maxval(abs(rqcuten)),maxloc(abs(rqcuten))
+        if(F_QC) &
+          write(0,*)'max dqcdt,location=', maxval(abs(rqccuten)),maxloc(abs(rqccuten))
+        if(F_QR) &
+          write(0,*)'max dqrdt,location=', maxval(abs(rqrcuten)),maxloc(abs(rqrcuten))
+        if(F_QI) &
+          write(0,*)'max dqidt,location=', maxval(abs(rqicuten)),maxloc(abs(rqicuten))
+        if(F_QS) &
+           write(0,*)'max dqsdt,location=', maxval(abs(rqscuten)),maxloc(abs(rqscuten))
+        if(F_QG) &
+           write(0,*)'max dqgdt,location=', maxval(abs(rqgcuten)),maxloc(abs(rqgcuten))
+      ENDIF  dbg5
+!
 !
       END SUBROUTINE SASDRV
 !-----------------------------------------------------------------------

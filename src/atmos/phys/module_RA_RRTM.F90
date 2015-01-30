@@ -12,9 +12,7 @@
       use physparam,     only : icldflg, ioznflg, kind_phys
 
       USE MODULE_CONSTANTS, ONLY : R,CP,PI,EPSQ,STBOLT,EP_2
-
-!      USE MODULE_MP_ETANEW, ONLY : RHgrd,T_ICE,FPVS
-      USE MODULE_MP_FER_HIRES, ONLY : RHgrd,T_ICE,FPVS
+      USE MODULE_MP_FER_HIRES, ONLY : FPVS
 
       use module_radiation_driver_nmmb,  only : grrad_nmmb,dayparts
 
@@ -54,11 +52,11 @@
       REAL,SAVE,DIMENSION(4) :: PTOPC
 !--------------------------------
 !
-      REAL, PARAMETER ::  &
-!     &   TRAD_ice=0.5*T_ice      & !--- Very tunable parameter
-     &   TRAD_ice=-30.           & !--- Very tunable parameter
-     &,  ABSCOEF_W=800.            & !--- Very tunable parameter
-     &,  ABSCOEF_I=500.            & !--- Very tunable parameter
+      REAL, PARAMETER ::         &
+     &   RHgrd=1.00              & !--- RH (unitless) for onset of condensation
+     &,  TRAD_ice=273.15-30.     & !--- Very tunable parameter
+     &,  ABSCOEF_W=800.          & !--- Very tunable parameter
+     &,  ABSCOEF_I=500.          & !--- Very tunable parameter
      &,  Qconv=0.1e-3            & !--- Very tunable parameter
 
      &,  CTauCW=ABSCOEF_W*Qconv  &
@@ -73,7 +71,8 @@
 !         CU_DEEP_MIN (50 hPa) and CU_DEEP_MAX (200 hPa).
 !     (4) Convective precipitation rate must be <0.01 mm/h.  
 !
-      LOGICAL, SAVE :: CUCLD=.FALSE.  ! was .TRUE.
+      LOGICAL, SAVE :: CUCLD=.FALSE.     &   ! was .TRUE.
+     &                ,SUBGRID=.TRUE.
 !
 !-- After several tuning experiments, a value for QW_CU=0.003 g/kg should 
 !   produce a cloud fraction of O(25%) and a SW reduction of O(100 W/m**2) 
@@ -136,7 +135,7 @@
      &                     ,LM,MYPE                                     &
      &                     ,NTIMESTEP                                   &
      &                     ,NPHS,NRADL,NRADS                            &
-     &                     ,NUM_WATER          
+     &                     ,NUM_WATER           !-- not used any more
 !
       INTEGER,INTENT(IN) :: JDAT(8)
 !
@@ -203,7 +202,11 @@
 
       INTEGER,PARAMETER :: NFLUXR=39
 
-      INTEGER,PARAMETER :: NTRAC=3   ! dimension veriable for array oz
+!
+!-- WARNING: NTRAC must be large enough to account for 
+!   different hydrometeor species +2, for ozone & aerosols
+!
+      INTEGER,PARAMETER :: NTRAC=9   ! GR1 dimension for ozone, aerosol, & clouds
       INTEGER,PARAMETER :: NTCW =3   ! ARRAY INDEX LOCATION FOR CLOUD CONDENSATE
       INTEGER,PARAMETER :: NCLDX=1   ! only used when ntcw .gt. 0
 
@@ -251,13 +254,7 @@
 !
       real(kind=kind_phys),DIMENSION(LENIVEC,NFLUXR) :: FLUXR_V
 !
-!     REAL*8,DIMENSION(1,LM,3) :: GR1
-!      GR1(LM,NUM_WATER+3): TRACER ARRAY (Ozone, empty, total condensate, then separate species: cloud water, ice, snow, rain, graupel) G. Thompson
-!..This cannot be hard-wired here for different physics.  This should be
-!.. defined by NUM_WATER elements for consistency and use with other
-!.. physics options.
-
-      real(kind=kind_phys),DIMENSION(LENIVEC,LM,NUM_WATER) :: GR1   
+      real(kind=kind_phys),DIMENSION(LENIVEC,LM,NTRAC) :: GR1   
 !
       real(kind=kind_phys),DIMENSION(LENIVEC,LM) :: SWH, HLW
 !
@@ -278,7 +275,7 @@
                  LLTOP,LLBOT,KBT2,KTH1,KBT1,KTH2,KTOP1,LM1,LL
 !
       REAL, PARAMETER :: EPSQ1=1.E-5,EPSQ2=1.E-8,EPSO3=1.E-10,H0=0., &
-                         H1=1.,HALF=.5,T0C=273.15,CUPRATE=24.*1000., &
+                         H1=1.,HALF=.5,CUPRATE=24.*1000., &
                          HPINC=HALF*1.E1, CLFRmin=0.01, TAUCmax=4.161, &
                          XSDmin=-XSDmax, DXSD1=-DXSD, STSDM=0.01, & 
                          CVSDM=.04,DXSD2=HALF*DXSD,DXSD2N=-DXSD2,PCLDY=0.25
@@ -315,9 +312,9 @@
 !
       REAL,DIMENSION(ITS:ITE,JTS:JTE,LM) :: TAUTOTAL
 !
-      INTEGER :: NKTP,NBTM,NCLD,LML, ihr, imin
+      INTEGER :: NKTP,NBTM,NCLD,LML, ihr, imin, INDX_CW
 !
-      REAL :: CLFR1,TauC,QSUM,DELPTOT
+      REAL :: CLFR1,TauC,DELPTOT
 
       
       real (kind=kind_phys), parameter :: f24 = 24.0     ! hours/day
@@ -342,7 +339,7 @@
 !      PRSLK (LM)      : Exner function (dimensionless)                 !
 !      GT    (LM)      : MODEL LAYER MEAN TEMPERATURE IN K              !
 !      GQ    (LM)      : LAYER SPECIFIC HUMIDITY IN GM/GM               !
-!      GR1   (LM,NTRAC): TRACER ARRAY (WATER, OZONE,....)               !
+!      GR1   (LM,NTRAC): TRACER ARRAY (OZONE, AEROSOL, Various Hydrometeors) !
 !      VVEL   (LM)      : LAYER MEAN VERTICAL VELOCITY IN CB/SEC         ! !not used
 !      SLMSK (1)       : SEA/LAND MASK ARRAY (SEA:0,LAND:1,SEA-ICE:2)   !
 !      XLON,XLAT       : GRID LONGITUDE/LATITUDE IN RADIANS             !
@@ -437,7 +434,14 @@
       IF (ICWP/=-1 .AND. CNCLD) THEN
          CNCLD=.FALSE.        !-- used when ICWP=1, 0
       ENDIF
-
+!
+!--- Cloud water index for the GR1 array
+!
+      IF (F_NI) THEN
+        INDX_CW=4  !-- Thompson 
+      ELSE
+        INDX_CW=3  !-- All others (as of Oct 2014)
+      ENDIF
 !
 !CLOUDS
 !
@@ -556,7 +560,8 @@
 !--- Saturation vapor pressure w/r/t water ( >=0C ) or ice ( <0C )
 !
             ESAT=1000.*FPVS(T(I,J,L))                                   !--- Saturation vapor pressure (Pa)
-            QSAT=EP_2*ESAT/(P_PHY(I,L)-ESAT)                          !--- Saturation mixing ratio
+            ESAT=MIN(ESAT, 0.99*P_PHY(I,L) )                            !--- Put limits on ESAT
+            QSAT=EP_2*ESAT/(P_PHY(I,L)-ESAT)                            !--- Saturation mixing ratio
 !
             RHUM=WV/QSAT                                                !--- Relative humidity
 !
@@ -756,7 +761,6 @@
         DO NC=2,NCLD+1
 !
         TauC=0.    !--- Total optical depth for each cloud layer (solar & longwave)
-        QSUM=0.0
         NKTP=LM+1
         NBTM=0
         BITX=CAMT(I,J,NC).GE.CLFRMIN
@@ -769,14 +773,11 @@
             PRS1=P8W(I,L)*0.01 
             PRS2=P8W(I,L+1)*0.01
             DELP=PRS2-PRS1
-            TCLD=T(I,J,L)-T0C 
-            QSUM=QSUM+Q(I,J,L)*DELP*(PRS1+PRS2)      & 
-     &           /(120.1612*SQRT(T(I,J,L)))
 !
             CTau=0.
 !-- For crude estimation of convective cloud optical depths
             IF (CCMID(I,J,L) .GE. CLFRmin) THEN
-              IF (TCLD .GE. TRAD_ice) THEN
+              IF (T(I,J,L) .GE. TRAD_ice) THEN
                 CTau=CTauCW            !--- Convective cloud water
               ELSE
                 CTau=CTauCI            !--- Convective ice
@@ -909,73 +910,131 @@
         GT(1:im,L)=T(IRANGE,J,L)
         GQ(1:im,L)=Q(IRANGE,J,L)
 !
-        if (ntoz.le.0) then
-          gr1(1:im,l,1)=0.d0
-        else
-          gr1(1:im,l,1)=max(o3(IRANGE,j,l),epso3)
-        endif
+!--- GR1(:,:,1) - ozone
+!    GR1(:,:,2) - reserved for prognostic aerosols in the future
+!    GR1(:,:,3) - total condensate
+!    GR1(:,:,4-9) - hydrometeor species from Thompson scheme
 !
-        GR1(1:im,L,2)=0.d0
-        GR1(1:im,L,3)=CW(IRANGE,J,L)
+        DO ii=1,NTRAC
+          GR1(1:im,L,ii)=0.d0
+        ENDDO
+!
+        IF (NTOZ>0) GR1(1:im,l,1)=MAX(O3(IRANGE,J,L),EPSO3)
+!
+        CLDCOV_V(1:im,L)=0.d0                     ! used for prognostic cloud
+        TAUCLOUDS(1:im,L)=TAUTOTAL(IRANGE,J,L)    ! CLOUD OPTICAL DEPTH (ICWP==-1)
+        CLDF(1:im,L)=CLDFRA(IRANGE,J,L)           ! CLOUD FRACTION (ICWP==-1)
 
-!..This is an awful way to deal with different physics having different
+        GR1(1:im,L,3)=CW(IRANGE,J,L)              ! total condensate
+!
+!----------
+!
+        thompson_test: IF (F_NI) THEN
+!
+!----------
+!-- IF F_NI=true, then this means the microphysics is Thompson only.
+!   Other progcld"X" drivers must be introduced into grrad_nmmb.f
+!   in order to use GR1(:,:,N) where N>=4.  (BSF, Oct 2014)
+!
+!-- Warnings from Thompson:
+!.. This is an awful way to deal with different physics having different
 !.. number of species.  Something must eventually be done to resolve this
 !.. section to be more flexible.  For now, we are directly passing each
 !.. species in the water array into the GR1 array for use in the RRTM
 !.. radiation scheme, but that requires a priori knowledge of which species
 !.. is which index number at some later time.  This is far from optimal,
 !.. but we proceed anyway.  Future developers be careful.
-!..If the WATER species include separate hydrometeor species, then
-!..fill in other elements even if unused.  Thompson microphysics
-!..will utilize certain elements when computing cloud optical depth.
-        IF (F_QC) THEN
-          GR1(1:im,L,4)=QC(IRANGE,J,L)
-        ENDIF
-        IF (F_QI) THEN
-          GR1(1:im,L,5)=QI(IRANGE,J,L)
-        ENDIF
-        IF (F_QS) THEN
-          GR1(1:im,L,6)=QS(IRANGE,J,L)
-        ENDIF
-        IF (F_QR) THEN
-          GR1(1:im,L,7)=QR(IRANGE,J,L)
-        ENDIF
-        IF (F_QG) THEN
-          GR1(1:im,L,8)=QG(IRANGE,J,L)
-        ENDIF
-        IF (F_NI) THEN
-          GR1(1:im,L,9)=NI(IRANGE,J,L)
-        ENDIF
-        CLDCOV_V(1:im,L)=0.d0                !used for prognostic cloud
-        F_ICEC(1:im,L)=F_ICE(IRANGE,J,L)
-        F_RAINC(1:im,L)=F_RAIN(IRANGE,J,L)
-        R_RIME(1:im,L)=F_RIMEF(IRANGE,J,L)
+!.. If the WATER species include separate hydrometeor species, then
+!.. fill in other elements even if unused.  Thompson microphysics
+!.. will utilize certain elements when computing cloud optical depth.
+!----------
+!
+           GR1(1:im,L,4)=QC(IRANGE,J,L)
+           GR1(1:im,L,5)=QI(IRANGE,J,L)
+           GR1(1:im,L,6)=QS(IRANGE,J,L)
+           GR1(1:im,L,7)=QR(IRANGE,J,L)
+           GR1(1:im,L,8)=QG(IRANGE,J,L)
+           GR1(1:im,L,9)=NI(IRANGE,J,L)
+!----------
+        ELSE  thompson_test
+!----------
+           F_ICEC(1:im,L)=F_ICE(IRANGE,J,L)
+           F_RAINC(1:im,L)=F_RAIN(IRANGE,J,L)
+           R_RIME(1:im,L)=F_RIMEF(IRANGE,J,L)
+!----------
+        ENDIF  thompson_test
+!----------
 
-!-- Build in tiny amounts of subgrid-scale cloud when no cloud is
-!   present and RH > 95%
-
-        DO I=1,IM
-          WV=GQ(I,L)/(1.-GQ(I,L))                   !-- Water vapor mixing ratio
-          ESAT=FPVS(T(IDEX,J,L))                   !-- Saturation vapor pressure (kPa)
-          QSAT=EP_2*ESAT/(PRSL(I,L)-ESAT)         !-- Saturation mixing ratio
-          RHUM=WV/QSAT                          !-- Relative humidity
-          IF (GR1(I,L,3)<EPSQ .AND. RHUM>0.95) THEN
-             ARG=MIN(0.01, RHUM-0.95)*QSAT
-             GR1(I,L,3)=MIN(0.01E-3, ARG)
-             TCLD=T(IDEX,J,L)-T0C
-             IF (TCLD>TRAD_ICE) THEN
-                F_ICEC(I,L)=0.
-             ELSE
-                F_ICEC(I,L)=1.
-             ENDIF
-             F_RAINC(I,L)=0.
-             R_RIME(I,L)=1.
-          ENDIF
-        ENDDO
-
-        TAUCLOUDS(1:im,L)=TAUTOTAL(IRANGE,J,L)    !CLOUD OPTICAL DEPTH (ICWP==-1)
-        CLDF(1:im,L)=CLDFRA(IRANGE,J,L)           !CLOUD FRACTION (ICWP==-1)
       ENDDO
+!
+!
+      subgrid_cloud: IF (SUBGRID) THEN
+!
+!-- Build in tiny amounts of subgrid-scale cloud when no cloud is
+!   present and RH > 95%.
+!-- Note GR1(ii,L,3) is total condensate for all microphysics schemes
+!
+        thompson_testx: IF (F_NI) THEN
+!
+!-- Build in tiny amounts of subgrid-scale cloud for the Thompson scheme
+!
+          DO L=1,LM
+          DO I=1,IM
+            WV=GQ(I,L)/(1.-GQ(I,L))                !- Water vapor mixing ratio
+            TCLD=REAL(GT(I,L))                     !- Temperature (deg K)
+            ESAT=FPVS(TCLD)                        !- Saturation vapor pressure (kPa)
+            P1=REAL(PRSL(I,L))                     !- Pressure (kPa)
+            ESAT=MIN(ESAT, 0.99*P1)                !- Limit saturation vapor pressure
+
+IF(P1<1.E-2) WRITE(6,"(a,3i4,2g11.4)") 'I,J,L,PRSL,E_sat=',I,J,L,P1,ESAT   !dbg
+
+            QSAT=EP_2*ESAT/(P1-ESAT)               !- Saturation mixing ratio
+            RHUM=WV/QSAT                           !- Relative humidity
+            IF (GR1(I,L,3)<EPSQ .AND. RHUM>0.95) THEN
+              ARG=MIN(0.01, RHUM-0.95)*QSAT
+              GR1(I,L,3)=MIN(0.01E-3, ARG)
+              IF (TCLD>TRAD_ICE) THEN
+                GR1(I,L,4)=GR1(I,L,3)
+              ELSE
+                GR1(I,L,5)=GR1(I,L,3)
+              ENDIF
+            ENDIF      !- IF (GR1(ii,L,3)<EPSQ ...
+          ENDDO        !- DO I
+          ENDDO        !- DO L
+!
+        ELSE  thompson_testx
+!
+!-- Build in tiny amounts of subgrid-scale cloud for other microphysics schemes
+!
+          DO L=1,LM 
+          DO I=1,IM
+            WV=GQ(I,L)/(1.-GQ(I,L))                !- Water vapor mixing ratio
+            TCLD=REAL(GT(I,L))                     !- Temperature (deg K)
+            ESAT=FPVS(TCLD)                        !- Saturation vapor pressure (kPa)
+            P1=REAL(PRSL(I,L))                     !- Pressure (kPa)
+            ESAT=MIN(ESAT, 0.99*P1)                !- Limit saturation vapor pressure
+
+IF(P1<1.E-2) WRITE(6,"(a,3i4,2g11.4)") 'I,J,L,PRSL,E_sat=',I,J,L,P1,ESAT   !dbg
+
+            QSAT=EP_2*ESAT/(P1-ESAT)               !- Saturation mixing ratio
+            RHUM=WV/QSAT                           !- Relative humidity
+            IF (GR1(I,L,3)<EPSQ .AND. RHUM>0.95) THEN
+              ARG=MIN(0.01, RHUM-0.95)*QSAT
+              GR1(I,L,3)=MIN(0.01E-3, ARG)
+              IF (TCLD>TRAD_ICE) THEN
+                F_ICEC(I,L)=0.
+              ELSE
+                F_ICEC(I,L)=1.
+              ENDIF
+              F_RAINC(I,L)=0.
+              R_RIME(I,L)=1.
+            ENDIF
+          ENDDO
+          ENDDO
+
+        ENDIF  thompson_testx
+
+      ENDIF  subgrid_cloud
 !
 !-- Bogus in tiny amounts of shallow convection, but only if there are no
 !   grid-scale clouds nor convective precipitation present.  Arrays CUTOP,
@@ -985,20 +1044,21 @@
 !
       CU_cloud=.FALSE.
       CU_Bogus1: IF (CUCLD) THEN
-       DO i=IBEG,IEND
-         ii = i-(IBEG)+1
+       DO I=ITS,ITE
+         ii = i-ITS+1
          LCNVT=MIN(LM, NINT(CUTOP(I,J)) )   !-- Convective cloud top
          LCNVB=MIN(LM, NINT(CUBOT(I,J)) )   !-- Convective cloud base
          CU_DEPTH=0.
          CU_Index: IF (LCNVB-LCNVT>1) THEN
             CU_DEPTH=1000.*(PRSL(ii,LCNVB)-PRSL(ii,LCNVT))   !- Pa
             CU_Deep: IF (CU_DEPTH>=CU_DEEP_MIN .AND. CU_DEPTH<=CU_DEEP_MAX) THEN
-               QCLD=MAXVAL( GR1(ii,1:LM,3) )       !-- Maximum condensate
+               QCLD=MAXVAL( GR1(ii,1:LM,3) )  !- Maximum *total condensate*
                PMOD=CUPPT(I,J)*CONVPRATE
                CU_Clds: IF (QCLD<QWmax .AND. PMOD<=CUPPT_min) THEN
                   CU_cloud(ii)=.TRUE.
                   DO L=LCNVT,LCNVB
-                     GR1(ii,L,3)=GR1(ii,L,3)+QW_Cu
+                    GR1(ii,L,3)=GR1(ii,L,3)+QW_Cu  !- for *cloud water*
+                    IF (F_NI) GR1(ii,L,INDX_CW)=GR1(ii,L,INDX_CW)+QW_Cu    !- *total condensate* in Thompson
                   ENDDO
                ENDIF CU_Clds
             ENDIF CU_Deep
@@ -1031,7 +1091,7 @@
              SINLAT,COSLAT,SOLHR, JDAT, SOLCON,                         &
              FHSWR ,NRADS,                                              &  ! extra input
              CV,CVT,CVB, F_ICEC, F_RAINC, R_RIME, FLGMIN_L,             &
-             ICSDSW,ICSDLW,NTCW,NCLDX,NTOZ,NUM_WATER,NFXR,                &
+             ICSDSW,ICSDLW,NTCW,NCLDX,NTOZ,NTRAC,NFXR,                  &  ! Use NTRAC instead of NUM_WATER
              DTLW,DTSW,LSSWR,LSLWR,LSSAV,                               &
              IBEG,jts, LENIVEC, im, LM, dpd, MYPE, LPRNT, 0, 0,         &  ! jm dpd is true for day, false for night
 !  ---  additional inputs:                                                 ! GFDL type
@@ -1089,7 +1149,7 @@
          ! EPSQ2=1.e-8 (and not EPSQ=1.e-12) based on multiple tests
          !===========================================================
             DO I=1,IM
-              ARG_CW = MAXVAL( CW(IDEX,J,1:LM) )
+              ARG_CW = MAXVAL( CW(IDEX,J,1:LM) )  !- for *total condensate*
               IF (ARG_CW<EPSQ2) THEN  
                  DO L=1,LM
                     CLDCOV_V(I,L) = 0.d0

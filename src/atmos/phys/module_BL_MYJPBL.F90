@@ -713,7 +713,7 @@
             AUBR=(AUBM*GML+AUBH*GHL)*GHL
             BUBR= BUBM*GML+BUBH*GHL
             QOL2ST=(-0.5*BUBR+SQRT(BUBR*BUBR*0.25-AUBR*CUBR))*RCUBR
-            ELOQ2X=1./QOL2ST
+            ELOQ2X=1./MAX(EPSGH, QOL2ST)
             ELM(K)=MAX(SQRT(ELOQ2X*Q2(K)),EPSL)
           ENDIF
         ELSE
