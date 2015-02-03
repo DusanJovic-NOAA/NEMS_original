@@ -272,6 +272,7 @@ CONTAINS
 !                      now the GFIO one does horizontal interp/binning
 !                      and swap only if necessary.
 !  29Feb2008 Nielsen   Masking
+!  07May2013 Lu        Initialize pointers (for wcoss porting)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -456,6 +457,8 @@ CONTAINS
 !   ------------------------------------
     call GridGetLatLons_ ( grid, lon, lat )
 
+    local(:,:) = 0.0                                                    ! Sarah Lu
+
 !   Read file
 !   ---------
     regridCnv = .false.
@@ -479,12 +482,15 @@ CONTAINS
        call ESMF_GRID_INTERIOR(GRID,I1w,INw,J1w,JNw)
     end if
 
-    if ( amRoot .or. MAPL_ShmInitialized) then
+!
+!   For GFS, all PEs owns its own global array and do it's own scatter  ! Sarah Lu
+!    if ( amRoot .or. MAPL_ShmInitialized) then                         ! Sarah Lu
 
 !      Allocate work space for scatter
 !      -------------------------------
-       call MAPL_AllocNodeArray(ptr2,(/im,jm/),rc=STATUS)
-       if(STATUS==MAPL_NoShm) allocate(ptr2(im,jm),stat=status)
+!jw       call MAPL_AllocNodeArray(ptr2,(/im,jm/),rc=STATUS)
+!jw       if(STATUS==MAPL_NoShm) allocate(ptr2(im,jm),stat=status)
+       allocate(ptr2(im,jm),stat=status)
        VERIFY_(STATUS)
 
        if (amRoot) &
@@ -519,12 +525,12 @@ CONTAINS
       !call MAPL_AllocNodeArray(ptr2f,(/imf,jmf/),rc=STATUS)
       !if(STATUS==MAPL_NoShm) allocate(ptr2f(imf,jmf),stat=status)
       !VERIFY_(STATUS)
-       if (IAmTransRoot) then
+!       if (IAmTransRoot) then                                               ! Sarah Lu
           allocate(ptr2f(imf,jmf),stat=status)
           VERIFY_(STATUS)
-       endif
+!       endif                                                                ! Sarah Lu
 
-    end if ! masterproc
+!    end if ! masterproc
 
     call MAPL_CommsBcast(vm, vunits, N=len(vunits), ROOT=MAPL_Root, RC=RC)
 
@@ -578,7 +584,7 @@ CONTAINS
 
 !        Read global array and swap longitudes
 !        -------------------------------------
-         if ( IAmTransRoot ) then
+!         if ( IAmTransRoot ) then                                                !Sarah Lu
 
 !           Read the file
 !           -------------
@@ -588,15 +594,21 @@ CONTAINS
 
 !           Interpolate/bin if necessary
 !           ----------------------------
-            call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, lonf, verb )
+!jw            call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, lonf, verb )
 
-         end if ! masterproc
+!         end if ! masterproc                                                     !Sarah LU
 
 !        Scatter the array
 !        -----------------           
          if (.not. MAPL_ShmInitialized) then
-            call ArrayScatter ( var2d, ptr2, grid, rc=ios )
-            if ( ios /= 0 ) call die ( myname, 'cannot scatter '//trim(vname) )
+!            call ArrayScatter ( var2d, ptr2, grid, rc=ios )
+!            if ( ios /= 0 ) call die ( myname, 'cannot scatter '//trim(vname) )
+
+!*
+!* NOTE: emissions are S_to_N while GFS is N_to_S                        ! Sarah Lu
+           call GFS_Simple_Scatter ( ptr2f(:,jmf:1:-1), local )            ! Sarah lu
+           var2d(:,:) = local(:,:)                                         ! Sarah Lu
+
          else
             call MAPL_SyncSharedMemory(rc=STATUS)
             VERIFY_(STATUS)
@@ -619,7 +631,7 @@ CONTAINS
 
 !        Read 1 level of global array and swap longitudes
 !        ------------------------------------------------
-         if ( IAmTransRoot ) then
+!          if ( IAmTransRoot ) then
     
 !            Read the file
 !            -------------
@@ -631,15 +643,19 @@ CONTAINS
 
 !            Interpolate/bin if necessary
 !            ----------------------------
-             call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, lonf, verb ) 
+!jw             call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, lonf, verb ) 
 
-         end if ! masterproc
+!         end if ! masterproc
 
 !        Scatter the array with 1 level
 !        ------------------------------           
          if (.not. MAPL_ShmInitialized) then
-            call ArrayScatter ( var3d(:,:,k), ptr2, grid, rc=ios )
-            if ( ios /= 0 ) call die ( myname, 'cannot scatter v3d'//trim(vname))
+!            call ArrayScatter ( var3d(:,:,k), ptr2, grid, rc=ios )
+!            if ( ios /= 0 ) call die ( myname, 'cannot scatter v3d'//trim(vname))
+
+            call GFS_Simple_Scatter ( ptr2f(:,jmf:1:-1), local )            ! Sarah lu
+            var3d(:,:,k) = local(:,:)                                       ! Sarah Lu
+
          else
             call MAPL_SyncSharedMemory(rc=STATUS)
             VERIFY_(STATUS)

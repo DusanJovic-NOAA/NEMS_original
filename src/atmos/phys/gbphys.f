@@ -1996,6 +1996,18 @@
 
         cld1d = 0
 
+        if (lgocart) then
+          do k = 1, levs
+            do i = 1, im
+              upd_mf(i,k)  = upd_mf(i,k)  + ud_mf(i,k) * frain
+              dwn_mf(i,k)  = dwn_mf(i,k)  + dd_mf(i,k) * frain
+              det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * frain
+              cnvqc_v(i,k) = cnvqc_v(i,k) + (clw(i,k,1)+clw(i,k,2)-     &
+     &                                       gq0(i,k,ntcw)) * frain
+            enddo
+          enddo
+        endif ! if (lgocart)
+
 !  --- ...  update the tracers due to convective transport
 
         if (tottracer > 0) then
@@ -2053,23 +2065,17 @@
             enddo
           enddo
         endif ! if (ldiag3d)
+
+      endif   ! end if_lssav
+!
 !       update dqdt_v to include moisture tendency due to deep convection
         if (lgocart) then
           do k = 1, levs
             do i = 1, im
-!             tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
-!             dqdt_v(i,k)  = dqdt_v(i,k)  + tem
               dqdt_v(i,k)  = (gq0(i,k,1)-dqdt(i,k,1)) * frain
-              upd_mf(i,k)  = upd_mf(i,k)  + ud_mf(i,k) * frain
-              dwn_mf(i,k)  = dwn_mf(i,k)  + dd_mf(i,k) * frain
-              det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * frain
-              cnvqc_v(i,k)  = cnvqc_v(i,k) + (clw(i,k,1)+clw(i,k,2))
-     &                                                        *frain
             enddo
           enddo
         endif ! if (lgocart)
-
-      endif   ! end if_lssav
 !
       if( npdf3d == 3  .and. num_p3d == 4 ) then
         num2 = num_p3d + 2

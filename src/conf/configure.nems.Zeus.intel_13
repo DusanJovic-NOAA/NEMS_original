@@ -48,7 +48,7 @@ cice_mk       = /home/Fei.Liu/ICE-INSTALLS/2014-03-19-18-52-00/cice.mk
 ## Other settings
 
 NETCDF_INC   = -I$(NETCDF)/include
-NETCDF_LIB   = -L$(NETCDF)/lib -lnetcdf
+NETCDF_LIB   = -L$(NETCDF)/lib -lnetcdf -lnetcdff
 
 LIBDIR=/contrib/nceplibs/nwprod/lib
 PARADIR=/contrib/nceplibs_ext/lib

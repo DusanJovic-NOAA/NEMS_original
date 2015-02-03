@@ -9,7 +9,7 @@ gfsdir=atmos/$(gfs)
 
 ##NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
 #NETCDF_LIB  = /usrx/local/netcdf-3.6.3/lib/libnetcdff.a  /usrx/local/netcdf-3.6.3/lib/libnetcdf.a
-NETCDF_LIB  = /usrx/local/NetCDF/3.6.3/lib/libnetcdf.a
+NETCDF_LIB  = /usrx/local/NetCDF/4.2/serial/lib/libnetcdff.a /usrx/local/NetCDF/4.2/serial/lib/libnetcdf.a /usrx/local/HDF5/1.8.9/serial/lib/libhdf5_hl.a /usrx/local/HDF5/1.8.9/serial/lib/libhdf5.a /usrx/local/zlib-1.2.7/lib/libz.a
 
 #NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
 #NEMSIO_LIB  = -L/nwprod/lib -lnemsio

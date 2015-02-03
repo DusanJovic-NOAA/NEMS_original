@@ -25,5 +25,9 @@ export SFCIOOUT=.false.
 export CDATE=2012071700
 #export SIGHDR=$NEMSIOGET
 export WTPG=4
+export dtphys=3600
+export wave=126
+export shuff_lats_a=.true.
+export shuff_lats_r=.true.
 
 RUN_SCRIPT=rt_gocart.sh

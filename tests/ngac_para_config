@@ -60,8 +60,10 @@ if [ $SCHEDULER = 'loadleveler' ]; then
   export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
 elif [ $SCHEDULER = 'pbs' ]; then
   export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
+  export PARM_NGAC=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/NGAC/v2.0.0/parm
 elif [ $SCHEDULER = 'lsf' ]; then
   export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
+  export PARM_NGAC=/nems/noscrub/Jun.Wang/NGAC/v2.0.0/parm
 fi
 
 ### specify utilscript and utilexec
@@ -76,11 +78,8 @@ fi
  export FHMAX=24                                    #### reduce from 120 to 24 
 
 ### for ngac parm/fix directory
-# export PARMngac=${REGSDIR}/data_GOCART
-# export FIXngac=${REGSDIR}/data_GOCART
 
-  export FIX_NGAC=$HOMEGLOBAL/fix/fix_ngac
-  export FIX_PARM=$HOMEGLOBAL/parms/parm_ngac
+  export FIX_NGAC=${REGSDIR}/data_GOCART/ngac_fix
 
 ### for POST_quilting
   export POST_NCEPGRB2TBL=${REGSDIR}/data_POST/params_grib2_tbl_new

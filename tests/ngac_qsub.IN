@@ -29,7 +29,7 @@ export OMP_NUM_THREADS=$NTHREADS
 mpiexec=`which mpiexec_mpt`
 if [ $NTHREADS -eq 1 ] ; then
 #export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -n $TASKSIZE"
- export FCST_LAUNCHER="$mpiexec -n $TASKSIZE"
+ export FCST_LAUNCHER="$mpiexec -n $TASKSIZE -prefix [%g]"
 else
 #export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -np $TASKSIZE omplace -nt $NTHREADS"
  export FCST_LAUNCHER="$mpiexec -np $TASKSIZE omplace -nt $NTHREADS"
@@ -57,8 +57,6 @@ export wgrib=/home/George.Vandenberghe/nwprod/util/exec/wgrib
 export HOMEGLOBAL=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para
 export FIXGLOBAL=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
 export FIX_NGAC=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_ngac
-#jw export PARM_NGAC=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/parms/parm_ngac
-export PARM_NGAC=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/NGAC/NGACv2.0.0/parm
 
 _RUND_/JNGAC_FORECAST.sms.para
 

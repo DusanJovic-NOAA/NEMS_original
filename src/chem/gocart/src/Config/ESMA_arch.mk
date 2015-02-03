@@ -52,7 +52,7 @@
 #                      PGI in re arch and GPU.
 # 10Nov2014  Wang      added full path f2py for zues
 # 12Nov2014  Wang      Updated netcdf lib and esmf lib for zeus
-# 02RJan015  Wang      Updated netcdf lib and esmf lib for wcoss
+# 02Jan2015  Wang      Updated netcdf lib and esmf lib for wcoss,f2py on wcoss
 #
 #--------------------------------------------------------------------------
 
@@ -622,7 +622,8 @@ echo SITE= ${SITE}
 
   ifeq (${SITE},zeus)
 ##     ESMF_ROOT = /apps/esmf/3.1.0rp5/intel/mpt
-     ESMF_ROOT = /apps/esmf/6.3.0r/intel/mpt
+##     ESMF_ROOT = /apps/esmf/6.3.0r/intel/mpt
+     ESMF_ROOT = /apps/esmf/6.3.0rp1/intel/mpt
      include $(ESMF_ROOT)/lib/libO/Linux.intel.64.mpi.default/esmf.mk
      DIR_NETCDF = /apps/netcdf/4.1.3-intel
 ##     DIR_NETCDF = /apps/netcdf/3.6.3/intel
@@ -672,6 +673,7 @@ echo SITE= ${SITE}
 
      EXTENDED_SOURCE = -extend_source
      FC := mpiifort
+     F2PY = /usr/bin/f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
 ##   FOPT := -O0-g -traceback  -debug ${EXTENDED_SOURCE}
      FOPT := -O -g -traceback
      FPE := -fp-model source

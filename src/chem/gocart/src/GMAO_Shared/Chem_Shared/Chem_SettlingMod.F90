@@ -111,14 +111,16 @@ CONTAINS
    real :: pm(i1:i2,j1:j2,km)                    ! midpoint air pressure [pa]
    real :: dz(i1:i2,j1:j2,km)                    ! layer thickness [m]
    real :: dc(i1:i2,j1:j2)                       ! change in mr due to sfc loss
-   real :: pdog(i1:i2,j1:j2)                     ! air mass factor dp/g [kg m-2]
-   real :: pdog_m1(i1:i2,j1:j2)                  ! air mass factor dp/g [kg m-2]
+!   real :: pdog(i1:i2,j1:j2)                     ! air mass factor dp/g [kg m-2]
+!   real :: pdog_m1(i1:i2,j1:j2)                  ! air mass factor dp/g [kg m-2]
    real :: vsettle(i1:i2,j1:j2,km)               ! fall speed [m s-1]
    real :: q_save(i1:i2,j1:j2)                   ! save the dust mmr [kg kg-1]
-   real :: q_before(i1:i2,j1:j2)                 ! save the dust mmr [kg kg-1]
+!   real :: q_before(i1:i2,j1:j2)                 ! save the dust mmr [kg kg-1]
    real :: cmass_before(i1:i2,j1:j2)
    real :: cmass_after(i1:i2,j1:j2)
    real :: diff_coef                 ! Brownian diffusion coefficient [m2 s-1]
+   real :: pdog                      ! ratio of air mass factors
+   real :: q_before                  ! save the dust mmr [kg kg-1]
 
 !  The following parameters relate to the swelling of seasalt like particles
 !  following Fitzgerald, Journal of Applied Meteorology, 1975.
@@ -142,7 +144,7 @@ CONTAINS
    real :: sat, rrat
    real :: radius, rhop   ! particle radius and density passed to
                           ! fall velocity calculation
-   real    :: dt_settle, minTime, qmin, qmax
+   real    :: dt_settle, minTime, qmin, qmax, mydata
    integer :: nSubSteps, dk, ijl
 
    rc = 0
@@ -283,24 +285,47 @@ CONTAINS
 !    This approach should be "pretty" mass conservative: the flux
 !    into a layer from above is calculated from the saved q
 !    before the q is adjusted, so it is consistant.
-     q_save = w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,1)
-     w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,1) = w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,1) &
-            / (1.+dt_settle*vsettle(i1:i2,j1:j2,1)/dz(i1:i2,j1:j2,1))
+
+!     q_save = w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,1)
+!
+!     w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,1) = w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,1) &
+!            / (1.+dt_settle*vsettle(i1:i2,j1:j2,1)/dz(i1:i2,j1:j2,1))
+     do j=j1,j2
+       do i=i1,i2
+         q_save(i,j) = w_c%qa(nbeg+n-1)%data3d(i,j,1) 
+         w_c%qa(nbeg+n-1)%data3d(i,j,1) = q_save(i,j)/(1.+dt_settle*vsettle(i,j,1)/dz(i,j,1) )
+       enddo
+     enddo
 
      do k = 2, km
 
+
 !     Air mass factors of layers k, k-1
-      pdog = w_c%delp(i1:i2,j1:j2,k)/grav
-      pdog_m1 = w_c%delp(i1:i2,j1:j2,k-1)/grav
-      q_before = w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,k)
-      w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,k) = &
-         1./(1.+dt_settle*vsettle(i1:i2,j1:j2,k)/dz(i1:i2,j1:j2,k)) &
-       * (       w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,k) &
-           + ( dt_settle*vsettle(i1:i2,j1:j2,k-1)/dz(i1:i2,j1:j2,k-1) &
-              * q_save*pdog_m1(i1:i2,j1:j2)/pdog(i1:i2,j1:j2) &
-             ) &
-         )
-      q_save = q_before
+!      pdog = w_c%delp(i1:i2,j1:j2,k)/grav
+!      pdog_m1 = w_c%delp(i1:i2,j1:j2,k-1)/grav
+!      q_before = w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,k)
+!      w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,k) = &
+!         1./(1.+dt_settle*vsettle(i1:i2,j1:j2,k)/dz(i1:i2,j1:j2,k)) &
+!       * (       w_c%qa(nbeg+n-1)%data3d(i1:i2,j1:j2,k) &
+!           + ( dt_settle*vsettle(i1:i2,j1:j2,k-1)/dz(i1:i2,j1:j2,k-1) &
+!              * q_save*pdog_m1(i1:i2,j1:j2)/pdog(i1:i2,j1:j2) &
+!             ) &
+!         )
+
+      do j=j1,j2
+        do i=i1,j2
+           pdog = w_c%delp(i,j,k-1)/w_c%delp(i,j,k)
+           q_before = w_c%qa(nbeg+n-1)%data3d(i,j,k)
+           w_c%qa(nbeg+n-1)%data3d(i,j,k) =                       &
+             1./(1.+dt_settle*vsettle(i,j,k)/dz(i,j,k))           &
+             *( q_before +( dt_settle*vsettle(i,j,k-1)/dz(i,j,k-1)  &
+                     *q_save(i,j)*pdog ) )     
+           q_save(i,j) = q_before
+        enddo
+      enddo
+
+!      q_save = q_before
+
      end do ! k
 
     end do  ! iit
@@ -316,8 +341,12 @@ CONTAINS
     enddo
 
     if( associated(fluxout(n)%data2d) ) then
-       fluxout(n)%data2d(i1:i2,j1:j2) &
-        = (cmass_before(i1:i2,j1:j2) - cmass_after(i1:i2,j1:j2))/cdt
+     do j = j1, j2
+      do i = i1, i2
+       fluxout(n)%data2d(i,j) &
+        = (cmass_before(i,j) - cmass_after(i,j))/cdt
+      enddo
+     enddo
     endif
 
    end do   ! n

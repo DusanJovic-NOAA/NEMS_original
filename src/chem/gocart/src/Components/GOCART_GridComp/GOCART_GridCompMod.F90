@@ -1634,10 +1634,12 @@ CONTAINS
                                       ocangstr
    real, allocatable               :: tau1(:,:), tau2(:,:)
    real                            :: c1, c2, c3
+!___NCEP___
+    logical                       :: GOCART_OWNS_TRACERS
 !                               ---
 !jw test
-   type(ESMF_Field)                 :: field
-   real(ESMF_KIND_R8), pointer :: ARRAY(:,:)
+!jw   type(ESMF_Field)                 :: field
+!jw   real(ESMF_KIND_R8), pointer :: ARRAY(:,:)
 
 !  Get my name and set-up traceback handle
 !  ---------------------------------------
@@ -1689,6 +1691,13 @@ CONTAINS
 !  Get pre-ESMF parameters from gc and clock
 !  -----------------------------------------
    call extract_ ( gc, clock, chemReg, gcChem, w_c, nymd, nhms, cdt, rc=status )
+   VERIFY_(STATUS)
+
+!___NCEP___
+!  Get GFS parameters from gc and cf (Sarah Lu)
+!  -----------------------------------------
+   call extract_gfs_ ( gc, GOCART_OWNS_TRACERS, STATUS, &
+                       impChem=impChem, cdt = cdt )
    VERIFY_(STATUS)
 
 !  Set pointers for sine/cosine zenith angle

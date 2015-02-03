@@ -14,7 +14,8 @@
 
 . /usrx/local/Modules/3.2.9/init/bash
  module load ibmpe
- module load ics
+ module unload ics NetCDF/3.6.3
+ module load ics/14.0.1 NetCDF/4.2/serial
  export FCST_LAUNCHER=mpirun.lsf
  export OMP_NUM_THREADS=_THRDS_
  export MP_MPILIB=mpich2
@@ -23,6 +24,7 @@
  export MP_LABELIO=yes
  export MP_STDOUTMODE=ordered
  export LD_PRELOAD=/u/James.A.Abeles/mpi_trace_linux_x86_64/shared/libmpitrace.so
+ export KMP_STACKSIZE=1024m
 
 set -x
 

@@ -46,14 +46,7 @@ elif [[ $1 = 6.3r_gsm_wcoss ]]; then
      cp conf/modules.nems.wcoss_ESMF_630rAPI_gsm conf/modules.nems
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
-     echo "Use an ESMF 6.3.0r library"
-elif [[ $1 = 6.3r_gocart_wcoss ]]; then
-     set -x
-     cp conf/configure.nems.Wcoss.intel_ESMF_630r_gsm conf/configure.nems
-     cp conf/modules.nems.wcoss_ESMF_630rAPI_gocart conf/modules.nems
-     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
-     set +x
-     echo "Use an ESMF 6.3.0r and netcdf 4.2 library"
+     echo "Use an ESMF 6.3.0r library and netcdf 4.2 library"
 elif [[ $1 = 6_nmm_zeus ]]; then
      set -x
      cp conf/configure.nems.Zeus.intel_12 conf/configure.nems
@@ -65,13 +58,6 @@ elif [[ $1 = 6_gsm_zeus ]]; then
      set -x
      cp conf/configure.nems.Zeus.intel_13 conf/configure.nems
      cp conf/modules.nems.Zeus_ESMF_630rAPI_gsm conf/modules.nems
-     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
-     set +x
-     echo "Use an ESMF 6.3.0r series library on zeus"
-elif [[ $1 = 6_gocart_zeus ]]; then
-     set -x
-     cp conf/configure.nems.Zeus.intel_13 conf/configure.nems
-     cp conf/modules.nems.Zeus_ESMF_630rAPI_gocart conf/modules.nems
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 6.3.0r series library on zeus"

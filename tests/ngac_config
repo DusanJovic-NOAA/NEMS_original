@@ -332,6 +332,7 @@ FHOUT=${FHOUT:-3}          # Forecast Hour Output Frequency
 FHZER=${FHZER:-3}          # Interval to Zero the bucket - must be greater than or equal to FHOUT
 FHCYC=${FHCYC:-24}         # Surface boundary condition update interval in hours
 FHDFI=${FHDFI:-3}          # Half of the digital filter initialization hours
+dtphys=${dtphys:-3600}     # phys time step 
 
 export NEMSIO_IN=${NEMSIO_IN:-.true.}
 export NEMSIO_OUT=${NEMSIO_OUT:-.true.}

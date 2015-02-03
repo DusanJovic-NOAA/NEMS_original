@@ -13,7 +13,6 @@ export REGSDIR=${RTPWD}
 export PARA_CONFIG=${NEMSDIR}/tests/ngac_para_config
 #export CONFIG_FILE=${NGAC_CONFIG_FILE:-${REGSDIR}/data_GOCART/ngac_config}
 export CONFIG_FILE=${NGAC_CONFIG_FILE:-$PATHRT/ngac_config}
-export PARM_NGAC=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/NGAC/NGACv2.0.0/parm
 
 ####################################################################################################
 # Submit test
@@ -51,6 +50,7 @@ cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
 elif [ $SCHEDULER = 'lsf' ]; then
 
 export TPN=$((16/THRD))
+export QUEUE=${QUEUE:-dev}
 cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
@@ -58,6 +58,7 @@ cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_CONFIG_:${PARA_CONFIG}:g   \
                     | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
                     | sed s:_ACCNR_:${ACCNR}:g   \
+                    | sed s:_QUEUE_:${QUEUE}:g   \
                     | sed s:_WLCLK_:${WLCLK}:g   \
                     | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_THRDS_:${THRD}:g    \
