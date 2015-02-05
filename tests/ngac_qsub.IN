@@ -18,10 +18,10 @@ cd _RUND_
 
 echo "Model started:  " `date`
 
-module load intel
+module purge
 module load mpt
-module load adaptive
-
+#jw module load adaptive
+module load netcdf/4.1.3-intel intel/13.0.079 esmf/6.3.0rp1
 export TASKSIZE=_TASKS_
 export NTHREADS=_THRDS_
 

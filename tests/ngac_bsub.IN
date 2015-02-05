@@ -13,9 +13,9 @@
 #BSUB -W 00:_WLCLK_
 
 . /usrx/local/Modules/3.2.9/init/bash
- module load ibmpe
- module unload ics NetCDF/3.6.3
- module load ics/14.0.1 NetCDF/4.2/serial
+ module purge
+ module load ibmpe lsf
+ module load ics/14.0.1 NetCDF/4.2/serial ESMF/630rp1
  export FCST_LAUNCHER=mpirun.lsf
  export OMP_NUM_THREADS=_THRDS_
  export MP_MPILIB=mpich2

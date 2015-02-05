@@ -1,4 +1,4 @@
-Wed Jan 28 20:40:35 UTC 2015
+Thu Feb  5 19:24:08 UTC 2015
 Start Regression test
 
 
@@ -40,6 +40,63 @@ GFS, 64 proc, 1 thread
 
 
 Checking test 2 results ....
- Comparing ngac.t00z.sigf00..... ......NOT OK
+ Comparing ngac.t00z.sigf00.........OK
+ Comparing ngac.t00z.sigf03.........OK
+ Comparing ngac.t00z.sigf06.........OK
+ Comparing ngac.t00z.sigf12.........OK
+ Comparing ngac.t00z.sigf24.........OK
+ Comparing ngac.t00z.sfcf00.........OK
+ Comparing ngac.t00z.sfcf03.........OK
+ Comparing ngac.t00z.sfcf06.........OK
+ Comparing ngac.t00z.sfcf12.........OK
+ Comparing ngac.t00z.sfcf24.........OK
+ Comparing ngac.t00z.flxf00.........OK
+ Comparing ngac.t00z.flxf03.........OK
+ Comparing ngac.t00z.flxf06.........OK
+ Comparing ngac.t00z.flxf12.........OK
+ Comparing ngac.t00z.flxf24.........OK
+ Comparing ngac.t00z.aerf00.........OK
+ Comparing ngac.t00z.aerf03.........OK
+ Comparing ngac.t00z.aerf06.........OK
+ Comparing ngac.t00z.aerf12.........OK
+ Comparing ngac.t00z.aerf24.........OK
+ Comparing NGAC2d.GrbF03.........OK
+ Comparing NGAC2d.GrbF06.........OK
+ Comparing NGAC2d.GrbF12.........OK
+ Comparing NGAC2d.GrbF24.........OK
+ Comparing NGAC3d.GrbF03.........OK
+ Comparing NGAC3d.GrbF06.........OK
+ Comparing NGAC3d.GrbF12.........OK
+ Comparing NGAC3d.GrbF24.........OK
+ Test 2 passed 
+Test 3 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 3
+GFS_GOCART with NEMSIO
+GFS, 64 proc, 1 thread
 
-   ngac.t00z.sigf00 differ!   
+
+
+
+Checking test 3 results ....
+ Comparing ngac.t00z.sigf00.........OK
+ Comparing ngac.t00z.sigf03.........OK
+ Comparing ngac.t00z.sigf06.........OK
+ Comparing ngac.t00z.sigf12.........OK
+ Comparing ngac.t00z.sigf24.........OK
+ Comparing ngac.t00z.sfcf00.........OK
+ Comparing ngac.t00z.sfcf03.........OK
+ Comparing ngac.t00z.sfcf06.........OK
+ Comparing ngac.t00z.sfcf12.........OK
+ Comparing ngac.t00z.sfcf24.........OK
+ Comparing ngac.t00z.flxf00.........OK
+ Comparing ngac.t00z.flxf03.........OK
+ Comparing ngac.t00z.flxf06.........OK
+ Comparing ngac.t00z.flxf12.........OK
+ Comparing ngac.t00z.flxf24.........OK
+ Comparing ngac.t00z.aerf00.........OK
+ Comparing ngac.t00z.aerf03.........OK
+ Comparing ngac.t00z.aerf06.........OK
+ Comparing ngac.t00z.aerf12.........OK
+ Comparing ngac.t00z.aerf24.........OK
+ Test 3 passed 
+REGRESSION TEST WAS SUCCESSFUL
