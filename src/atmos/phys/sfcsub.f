@@ -266,16 +266,17 @@
       parameter(sihlmx=0.0,sihlmn=0.0,sihomx=5.0,sihomn=0.0,
      &          sihsmx=5.0,sihsmn=0.0,sihimx=5.0,sihimn=0.10,
      &          sihjmx=5.0,sihjmn=0.10,glacir_hice=3.0)
-      parameter(siclmx=0.0,siclmn=0.0,sicomx=1.0,sicomn=0.0,
-     &          sicsmx=1.0,sicsmn=0.0,sicimx=1.0,sicimn=0.50,
-     &          sicjmx=1.0,sicjmn=0.50)
+!cwu change sicimn & sicjmn Jan 2015
+!     parameter(siclmx=0.0,siclmn=0.0,sicomx=1.0,sicomn=0.0,
+!    &          sicsmx=1.0,sicsmn=0.0,sicimx=1.0,sicimn=0.50,
+!    &          sicjmx=1.0,sicjmn=0.50)
 !
 !     parameter(sihlmx=0.0,sihlmn=0.0,sihomx=8.0,sihomn=0.0,
 !    &          sihsmx=8.0,sihsmn=0.0,sihimx=8.0,sihimn=0.10,
 !    &          sihjmx=8.0,sihjmn=0.10,glacir_hice=3.0)
-!     parameter(siclmx=0.0,siclmn=0.0,sicomx=1.0,sicomn=0.0,
-!    &          sicsmx=1.0,sicsmn=0.0,sicimx=1.0,sicimn=0.15,
-!    &          sicjmx=1.0,sicjmn=0.15)
+      parameter(siclmx=0.0,siclmn=0.0,sicomx=1.0,sicomn=0.0,
+     &          sicsmx=1.0,sicsmn=0.0,sicimx=1.0,sicimn=0.15,
+     &          sicjmx=1.0,sicjmn=0.15)
 
       parameter(wetlmx=0.15,wetlmn=0.00,wetomx=0.15,wetomn=0.15,
      &          wetsmx=0.15,wetsmn=0.15,wetimx=0.15,wetimn=0.15,
@@ -722,7 +723,9 @@
 !     data fsicl/99999.0/,  fsics/99999.0/
       data fsicl/0.0/,      fsics/0.0/
 !  default ice concentration limit (50%), new ice thickness (20cm)
-      data aislim/0.50/,    sihnew/0.2/
+!cwu change ice concentration limit (15%) Jan 2015
+!     data aislim/0.50/,    sihnew/0.2/
+      data aislim/0.15/,    sihnew/0.2/
 !clu [+4l] add f()l and f()s for vmn, vmx, abs, slp
       data fvmnl/0.0/,      fvmns/99999.0/
       data fvmxl/0.0/,      fvmxs/99999.0/

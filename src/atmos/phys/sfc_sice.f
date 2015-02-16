@@ -43,6 +43,8 @@
 !                     the code and add program documentation block.     !
 !    sep  2009 -- s. moorthi removed rcl, changed pressure units and    !
 !                     further optimized                                 !
+!    jan  2015 -- x. wu change "cimin = 0.15" for both                  !
+!                              uncoupled and coupled case               !
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -154,11 +156,7 @@
 !
 !  --- ...  set minimum ice concentration required
 
-      if (mom4ice) then
-         cimin = 0.15          ! mom4ice and mask
-      else
-         cimin = 0.50          ! gfs only
-      endif
+      cimin = 0.15
 
 !  --- ...  set flag for sea-ice
 
