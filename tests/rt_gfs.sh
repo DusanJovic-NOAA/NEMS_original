@@ -395,7 +395,7 @@ if [ ${CREATE_BASELINE} = false ]; then
     printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
     printf %s " Comparing " $i "....."
 
-    if [ -f ${RUNDIR}/$i ] ; then
+    if [ -f ${RUNDIR}/$i -a -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
 
      d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
@@ -409,8 +409,16 @@ if [ ${CREATE_BASELINE} = false ]; then
 
     else
 
-     echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
-     echo "Missing " ${RUNDIR}/$i " output file"
+  if [ ! -f ${RUNDIR}/$i ] ; then
+       echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
+       echo "Missing " ${RUNDIR}/$i " output file"
+  fi
+
+  if [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
+       echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file" >> ${REGRESSIONTEST_LOG}
+       echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file"
+  fi
+
     (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
      echo;echo " Test ${TEST_NR} failed "
      exit 2

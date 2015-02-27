@@ -313,7 +313,6 @@
       REAL:: t1_qs_sd, t2_qs_sd, t1_qg_sd, t2_qg_sd
       REAL:: t1_qs_me, t2_qs_me, t1_qg_me, t2_qg_me
 
-      CHARACTER*256:: mp_debug
       CHARACTER*512:: wrf_err_message
 
 !+---+
@@ -783,6 +782,7 @@
       INTEGER:: jmax_qc,jmax_qr,jmax_qi,jmax_qs,jmax_qg,jmax_ni,jmax_nr
       INTEGER:: kmax_qc,kmax_qr,kmax_qi,kmax_qs,kmax_qg,kmax_ni,kmax_nr
       INTEGER:: i_start, j_start, i_end, j_end
+      CHARACTER*256:: mp_debug
 
 !+---+
 
@@ -1156,6 +1156,7 @@
       LOGICAL:: melti, no_micro
       LOGICAL, DIMENSION(kts:kte):: L_qc, L_qi, L_qr, L_qs, L_qg
       LOGICAL:: debug_flag
+      CHARACTER*256:: mp_debug
 
 !+---+
 
@@ -1989,7 +1990,7 @@
 !-GT                               * (prr_rcg(k)+prg_gcw(k))
            prr_gml(k) = MIN(DBLE(rg(k)*odts), MAX(0.D0, prr_gml(k)))
            pnr_gml(k) = N0_g(k)*cgg(2)*ilamg(k)**cge(2) / rg(k)         &   ! RAIN2M
-                      * prr_gml(k) * 10.0**(-1.25*tempc)
+                      * prr_gml(k) * 10.0**(-0.25*tempc)
            if (tempc.gt.7.5 .or. rg(k).lt.0.005E-3) pnr_gml(k)=0.0
 
            if (ssati(k).lt. 0.) then

@@ -161,6 +161,7 @@ set +e
     cp ${RTPWD}/NMMB_reg_sas_zhao/*        ${RTPWD_U}/NMMB_reg_sas_zhao/.
     cp ${RTPWD}/NMMB_reg_sel_phy/*         ${RTPWD_U}/NMMB_reg_sel_phy/.
     cp ${RTPWD}/NMMB_reg_thomp/*           ${RTPWD_U}/NMMB_reg_thomp/.
+    cp ${RTPWD}/NMMB_reg_hur/*             ${RTPWD_U}/NMMB_reg_hur/.
     cp ${RTPWD}/NMMB_reg_timesr/*          ${RTPWD_U}/NMMB_reg_timesr/.
     cp ${RTPWD}/NMMB_reg_wsm6_gfdl/*       ${RTPWD_U}/NMMB_reg_wsm6_gfdl/.
     cp ${RTPWD}/NMMB_reg_wsm6_rrtm/*       ${RTPWD_U}/NMMB_reg_wsm6_rrtm/.
@@ -255,9 +256,13 @@ cat $TESTS_FILE | while read line; do
 done
 
 # Finalize, Clenaup
-rm -f err out configure_file* nmm_msub nmm_run gfs_fcst_run
+rm -f err out nmm_msub nmm_bsub nmm_qsub nmm_run gfs_fcst_run \
+nems.configure gfs_qsub gfs_fcst_run.IN ngac_qsub ngac_bsub gfs_bsub \
+configure_file_01 configure_file_02 configure_file_03 configure_file_04
+
 #rm -rf ${RUNDIR_ROOT}
 echo REGRESSION TEST WAS SUCCESSFUL
 echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
+date >> ${REGRESSIONTEST_LOG}
 
 exit

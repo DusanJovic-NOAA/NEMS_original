@@ -216,12 +216,12 @@ turbulence:  _TURBL_        # Turbulence schemes
                                 # gfs--> GFS PBL
 
 #---------------------------------
-sfc_layer:  myj             # Surface layer schemes
+sfc_layer:  _SFC_LAYER_     # Surface layer schemes
                                 # myj--> Mellor-Yamada-Jamnjic
                                 # mm5--> MM5 sfc layer
 
 #---------------------------------
-land_surface:  noah         # Land surface schemes
+land_surface:  _LAND_SURFACE_         # Land surface schemes
                                 # noah--> NOAH scheme
                                 # liss--> Janjic LSM
 

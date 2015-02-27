@@ -107,7 +107,7 @@ outfile="${outdir}/${i}"
 printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
 printf %s " Comparing " $i "....."
 
-if [ -f ${outfile} ] ; then
+if [ -f ${outfile} -a -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
 
   d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${outfile} | wc -l`
 
@@ -121,8 +121,16 @@ if [ -f ${outfile} ] ; then
 
 else
 
-  echo "Missing " ${outfile} " output file" >> ${REGRESSIONTEST_LOG}
-  echo "Missing " ${outfile} " output file"
+  if [ ! -f ${outfile} ] ; then
+    echo "Missing " ${outfile} " output file" >> ${REGRESSIONTEST_LOG}
+    echo "Missing " ${outfile} " output file"
+  fi
+
+  if [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
+    echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file" >> ${REGRESSIONTEST_LOG}
+    echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file"
+  fi
+
  (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
   echo;echo " Test ${TEST_NR} failed "
   exit 2

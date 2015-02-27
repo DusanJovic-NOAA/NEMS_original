@@ -27,6 +27,8 @@ cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g                  \
                                  | sed s:_MICRO_:${MICRO}:g                  \
                                  | sed s:_SPEC_ADV_:${SPEC_ADV}:g            \
                                  | sed s:_TURBL_:${TURBL}:g                  \
+                                 | sed s:_SFC_LAYER_:${SFC_LAYER}:g          \
+                                 | sed s:_LAND_SURFACE_:${LAND_SURFACE}:g    \
                                  | sed s:_PCPFLG_:${PCPFLG}:g                \
                                  | sed s:_WPREC_:${WPREC}:g                  \
                                  | sed s:_NCHILD_:${NCHILD}:g                \
@@ -76,18 +78,24 @@ fi
 if [ ${GBRG} = nests ]; then
   cat nmm_conf/nmm_nests_conf_02.IN | sed s:_RSTRT_:${RSTRT}:g                  \
                                     | sed s:_gfsP_:${gfsP}:g                    \
+                                    | sed s:_SFC_LAYER_:${SFC_LAYER}:g          \
+                                    | sed s:_LAND_SURFACE_:${LAND_SURFACE}:g    \
                                     | sed s:_RADTN_:${RADTN}:g                  \
                                     | sed s:_CONVC_:${CONVC}:g                  \
                                     | sed s:_TURBL_:${TURBL}:g > configure_file_02
 
   cat nmm_conf/nmm_nests_conf_03.IN | sed s:_RSTRT_:${RSTRT}:g                  \
                                     | sed s:_gfsP_:${gfsP}:g                    \
+                                    | sed s:_SFC_LAYER_:${SFC_LAYER}:g          \
+                                    | sed s:_LAND_SURFACE_:${LAND_SURFACE}:g    \
                                     | sed s:_RADTN_:${RADTN}:g                  \
                                     | sed s:_CONVC_:${CONVC}:g                  \
                                     | sed s:_TURBL_:${TURBL}:g > configure_file_03
 
   cat nmm_conf/nmm_nests_conf_04.IN | sed s:_RSTRT_:${RSTRT}:g                  \
                                     | sed s:_gfsP_:${gfsP}:g                    \
+                                    | sed s:_SFC_LAYER_:${SFC_LAYER}:g          \
+                                    | sed s:_LAND_SURFACE_:${LAND_SURFACE}:g    \
                                     | sed s:_RADTN_:${RADTN}:g                  \
                                     | sed s:_CONVC_:${CONVC}:g                  \
                                     | sed s:_TURBL_:${TURBL}:g > configure_file_04
@@ -211,7 +219,7 @@ do
 printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
 printf %s " Comparing " $i "....."
 
-if [ -f ${RUNDIR}/$i ] ; then
+if [ -f ${RUNDIR}/$i -a -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
 
   d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
@@ -225,8 +233,16 @@ if [ -f ${RUNDIR}/$i ] ; then
 
 else
 
-  echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
-  echo "Missing " ${RUNDIR}/$i " output file"
+  if [ ! -f ${RUNDIR}/$i ] ; then
+    echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
+    echo "Missing " ${RUNDIR}/$i " output file"
+  fi
+
+  if [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
+    echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file" >> ${REGRESSIONTEST_LOG}
+    echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file"
+  fi
+
  (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
   echo;echo " Test ${TEST_NR} failed "
   exit 2
