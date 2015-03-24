@@ -6,6 +6,7 @@
 #BSUB -network type=sn_all:mode=US
 #####BSUB -q debug
 #BSUB -q "dev"
+#BSUB -P GFS-T2O
 #BSUB -n _TASKS_
 #BSUB -R span[ptile=_TPN_]
 #BSUB -R affinity[core(_THRDS_)]

@@ -767,7 +767,7 @@ export FSICL=${FSICL:-99999}
 export CYCLVARS=${CYCLVARS}
 export POSTGPVARS=${POSTGPVARS}
 export NTHREADS=${NTHREADS:-1}
-export SEMILAG=${SEMILAG:-.false.}
+export semilag=${semilag:-.false.}
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-${NTHREADS:-1}}
 export SPECTRAL_LOOP=${SPECTRAL_LOOP:-2}
 export FILESTYLE=${FILESTYLE:-'L'}
@@ -1267,7 +1267,7 @@ EOF
 cat atm_namelist.rc > dyn_namelist.rc
 cat << EOF >> dyn_namelist.rc
 
-SLG_FLAG:                        $SEMILAG
+SLG_FLAG:                        $semilag
 
 #ESMF_State_Namelist +++++++++++++++
 idate1_import:                    1

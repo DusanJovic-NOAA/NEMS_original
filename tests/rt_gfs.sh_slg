@@ -6,8 +6,7 @@ echo "GEFS_ENSEMBLE=" $GEFS_ENSEMBLE
 
 mkdir -p ${RUNDIR}
 
-#export CDATE=${CDATE:-2012010100}
-export CDATE=${CDATE:-2013010100}
+export CDATE=${CDATE:-2012010100}
 export NEMSIOIN=${NEMSIOIN:-.false.}
 export SIGIOIN=${SIGIOIN:-.true.}
 export NEMSIOOUT=${NEMSIOOUT:-.false.}
@@ -16,10 +15,8 @@ export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 export SCHEDULER=${SCHEDULER:-lsf}
 export NTHREADS=1
-#export NTHREADS=4
+export IALB=0
 
-export IEMS=0
-export ISOL=1
 if [ $GEFS_ENSEMBLE = 0 ] ; then
 
 ################################################################################
@@ -47,45 +44,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
  cd $PATHRT
 
-# export TASKS=577
-# export PE1=577
- export TASKS=96
- export PE1=96
- export NEMSIOIN=.false.
- export NEMSIOOUT=.false.
- export SIGIOIN=.true.    
- export SIGIOOUT=.true.
- export SFCIOOUT=.true.
- export WTPG=1
- export WRTGP=1
- export WRITE_DOPOST=.false.
- export POST_GRIBVERSION='"grib1"'
- export GOCART_AER2POST=.false.
- export THRD=1
-# export THRD=4
- export NSOUT=36
- export QUILT=.true.
- export wave=574
-# export wave=1148
- export MEMBER_NAMES=c00
- export CP2=1 # one copy in the dynamics and physics, and another one popints the copy.
-# export FDFI=0 # no digital filter.
- export FHRES=264
- export REDUCEDGRID=.true.
- export NST_FCST=0
- export GOCART=0
- export TRACER=.false.
- export SFCPRESS_ID=1
- export THERMODYN_ID=1
- export IDVC=2  # the vertical coord - 2 means hybrid
- export NDSLFV=.false.
- export SPECTRALLOOP=
- export CDATE=2013010100
-# export CDATE=2012010100
- export IEMS=0 
- export ISOL=1
- export ICO2=1
- export RTPWD_slg=
+ export RTPWD_slg=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 
  cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g                   \
                      | sed s:_PE1_:${PE1}:g                       \
@@ -94,15 +53,16 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_SIGIOIN_:${SIGIOIN}:g               \
                      | sed s:_SIGIOOUT_:${SIGIOOUT}:g             \
                      | sed s:_SFCIOOUT_:${SFCIOOUT}:g             \
-                     | sed s:_WTPG_:${WTPG}:g                     \
-                     | sed s:_WRTGP_:${WRTGP}:g                   \
                      | sed s:_wrtdopost_:${WRITE_DOPOST}:g        \
                      | sed s:_postgrbvs_:${POST_GRIBVERSION}:g    \
                      | sed s:_aer2post_:${GOCART_AER2POST}:g      \
                      | sed s:_THRDS_:${THRD}:g                    \
                      | sed s:_NSOUT_:${NSOUT}:g                   \
                      | sed s:_QUILT_:${QUILT}:g                   \
+                     | sed s:_WTPG_:${WTPG}:g                   \
+                     | sed s:_WRTGP_:${WRTGP}:g                   \
                      | sed s:_IAER_:${IAER}:g                     \
+                     | sed s:_IALB_:${IALB}:g                     \
                      | sed s:_wave_:${wave}:g                     \
                      | sed s:_lm_:${lm}:g                         \
                      | sed s:_lsoil_:${lsoil}:g                   \
@@ -112,6 +72,12 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_PATHTR_:${PATHTR}:g                 \
                      | sed s:_FDFI_:${FDFI}:g                     \
                      | sed s:_FHRES_:${FHRES}:g                   \
+                     | sed s:_FHOUT_:${FHOUT}:g                   \
+                     | sed s:_FHROT_:${FHROT}:g                   \
+                     | sed s:_FHZER_:${FHZER}:g                   \
+                     | sed s:_FHOUTHF_:${FHOUT_HF}:g                   \
+                     | sed s:_FHMAXHF_:${FHMAX_HF}:g                   \
+                     | sed s:_fcyc_:${fcyc}:g                     \
                      | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g       \
                      | sed s:_ADIAB_:${ADIAB}:g                   \
                      | sed s:_NSTFCST_:${NST_FCST}:g              \
@@ -127,11 +93,14 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_IEMS_:${IEMS}:g                     \
                      | sed s:_ISOL_:${ISOL}:g                     \
                      | sed s:_ICO2_:${ICO2}:g                     \
-                     | sed s:_IAER_:${IAER}:g                     \
                      | sed s:_SIGHDR_:${SIGHDR}:g                 \
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
-                     | sed s:_RTPWD_:${RTPWD_slg}:g                   \
+                     | sed s:_RTPWD_:${RTPWD_slg}:g               \
                      | sed s:_SLG_:${SLG}:g                       \
+                     | sed s:_LONB_:${LONB}:g                     \
+                     | sed s:_LATB_:${LATB}:g                     \
+                     | sed s:_LONR_:${LONR}:g                     \
+                     | sed s:_LATR_:${LATR}:g                     \
                      | sed s:_SCHEDULER_:${SCHEDULER}:g           \
                      | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
@@ -155,14 +124,14 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
  fi
 
  if [ "$NEMSIOIN" = ".true." ]; then
-#    export IC_DIR=${IC_DIR:-${RTPWD}/GFS_DFI_REDUCEDGRID_HYB}
+#    export IC_DIR=${IC_DIR:-${RTPWD_slg}/GFS_DFI_REDUCEDGRID_HYB}
     export IC_DIR=${IC_DIR:-/nems/save/Weiyu.Yang/gfs.trunk.21242/data.for.eddy/T1148.slg.data}
 #    cp $IC_DIR/gfsanl.$CDATE ${RUNDIR}/.
     cp $IC_DIR/siganl.gfs.$CDATE ${RUNDIR}/.
     cp $IC_DIR/sfcanl.gfs.$CDATE ${RUNDIR}/.
 
-#   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.$CDATE ${RUNDIR}/.
-#   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.$CDATE ${RUNDIR}/.
+#   cp ${RTPWD_slg}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.$CDATE ${RUNDIR}/.
+#   cp ${RTPWD_slg}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.$CDATE ${RUNDIR}/.
 #to run gfs test
 #   if [ "$rungfstest" = ".true." ]; then
 #     cp /climate/save/wx20wa/esmf/nems/20120913/data/nemsio/gfsanl.$CDATE ${RUNDIR}/.
@@ -179,20 +148,18 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 #                     ---------------
  else 
    if [ "$IDEA" = ".true." ]; then
-     cp ${RTPWD}/WAM_gh_l150/*anl*${CDATE} ${RUNDIR}/.
+     cp ${RTPWD_slg}/WAM_gh_l150/*anl*${CDATE} ${RUNDIR}/.
    else
      export dprefix2=${dprefix2:-""}
      if [ "$rungfstest" = ".true." ] ; then
        if [ $MACHINE_ID = wcoss ] ; then
-#         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
-    export IC_DIR=${IC_DIR:-/nems/save/Weiyu.Yang/I.C.jan.2013/lin.t574.k64.1152.576.test}
-       elif [ $MACHINE_ID = ccs ] ; then
-         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/wx23sm/data}
+         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
        elif [ $MACHINE_ID = zeus ] ; then
          IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
        fi
-       cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.
-       cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
+       cp $IC_DIR/siganl.$CDATE ${RUNDIR}
+       cp $IC_DIR/siganl.$CDATE ${RUNDIR}/sig_ini2
+       cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}
      fi
    fi
  fi
@@ -205,7 +172,7 @@ else
 
  cd $PATHRT
 
- cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
+ cp ${RTPWD_slg}/GEFS_data_2008082500/* $RUNDIR
 # cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/GEFS_data_2008082500/gfsanl* $RUNDIR
 # cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/GEFS_data_2008082500/sfcanl* $RUNDIR
 
@@ -261,8 +228,12 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
-# export TPN=$((16/THRD))
- export TPN=8
+ if [ $SLG = .true. ]; then
+   export TPN=$((16/THRD))
+ else
+   export TPN=8
+ fi
+
  cat gfs_bsub.IN     | sed s:_JBNME_:${JBNME}:g   \
                      | sed s:_CLASS_:${CLASS}:g   \
                      | sed s:_WLCLK_:${WLCLK}:g   \
@@ -387,9 +358,9 @@ if [ ${CREATE_BASELINE} = false ]; then
     printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
     printf %s " Comparing " $i "....."
 
-    if [ -f ${RUNDIR}/$i -a -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
+    if [ -f ${RUNDIR}/$i -a -f ${RTPWD_slg}/${CNTL_DIR}/$i ] ; then
 
-     d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
+     d=`cmp ${RTPWD_slg}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
      if [[ $d -ne 0 ]] ; then
      (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
@@ -406,9 +377,9 @@ if [ ${CREATE_BASELINE} = false ]; then
         echo "Missing " ${RUNDIR}/$i " output file"
       fi
 
-      if [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
-        echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file" >> ${REGRESSIONTEST_LOG}
-        echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file"
+      if [ ! -f ${RTPWD_slg}/${CNTL_DIR}/$i ] ; then
+        echo "Missing " ${RTPWD_slg}/${CNTL_DIR}/$i " baseline file" >> ${REGRESSIONTEST_LOG}
+        echo "Missing " ${RTPWD_slg}/${CNTL_DIR}/$i " baseline file"
       fi
 
       (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}

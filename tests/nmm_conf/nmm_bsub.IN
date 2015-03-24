@@ -9,7 +9,8 @@
 #BSUB -R affinity[core(1):distribute=balance]
 #BSUB -W 00:_WLCLK_
 #BSUB -q _ACCNR_
-#BSUB -P dev
+#BSUB -P GFS-T2O
+##BSUB -P dev
 #BSUB -a poe
 
 source _SRCD_/src/conf/modules.nems

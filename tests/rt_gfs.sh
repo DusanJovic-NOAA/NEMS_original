@@ -23,6 +23,9 @@ export IEMS=0
 export ISOL=1
 export ICO2=2
 export IAER=111
+export fcyc=0
+export FHOUT_HF=1
+export FHMAX_HF=0
 if [ $GEFS_ENSEMBLE = 0 ] ; then
 
 ################################################################################
@@ -68,6 +71,9 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_QUILT_:${QUILT}:g                   \
                      | sed s:_IAER_:${IAER}:g                     \
                      | sed s:_IALB_:${IALB}:g                     \
+                     | sed s:_fcyc_:${fcyc}:g                     \
+                     | sed s:_FHOUTHF_:${FHOUT_HF}:g              \
+                     | sed s:_FHMAXHF_:${FHMAX_HF}:g              \
                      | sed s:_wave_:${wave}:g                     \
                      | sed s:_lm_:${lm}:g                         \
                      | sed s:_lsoil_:${lsoil}:g                   \

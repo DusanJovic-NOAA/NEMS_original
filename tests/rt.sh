@@ -52,6 +52,7 @@ elif [ $MACHINE_ID = zeus ]; then
 # export PTMP=$dprefix2/stmp
   export SCHEDULER=pbs
   export SIGHDR=$dprefix2/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
+  export SLG=.false.
 else
   die "Unknown machine ID, please edit detect_machine.sh file"
 fi

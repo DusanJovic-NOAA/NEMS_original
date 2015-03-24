@@ -1,4 +1,4 @@
-Mon Feb 23 19:12:08 UTC 2015
+Mon Mar 23 15:32:46 UTC 2015
 Start Regression test
 
 
@@ -742,15 +742,30 @@ Checking test 41 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 41 passed 
-Test 42 gfs_dfi_post GFS with POST
+Test 42 gfs_slg_nemsio Run SLG non-adiabatic test with NEMSIO and digital filter
 Test 42
-GFS with POST
+Run SLG non-adiabatic test with NEMSIO and digital filter
 GFS, 32 proc, 1 thread
 
 
 
 
 Checking test 42 results ....
+ Comparing sigf00.........OK
+ Comparing SIG.F06.........OK
+ Comparing SIG.F12.........OK
+ Comparing SIG.F18.........OK
+ Comparing sigf24.........OK
+ Test 42 passed
+Test 43 gfs_dfi_post GFS with POST
+Test 43
+GFS with POST
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 43 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -769,16 +784,14 @@ Checking test 42 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 42 passed 
-Test 43 gfs_gocart_post GFS_GOCART with POST
-Test 43
+ Test 43 passed 
+Test 44 gfs_gocart_post GFS_GOCART with POST
+Test 44
 GFS_GOCART with POST
 GFS, 64 proc, 1 thread
 
 
-
-
-Checking test 43 results ....
+Checking test 44 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -807,16 +820,16 @@ Checking test 43 results ....
  Comparing NGAC3d.GrbF06.........OK
  Comparing NGAC3d.GrbF12.........OK
  Comparing NGAC3d.GrbF24.........OK
- Test 43 passed 
-Test 44 gfs_gocart_nemsio GFS_GOCART with NEMSIO
-Test 44
+ Test 44 passed 
+Test 45 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 45
 GFS_GOCART with NEMSIO
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 44 results ....
+Checking test 45 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -837,6 +850,6 @@ Checking test 44 results ....
  Comparing ngac.t00z.aerf06.........OK
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
- Test 44 passed 
+ Test 45 passed 
 REGRESSION TEST WAS SUCCESSFUL
-Tue Feb 24 00:55:06 UTC 2015
+Tue Mar 24 01:09:23 UTC 2015

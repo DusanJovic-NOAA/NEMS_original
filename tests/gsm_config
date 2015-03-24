@@ -62,7 +62,6 @@ elif [[ $wave -eq 852 ]] ; then
 fi
 
 export NST_FCST=${NST_FCST:-0}
-export NST_SPINUP=${NST_SPINUP:-.false.}
 
 export bkgd_vdif_m=${bkgd_vdif_m:-1.0}
 export bkgd_vdif_h=${bkgd_vdif_h:-1.0}
@@ -108,7 +107,7 @@ export hybedmf=${hybedmf:-.false.}
 export dspheat=${dspheat:-.false.}
 export pdfcld=${pdfcld:-.false.}
 export shcnvcw=${shcnvcw:-.false.}
-export ialb=${ialb:-0}
+export IALB=${IALB:-0}
 export isubc_sw=${isubc_sw:-2}
 export isubc_lw=${isubc_lw:-2}
 
@@ -116,10 +115,28 @@ export lingg_a=${lingg_a:-.false.}
 export lingg_b=${lingg_b:-.false.}
 export SLG=${SLG:-.false.}
 if [ $SLG = .true. ] ; then
-export  semilag=.true
 export  shuff_lats_r=.false.
 export  nsphys=${nsphys:-2}
-export  export fixtrc=${fixtrc:-'.false.,.true.,.false.'}
+export  fixtrc=${fixtrc:-'.false.,.true.,.false.'}
+export cdamp='50000.0,2.0'
+export use_ufo=.true.
+export ncw='20,120'
+export crtrh='0.90,0.90,0.90'
+export flgmin='0.180,0.220'
+export ictm=1
+export cal_pre=.true.
+export prautco='1.0e-4,1.0e-4'
+export wminco='1.0e-5,1.0e-5'
+export dlqf='0.0,0.0'
+export cdmbgwd='0.25,2.0'
+export redrag=.true.
+export cnvgwd=.true.
+export cgwf='0.5,0.05'
+export hybedmf=.true.
+export dspheat=.true.
+export settls_dep3ds=.true.
+export settls_dep3dg=.true.
+export levr=64
 fi
 export semilag=${semilag:-.false.}
 export shuff_lats_a=${shuff_lats_a:-.false.}
@@ -153,19 +170,16 @@ export hdif_fac=${hdif_fac:-1.0}
 export hdif_fac2=${hdif_fac2:-1.0}
 export yhalo=${yhalo:-10}
 export cdamp=${cdamp:-'20000.0,1.5'}
+export DELTIM=${DELTIM:-$((3600/(JCAP/20)))}
 export deltim=${deltim:-${DELTIM:-900}}
 export nsphys=${nsphys:-1}
 export dtphys=${dtphys:-$((deltim/nsphys))}
-export NEMSIO_IN=${NEMSIO_IN:-.false.}
-export NEMSIO_OUT=${NEMSIO_OUT:-.false.}
 export SIGIO_OUT=${SIGIO_OUT:-.true.}
 export SFCIO_OUT=${SFCIO_OUT:-.true.}
 #
-#export DYNVARS="liope=.F."
-#export DYNVARS=liope=$liope,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sigio_out=$SIGIO_OUT,zflxtvd=.true.,shuff_lats_a=.true.,hdif_fac=1.0,hdif_fac2=1.0,ldfi_spect=$LDIF_SPECT
 #jw bkgd_vdif_s=1.0
 
-export DYNVARS=liope=.false.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sigio_out=$SIGIO_OUT,zflxtvd=$zflxtvd,shuff_lats_a=$shuff_lats_a,hdif_fac=$hdif_fac,hdif_fac2=$hdif_fac2,settls_dep3ds=$settls_dep3ds,settls_dep3dg=$settls_dep3dg,redgg_a=.true.,gg_tracers=$gg_tracers,sl_epsln=$sl_epsln,ref_temp=$ref_temp,deltim=$DELTIM,yhalo=$yhalo,phigs_d=$phigs_d,ldfi_spect=$ldfi_spect,cdamp=$cdamp
+export DYNVARS=nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sigio_out=$SIGIO_OUT,zflxtvd=$zflxtvd,shuff_lats_a=$shuff_lats_a,hdif_fac=$hdif_fac,hdif_fac2=$hdif_fac2,settls_dep3ds=$settls_dep3ds,settls_dep3dg=$settls_dep3dg,redgg_a=.true.,gg_tracers=$gg_tracers,sl_epsln=$sl_epsln,ref_temp=$ref_temp,deltim=$DELTIM,yhalo=$yhalo,phigs_d=$phigs_d,ldfi_spect=$ldfi_spect,cdamp=$cdamp
 
 #grid_aldata=_CP2_
 # export PHYVARS="liope=$liope,ras=$ras,zhao_mic=$zhao_mic,lsm=$lsm,\
@@ -185,11 +199,15 @@ export DYNVARS=liope=.false.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sigio_o
 
 #export PHYVARS=liope=$liope,grid_aldata=$grid_aldata,ras=.false.,zhao_mic=.true.,lsm=1,old_monin=.false.,sashal=.true.,newsas=.true.,shal_cnv=.true.,shuff_lats_r=.true.,ialb=0,pre_rad=.false.,random_clds=.false.,iovr_lw=1,iovr_sw=1,IEMS=$IEMS,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=0,nsout=0,ldiag3d=.false.,sfcio_out=$SFCIO_OUT,ncw=20,120,crtrh=0.85,0.85,0.85,flgmin=0.200,0.300,cnvgwd=.false.,ctei_rm=,mstrat=.false.,ccnorm=.false.,mom4ice=.false.,A2OI_OUT=$A2OI_OUT,CPLFLX=$CPLFLX,NGRID_A2OI=$NGRID_A2OI,NST_FCST=0,NST_SPINUP=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,bkgd_vdif_m=3.0,bkgd_vdif_h=1.0,bkgd_vdif_s=0.2,climate=$CLIMATE,psautco=4.0e-4,4.0e-4,prautco=1.0e-4,1.0e-4,evpco=2.0e-5,wminco=1.0e-5,1.0e-5,CCWF=1.0,1.0,dlqf=0.0,0.0,shal_cnv=.true.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,cdmbgwd=1.0,1.0,grid_aldata=.false.
 
-export PHYVARS=liope=$liope,ras=$ras,zhao_mic=$zhao_mic,lsm=$lsm,old_monin=$old_monin,sashal=$sashal,newsas=$newsas,shal_cnv=$shal_cnv,shuff_lats_r=$shuff_lats_r,ialb=$ialb,pre_rad=$pre_rad,random_clds=$random_clds,iovr_lw=1,iovr_sw=1,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=$ictm,nsout=$nsout,use_ufo=$use_ufo,ldiag3d=$ldiag3d,ncw=$ncw,crtrh=$crtrh,flgmin=$flgmin,cnvgwd=$cnvgwd,cgwf=$cgwf,ctei_rm=$ctei_rm,mstrat=$mstrat,ccnorm=$ccnorm,mom4ice=.false.,NST_FCST=$NST_FCST,NST_SPINUP=$NST_SPINUP,lgoc3d=.false.,trans_trac=.true.,cal_pre=$cal_pre,bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,bkgd_vdif_s=$bkgd_vdif_s,climate=$climate,psautco=$psautco,prautco=$prautco,evpco=$evpco,wminco=$wminco,CCWF=$ccwf,dlqf=$dlqf,shal_cnv=$shal_cnv,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,cdmbgwd=$cdmbgwd,grid_aldata=$grid_aldata,sfcio_out=$SFCIO_OUT,dtphys=$dtphys,deltim=$DELTIM,semilag=$semilag,redrag=$redrag,hybedmf=$hybedmf,dspheat=$dspheat,pdfcld=$pdfcld,shcnvcw=$shcnvcw,isubc_lw=$isubc_lw,isubc_sw=$isubc_sw,fixtrc=$fixtrc,gg_tracers=$gg_tracers
+export PHYVARS=ras=$ras,zhao_mic=$zhao_mic,lsm=$lsm,old_monin=$old_monin,sashal=$sashal,newsas=$newsas,shal_cnv=$shal_cnv,shuff_lats_r=$shuff_lats_r,ialb=$IALB,pre_rad=$pre_rad,random_clds=$random_clds,iovr_lw=1,iovr_sw=1,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=$ictm,use_ufo=$use_ufo,ldiag3d=$ldiag3d,ncw=$ncw,crtrh=$crtrh,flgmin=$flgmin,cnvgwd=$cnvgwd,cgwf=$cgwf,ctei_rm=$ctei_rm,mstrat=$mstrat,ccnorm=$ccnorm,mom4ice=.false.,NST_FCST=$NST_FCST,lgoc3d=.false.,trans_trac=.true.,cal_pre=$cal_pre,bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,bkgd_vdif_s=$bkgd_vdif_s,climate=$climate,psautco=$psautco,prautco=$prautco,evpco=$evpco,wminco=$wminco,CCWF=$ccwf,dlqf=$dlqf,shal_cnv=$shal_cnv,nemsio_in=${NEMSIO_IN},nemsio_out=$NEMSIO_OUT,cdmbgwd=$cdmbgwd,grid_aldata=$grid_aldata,sfcio_out=$SFCIO_OUT,dtphys=$dtphys,deltim=$DELTIM,semilag=$semilag,redrag=$redrag,hybedmf=$hybedmf,dspheat=$dspheat,pdfcld=$pdfcld,shcnvcw=$shcnvcw,isubc_lw=$isubc_lw,isubc_sw=$isubc_sw,fixtrc=$fixtrc,gg_tracers=$gg_tracers
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #
-export NGPTC=${NGPTC:-8}
+if [$SLG = .true. ]; then
+  export NGPTC=${NGPTC:-30}
+else
+  export NGPTC=${NGPTC:-8}
+fi
 export NGPTC=${NGPTC:-$((wave/10))}
 export LEVR=${levr:-0}
 #

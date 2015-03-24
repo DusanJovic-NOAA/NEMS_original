@@ -1,4 +1,4 @@
-Sun Feb 22 03:43:30 UTC 2015
+Mon Mar 16 19:02:32 UTC 2015
 Start Regression test
 
 
@@ -817,3 +817,4 @@ Checking test 43 results ....
  Comparing ngac.t00z.aerf24.........OK
  Test 43 passed 
 REGRESSION TEST WAS SUCCESSFUL
+Tue Mar 17 13:24:05 UTC 2015

@@ -32,6 +32,8 @@ fi
  export IEMS=_IEMS_
  export ICO2=_ICO2_
  export ISOL=_ISOL_
+ export FHOUT_HF=_FHOUTHF_
+ export FHMAX_HF=_FHMAXHF_
  export SLG=_SLG_
  echo SLG=$SLG
 
@@ -166,6 +168,14 @@ if [ $SLG = .true. ] ; then
     export NTRAC=3
     export FTSFS=90
     export FAISS=99999
+    export cnvgwd=.true.
+    export dtphys=450
+    export cdmbgwd=0.25,2.0
+    export CPIlist=
+    export RIlist=
+    export semilag=.true.
+else
+    export semilag=.false.
 fi
 #
 #  This script is NOT complete for running multiple ensemble members

@@ -4,7 +4,8 @@
 #BSUB -eo _RUND_/err
 #BSUB -J _JBNME_
 #BSUB -network type=sn_all:mode=US
-#BSUB -P "_ACCNR_"
+#BSUB -P GFS-T2O
+####BSUB -P "_ACCNR_"
 #BSUB -q "_QUEUE_"
 #BSUB -n _TASKS_
 #BSUB -R span[ptile=_TPN_]
