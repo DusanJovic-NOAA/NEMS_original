@@ -1,4 +1,4 @@
-Mon Mar 23 15:32:46 UTC 2015
+Thu Apr  2 19:29:42 UTC 2015
 Start Regression test
 
 
@@ -756,7 +756,7 @@ Checking test 42 results ....
  Comparing SIG.F12.........OK
  Comparing SIG.F18.........OK
  Comparing sigf24.........OK
- Test 42 passed
+ Test 42 passed 
 Test 43 gfs_dfi_post GFS with POST
 Test 43
 GFS with POST
@@ -789,6 +789,8 @@ Test 44 gfs_gocart_post GFS_GOCART with POST
 Test 44
 GFS_GOCART with POST
 GFS, 64 proc, 1 thread
+
+
 
 
 Checking test 44 results ....
@@ -852,4 +854,4 @@ Checking test 45 results ....
  Comparing ngac.t00z.aerf24.........OK
  Test 45 passed 
 REGRESSION TEST WAS SUCCESSFUL
-Tue Mar 24 01:09:23 UTC 2015
+Fri Apr  3 01:41:19 UTC 2015

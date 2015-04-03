@@ -58,6 +58,31 @@ fi
    export BUFS_PER_HOST=2048
    export MPI_GROUP_MAX=128
    export HOUTASPS=12
+   export IGEN=82
+   export FNGLAC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_glacier.2x2.grb"
+   export FNMXIC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_maxice.2x2.grb"
+   export FNTSFC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/RTGSST.1982.2012.monthly.clim.grb"
+   export FNSNOC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_snoclim.1.875.grb"
+   export FNZORC="sib"
+   export FNALBC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_albedo4.1x1.grb"
+   export FNAISC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/CFSR.SEAICE.1982.2012.monthly.clim.grb"
+   export FNTG3C="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_tg3clim.2.6x1.5.grb"
+   export FNVEGC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegfrac.0.144.decpercent.grb"
+   export FNVETC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegtype.1x1.grb"
+   export FNSOTC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soiltype.1x1.grb"
+   export FNSMCC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soilmgldas.t62.192.94.grb"
+   export FNMSKH="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/seaice_newland.grb"
+   export FNTSFA=""
+   export FNACNA=""
+   export FNSNOA=""
+   export FNVMNC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_shdmin.0.144x0.144.grb"
+   export FNVMXC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_shdmax.0.144x0.144.grb"
+   export FNSLPC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_slope.1x1.grb"
+   export FNABSC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_snoalb.1x1.grb"
+   export FTSFS=90
+   export FAISS=99999
+   export FSNOL=99999
+   export FSICL=99999
  fi
 
 # GSM export fields

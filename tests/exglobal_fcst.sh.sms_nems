@@ -500,7 +500,8 @@ export SPS_PARM1=${SPS_PARM1:-"0.005 10.0 0.005 10.0 0.0 0.0 0.0 0.0 0.0 0.0"}
 export SPS_PARM2=${SPS_PARM2:-"0.105 0.03 0.12 42.0 0.0 0.0 0.0 0.0 0.0 0.0"}
 export SPS_PARM3=${SPS_PARM3:-"0.2 0.34 -0.34 3.0 0.0 0.0 0.0 0.0 0.0 0.0"}
 
-[[ $ENS_NUM -le 2 ]]&&ENS_SPS=.false.
+[[ $ENS_NUM -lt 2 ]]&&ENS_SPS=.false.
+if [ $ENS_SPS = .false. ] ; then export FH_INC=$FHMAX ; fi
 
 #  Directories.
 export HOMEDIR=${HOMEDIR:-/nwprod}
@@ -589,7 +590,7 @@ dp_import=${dp_import:-0}
 export EXPLICIT=${EXPLICIT:-.false.}
 export MASS_DP=${MASS_DP:-.false.}
 export PROCESS_SPLIT=${PROCESS_SPLIT:-.false.}
-export ZFLXTVD=${ZFLXTVD:-.false.}
+export ICTM=${ICTM:-0}
 export SEMI_IMPLICIT_TEMP_PROFILE=${SEMI_IMPLICIT_TEMP_PROFILE:-.false.}
 #
 export FCSTEXEC=${FCSTEXEC:-${EXECGLOBAL}/${model}_fcst$XC}
@@ -628,31 +629,6 @@ export LONSPERLAR=${LONSPERLAR:-${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.txt}
 export FNTSFA=${FNTSFA}
 export FNACNA=${FNACNA}
 export FNSNOA=${FNSNOA}
-if [ $SLG = .true. ]; then
-  export FNGLAC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_glacier.2x2.grb"
-  export FNMXIC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_maxice.2x2.grb"
-  export FNTSFC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/RTGSST.1982.2012.monthly.clim.grb"
-  export FNSNOC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_snoclim.1.875.grb"
-  export FNZORC="sib"
-  export FNALBC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_albedo4.1x1.grb"
-  export FNAISC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/CFSR.SEAICE.1982.2012.monthly.clim.grb"
-  export FNTG3C="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_tg3clim.2.6x1.5.grb"
-  export FNVEGC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegfrac.0.144.decpercent.grb"
-  export FNVETC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegtype.1x1.grb"
-  export FNSOTC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soiltype.1x1.grb"
-  export FNSMCC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soilmgldas.t62.192.94.grb"
-  export FNMSKH="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/seaice_newland.grb"
-  export FNTSFA=""
-  export FNACNA=""
-  export FNSNOA=""
-  export FNVMNC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_shdmin.0.144x0.144.grb"  FNVMXC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_shdmax.0.144x0.144.grb"
-  export FNSLPC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_slope.1x1.grb"
-  export FNABSC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_snoalb.1x1.grb"
-  export FTSFS=90
-  export FAISS=99999
-  export FSNOL=99999
-  export FSICL=99999
-fi
 #
 export AERODIR=${AERODIR:-${FIX_RAD}}
 export EMISDIR=${EMISDIR:-${FIX_RAD}}
@@ -696,6 +672,7 @@ export ENDSCRIPT=${ENDSCRIPT}
 
 export FHSEG=${FHSEG:-0}
 export FHMAX=${FHMAX:-$((10#$FHINI+10#$FHSEG))}
+export DELTIM=${DELTIM:-$((3600/(JCAP/20)))}
 export FHRES=${FHRES:-24}
 export FHZER=${FHZER:-6}
 export FHLWR=${FHLWR:-3600}
@@ -792,6 +769,7 @@ export FSICL=${FSICL:-99999}
 export CYCLVARS=${CYCLVARS}
 export POSTGPVARS=${POSTGPVARS}
 export NTHREADS=${NTHREADS:-1}
+export semilag=${semilag:-.false.}
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-${NTHREADS:-1}}
 export SPECTRAL_LOOP=${SPECTRAL_LOOP:-2}
 export FILESTYLE=${FILESTYLE:-'L'}
@@ -902,17 +880,9 @@ if [ $IAER -gt 0 ] ; then
 fi
 if [ $ICO2 -gt 0 ] ; then
  cd $CO2DIR
- if [ $SLG = .true. ]; then
-  export IGEN=82
-  for year in  08 09 10 11 12 13 14
-  do
-  cp  /global/save/Michael.A.Young/data.for.eddy/fix_am/global_co2historicaldata_20$year.txt $DATA/co2historicaldata_20$year.txt
-  done
-else
  for file in `ls | grep co2historicaldata` ; do
   ${NCP} $file $DATA/$(echo $file |sed -e "s/global_//g")
  done
-fi
  CO2_seasonal_cycle=${CO2_seasonal_cycle:-global_co2monthlycyc1976_2006.txt}
  ${NCP} $CO2_seasonal_cycle $DATA/co2monthlycyc.txt
 fi
@@ -1029,7 +999,6 @@ else
 
 #        For output
 #        ----------
-    if [ $SLG = .false. ] ; then
     FH=$((10#$FHINI))
     [[ $FH -lt 10 ]]&&FH=0$FH
     if [[ $FHINI -gt 0 ]] ; then
@@ -1067,7 +1036,6 @@ else
       fi
       [[ $FH -lt 10 ]]&&FH=0$FH
     done
-    fi
 
 # 02/29/2008 DHOU,  added new files for the output after SPS
 #     FH=$FHMAX
@@ -1181,11 +1149,6 @@ core=${core:-gfs}
 cat << EOF > $DATA/atmos.configure
 core: $core
 EOF
-#if [ $SLG = .true. ]; then
-# export LIOPE=.true.
-#else
- export LIOPE=.false.
-#fi
 
 cat << EOF > atm_namelist.rc
 core: $core
@@ -1255,7 +1218,7 @@ start_minute:            0
 start_second:            0
 nhours_fcst:             $FHMAX
 restart:                 $RESTART
-nhours_fcst1:            $FHMAX
+nhours_fcst1:            6
 im:                      $LONB
 jm:                      $LATB
 global:                  .true.
@@ -1464,15 +1427,15 @@ cat  > atm_namelist <<EOF
   semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   dfilevs=$DFILEVS,
-  herm_x=${HERM_X},herm_y=${HERM_Y},herm_z=${HERM_Z},lin_xyz=.false.,wgt_cub_lin_xyz=.false.,wgt_cub_lin_xyz_trc=.false.,
-  quamon=.false.,liope=${LIOPE},
+  herm_x=${herm_x},herm_y=${herm_y},herm_z=${herm_z},lin_xyz=.false.,wgt_cub_lin_xyz=.false.,wgt_cub_lin_xyz_trc=.false.,
+  quamon=.false.,liope=${liope},
   $DYNVARS /
  &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, 
   FHRES=$FHRES, FHROT=$FHROT, FHCYC=$FHCYC, FHDFI=$FHDFI,
   FHZER=$FHZER, FHLWR=$FHLWR, FHSWR=$FHSWR,nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonr=$LONR, latr=$LATR,
-  liope=${LIOPE},
+  liope=${liope},
   jcap=$JCAP, levs=$LEVS, levr=$LEVR, reduced_grid=$REDUCED_GRID,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
   lsoil=$LSOIL, nmtvr=$NMTVR, lsidea=$IDEA,
@@ -1480,7 +1443,6 @@ cat  > atm_namelist <<EOF
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   FHOUT_HF=${FHOUT_HF}, FHMAX_HF=${FHMAX_HF},
-  cdmbgwd=$cdmbgwd,
   NST_SPINUP=${NST_SPINUP},
   $PHYVARS /
  &TRACER_CONSTANT
