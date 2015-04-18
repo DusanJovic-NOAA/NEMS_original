@@ -1,0 +1,24 @@
+# Location of external components on Zeus
+
+SATM_DIR=/home/Gerhard.Theurich/ATM-INSTALLS/SATM_2015-04-02-21-40-16
+XATM_DIR=/home/Gerhard.Theurich/ATM-INSTALLS/XATM_2015-04-02-21-41-08
+SLND_DIR=/home/Gerhard.Theurich/LND-INSTALLS/SLND_2015-04-03-22-27-28
+XLND_DIR=/home/Gerhard.Theurich/LND-INSTALLS/XLND_2015-04-03-22-27-55
+LIS_DIR=/home/Gerhard.Theurich/LND-INSTALLS/LIS_xxx
+SICE_DIR=/home/Gerhard.Theurich/ICE-INSTALLS/SICE_2015-04-02-21-41-49
+XICE_DIR=/home/Gerhard.Theurich/ICE-INSTALLS/XICE_2015-04-02-21-42-18
+CICE_DIR=/home/Gerhard.Theurich/ICE-INSTALLS/CICE_2015-04-02-21-35-42
+SOCN_DIR=/home/Gerhard.Theurich/OCN-INSTALLS/SOCN_2015-04-02-21-43-02
+XOCN_DIR=/home/Gerhard.Theurich/OCN-INSTALLS/XOCN_2015-04-02-21-43-38
+MOM5_DIR=/home/Gerhard.Theurich/OCN-INSTALLS/MOM5_2015-04-02-21-24-35
+HYCOM_DIR=/home/Gerhard.Theurich/OCN-INSTALLS/HYCOM_2015-04-02-21-57-12
+POM_DIR=/home/Fei.Liu/OCN-INSTALLS/pom_xxx
+SWAV_DIR=/home/Gerhard.Theurich/WAV-INSTALLS/SWAV_2015-04-02-21-47-28
+XWAV_DIR=/home/Gerhard.Theurich/WAV-INSTALLS/XWAV_2015-04-02-21-48-08
+WW3_DIR=/home/Gerhard.Theurich/WAV-INSTALLS/WW3_xxx
+SIPM_DIR=/home/Gerhard.Theurich/IPM-INSTALLS/SIPM_2015-04-02-21-48-57
+XIPM_DIR=/home/Gerhard.Theurich/IPM-INSTALLS/XIPM_2015-04-02-21-50-29
+IPE_DIR=/home/Naomi.Maruyama/IPE-INSTALLS/latest
+SHYD_DIR=/home/Gerhard.Theurich/HYD-INSTALLS/SHYD_2015-04-02-21-52-21
+XHYD_DIR=/home/Gerhard.Theurich/HYD-INSTALLS/XHYD_2015-04-02-21-52-46
+WRFHYDRO_DIR=/home/Kathy.Saint/HYD-INSTALLS/latest

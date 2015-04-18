@@ -36,6 +36,17 @@ case `$HOSTNAME` in
   fe7.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus7
   fe8.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus8
 
+  tfe01) MACHINE_ID=theia ;; ### theia01
+  tfe02) MACHINE_ID=theia ;; ### theia02
+  tfe03) MACHINE_ID=theia ;; ### theia03
+  tfe04) MACHINE_ID=theia ;; ### theia04
+  tfe05) MACHINE_ID=theia ;; ### theia05
+  tfe06) MACHINE_ID=theia ;; ### theia06
+  tfe07) MACHINE_ID=theia ;; ### theia07
+  tfe08) MACHINE_ID=theia ;; ### theia08
+  tfe09) MACHINE_ID=theia ;; ### theia09
+  tfe10) MACHINE_ID=theia ;; ### theia10
+
 esac
 
 echo "Machine: " $MACHINE_ID "    Account: " $ACCNR
@@ -43,6 +54,7 @@ echo "Machine: " $MACHINE_ID "    Account: " $ACCNR
 #return 2>/dev/null || exit 1
 
 # --- for Zeus, find available account ID
+if [[ $1"" != "machineonly" ]] ; then
   AP=account_params          # Account info
 if [ ${MACHINE_ID} = zeus  ]; then
 if [ ${ACCNR:-null} = null ]; then
@@ -67,7 +79,11 @@ if [ ${ACCNR:-null} = null ]; then
 else
   cphr=`$AP 2>&1 | grep '^\s*Allocation: [0-9]' | grep $ACCNR | awk '{print $4}'`
   nr=`echo $cphr|wc -w`
-  if [ $nr -eq 0 ]; then echo 'Wrong account choice: ' $ACCNR ; exit ; fi
-  echo "Account: " $ACCNR", available: " $cphr " CPU hrs"
+  if [ $nr -eq 0 ]; then 
+    echo 'Wrong account choice: ' $ACCNR
+  else
+    echo "Account: " $ACCNR", available: " $cphr " CPU hrs"
+  fi
+fi
 fi
 fi

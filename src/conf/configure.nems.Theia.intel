@@ -1,0 +1,104 @@
+## NEMS configuration file
+##
+## Platform: Theia
+## Compiler: Intel with IntelMPI
+
+SHELL           = /bin/sh
+
+################################################################################
+## Include the common configuration parts
+
+include         $(TOP)/conf/configure.nems.NUOPC
+
+################################################################################
+## Other settings
+
+NETCDF_INC   = -I$(NETCDF)/include
+NETCDF_LIB   = -L$(NETCDF)/lib -lnetcdf
+
+#LIBDIR=/contrib/nceplibs/nwprod/lib
+LIBDIR=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/theia/nceplibs/nwprod/lib
+PARADIR=/contrib/nceplibs_ext/lib
+#POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Sarah.Lu/Summer_School_2013/lib
+#POSTDIR=/scratch2/portfolios/NCEPDEV/global/noscrub/Shrinivas.Moorthi/post_wam_moorthi/src
+POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
+
+NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
+#NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/nemsgfs_newrad/incmod
+##NEMSIO_LIB   = -L${LIBDIR} -lnemsio
+#NEMSIO_LIB   = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/nemsgfs_newrad -lnemsio
+NEMSIO_LIB   = -L${LIBDIR} -lnemsio
+
+BACIO_LIB    = -L${LIBDIR} -lbacio_4
+#W3_LIB      = -L${LIBDIR} -lw3nco_4 -lw3emc_4
+W3_LIB       = -L${LIBDIR} -lw3nco_d -lw3emc_d
+SP_LIB       = -L${LIBDIR} -lsp_d
+SYS_LIB      =
+ 
+EXTLIBS      = $(NEMSIO_LIB) \
+               $(BACIO_LIB) \
+               $(W3_LIB) \
+               $(SP_LIB) \
+               $(ESMF_LIB) \
+               $(NETCDF_LIB) \
+               $(SYS_LIB)
+
+## for the post quilting option
+POSTMOD     = ${POSTDIR}/incmod/post_4
+POST_INC    = -I${POSTDIR}/incmod/post_4
+POST_LIB    = -L${POSTDIR} -lnceppost
+W3_POST_LIB = -L${LIBDIR}  -lw3nco_4 -lw3emc_4
+CRTM_LIB    = -L${PARADIR} -lcrtm
+G2_LIB      =  -L${LIBDIR} -lg2tmpl -lg2_4  -L${PARADIR} -ljasper -lpng -lz
+XML_LIB     = -L${PARADIR} -lxmlparse
+SIGIO_LIB   = -L${LIBDIR} -lsigio_4
+SFCIO_LIB   = -L${LIBDIR} -lsfcio
+
+EXTLIBS_POST = $(NEMSIO_LIB) \
+               $(POST_LIB) \
+               $(W3_POST_LIB) \
+               $(XML_LIB) \
+               $(G2_LIB) \
+               $(BACIO_LIB) \
+               $(SIGIO_LIB) \
+               $(SFCIO_LIB) \
+               $(SP_LIB) \
+               $(CRTM_LIB) \
+               $(ESMF_LIB) \
+               $(NETCDF_LIB) \
+               $(SYS_LIB)
+###
+FC          = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -openmp -convert big_endian -assume byterecl -mkl=sequential
+F77         = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -openmp -convert big_endian -assume byterecl -mkl=sequential
+FREE         = -free
+FIXED        = -fixed
+R8           = -r8
+
+FINCS        = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
+TRAPS        =
+#TRAPS        = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
+
+FFLAGS       = $(TRAPS) $(FINCS) -fp-model strict
+
+OPTS_NMM     = -O3
+OPTS_GFS     = -O3
+#OPTS_GFS     = -O0 -g -traceback
+OPTS_GEN     = -O3
+OPTS_FIM     = -O3
+
+FFLAGM_DEBUG =
+
+FFLAGS_NMM   = $(OPTS_NMM) $(FFLAGS)
+FFLAGS_GFS   = $(OPTS_GFS) $(FFLAGS) $(FREE)
+FFLAGS_GFSF  = $(OPTS_GFS) $(FFLAGS) $(FIXED)
+FFLAGS_GEN   = $(OPTS_GEN) $(FFLAGS)
+FFLAGS_FIM   = $(OPTS_FIM) $(FFLAGS)
+
+FPP          = -fpp
+CPP          = /lib/cpp -P -traditional
+CPPFLAGS     = -DCHNK_RRTM=8  -DENABLE_SMP -DTHREAD_2D
+
+AR           = ar
+ARFLAGS      = -r
+
+RM           = rm

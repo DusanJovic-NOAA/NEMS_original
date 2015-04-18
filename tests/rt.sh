@@ -43,7 +43,7 @@ elif [ $MACHINE_ID = zeus ]; then
   source /usr/share/Modules/init/sh
   export ACCNR
   export QUEUE=batch
-# export QUEUE=debug
+#  export QUEUE=debug
   export dprefix1=/scratch1/portfolios/NCEPDEV
   export dprefix2=/scratch2/portfolios/NCEPDEV
   export DISKNM=$dprefix2/meso

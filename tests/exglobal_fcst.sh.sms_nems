@@ -1146,13 +1146,13 @@ ioform_flx=${ioform_flx:-grib}
 # jw: generate configure file
 #
 core=${core:-gfs}
-cat << EOF > $DATA/atmos.configure
-core: $core
-EOF
+#cat << EOF > $DATA/atmos.configure
+#core: $core
+#EOF
 
 cat << EOF > atm_namelist.rc
 core: $core
-print_esmf:     .false.
+print_esmf:     .true.
 
 nhours_dfini=${nhours_dfini:-$FHDFI}
 

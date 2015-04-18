@@ -29,11 +29,11 @@
 !          EARTH component        Ensemble Coupler component
 !              /|\
 !             / | \
-!          ATM/OCN/ICE components
+!          ATM/OCN/ICE/WAV/LND/IPM/HYD .. components
+!          |    |   |
+!          |    |   (CICE, etc.)
 !          |    |
-!          |    |
-!          |    |
-!          |    (MOM5, HYCOM, etc.)
+!          |    (MOM5, HYCOM, POM, etc.)
 !          |
 !          CORE component (GSM, NMM, FIM, GEN, etc.)
 !
@@ -43,16 +43,25 @@
 
 #ifdef WITH_NUOPC
       use NUOPC
-      use module_EARTH_GENERIC_COMP, &
-        driver_routine_SS             => routine_SetServices, &
-        driver_type_IS                => type_InternalState, &
-        driver_label_IS               => label_InternalState, &
-        driver_label_SetModelPetLists => label_SetModelPetLists, &
-        driver_label_SetModelServices => label_SetModelServices
-      use NUOPC_Connector, only: conSS => routine_SetServices
+      use NUOPC_Driver, &
+        Driver_routine_SS             => SetServices, &
+        Driver_label_SetModelServices => label_SetModelServices, &
+        Driver_label_SetRunSequence   => label_SetRunSequence, &
+        Driver_label_Finalize         => label_Finalize
+      use NUOPC_Connector, only: conSS => SetServices
+  ! - Handle build time ATM options:
+#ifdef FRONT_SATM
+      use FRONT_SATM,       only: ATM_SATM_SS   => SetServices
+#endif
+#ifdef FRONT_XATM
+      use FRONT_XATM,       only: ATM_XATM_SS   => SetServices
+#endif
   ! - Handle build time OCN options:
-#ifdef FRONT_OCN_DUMMY
-      use FRONT_OCN_DUMMY,  only: OCN_DUMMY_SS  => SetServices
+#ifdef FRONT_SOCN
+      use FRONT_SOCN,       only: OCN_SOCN_SS   => SetServices
+#endif
+#ifdef FRONT_XOCN
+      use FRONT_XOCN,       only: OCN_XOCN_SS   => SetServices
 #endif
 #ifdef FRONT_HYCOM
       use FRONT_HYCOM,      only: OCN_HYCOM_SS  => SetServices
@@ -60,15 +69,62 @@
 #ifdef FRONT_MOM5
       use FRONT_MOM5,       only: OCN_MOM5_SS   => SetServices
 #endif
+#ifdef FRONT_POM
+      use FRONT_POM,        only: OCN_POM_SS    => SetServices
+#endif
   ! - Handle build time ICE options:
-#ifdef FRONT_ICE_DUMMY
-      use FRONT_ICE_DUMMY,  only: ICE_DUMMY_SS  => SetServices
+#ifdef FRONT_SICE
+      use FRONT_SICE,       only: ICE_SICE_SS  => SetServices
+#endif
+#ifdef FRONT_XICE
+      use FRONT_XICE,       only: ICE_XICE_SS  => SetServices
 #endif
 #ifdef FRONT_CICE
-      use FRONT_CICE,  only: ICE_CICE_SS  => SetServices
+      use FRONT_CICE,       only: ICE_CICE_SS  => SetServices
+#endif
+  ! - Handle build time WAV options:
+#ifdef FRONT_SWAV
+      use FRONT_SWAV,       only: WAV_SWAV_SS  => SetServices
+#endif
+#ifdef FRONT_XWAV
+      use FRONT_XWAV,       only: WAV_XWAV_SS  => SetServices
+#endif
+#ifdef FRONT_WW3
+      use FRONT_WW3,        only: WAV_WW3_SS  => SetServices
+#endif
+  ! - Handle build time LND options:
+#ifdef FRONT_SLND
+      use FRONT_SLND,       only: LND_SLND_SS  => SetServices
+#endif
+#ifdef FRONT_XLND
+      use FRONT_XLND,       only: LND_XLND_SS  => SetServices
+#endif
+#ifdef FRONT_LIS
+      use FRONT_LIS,        only: LND_LIS_SS  => SetServices
+#endif
+  ! - Handle build time IPM options:
+#ifdef FRONT_SIPM
+      use FRONT_SIPM,       only: IPM_SIPM_SS  => SetServices
+#endif
+#ifdef FRONT_XIPM
+      use FRONT_XIPM,       only: IPM_XIPM_SS  => SetServices
+#endif
+#ifdef FRONT_IPE
+      use FRONT_IPE,        only: IPM_IPE_SS  => SetServices
+#endif
+  ! - Handle build time HYD options:
+#ifdef FRONT_SHYD
+      use FRONT_SHYD,       only: HYD_SHYD_SS  => SetServices
+#endif
+#ifdef FRONT_XHYD
+      use FRONT_XHYD,       only: HYD_XHYD_SS  => SetServices
+#endif
+#ifdef FRONT_WRFHYDRO
+      use FRONT_WRFHYDRO,   only: HYD_WRFHYDRO_SS  => SetServices
 #endif
   ! - Mediator
-      use module_MEDIATOR,  only: MED_SS        => SetServices
+      use module_MEDIATOR,        only: MED_SS     => SetServices
+      use module_MEDSpaceWeather, only: MEDSW_SS   => SetServices
 #endif
 
       USE module_EARTH_INTERNAL_STATE,ONLY: EARTH_INTERNAL_STATE        &
@@ -90,8 +146,10 @@
 !
 !-----------------------------------------------------------------------
 !
+#ifndef WITH_NUOPC
       TYPE(EARTH_INTERNAL_STATE),POINTER,SAVE :: EARTH_INT_STATE           !<-- Internal state of the EARTH component
       TYPE(WRAP_EARTH_INTERNAL_STATE)   ,SAVE :: WRAP                      !<-- F90 pointer to the EARTH internal state
+#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -137,25 +195,33 @@
 !
 #ifdef WITH_NUOPC
 
-      ! EARTH_GENERIC registers the generic methods
-
-      call NUOPC_CompDerive(EARTH_GRID_COMP, driver_routine_SS, rc=RC)
+      ! Derive from NUOPC_Driver
+      call NUOPC_CompDerive(EARTH_GRID_COMP, Driver_routine_SS, rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
 
-      ! attach specializing method(s)
+      ! specializations:
 
       call NUOPC_CompSpecialize(EARTH_GRID_COMP, &
-        specLabel=driver_label_SetModelPetLists, specRoutine=SetModelPetLists, &
+        specLabel=Driver_label_SetModelServices, specRoutine=SetModelServices, &
         rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
       
       call NUOPC_CompSpecialize(EARTH_GRID_COMP, &
-        specLabel=driver_label_SetModelServices, specRoutine=SetModelServices, &
+        specLabel=Driver_label_SetRunSequence, specRoutine=SetRunSequence, &
         rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
       
+      call NUOPC_CompSpecialize(EARTH_GRID_COMP, &
+        specLabel=Driver_label_Finalize, specRoutine=Finalize, &
+        rc=RC)
+      ESMF_ERR_RETURN(RC,RC_REG)
+      
+      ! register an internal initialization method
+      call NUOPC_CompSetInternalEntryPoint(EARTH_GRID_COMP, ESMF_METHOD_INITIALIZE, &
+        phaseLabelList=(/"IPDv04p2"/), userRoutine=ModifyCplLists, rc=rc)
+      ESMF_ERR_RETURN(RC,RC_REG)
+
       ! create, open, and set the config
-      
       config = ESMF_ConfigCreate(rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
       call ESMF_ConfigLoadFile(config, "nems.configure", rc=RC)
@@ -180,8 +246,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_zonal_moment_flx", &
           canonicalUnits="N m-2", &
-          defaultLongName="Mean Zonal Component of Momentum Flux", &
-          defaultShortName="mzmfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -192,8 +257,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_merid_moment_flx", &
           canonicalUnits="N m-2", &
-          defaultLongName="Mean Merid Component of Momentum Flux", &
-          defaultShortName="mmmfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -204,8 +268,18 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_sensi_heat_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Sensible Heat Flux", &
-          defaultShortName="mshfx", rc=rc);
+          rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_sensi_heat_flx_atm_into_ice")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_sensi_heat_flx_atm_into_ice", &
+          canonicalUnits="W m-2", &
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -216,8 +290,18 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_laten_heat_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Latent Heat Flux", &
-          defaultShortName="mlhfx", rc=rc);
+          rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_laten_heat_flx_atm_into_ice")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_laten_heat_flx_atm_into_ice", &
+          canonicalUnits="W m-2", &
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -228,8 +312,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_down_lw_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Downward Long Wave Radiation Flux", &
-          defaultShortName="mdlwfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -240,8 +323,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_down_sw_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Downward Short Wave Radiation Flux", &
-          defaultShortName="mdswfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -252,8 +334,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_fprec_rate", &
           canonicalUnits="kg s m-2", &
-          defaultLongName="Mean Frozen Precipitation Rate", &
-          defaultShortName="fprec", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -264,8 +345,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_prec_rate", &
           canonicalUnits="kg s m-2", &
-          defaultLongName="Mean Liquid Precipitation Rate", &
-          defaultShortName="lprec", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -276,8 +356,18 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_evap_rate", &
           canonicalUnits="kg s m-2", &
-          defaultLongName="Mean Evaporation Rate", &
-          defaultShortName="mevap", rc=rc);
+          rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_evap_rate_atm_into_ice")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_evap_rate_atm_into_ice", &
+          canonicalUnits="kg s m-2", &
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -288,8 +378,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_zonal_moment_flx", &
           canonicalUnits="N m-2", &
-          defaultLongName="Instantaneous Zonal Component of Momentum Flux", &
-          defaultShortName="izmfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -300,8 +389,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_merid_moment_flx", &
           canonicalUnits="N m-2", &
-          defaultLongName="Instantaneous Merid Component of Momentum Flux", &
-          defaultShortName="immfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -312,8 +400,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_sensi_heat_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Sensible Heat Flux", &
-          defaultShortName="ishfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -324,8 +411,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_laten_heat_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Latent Heat Flux", &
-          defaultShortName="ilhfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -336,8 +422,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_down_lw_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Downward Long Wave Radiation Flux", &
-          defaultShortName="idlwfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -348,8 +433,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_down_sw_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Downward Short Wave Radiation Flux", &
-          defaultShortName="idswfx", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -360,8 +444,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_temp_height2m", &
           canonicalUnits="K", &
-          defaultLongName="Instantaneous Temperature 2m Above Ground", &
-          defaultShortName="ith2m", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -372,8 +455,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_spec_humid_height2m", &
           canonicalUnits="kg kg-1", &
-          defaultLongName="Instantaneous Specific Humidity 2m Above Ground", &
-          defaultShortName="ishh2m", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -384,8 +466,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_u_wind_height10m", &
           canonicalUnits="m s-1", &
-          defaultLongName="Instantaneous u Wind 10m Above Ground", &
-          defaultShortName="iuwh10m", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -396,8 +477,29 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_v_wind_height10m", &
           canonicalUnits="m s-1", &
-          defaultLongName="Instantaneous v Wind 10m Above Ground", &
-          defaultShortName="ivwh10m", rc=rc);
+          rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_zonal_wind_height10m")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_zonal_wind_height10m", &
+          canonicalUnits="m s-1", &
+          rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_merid_wind_height10m")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_merid_wind_height10m", &
+          canonicalUnits="m s-1", &
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -408,8 +510,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_temp_height_surface", &
           canonicalUnits="K", &
-          defaultLongName="Instantaneous Temperature Surface", &
-          defaultShortName="its", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -420,8 +521,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_pres_height_surface", &
           canonicalUnits="Pa", &
-          defaultLongName="Instantaneous Pressure Surface", &
-          defaultShortName="ips", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -432,8 +532,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_surface_height", &
           canonicalUnits="m", &
-          defaultLongName="Instantaneous Surface Height", &
-          defaultShortName="ish", rc=rc);
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -445,9 +544,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_down_sw_vis_dir_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Downward Direct Visible Short Wave Radiation Flux", &
-          defaultShortName="sw_flux_vis_dir", &
-          rc=rc)
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -458,9 +555,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_down_sw_vis_dif_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Downward Diffuse Visible Short Wave Radiation Flux", &
-          defaultShortName="sw_flux_vis_dif", &
-          rc=rc)
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -471,9 +566,7 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_down_sw_ir_dir_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Downward Direct Short Wave IR Radiation Flux", &
-          defaultShortName="sw_flux_nir_dir", &
-          rc=rc)
+          rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -484,8 +577,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_down_sw_ir_dif_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Downward Short Wave IR Radiation Flux", &
-          defaultShortName="sw_flux_nir_dif", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -497,8 +588,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_down_sw_vis_dir_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Downward Direct Visible Short Wave Radiation Flux", &
-          defaultShortName="inst_sw_flux_vis_dir", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -510,8 +599,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_down_sw_vis_dif_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Downward Diffuse Visible Short Wave Radiation Flux", &
-          defaultShortName="inst_sw_flux_vis_dif", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -523,8 +610,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_down_sw_ir_dir_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Downward Direct Short Wave IR Radiation Flux", &
-          defaultShortName="inst_sw_flux_nir_dir", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -536,8 +621,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_down_sw_ir_dif_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Downward Short Wave IR Radiation Flux", &
-          defaultShortName="inst_sw_flux_nir_dif", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -549,8 +632,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_net_sw_vis_dir_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Net Direct Visible Short Wave Radiation Flux", &
-          defaultShortName="sw_net_flux_vis_dir", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -562,8 +643,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_net_sw_vis_dif_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Net Diffuse Visible Short Wave Radiation Flux", &
-          defaultShortName="sw_net_flux_vis_dif", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -575,8 +654,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_net_sw_ir_dir_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Net Direct Short Wave IR Radiation Flux", &
-          defaultShortName="sw_net_flux_nir_dir", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -588,8 +665,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_net_sw_ir_dif_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Net Short Wave IR Radiation Flux", &
-          defaultShortName="sw_net_flux_nir_dif", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -601,8 +676,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_net_sw_vis_dir_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Net Direct Visible Short Wave Radiation Flux", &
-          defaultShortName="inst_net_sw_flux_vis_dir", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -614,8 +687,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_net_sw_vis_dif_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Net Diffuse Visible Short Wave Radiation Flux", &
-          defaultShortName="inst_net_sw_flux_vis_dif", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -627,8 +698,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_net_sw_ir_dir_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Net Direct Short Wave IR Radiation Flux", &
-          defaultShortName="inst_net_sw_flux_nir_dir", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -640,8 +709,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_net_sw_ir_dif_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Net Short Wave IR Radiation Flux", &
-          defaultShortName="inst_net_sw_flux_nir_dif", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -649,12 +716,10 @@
           return  ! bail out
       endif
       if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "mean_salt_flx")) then
+        "mean_salt_rate")) then
         call NUOPC_FieldDictionaryAddEntry( &
-          standardName="mean_salt_flx", &
+          standardName="mean_salt_rate", &
           canonicalUnits="kg m-2 s", &
-          defaultLongName="Mean Salt Into Ocean Flux", &
-          defaultShortName="salt_flux", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -666,8 +731,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_runoff_rate", &
           canonicalUnits="kg m-2 s", &
-          defaultLongName="Mean Liquid Runoff Mass Flux", &
-          defaultShortName="runoff", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -679,8 +742,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_calving_rate", &
           canonicalUnits="kg m-2 s", &
-          defaultLongName="Mean Frozen Runoff Mass Flux", &
-          defaultShortName="calving", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -688,13 +749,10 @@
           return  ! bail out
       endif
       if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "mean_runoff_flx")) then
+        "mean_runoff_heat_flx")) then
         call NUOPC_FieldDictionaryAddEntry( &
-          standardName="mean_runoff_flx", &
+          standardName="mean_runoff_heat_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Liquid Land Water Heat Flux Into Ocean, "// &
-            "Relative To 0C", &
-          defaultShortName="runoff_hflx", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -702,13 +760,43 @@
           return  ! bail out
       endif
       if (.not. NUOPC_FieldDictionaryHasEntry(  &
-        "mean_calving_flx")) then
+        "mean_calving_heat_flx")) then
         call NUOPC_FieldDictionaryAddEntry( &
-          standardName="mean_calving_flx", &
+          standardName="mean_calving_heat_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Frozen Land Water Heat Flux Into Ocean, "// &
-            "Relative to 0C", &
-          defaultShortName="calving_hflx", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "ice_fraction")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="ice_fraction", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_sw_pen_to_ocn")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_sw_pen_to_ocn", &
+          canonicalUnits="W m-2", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_up_lw_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_up_lw_flx", &
+          canonicalUnits="W m-2", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -720,8 +808,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mass_of_overlying_sea_ice", &
           canonicalUnits="kg", &
-          defaultLongName="Mass Of Overlying Sea Ice", &
-          defaultShortName="mi", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -733,8 +819,17 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="s_surf", &
           canonicalUnits="psu", &
-          defaultLongName="sea surface salinity on t-cell", &
-          defaultShortName="s_surf", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "freezing_melting_potential")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="freezing_melting_potential", &
+          canonicalUnits="W m-2", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -746,8 +841,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="u_surf", &
           canonicalUnits="m s-1", &
-          defaultLongName="i-directed surface ocean velocity on u-cell", &
-          defaultShortName="u_surf", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -759,8 +852,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="v_surf", &
           canonicalUnits="m s-1", &
-          defaultLongName="j-directed surface ocean velocity on u-cell", &
-          defaultShortName="v_surf", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -772,8 +863,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="sea_lev", &
           canonicalUnits="m", &
-          defaultLongName="sea level", &
-          defaultShortName="sea_lev", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -785,8 +874,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="wind_stress_zonal", &
           canonicalUnits="N m-2", &
-          defaultLongName="wind stress x component", &
-          defaultShortName="strax", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -798,8 +885,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="wind_stress_merid", &
           canonicalUnits="N m-2", &
-          defaultLongName="wind stress y component", &
-          defaultShortName="stray", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -811,8 +896,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="ocn_current_zonal", &
           canonicalUnits="m s-1", &
-          defaultLongName="ocean current x component", &
-          defaultShortName="uocn", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -824,8 +907,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="ocn_current_merid", &
           canonicalUnits="m s-1", &
-          defaultLongName="ocean current y component", &
-          defaultShortName="vocn", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -833,12 +914,10 @@
           return  ! bail out
       endif 
       if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "sss_zonal")) then
+        "sea_surface_slope_zonal")) then
         call NUOPC_FieldDictionaryAddEntry( &
-          standardName="sss_zonal", &
+          standardName="sea_surface_slope_zonal", &
           canonicalUnits="m m-1", &
-          defaultLongName="sea surface slope x component", &
-          defaultShortName="ss_tltx", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -846,12 +925,10 @@
           return  ! bail out
       endif 
       if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "sss_merid")) then
+        "sea_surface_slope_merid")) then
         call NUOPC_FieldDictionaryAddEntry( &
-          standardName="sss_merid", &
+          standardName="sea_surface_slope_merid", &
           canonicalUnits="m m-1", &
-          defaultLongName="sea surface slope y component", &
-          defaultShortName="ss_tlty", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -863,8 +940,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="stress_on_air_ice_zonal", &
           canonicalUnits="N m-2", &
-          defaultLongName="stress on air by ice x component", &
-          defaultShortName="strairxT", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -876,8 +951,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="stress_on_air_ice_merid", &
           canonicalUnits="N m-2", &
-          defaultLongName="stress on air by ice y component", &
-          defaultShortName="strairyT", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -889,8 +962,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="stress_on_ocn_ice_zonal", &
           canonicalUnits="N m-2", &
-          defaultLongName="stress on ocn by ice x component", &
-          defaultShortName="strocnxT", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -902,8 +973,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="stress_on_ocn_ice_merid", &
           canonicalUnits="N m-2", &
-          defaultLongName="stress on ocn by ice y component", &
-          defaultShortName="strocnyT", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -911,129 +980,10 @@
           return  ! bail out
       endif 
       if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "wind_stress_x")) then
+        "mixed_layer_depth")) then
         call NUOPC_FieldDictionaryAddEntry( &
-          standardName="wind_stress_x", &
-          canonicalUnits="N m-2", &
-          defaultLongName="wind stress x component", &
-          defaultShortName="strax", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "wind_stress_y")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="wind_stress_y", &
-          canonicalUnits="N m-2", &
-          defaultLongName="wind stress y component", &
-          defaultShortName="stray", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "ocn_current_x")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="ocn_current_x", &
-          canonicalUnits="m s-1", &
-          defaultLongName="ocean current x component", &
-          defaultShortName="uocn", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "ocn_current_y")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="ocn_current_y", &
-          canonicalUnits="m s-1", &
-          defaultLongName="ocean current y component", &
-          defaultShortName="vocn", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "sss_x")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="sss_x", &
-          canonicalUnits="m m-1", &
-          defaultLongName="sea surface slope x component", &
-          defaultShortName="ss_tltx", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "sss_y")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="sss_y", &
-          canonicalUnits="m m-1", &
-          defaultLongName="sea surface slope y component", &
-          defaultShortName="ss_tlty", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "stress_on_air_ice_x")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="stress_on_air_ice_x", &
-          canonicalUnits="N m-2", &
-          defaultLongName="stress on air by ice x component", &
-          defaultShortName="strairxT", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "stress_on_air_ice_y")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="stress_on_air_ice_y", &
-          canonicalUnits="N m-2", &
-          defaultLongName="stress on air by ice y component", &
-          defaultShortName="strairyT", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "stress_on_ocn_ice_x")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="stress_on_ocn_ice_x", &
-          canonicalUnits="N m-2", &
-          defaultLongName="stress on ocn by ice x component", &
-          defaultShortName="strocnxT", &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif 
-      if (.not. NUOPC_FieldDictionaryHasEntry( &
-        "stress_on_ocn_ice_y")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="stress_on_ocn_ice_y", &
-          canonicalUnits="N m-2", &
-          defaultLongName="stress on ocn by ice y component", &
-          defaultShortName="strocnyT", &
+          standardName="mixed_layer_depth", &
+          canonicalUnits="m", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1045,8 +995,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_net_lw_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Net Long Wave Radiation Flux", &
-          defaultShortName="mnlwfx", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1058,8 +1006,17 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="mean_net_sw_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Mean Net Short Wave Radiation Flux", &
-          defaultShortName="mnswfx", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_up_lw_flx_ice")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_up_lw_flx_ice", &
+          canonicalUnits="W m-2", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1071,8 +1028,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_net_lw_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Net Long Wave Radiation Flux", &
-          defaultShortName="inlwfx", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1084,8 +1039,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_net_sw_flx", &
           canonicalUnits="W m-2", &
-          defaultLongName="Instantaneous Net Short Wave Radiation Flux", &
-          defaultShortName="inswfx", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1097,8 +1050,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_ir_dir_albedo", &
           canonicalUnits="1", &
-          defaultLongName="Instantaneous Infrared Direct Albedo", &
-          defaultShortName="iirdira", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1110,8 +1061,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_ir_dif_albedo", &
           canonicalUnits="1", &
-          defaultLongName="Instantaneous Infrared Diffused Albedo", &
-          defaultShortName="iirdifa", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1123,8 +1072,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_vis_dir_albedo", &
           canonicalUnits="1", &
-          defaultLongName="Instantaneous Visible Direct Albedo", &
-          defaultShortName="ivisdira", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1136,8 +1083,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_vis_dif_albedo", &
           canonicalUnits="1", &
-          defaultLongName="Instantaneous Visible Diffused Albedo", &
-          defaultShortName="ivisdifa", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1149,8 +1094,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_ocn_ir_dir_albedo", &
           canonicalUnits="1", &
-          defaultLongName="Instantaneous Ocean Infrared Direct Albedo", &
-          defaultShortName="iirdira", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1162,8 +1105,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_ocn_ir_dif_albedo", &
           canonicalUnits="1", &
-          defaultLongName="Instantaneous Ocean Infrared Diffused Albedo", &
-          defaultShortName="iirdifa", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1175,8 +1116,6 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_ocn_vis_dir_albedo", &
           canonicalUnits="1", &
-          defaultLongName="Instantaneous Ocean Visible Direct Albedo", &
-          defaultShortName="ivisdira", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1188,14 +1127,323 @@
         call NUOPC_FieldDictionaryAddEntry( &
           standardName="inst_ocn_vis_dif_albedo", &
           canonicalUnits="1", &
-          defaultLongName="Instantaneous Ocean Visible Diffused Albedo", &
-          defaultShortName="ivisdifa", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "inst_ice_ir_dir_albedo")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_ice_ir_dir_albedo", &
+          canonicalUnits="1", &
           rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
           return  ! bail out
       endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "inst_ice_ir_dif_albedo")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_ice_ir_dif_albedo", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "inst_ice_vis_dir_albedo")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_ice_vis_dir_albedo", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "inst_ice_vis_dif_albedo")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_ice_vis_dif_albedo", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "inst_land_sea_mask")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_land_sea_mask", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "ocean_mask")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="ocean_mask", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "ice_mask")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="ice_mask", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "land_mask")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="land_mask", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      ! special HYCOM exports
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "surface_downward_eastward_stress")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="surface_downward_eastward_stress", &
+          canonicalUnits="Pa", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "surface_downward_northward_stress")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="surface_downward_northward_stress", &
+          canonicalUnits="Pa", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "wind_speed_height10m")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="wind_speed_height10m", &
+          canonicalUnits="m s-1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "friction_speed")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="friction_speed", &
+          canonicalUnits="m s-1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "air_surface_temperature")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="air_surface_temperature", &
+          canonicalUnits="K", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "upward_sea_ice_basal_available_heat_flux")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="upward_sea_ice_basal_available_heat_flux", &
+          canonicalUnits="W m-2", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      ! special HYCOM imports
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "sea_ice_area_fraction")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="sea_ice_area_fraction", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "downward_x_stress_at_sea_ice_base")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="downward_x_stress_at_sea_ice_base", &
+          canonicalUnits="Pa", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "downward_y_stress_at_sea_ice_base")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="downward_y_stress_at_sea_ice_base", &
+          canonicalUnits="Pa", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "downward_sea_ice_basal_solar_heat_flux")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="downward_sea_ice_basal_solar_heat_flux", &
+          canonicalUnits="W m-2", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "upward_sea_ice_basal_heat_flux")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="upward_sea_ice_basal_heat_flux", &
+          canonicalUnits="W m-2", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "downward_sea_ice_basal_salt_flux")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="downward_sea_ice_basal_salt_flux", &
+          canonicalUnits="kg m-2 s-1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "downward_sea_ice_basal_water_flux")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="downward_sea_ice_basal_water_flux", &
+          canonicalUnits="kg m-2 s-1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "sea_ice_temperature")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="sea_ice_temperature", &
+          canonicalUnits="K", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "sea_ice_thickness")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="sea_ice_thickness", &
+          canonicalUnits="m", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "sea_ice_x_velocity")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="sea_ice_x_velocity", &
+          canonicalUnits="m s-1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "sea_ice_y_velocity")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="sea_ice_y_velocity", &
+          canonicalUnits="m s-1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "dummyfield")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="dummyfield", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "dummyfield1")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="dummyfield1", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "dummyfield2")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="dummyfield2", &
+          canonicalUnits="1", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      
 #else
 
 !-----------------------------------------------------------------------
@@ -1257,146 +1505,293 @@
 
 #ifdef WITH_NUOPC
 
-      subroutine SetModelPetLists(driver, rc)
+      subroutine SetModelServices(driver, rc)
         type(ESMF_GridComp)  :: driver
         integer, intent(out) :: rc
-        
+
         ! local variables
-        type(driver_type_IS)          :: is
-        integer                       :: petCount, i
-        integer                       :: petListBounds(2)
-        type(ESMF_Config)             :: config
-        character(len=20)             :: model
+        integer                         :: localrc, stat, i, petCount
+        character(ESMF_MAXSTR)          :: name
+        type(WRAP_EARTH_INTERNAL_STATE) :: is
+        type(ESMF_GridComp)             :: comp
+        type(ESMF_Config)               :: config
+        character(len=20)               :: model
+        character(len=160)              :: msg
+        integer                         :: petListBounds(2)
 
         rc = ESMF_SUCCESS
 
-        ! query Component for its internal State
-        nullify(is%wrap)
-        call ESMF_UserCompGetInternalState(driver, driver_label_IS, is, rc)
-        ESMF_ERR_RETURN(rc,rc)
-          
+        ! query the Component for info
+        call ESMF_GridCompGet(driver, name=name, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+        ! allocate memory for the internal state and store in Component
+        allocate(is%EARTH_INT_STATE, stat=stat)
+        if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+          msg="Allocation of internal state memory failed.", &
+          line=__LINE__, file=trim(name)//":"//__FILE__, rcToReturn=rc)) &
+          return  ! bail out
+        call ESMF_GridCompSetInternalState(driver, is, rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        
+        ! nullify the petLists
+        nullify(is%EARTH_INT_STATE%atmPetList)
+        nullify(is%EARTH_INT_STATE%ocnPetList)
+        nullify(is%EARTH_INT_STATE%icePetList)
+        nullify(is%EARTH_INT_STATE%wavPetList)
+        nullify(is%EARTH_INT_STATE%lndPetList)
+        nullify(is%EARTH_INT_STATE%ipmPetList)
+        nullify(is%EARTH_INT_STATE%hydPetList)
+        nullify(is%EARTH_INT_STATE%medPetList)
+    
         ! get petCount and config
         call ESMF_GridCompGet(driver, petCount=petCount, config=config, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         
         ! determine the ATM petList bounds
         call ESMF_ConfigGetAttribute(config, petListBounds, &
           label="atm_petlist_bounds:", default=-1, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
         
-        call ESMF_ConfigGetAttribute(config, model, label="atm_model:", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        call ESMF_ConfigGetAttribute(config, model, label="atm_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         if (trim(model) /= "none") then
           ! set petList for ATM
-          allocate(is%wrap%atmPetList(petListBounds(2)-petListBounds(1)+1))
+          allocate(is%EARTH_INT_STATE%atmPetList( &
+            petListBounds(2)-petListBounds(1)+1))
           do i=petListBounds(1), petListBounds(2)
-            is%wrap%atmPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+            is%EARTH_INT_STATE%atmPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
           enddo
         endif
           
         ! determine the OCN petList bounds
         call ESMF_ConfigGetAttribute(config, petListBounds, &
           label="ocn_petlist_bounds:", default=-1, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
         
-        call ESMF_ConfigGetAttribute(config, model, label="ocn_model:", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        call ESMF_ConfigGetAttribute(config, model, label="ocn_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         if (trim(model) /= "none") then
           ! set petList for OCN
-          allocate(is%wrap%ocnPetList(petListBounds(2)-petListBounds(1)+1))
+          allocate(is%EARTH_INT_STATE%ocnPetList( &
+            petListBounds(2)-petListBounds(1)+1))
           do i=petListBounds(1), petListBounds(2)
-            is%wrap%ocnPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+            is%EARTH_INT_STATE%ocnPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
           enddo
         endif
         
         ! determine the ICE petList bounds
         call ESMF_ConfigGetAttribute(config, petListBounds, &
           label="ice_petlist_bounds:", default=-1, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
         
-        call ESMF_ConfigGetAttribute(config, model, label="ice_model:", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        call ESMF_ConfigGetAttribute(config, model, label="ice_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         if (trim(model) /= "none") then
           ! set petList for ICE
-          allocate(is%wrap%icePetList(petListBounds(2)-petListBounds(1)+1))
+          allocate(is%EARTH_INT_STATE%icePetList( &
+            petListBounds(2)-petListBounds(1)+1))
           do i=petListBounds(1), petListBounds(2)
-            is%wrap%icePetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+            is%EARTH_INT_STATE%icePetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+          enddo
+        endif
+        
+        ! determine the WAV petList bounds
+        call ESMF_ConfigGetAttribute(config, petListBounds, &
+          label="wav_petlist_bounds:", default=-1, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
+          petListBounds(1) = 0
+          petListBounds(2) = petCount - 1
+        endif
+        
+        call ESMF_ConfigGetAttribute(config, model, label="wav_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        if (trim(model) /= "none") then
+          ! set petList for ICE
+          allocate(is%EARTH_INT_STATE%wavPetList( &
+            petListBounds(2)-petListBounds(1)+1))
+          do i=petListBounds(1), petListBounds(2)
+            is%EARTH_INT_STATE%wavPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+          enddo
+        endif
+        
+        ! determine the LND petList bounds
+        call ESMF_ConfigGetAttribute(config, petListBounds, &
+          label="lnd_petlist_bounds:", default=-1, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
+          petListBounds(1) = 0
+          petListBounds(2) = petCount - 1
+        endif
+        
+        call ESMF_ConfigGetAttribute(config, model, label="lnd_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        if (trim(model) /= "none") then
+          ! set petList for ICE
+          allocate(is%EARTH_INT_STATE%lndPetList( &
+            petListBounds(2)-petListBounds(1)+1))
+          do i=petListBounds(1), petListBounds(2)
+            is%EARTH_INT_STATE%lndPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+          enddo
+        endif
+        
+        ! determine the IPM petList bounds
+        call ESMF_ConfigGetAttribute(config, petListBounds, &
+          label="ipm_petlist_bounds:", default=-1, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
+          petListBounds(1) = 0
+          petListBounds(2) = petCount - 1
+        endif
+        
+        call ESMF_ConfigGetAttribute(config, model, label="ipm_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        if (trim(model) /= "none") then
+          ! set petList for ICE
+          allocate(is%EARTH_INT_STATE%ipmPetList( &
+            petListBounds(2)-petListBounds(1)+1))
+          do i=petListBounds(1), petListBounds(2)
+            is%EARTH_INT_STATE%ipmPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+          enddo
+        endif
+        
+        ! determine the HYD petList bounds
+        call ESMF_ConfigGetAttribute(config, petListBounds, &
+          label="hyd_petlist_bounds:", default=-1, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
+          petListBounds(1) = 0
+          petListBounds(2) = petCount - 1
+        endif
+        
+        call ESMF_ConfigGetAttribute(config, model, label="hyd_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        if (trim(model) /= "none") then
+          ! set petList for ICE
+          allocate(is%EARTH_INT_STATE%hydPetList( &
+            petListBounds(2)-petListBounds(1)+1))
+          do i=petListBounds(1), petListBounds(2)
+            is%EARTH_INT_STATE%hydPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
           enddo
         endif
         
         ! determine the MED petList bounds
         call ESMF_ConfigGetAttribute(config, petListBounds, &
           label="med_petlist_bounds:", default=-1, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
         
-        call ESMF_ConfigGetAttribute(config, model, label="med_model:", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        call ESMF_ConfigGetAttribute(config, model, label="med_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         if (trim(model) /= "none") then
           ! set petList for MED
-          allocate(is%wrap%medPetList(petListBounds(2)-petListBounds(1)+1))
+          allocate(is%EARTH_INT_STATE%medPetList( &
+            petListBounds(2)-petListBounds(1)+1))
           do i=petListBounds(1), petListBounds(2)
-            is%wrap%medPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+            is%EARTH_INT_STATE%medPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
           enddo
         endif
 
-      end subroutine
-      
-      ! ------------------------------------------------------------------------
-
-      subroutine SetModelServices(driver, rc)
-        type(ESMF_GridComp)  :: driver
-        integer, intent(out) :: rc
-
-        ! local variables
-        type(driver_type_IS)          :: is
-        type(ESMF_GridComp)           :: comp
-        type(ESMF_CplComp)            :: conn
-        type(ESMF_Config)             :: config
-        character(len=20)             :: model
-        character(len=160)            :: msg
-        logical                       :: atmFlag, ocnFlag, iceFlag, medFlag
-
-        rc = ESMF_SUCCESS
-
-        ! query Component for its internal State
-        nullify(is%wrap)
-        call ESMF_UserCompGetInternalState(driver, driver_label_IS, is, rc)
-        ESMF_ERR_RETURN(rc,rc)
-        
-        ! get config
-        call ESMF_GridCompGet(driver, config=config, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-
         ! SetServices for ATM
-        call ESMF_ConfigGetAttribute(config, model, label="atm_model:", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-        atmFlag = .false.
+        call ESMF_ConfigGetAttribute(config, model, label="atm_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        is%EARTH_INT_STATE%atmModel = model
         !print *, "atm_model: ", trim(model)
-        if (trim(model) /= "none") then
-          atmFlag = .true.
-#define WITH_ATM
-#ifdef WITH_ATM
-          call NUOPC_DriverAddComp(driver, "ATM", ATM_REGISTER, comp, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+        if (trim(model) == "satm") then
+#ifdef FRONT_SATM
+          call NUOPC_DriverAddComp(driver, "ATM", ATM_SATM_SS, &
+            petList=is%EARTH_INT_STATE%atmPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
           call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "ATM model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "xatm") then
+#ifdef FRONT_XATM
+          call NUOPC_DriverAddComp(driver, "ATM", ATM_XATM_SS, &
+            petList=is%EARTH_INT_STATE%atmPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "ATM model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif ((trim(model) == "gsm") .or. (trim(model) == "nmm")) then
+          ! currently GSM and NMMB are within the NEMS code directly and
+          ! building them into the NEMS executable is controlled in the 
+          ! native NEMS way still.
+          ! TODO: make GSM and NMMB (and FIM...) external, at least on the
+          ! build system level, even if code stays internal to NEMS repo.
+#define WITH_INTERNAL_ATMS
+#ifdef WITH_INTERNAL_ATMS
+          call NUOPC_DriverAddComp(driver, "ATM", ATM_REGISTER, &
+            petList=is%EARTH_INT_STATE%atmPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
 #else
           write (msg, *) "ATM model '", trim(model), "' was requested, "// &
             "but is not available in the executable!"
@@ -1407,18 +1802,39 @@
         endif
         
         ! SetServices for OCN
-        call ESMF_ConfigGetAttribute(config, model, label="ocn_model:", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-        ocnFlag = .false.
+        call ESMF_ConfigGetAttribute(config, model, label="ocn_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        is%EARTH_INT_STATE%ocnModel = model
         !print *, "ocn_model: ", trim(model)
-        if (trim(model) == "dummy") then
-          ocnFlag = .true.
-#ifdef FRONT_OCN_DUMMY
-          call NUOPC_DriverAddComp(driver, "OCN", OCN_DUMMY_SS, comp, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+        if (trim(model) == "socn") then
+#ifdef FRONT_SOCN
+          call NUOPC_DriverAddComp(driver, "OCN", OCN_SOCN_SS, &
+            petList=is%EARTH_INT_STATE%ocnPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
           call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "OCN model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "xocn") then
+#ifdef FRONT_XOCN
+          call NUOPC_DriverAddComp(driver, "OCN", OCN_XOCN_SS, &
+            petList=is%EARTH_INT_STATE%ocnPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
 #else
           write (msg, *) "OCN model '", trim(model), "' was requested, "// &
             "but is not available in the executable!"
@@ -1427,13 +1843,15 @@
           return  ! bail out
 #endif
         elseif (trim(model) == "hycom") then
-          ocnFlag = .true.
 #ifdef FRONT_HYCOM
-          call NUOPC_DriverAddComp(driver, "OCN", OCN_HYCOM_SS, comp, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          call NUOPC_DriverAddComp(driver, "OCN", OCN_HYCOM_SS, &
+            petList=is%EARTH_INT_STATE%ocnPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
           call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
 #else
           write (msg, *) "OCN model '", trim(model), "' was requested, "// &
             "but is not available in the executable!"
@@ -1442,13 +1860,32 @@
           return  ! bail out
 #endif
         elseif (trim(model) == "mom5") then
-          ocnFlag = .true.
 #ifdef FRONT_MOM5
-          call NUOPC_DriverAddComp(driver, "OCN", OCN_MOM5_SS, comp, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          call NUOPC_DriverAddComp(driver, "OCN", OCN_MOM5_SS, &
+            petList=is%EARTH_INT_STATE%ocnPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
           call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "OCN model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "pom") then
+#ifdef FRONT_POM
+          call NUOPC_DriverAddComp(driver, "OCN", OCN_POM_SS, &
+            petList=is%EARTH_INT_STATE%ocnPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
 #else
           write (msg, *) "OCN model '", trim(model), "' was requested, "// &
             "but is not available in the executable!"
@@ -1459,18 +1896,39 @@
         endif
         
         ! SetServices for ICE
-        call ESMF_ConfigGetAttribute(config, model, label="ice_model:", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-        iceFlag = .false.
+        call ESMF_ConfigGetAttribute(config, model, label="ice_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        is%EARTH_INT_STATE%iceModel = model
         !print *, "ice_model: ", trim(model)
-        if (trim(model) == "dummy") then
-          iceFlag = .true.
-#ifdef FRONT_ICE_DUMMY
-          call NUOPC_DriverAddComp(driver, "ICE", ICE_DUMMY_SS, comp, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+        if (trim(model) == "sice") then
+#ifdef FRONT_SICE
+          call NUOPC_DriverAddComp(driver, "ICE", ICE_SICE_SS, &
+            petList=is%EARTH_INT_STATE%icePetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
           call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "ICE model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "xice") then
+#ifdef FRONT_XICE
+          call NUOPC_DriverAddComp(driver, "ICE", ICE_XICE_SS, &
+            petList=is%EARTH_INT_STATE%icePetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
 #else
           write (msg, *) "ICE model '", trim(model), "' was requested, "// &
             "but is not available in the executable!"
@@ -1479,13 +1937,15 @@
           return  ! bail out
 #endif
         elseif (trim(model) == "cice") then
-          iceFlag = .true.
 #ifdef FRONT_CICE
-          call NUOPC_DriverAddComp(driver, "ICE", ICE_CICE_SS, comp, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          call NUOPC_DriverAddComp(driver, "ICE", ICE_CICE_SS, &
+            petList=is%EARTH_INT_STATE%icePetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
           call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
 #else
           write (msg, *) "ICE model '", trim(model), "' was requested, "// &
             "but is not available in the executable!"
@@ -1495,89 +1955,707 @@
 #endif
         endif
         
-        ! SetServices for Mediator
-        call ESMF_ConfigGetAttribute(config, model, label="med_model:", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-        medFlag = .false.
-        !print *, "med_model: ", trim(model)
-        if (trim(model) /= "none") then
-          medFlag = .true.
-          call NUOPC_DriverAddComp(driver, "MED", MED_SS, comp, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+        ! SetServices for WAV
+        call ESMF_ConfigGetAttribute(config, model, label="wav_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        is%EARTH_INT_STATE%wavModel = model
+        !print *, "wav_model: ", trim(model)
+        if (trim(model) == "swav") then
+#ifdef FRONT_SWAV
+          call NUOPC_DriverAddComp(driver, "WAV", WAV_SWAV_SS, &
+            petList=is%EARTH_INT_STATE%wavPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
           call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "WAV model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "xwav") then
+#ifdef FRONT_XWAV
+          call NUOPC_DriverAddComp(driver, "WAV", WAV_XWAV_SS, &
+            petList=is%EARTH_INT_STATE%wavPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "WAV model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "ww3") then
+#ifdef FRONT_WW3
+          call NUOPC_DriverAddComp(driver, "WAV", WAV_WW3_SS, &
+            petList=is%EARTH_INT_STATE%wavPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "WAV model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        endif
+        
+        ! SetServices for LND
+        call ESMF_ConfigGetAttribute(config, model, label="lnd_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        is%EARTH_INT_STATE%lndModel = model
+        !print *, "lnd_model: ", trim(model)
+        if (trim(model) == "slnd") then
+#ifdef FRONT_SLND
+          call NUOPC_DriverAddComp(driver, "LND", LND_SLND_SS, &
+            petList=is%EARTH_INT_STATE%lndPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "LND model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "xlnd") then
+#ifdef FRONT_XLND
+          call NUOPC_DriverAddComp(driver, "LND", LND_XLND_SS, &
+            petList=is%EARTH_INT_STATE%lndPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "LND model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "lis") then
+#ifdef FRONT_LIS
+          call NUOPC_DriverAddComp(driver, "LND", LND_LIS_SS, &
+            petList=is%EARTH_INT_STATE%lndPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "LND model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        endif
+        
+        ! SetServices for IPM
+        call ESMF_ConfigGetAttribute(config, model, label="ipm_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        is%EARTH_INT_STATE%ipmModel = model
+        !print *, "ipm_model: ", trim(model)
+        if (trim(model) == "sipm") then
+#ifdef FRONT_SIPM
+          call NUOPC_DriverAddComp(driver, "IPM", IPM_SIPM_SS, &
+            petList=is%EARTH_INT_STATE%ipmPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "IPM model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "xipm") then
+#ifdef FRONT_XIPM
+          call NUOPC_DriverAddComp(driver, "IPM", IPM_XIPM_SS, &
+            petList=is%EARTH_INT_STATE%ipmPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "IPM model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "ipe") then
+#ifdef FRONT_IPE
+          call NUOPC_DriverAddComp(driver, "IPM", IPM_IPE_SS, &
+            petList=is%EARTH_INT_STATE%ipmPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "IPM model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        endif
+        
+        ! SetServices for HYD
+        call ESMF_ConfigGetAttribute(config, model, label="hyd_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        is%EARTH_INT_STATE%hydModel = model
+        !print *, "hyd_model: ", trim(model)
+        if (trim(model) == "shyd") then
+#ifdef FRONT_SHYD
+          call NUOPC_DriverAddComp(driver, "HYD", HYD_SHYD_SS, &
+            petList=is%EARTH_INT_STATE%hydPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "HYD model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "xhyd") then
+#ifdef FRONT_XHYD
+          call NUOPC_DriverAddComp(driver, "HYD", HYD_XHYD_SS, &
+            petList=is%EARTH_INT_STATE%hydPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "HYD model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "ipe") then
+#ifdef FRONT_WRFHYDRO
+          call NUOPC_DriverAddComp(driver, "HYD", HYD_WRFHYDRO_SS, &
+            petList=is%EARTH_INT_STATE%hydPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+          write (msg, *) "HYD model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        endif
+        
+        ! SetServices for Mediator
+        call ESMF_ConfigGetAttribute(config, model, label="med_model:", &
+          default="none", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        is%EARTH_INT_STATE%medModel = model
+        !print *, "med_model: ", trim(model)
+        if (trim(model) == "none") then
+          ! silently do nothing
+        else if (trim(model) == "nems") then
+          call NUOPC_DriverAddComp(driver, "MED", MED_SS, &
+            petList=is%EARTH_INT_STATE%medPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        else if (trim(model) == "spaceweather") then
+          call NUOPC_DriverAddComp(driver, "MED", MEDSW_SS, &
+            petList=is%EARTH_INT_STATE%medPetList, comp=comp, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        else
+          write (msg, *) "MEDIATOR '", trim(model), "' was requested, "// &
+            "but is an invalid choice!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
         endif
 
         ! SetServices for Connectors
-        if (atmFlag .and. medFlag) then
-          ! SetServices for atm2med
-          call NUOPC_DriverAddComp(driver, &
-            srcCompLabel="ATM", dstCompLabel="MED", &
-            compSetServicesRoutine=conSS, comp=conn, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          call ESMF_AttributeSet(conn, name="Verbosity", &
-            value="high", convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          ! SetServices for med2atm
-          call NUOPC_DriverAddComp(driver, &
-            srcCompLabel="MED", dstCompLabel="ATM", &
-            compSetServicesRoutine=conSS, comp=conn, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          call ESMF_AttributeSet(conn, name="Verbosity", &
-            value="high", convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-        endif
-        if (ocnFlag .and. medFlag) then
-          ! SetServices for ocn2med
-          call NUOPC_DriverAddComp(driver, &
-            srcCompLabel="OCN", dstCompLabel="MED", &
-            compSetServicesRoutine=conSS, comp=conn, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          call ESMF_AttributeSet(conn, name="Verbosity", &
-            value="high", convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          ! SetServices for med2ocn
-          call NUOPC_DriverAddComp(driver, &
-            srcCompLabel="MED", dstCompLabel="OCN", &
-            compSetServicesRoutine=conSS, comp=conn, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          call ESMF_AttributeSet(conn, name="Verbosity", &
-            value="high", convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-        endif
-        if (iceFlag .and. medFlag) then
-          ! SetServices for ice2med
-          call NUOPC_DriverAddComp(driver, &
-            srcCompLabel="ICE", dstCompLabel="MED", &
-            compSetServicesRoutine=conSS, comp=conn, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          call ESMF_AttributeSet(conn, name="Verbosity", &
-            value="high", convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          ! SetServices for med2ice
-          call NUOPC_DriverAddComp(driver, &
-            srcCompLabel="MED", dstCompLabel="ICE", &
-            compSetServicesRoutine=conSS, comp=conn, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          call ESMF_AttributeSet(conn, name="Verbosity", &
-            value="high", convention="NUOPC", purpose="General", rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-        endif
-
-        ! Read in the coupling intervals and set in the internal state
-        call ESMF_ConfigGetAttribute(config, is%wrap%medAtmCouplingIntervalSec,&
-          label="med_atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
-          rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-        call ESMF_ConfigGetAttribute(config, is%wrap%medOcnCouplingIntervalSec,&
-          label="med_ocn_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
-          rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        call SetFromConfig(driver, mode="setServicesConnectors", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
         
-        ! Internal Clock and RunSequence will be set by EARTH_GENERIC_COMP
-
       end subroutine
+
+  !-----------------------------------------------------------------------------
+  
+  subroutine SetRunSequence(driver, rc)
+    type(ESMF_GridComp)  :: driver
+    integer, intent(out) :: rc
+    
+    ! local variables
+    character(ESMF_MAXSTR)          :: name
+
+    rc = ESMF_SUCCESS
+
+    ! query the Component for info
+    call ESMF_GridCompGet(driver, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+    ! access runSeq in the config
+    call SetFromConfig(driver, mode="setRunSequence", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+    ! Diagnostic output
+    call NUOPC_DriverPrint(driver, orderflag=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+    
+  end subroutine
+    
+  !-----------------------------------------------------------------------------
+
+  subroutine SetFromConfig(driver, mode, rc)
+    type(ESMF_GridComp)   :: driver
+    character(len=*)      :: mode
+    integer, intent(out)  :: rc
+    
+    ! local variables
+    character(ESMF_MAXSTR)          :: name
+    type(ESMF_Config)               :: config
+    integer                         :: lineCount, columnCount, i, slotCount
+    integer, allocatable            :: count(:)
+    character(len=20), allocatable  :: line(:)
+    character(len=20)               :: tempString
+    logical                         :: phaseFlag
+    integer                         :: level, slot, slotHWM
+    real(ESMF_KIND_R8)              :: seconds
+    integer, allocatable            :: slotStack(:)
+    type(ESMF_TimeInterval)         :: timeStep
+    type(ESMF_Clock)                :: internalClock, subClock
+    character(len=60), allocatable  :: connectorInstance(:)
+    integer                         :: connectorCount, j
+    type(ESMF_CplComp)              :: conn
+
+    rc = ESMF_SUCCESS
+    
+    ! query the Component for info
+    call ESMF_GridCompGet(driver, name=name, config=config, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+    ! reset config to beginning of runSeq:: block
+    call ESMF_ConfigFindLabel(config, label="runSeq::", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+    call ESMF_ConfigGetDim(config, lineCount, columnCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+    
+    allocate(count(lineCount))
+    
+    if (trim(mode)=="setServicesConnectors") then
+      allocate(connectorInstance(lineCount))  ! max number of connectors
+      connectorCount = 0 ! reset
+    endif
+    
+    ! reset config to beginning of runSeq:: block
+    call ESMF_ConfigFindLabel(config, label="runSeq::", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+    ! determine number of entries on each line
+    do i=1, lineCount
+      call ESMF_ConfigNextLine(config)
+      count(i) = ESMF_ConfigGetLen(config) ! entries on line i
+    enddo
+    
+    ! reset config to beginning of runSeq:: block
+    call ESMF_ConfigFindLabel(config, label="runSeq::", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+    ! read each line and determine slotCount
+    slotCount = 0
+    do i=1, lineCount
+      call ESMF_ConfigNextLine(config)
+      allocate(line(count(i)))
+      call ESMF_ConfigGetAttribute(config, line, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+      
+      ! process the configuration line
+      if (size(line) == 1) then
+        if (index(trim(line(1)),"@") == 1) then
+          slotCount = slotCount + 1
+        endif
+      elseif ((size(line) == 3) .or. (size(line) == 4)) then
+        if (trim(mode)=="setServicesConnectors") then
+          ! a connector if the second element is "->"
+          if (trim(line(2)) /= "->") then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+              msg="Configuration line incorrectly formatted.", &
+              line=__LINE__, &
+              file=__FILE__)
+            return  ! bail out
+          else
+            ! found a connector entry, see if it is the first instance
+            do j=1, connectorCount
+              if (trim(connectorInstance(j)) == &
+                trim(line(1))//trim(line(2))//trim(line(3))) exit
+            enddo
+            if (j>connectorCount) then
+              ! this is a new Connector instance
+              connectorCount = j
+              connectorInstance(j) = trim(line(1))//trim(line(2))//trim(line(3))
+              ! SetServices for new Connector instance
+              call NUOPC_DriverAddComp(driver, &
+                srcCompLabel=trim(line(1)), dstCompLabel=trim(line(3)), &
+                compSetServicesRoutine=conSS, comp=conn, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail
+              call ESMF_AttributeSet(conn, name="Verbosity", &
+                value="high", convention="NUOPC", purpose="General", rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail
+              if (size(line) == 4) then
+                ! there are additional connection options specified
+                ! -> set as Attribute for now on the connector object
+                call ESMF_AttributeSet(conn, name="ConnectionOptions", &
+                  value=trim(line(4)), rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail
+              endif
+            endif
+          endif
+        endif
+      endif
+      ! clean-up
+      deallocate(line)
+    enddo
+    slotCount = (slotCount+1) / 2
+    slotCount = max(slotCount, 1) ! at least one slot
+    
+    if (trim(mode)=="setRunSequence") then
+    
+      allocate(slotStack(slotCount))
+
+      ! Replace the default RunSequence with a customized one
+      call NUOPC_DriverNewRunSequence(driver, slotCount=slotCount, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      ! Get driver intenalClock
+      call ESMF_GridCompGet(driver, clock=internalClock, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      ! reset config to beginning of runSeq:: block
+      call ESMF_ConfigFindLabel(config, label="runSeq::", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+      level = 0
+      slot = 0
+      slotHWM = 0
+      do i=1, lineCount
+        call ESMF_ConfigNextLine(config)
+        allocate(line(count(i)))
+        call ESMF_ConfigGetAttribute(config, line, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+        
+        ! process the configuration line
+        if ((size(line) < 1) .or. (size(line) > 4)) then
+          call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+            msg="Configuration line incorrectly formatted.", &
+            line=__LINE__, &
+            file=__FILE__)
+          return  ! bail out
+        elseif (size(line) == 1) then
+          ! either a model or a time step indicator
+          if (index(trim(line(1)),"@") == 1) then
+            ! time step indicator
+            tempString=trim(line(1))
+            if (len(trim(tempString)) > 1) then
+              ! entering new time loop level
+              level = level + 1
+              slotStack(level)=slot
+              slot = slotHWM + 1
+              slotHWM = slotHWM + 1
+              read(tempString(2:len(tempString)), *) seconds
+              print *, "found time step indicator: ", seconds
+              call ESMF_TimeIntervalSet(timeStep, s_r8=seconds, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, &
+                file=__FILE__)) &
+                return  ! bail out
+              if (slot==1) then
+                ! Set the timeStep of the internalClock
+                call ESMF_ClockSet(internalClock, timeStep=timeStep, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, &
+                  file=__FILE__)) &
+                  return  ! bail out
+              else
+                ! Insert the link to a new slot, and set the timeStep
+                call NUOPC_DriverAddRunElement(driver, slot=slotStack(level), &
+                  linkSlot=slot, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+                subClock = ESMF_ClockCreate(internalClock, rc=rc)  ! make a copy first
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+                call ESMF_ClockSet(subClock, timeStep=timeStep, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+                call NUOPC_DriverSetRunSequence(driver, slot=slot, &
+                  clock=subClock, rc=rc)
+                if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                  line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+              endif
+            else
+              ! exiting time loop level
+              slot = slotStack(level)
+              level = level - 1
+            endif
+          else
+            ! model
+            slot = max(slot, 1) ! model outside of a time loop
+            call NUOPC_DriverAddRunElement(driver, slot=slot, &
+              compLabel=trim(line(1)), rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, &
+              file=__FILE__)) &
+              return  ! bail out
+          endif
+        elseif (size(line) == 2) then
+          ! a model with a specific phase label
+          call NUOPC_DriverAddRunElement(driver, slot=slot, &
+            compLabel=trim(line(1)), phaseLabel=trim(line(2)), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+        elseif ((size(line) == 3) .or. (size(line) == 4)) then
+          ! a connector if the second element is "->", with options if 4th part
+          if (trim(line(2)) /= "->") then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+              msg="Configuration line incorrectly formatted.", &
+              line=__LINE__, &
+              file=__FILE__)
+            return  ! bail out
+          endif
+          call NUOPC_DriverAddRunElement(driver, slot=slot, &
+            srcCompLabel=trim(line(1)), dstCompLabel=trim(line(3)), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+        endif    
+        
+        ! clean-up
+        deallocate(line)
+      enddo
+      ! clean-up
+      deallocate(slotStack)
+    endif
+
+    ! clean-up
+    deallocate(count)
+    if (trim(mode)=="setServicesConnectors") then
+      deallocate(connectorInstance)
+    endif
+
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
+  subroutine Finalize(driver, rc)
+    type(ESMF_GridComp)  :: driver
+    integer, intent(out) :: rc
+    
+    ! local variables
+    integer                         :: localrc, stat
+    type(WRAP_EARTH_INTERNAL_STATE) :: is
+    logical                         :: existflag
+    character(ESMF_MAXSTR)          :: name
+
+    rc = ESMF_SUCCESS
+
+    ! query the Component for info
+    call ESMF_GridCompGet(driver, name=name, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+    
+    ! query Component for this internal State
+    nullify(is%EARTH_INT_STATE)
+    call ESMF_GridCompGetInternalState(driver, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+      
+    ! deallocate internal state memory
+    deallocate(is%EARTH_INT_STATE, stat=stat)
+    if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+      msg="Deallocation of internal state memory failed.", &
+      line=__LINE__, file=trim(name)//":"//__FILE__, rcToReturn=rc)) &
+      return  ! bail out
+      
+  end subroutine
+      
+  !-----------------------------------------------------------------------------
+  
+  recursive subroutine ModifyCplLists(driver, importState, exportState, clock, &
+    rc)
+    type(ESMF_GridComp)  :: driver
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+
+    character(len=160)              :: name, msg
+    type(ESMF_CplComp), pointer     :: connectorList(:)
+    integer                         :: i, j, cplListSize
+    character(len=160), allocatable :: cplList(:)
+    character(len=160)              :: value
+    type(WRAP_EARTH_INTERNAL_STATE) :: is
+
+    rc = ESMF_SUCCESS
+    
+    ! query Component for this internal State
+    nullify(is%EARTH_INT_STATE)
+    call ESMF_GridCompGetInternalState(driver, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+    call ESMF_LogWrite("Driver is in ModifyCplLists()", ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    nullify(connectorList)
+    call NUOPC_DriverGetComp(driver, compList=connectorList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    write (msg,*) "Found ", size(connectorList), " Connectors."// &
+      " Modifying CplList Attribute...."
+    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    do i=1, size(connectorList)
+      ! query Connector i for its name
+      call ESMF_CplCompGet(connectorList(i), name=name, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! access CplList for Connector i
+      call NUOPC_CompAttributeGet(connectorList(i), name="CplList", &
+        itemCount=cplListSize, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      if (cplListSize>0) then
+        allocate(cplList(cplListSize))
+        call NUOPC_CompAttributeGet(connectorList(i), name="CplList", &
+          valueList=cplList, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        ! go through all of the entries in the cplList and add options
+        do j=1, cplListSize
+          cplList(j) = trim(cplList(j))//":DumpWeights=true"
+          cplList(j) = trim(cplList(j))//":SrcTermProcessing=1:TermOrder=SrcSeq"
+          ! add connection options read in from configuration file
+          call ESMF_AttributeGet(connectorList(i), name="ConnectionOptions", &
+            value=value, defaultValue="", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+          cplList(j) = trim(cplList(j))//trim(value)
+        enddo
+        ! store the modified cplList in CplList attribute of connector i
+        call ESMF_AttributeSet(connectorList(i), &
+          name="CplList", valueList=cplList, &
+          convention="NUOPC", purpose="General", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        deallocate(cplList)
+      endif
+    enddo
+      
+    deallocate(connectorList)
+    
+  end subroutine
+
+  !-----------------------------------------------------------------------------
 
 #else
 

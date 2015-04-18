@@ -6,43 +6,9 @@
 SHELL           = /bin/sh
 
 ################################################################################
-## This configuration file leverages the ESMFMKFILE mechanism to switch
-## between different ESMF versions and installations. The only environment
-## variable used by this  mechanism is ESMFMKFILE, which appears below in 
-## the include statment. Systems that use "modules" to manage environments
-## will set ESMFMKFILE as part of loading an "esmf" module. The user can
-## also set ESMFMKFILE manually to target a different ESMF installation.
+## Include the common configuration parts
 
-include         $(ESMFMKFILE)
-ESMF_INC        = $(ESMF_F90COMPILEPATHS)
-ESMF_LIB        = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
-
-################################################################################
-## ATM settings
-## Use GSM as GFS
-
-gfs=gsm
-gfsdir=atmos/$(gfs)
-
-################################################################################
-## OCN settings
-## NUOPC compliant OCN models supply a standard makefile fragment
-
-#ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-head/ocn.mk
-#ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-rev38154-ESMF700bs06/ocn.mk
-ocndummy_mk   = /home/Anthony.Craig/OCN-INSTALLS/DummyOCN/ocn.mk
-hycom_mk      = /home/Gerhard.Theurich/OCN-INSTALLS/HYCOM-rtofs0.25cfsr__branches__NUOPC.rev32555-ESMF630r/hycom_nuopc.mk
-#hycom_mk      = /scratch1/portfolios/NCEPDEV/ocean/noscrub/Gerhard.Theurich/HYCOM-NCEP/rtofs0.25cfsr__branches__NUOPC.working/sorc/hycom_nuopc.mk
-mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/2014-06-26-12-33-31/mom5.mk
-#mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/head/mom5.mk
-
-################################################################################
-## SEAICE settings
-## NUOPC compliant SEAICE models supply a standard makefile fragment
-
-#icedummy_mk   = /home/Gerhard.Theurich/ICE-INSTALLS/DummyICE-head/ice.mk
-icedummy_mk   = /home/Gerhard.Theurich/ICE-INSTALLS/DummyICE-rev38708/ice.mk
-cice_mk       = /home/Fei.Liu/ICE-INSTALLS/2014-03-19-18-52-00/cice.mk
+include         $(TOP)/conf/configure.nems.NUOPC
 
 ################################################################################
 ## Other settings

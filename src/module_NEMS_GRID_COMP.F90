@@ -19,7 +19,7 @@
 !          EARTH component        Ensemble Coupler component
 !              /|\
 !             / | \
-!          ATM/OCN/ICE components
+!          ATM/OCN/ICE/WAV/LND/IPM/HYD .. components
 !          |    |
 !          |    |
 !          |    |

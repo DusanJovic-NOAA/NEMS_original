@@ -1,5 +1,5 @@
 #!/bin/ksh
-#set -eux
+#set -eu
 
 export GEFS_ENSEMBLE=${GEFS_ENSEMBLE:-0}
 echo "GEFS_ENSEMBLE=" $GEFS_ENSEMBLE
@@ -115,42 +115,42 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
  cp gfs_fcst_run ${RUNDIR}
 
- cat nems.configure.IN   | sed s:_atm_model_:${atm_model}:g                    \
+if [ ${nems_configure}"x" != "x" ]; then
+ cat nems.configure.${nems_configure}.IN   \
+                         | sed s:_atm_model_:${atm_model}:g                    \
                          | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
-                         | sed s:_ocn_model_:${ocn_model}:g                    \
-                         | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
+                         | sed s:_lnd_model_:${lnd_model}:g                    \
+                         | sed s:_lnd_petlist_bounds_:"${lnd_petlist_bounds}":g\
                          | sed s:_ice_model_:${ice_model}:g                    \
                          | sed s:_ice_petlist_bounds_:"${ice_petlist_bounds}":g\
+                         | sed s:_ocn_model_:${ocn_model}:g                    \
+                         | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
+                         | sed s:_wav_model_:${wav_model}:g                    \
+                         | sed s:_wav_petlist_bounds_:"${wav_petlist_bounds}":g\
+                         | sed s:_ipm_model_:${ipm_model}:g                    \
+                         | sed s:_ipm_petlist_bounds_:"${ipm_petlist_bounds}":g\
+                         | sed s:_hyd_model_:${hyd_model}:g                    \
+                         | sed s:_hyd_petlist_bounds_:"${hyd_petlist_bounds}":g\
                          | sed s:_med_model_:${med_model}:g                    \
                          | sed s:_med_petlist_bounds_:"${med_petlist_bounds}":g\
-                         | sed s:_med_atm_coupling_interval_sec_:"${med_atm_coupling_interval_sec}":g\
-                         | sed s:_med_ocn_coupling_interval_sec_:"${med_ocn_coupling_interval_sec}":g\
+                         | sed s:_atm_coupling_interval_sec_:"${atm_coupling_interval_sec}":g\
+                         | sed s:_ocn_coupling_interval_sec_:"${ocn_coupling_interval_sec}":g\
+                         | sed s:_coupling_interval_sec_:"${coupling_interval_sec}":g\
+                         | sed s:_coupling_interval_slow_sec_:"${coupling_interval_slow_sec}":g\
+                         | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
                          >  nems.configure
                          
  cp nems.configure ${RUNDIR}
-                         
+fi
+
 ################################################################################
 # Copy init files
 ################################################################################
 
- ### for now set symbolic links to HYCOM input files
- ln -s ${RTPWD}/HYCOM_glob/* ${RUNDIR}/.
- ###################################################
-
- ### for now copy MOM5 input files
- if [ $SCHEDULER = 'pbs' -o $SCHEDULER = 'moab' ]; then
-   if [ $MACHINE_ID = zeus ] ; then
-     /home/Fei.Liu/bin/setup_mom_input.sh ${RUNDIR}
-   elif [ $MACHINE_ID = gaea ] ; then
-#    /autofs/na1_home1/Fei.Liu/bin/setup_mom_input.sh ${RUNDIR}
-     export ocn_input_dir=${ocn_input_dir:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/nems/NUOPC/OM_stuff/global_box1}
-     export ice_input_dir=${ocn_input_dir:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/nems/NUOPC/OM_stuff/lanl_cice}
-    ./setup_mom_input.sh $RUNDIR $ocn_input_dir $ice_input_dir
-   fi
- fi
- ###################################################
-
- cp atmos.configure_gfs ${RUNDIR}/atmos.configure
+ cat atmos.configure_gfs | sed s:_atm_model_:${atm_model}:g  \
+                         | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
+                         >  atmos.configure
+ cp atmos.configure ${RUNDIR}/atmos.configure
  cp MAPL.rc ${RUNDIR}/MAPL.rc
  cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 
@@ -262,6 +262,7 @@ if [ $SCHEDULER = 'moab' ]; then
                      | sed s:_TPN_:${TPN}:g       \
                      | sed s:_TASKS_:${TASKS}:g   \
                      | sed s:_RUND_:${RUNDIR}:g   \
+                     | sed s:_FIXGLOBAL_:${FIXGLOBAL}:g   \
                      | sed s:_THRD_:${THRD}:g     >  gfs_msub
 
 
@@ -388,8 +389,10 @@ done
 # Give one minute for data to show up on file system
 sleep 60
 
-(echo;echo;echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
- echo;echo;echo "Checking test ${TEST_NR} results ...."
+(echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}";echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
+ echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}";echo "Checking test ${TEST_NR} results ...."
+
+test_status='PASS'
 
 #
 if [ ${CREATE_BASELINE} = false ]; then
@@ -401,33 +404,44 @@ if [ ${CREATE_BASELINE} = false ]; then
     printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
     printf %s " Comparing " $i "....."
 
-    if [ -f ${RUNDIR}/$i -a -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
+    if [ ! -f ${RUNDIR}/$i ] ; then
 
-     d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
+#     echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
+#     echo "Missing " ${RUNDIR}/$i " output file"
+#    (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
+#     echo;echo " Test ${TEST_NR} failed "
+#     exit 2
+     echo ".......MISSING file" >> ${REGRESSIONTEST_LOG}
+     echo ".......MISSING file"
 
-     if [[ $? -ne 0 || $d -ne 0 ]] ; then
-     (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
-      echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
-     fi
+    elif [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
 
-     echo "....OK" >> ${REGRESSIONTEST_LOG}
-     echo "....OK"
+     echo ".......MISSING baseline" >> ${REGRESSIONTEST_LOG}
+     echo ".......MISSING baseline"
 
     else
 
-  if [ ! -f ${RUNDIR}/$i ] ; then
-       echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
-       echo "Missing " ${RUNDIR}/$i " output file"
-  fi
+#tcx
+#     echo "compare ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i"
 
-  if [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
-       echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file" >> ${REGRESSIONTEST_LOG}
-       echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file"
-  fi
+     d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
-    (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
-     echo;echo " Test ${TEST_NR} failed "
-     exit 2
+     if [[ $d -ne 0 ]] ; then
+#     (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
+#      echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
+       echo ".......NOT OK" >> ${REGRESSIONTEST_LOG}
+       echo ".......NOT OK"
+       test_status='FAIL'
+       if [ ${BAIL_CONDITION}"x" = FILE"x" ]; then
+          echo "BAIL_CONDITION=FILE, Abort testing on failure"
+          exit 2
+       fi
+
+     else
+
+       echo "....OK" >> ${REGRESSIONTEST_LOG}
+       echo "....OK"
+     fi
 
     fi
 
@@ -444,7 +458,7 @@ else
  for i in ${LIST_FILES} ; do
   printf %s " Moving " $i "....."
   if [ -f ${RUNDIR}/$i ] ; then
-    cp ${RUNDIR}/${i} ${RTPWD_U}/${CNTL_DIR}/${i}
+    cp ${RUNDIR}/${i} /${STMP}/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else
     echo "Missing " ${RUNDIR}/$i " output file"
     echo;echo " Set ${TEST_NR} failed "
@@ -456,8 +470,15 @@ else
 fi
 # ---
 
-echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
-echo " Test ${TEST_NR} passed "
+echo " Test ${TEST_NR} ${test_status} " >> ${REGRESSIONTEST_LOG}
+echo " Test ${TEST_NR} ${test_status} "
+
+if [ ${BAIL_CONDITION}"x" = TEST"x" ]; then
+  if [ ${test_status}"x" = FAIL"x" ]; then
+     echo "BAIL_CONDITION=TEST, Abort testing on failure"
+     exit 2
+  fi
+fi
 
 sleep 4
 echo;echo

@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+#set -eu
 
 ####################################################################################################
 # Make configure and run files
@@ -35,17 +35,37 @@ cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g                  \
                                  | sed s:_MODE_:${MODE}:g                    \
                                  | sed s:_WGT_:${WGT}:g  >  configure_file_01
 
-cat nems.configure.IN   | sed s:_atm_model_:${atm_model}:g                    \
-                        | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
-                        | sed s:_ocn_model_:${ocn_model}:g                    \
-                        | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
-                        | sed s:_ice_model_:${ice_model}:g                    \
-                        | sed s:_ice_petlist_bounds_:"${ice_petlist_bounds}":g\
-                        | sed s:_med_model_:${med_model}:g                    \
-                        | sed s:_med_petlist_bounds_:"${med_petlist_bounds}":g\
-                        | sed s:_med_atm_coupling_interval_sec_:"${med_atm_coupling_interval_sec}":g\
-                        | sed s:_med_ocn_coupling_interval_sec_:"${med_ocn_coupling_interval_sec}":g\
-                        >  nems.configure
+if [ ${nems_configure}"x" != "x" ]; then
+ cat nems.configure.${nems_configure}.IN   \
+                         | sed s:_atm_model_:${atm_model}:g                    \
+                         | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
+                         | sed s:_lnd_model_:${lnd_model}:g                    \
+                         | sed s:_lnd_petlist_bounds_:"${lnd_petlist_bounds}":g\
+                         | sed s:_ice_model_:${ice_model}:g                    \
+                         | sed s:_ice_petlist_bounds_:"${ice_petlist_bounds}":g\
+                         | sed s:_ocn_model_:${ocn_model}:g                    \
+                         | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
+                         | sed s:_wav_model_:${wav_model}:g                    \
+                         | sed s:_wav_petlist_bounds_:"${wav_petlist_bounds}":g\
+                         | sed s:_ipm_model_:${ipm_model}:g                    \
+                         | sed s:_ipm_petlist_bounds_:"${ipm_petlist_bounds}":g\
+                         | sed s:_hyd_model_:${hyd_model}:g                    \
+                         | sed s:_hyd_petlist_bounds_:"${hyd_petlist_bounds}":g\
+                         | sed s:_med_model_:${med_model}:g                    \
+                         | sed s:_med_petlist_bounds_:"${med_petlist_bounds}":g\
+                         | sed s:_atm_coupling_interval_sec_:"${atm_coupling_interval_sec}":g\
+                         | sed s:_ocn_coupling_interval_sec_:"${ocn_coupling_interval_sec}":g\
+                         | sed s:_coupling_interval_sec_:"${coupling_interval_sec}":g\
+                         | sed s:_coupling_interval_slow_sec_:"${coupling_interval_slow_sec}":g\
+                         | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
+                         >  nems.configure
+
+ cp nems.configure ${RUNDIR}
+fi
+
+cat atmos.configure_nmm | sed s:_atm_model_:${atm_model}:g  \
+                        | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
+                        >  atmos.configure
 
 if [ $SCHEDULER = 'moab' ]; then
 
@@ -58,6 +78,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 cat nmm_conf/nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
                                  | sed s:_ACCNR_:${ACCNR}:g   \
+                                 | sed s:_QUEUE_:${QUEUE}:g   \
                                  | sed s:_SRCD_:${PATHTR}:g   \
                                  | sed s:_WLCLK_:${WLCLK}:g   \
                                  | sed s:_TASKS_:${TASKS}:g   \
@@ -205,8 +226,11 @@ done
 # Check results
 ####################################################################################################
 
-(echo;echo;echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
- echo;echo;echo "Checking test ${TEST_NR} results ...."
+# Give one minute for data to show up on file system
+sleep 60
+
+(echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}";echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
+ echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}";echo "Checking test ${TEST_NR} results ...."
 
 #
      if [ ${CREATE_BASELINE} = false ]; then
@@ -219,33 +243,36 @@ do
 printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
 printf %s " Comparing " $i "....."
 
-if [ -f ${RUNDIR}/$i -a -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
+if [ ! -f ${RUNDIR}/$i ] ; then
+  
+  echo ".......MISSING file" >> ${REGRESSIONTEST_LOG} 
+  echo ".......MISSING file" 
 
+elif [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then 
+
+  echo ".......MISSING baseline" >> ${REGRESSIONTEST_LOG} 
+  echo ".......MISSING baseline" 
+   
+else 
+   
   d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
-  if [[ $? -ne 0 || $d -ne 0 ]] ; then
-   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
-    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
+  if [[ $d -ne 0 ]] ; then
+#   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
+#    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
+    echo ".......NOT OK" >> ${REGRESSIONTEST_LOG} 
+    echo ".......NOT OK" 
+    test_status='FAIL' 
+    if [ ${BAIL_CONDITION}"x" = FILE"x" ]; then 
+      echo "BAIL_CONDITION=FILE, Abort testing on failure" 
+      exit 2 
+    fi
+     
+  else
+
+    echo "....OK" >> ${REGRESSIONTEST_LOG}
+    echo "....OK"
   fi
-
-  echo "....OK" >> ${REGRESSIONTEST_LOG}
-  echo "....OK"
-
-else
-
-  if [ ! -f ${RUNDIR}/$i ] ; then
-    echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
-    echo "Missing " ${RUNDIR}/$i " output file"
-  fi
-
-  if [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
-    echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file" >> ${REGRESSIONTEST_LOG}
-    echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file"
-  fi
-
- (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
-  echo;echo " Test ${TEST_NR} failed "
-  exit 2
 
 fi
 
@@ -263,7 +290,7 @@ for i in ${LIST_FILES}
 do
   printf %s " Moving " $i "....."
   if [ -f ${RUNDIR}/$i ] ; then
-    cp ${RUNDIR}/${i} ${RTPWD_U}/${CNTL_DIR}/${i}
+    cp ${RUNDIR}/${i} ${STMP}/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else
     echo "Missing " ${RUNDIR}/$i " output file"
     echo;echo " Set ${TEST_NR} failed "
@@ -275,9 +302,16 @@ done
      fi
 # ---
 
-echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
+echo " Test ${TEST_NR} ${test_status} " >> ${REGRESSIONTEST_LOG}
 (echo;echo;echo)                >> ${REGRESSIONTEST_LOG}
-echo " Test ${TEST_NR} passed "
+echo " Test ${TEST_NR} ${test_status} "
+
+if [ ${BAIL_CONDITION}"x" = TEST"x" ]; then 
+  if [ ${test_status}"x" = FAIL"x" ]; then 
+    echo "BAIL_CONDITION=TEST, Abort testing on failure" 
+    exit 2 
+  fi 
+fi 
 
 sleep 4
 echo;echo

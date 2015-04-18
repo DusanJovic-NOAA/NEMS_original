@@ -5,6 +5,6 @@
 //
 #endif
 
-#include "./ESMFVersionDefine_ESMF_520rAPI.h"
+#include "./ESMFVersionDefine_ESMF_630rAPI.h"
 
 #define WITH_NUOPC

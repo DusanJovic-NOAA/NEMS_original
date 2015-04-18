@@ -11,13 +11,53 @@ else
   $(error Error: !!!!!! Configure file is missing. Please create ./conf/configure.nems  by running ./configure !!!!!!)
 endif
 
+# conditionally read in the paths for external components
+
+ifndef NEMSAppBuilder
+  exist := $(wildcard ./conf/externals.nems)
+  ifneq ($(strip $(exist)),)
+    include ./conf/externals.nems
+  else
+    $(error Error: !!!!!! Externals file is missing. Please create ./conf/externals.nems  by running ./configure !!!!!!)
+  endif
+endif
+
 # Need a variable that contains only a comma for some of the operations below
 COMMA := ,
 
+# external ATM dependencies ####################################################
+ifneq (,$(findstring satm,$(ATM)))
+  include $(satm_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SATM=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring xatm,$(ATM)))
+  include $(xatm_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XATM=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+
 # external OCN dependencies ####################################################
-ifneq (,$(findstring dummy,$(OCN)))
-  include $(ocndummy_mk)
-  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_OCN_DUMMY=$(ESMF_DEP_FRONT)
+ifneq (,$(findstring socn,$(OCN)))
+  include $(socn_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SOCN=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring xocn,$(OCN)))
+  include $(xocn_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XOCN=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
   DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
   DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
@@ -42,12 +82,30 @@ ifneq (,$(findstring mom5,$(OCN)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
+ifneq (,$(findstring pom,$(OCN)))
+  include $(pom_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_POM=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
 ################################################################################
 
 # external SEAICE dependencies #################################################
-ifneq (,$(findstring dummy,$(ICE)))
-  include $(icedummy_mk)
-  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_ICE_DUMMY=$(ESMF_DEP_FRONT)
+ifneq (,$(findstring sice,$(ICE)))
+  include $(sice_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SICE=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring xice,$(ICE)))
+  include $(xice_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XICE=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
   DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
   DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
@@ -57,6 +115,126 @@ endif
 ifneq (,$(findstring cice,$(ICE)))
   include $(cice_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_CICE=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+################################################################################
+
+# external WAV dependencies ####################################################
+ifneq (,$(findstring swav,$(WAV)))
+  include $(swav_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SWAV=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring xwav,$(WAV)))
+  include $(xwav_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XWAV=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring ww3,$(WAV)))
+  include $(ww3_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_WW3=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+################################################################################
+
+# external LND dependencies ####################################################
+ifneq (,$(findstring slnd,$(LND)))
+  include $(slnd_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SLND=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring xlnd,$(LND)))
+  include $(xlnd_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XLND=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring lis,$(LND)))
+  include $(lis_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_LIS=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+################################################################################
+
+# external IPM dependencies ####################################################
+ifneq (,$(findstring sipm,$(IPM)))
+  include $(sipm_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SIPM=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring xipm,$(IPM)))
+  include $(xipm_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XIPM=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring ipe,$(IPM)))
+  include $(ipe_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_IPE=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+################################################################################
+
+# external HYD dependencies ####################################################
+ifneq (,$(findstring shyd,$(HYD)))
+  include $(shyd_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SHYD=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring xhyd,$(HYD)))
+  include $(xhyd_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XHYD=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring wrfhydro,$(HYD)))
+  include $(wrfhydro_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_WRFHYDRO=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
   DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
   DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
@@ -83,7 +261,7 @@ INCS = -Iatmos \
 MAIN = MAIN_NEMS.o
 
 OBJS = module_MEDIATOR.o \
-       module_EARTH_GENERIC_COMP.o \
+       module_MEDIATOR_SpaceWeather.o \
        module_EARTH_INTERNAL_STATE.o \
        module_EARTH_GRID_COMP.o \
        module_NEMS_INTERNAL_STATE.o \
@@ -214,13 +392,29 @@ all:
 #	@echo " gmake fim_gsm ----------------------------- FIM and GSM - without the GOCART"
 #	@echo " gmake fim_gsm GOCART_MODE=full ------------ FIM and GSM - with the GOCART"
 	@echo
+	@echo "In order to build NEMS with external atmosphere components, all of the above targets support"
+	@echo "the optional ATM variable. Currently supported values are: \"satm\", \"xatm\"."
+	@echo
 	@echo "In order to build NEMS with ocean components, all of the above targets support"
-	@echo "the optional OCN variable. Supported values are: \"dummy\", \"hycom\", and \"mom5\"."
+	@echo "the optional OCN variable. Currently supported values are: \"socn\", \"xocn\", \"mom5\", \"hycom\", \"pom\"."
 	@echo
 	@echo "In order to build NEMS with sea-ice components, all of the above targets support"
-	@echo "the optional ICE variable. Supported values are: \"dummy\", \"cice\"."
+	@echo "the optional ICE variable. Currently supported values are: \"sice\", \"xice\", \"cice\"."
 	@echo
-	@echo "Specifying multiple values, e.g. \"gmake nmm_gsm OCN=mom5,dummy,hycom ICE=dummy\", is supported."
+	@echo "In order to build NEMS with wave components, all of the above targets support"
+	@echo "the optional WAV variable. Currently supported values are: \"swav\", \"xwav\", \"ww3\"."
+	@echo
+	@echo "In order to build NEMS with land components, all of the above targets support"
+	@echo "the optional LND variable. Currently supported values are: \"slnd\", \"xlnd\", \"lis\"."
+	@echo
+	@echo "In order to build NEMS with ionosphere-plasmasphere components, all of the above targets support"
+	@echo "the optional IPM variable. Currently supported values are: \"sipm\", \"xipm\", \"ipe\"."
+	@echo
+	@echo "In order to build NEMS with hydrology components, all of the above targets support"
+	@echo "the optional HYD variable. Currently supported values are: \"shyd\", \"xhyd\", \"wrfhydro\"."
+	@echo
+	@echo "Specifying multiple values is supported!"
+	@echo "E.g. \"gmake nmm_gsm ATM=satm,xatm OCN=socn,xocn,mom5,hycom ICE=sice,xice,cice WAV=swav,xwav LND=slnd,xlnd IPM=sipm,xipm HYD=shyd,xhyd\"."
 	@echo
 
 ################################################################################
@@ -273,7 +467,7 @@ nmm_post_libs:
 
 gsm: gsm_libs $(OBJS) $(COBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
-	@echo "nems.x is created for GSM core."
+	@echo "NEMS.x successfully created for GSM core."
 
 gsm_libs:
 ifeq ($(GOCART_MODE),full)
@@ -298,7 +492,7 @@ endif
 
 gsm_post: gsm_post_libs $(OBJS) $(COBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
-	@echo "nems.x is created for GSM core."
+	@echo "NEMS.x successfully created for GSM core."
 
 gsm_post_libs:
 ifeq ($(GOCART_MODE),full)
@@ -323,7 +517,7 @@ endif
 
 gen: gen_libs $(OBJS) $(COBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(COBJS) $(OBJS) $(LIBS_GEN) $(EXTLIBS)
-	@echo "nems.x is created for GEN core."
+	@echo "NEMS.x successfully created for GEN core."
 
 gen_libs:
 	cd atmos/share         && gmake
@@ -345,7 +539,7 @@ gen_libs:
 
 nmm_gsm_gen: nmm_gsm_gen_libs $(OBJS) $(COBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
-	@echo "nems.x is created for GEN, NMM and GSM core."
+	@echo "NEMS.x successfully created for GEN, NMM and GSM core."
 
 nmm_gsm_gen_libs:
 ifeq ($(GOCART_MODE),full)
@@ -370,7 +564,7 @@ endif
 
 gsm_gen_post: gsm_gen_post_libs $(OBJS) $(COBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
-	@echo "nems.x is created for GEN and GSM core."
+	@echo "NEMS.x successfully created for GEN and GSM core."
 
 gsm_gen_post_libs:
 ifeq ($(GOCART_MODE),full)
@@ -395,7 +589,7 @@ endif
 
 nmm_gsm: nmm_gsm_libs $(OBJS) $(COBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(COBJS) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
-	@echo "nems.x is created for NMM and GSM core."
+	@echo "NEMS.x successfully created for NMM and GSM core."
 
 nmm_gsm_libs:
 ifeq ($(GOCART_MODE),full)
@@ -422,7 +616,7 @@ endif
 # TODO:  currently in $(LIBS_FIM) .  
 fim: fim_libs $(OBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_FIM) $(ESMF_LIB)
-	@echo "nems.x is created for FIM core."
+	@echo "NEMS.x successfully created for FIM core."
 
 fim_libs:
 	cd atmos/share         && gmake
@@ -443,7 +637,7 @@ fim_libs:
 
 fim_gsm: fim_gsm_libs $(OBJS) $(MAIN)
 #	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
-#	@echo "nems.x is created for FIM and GSM core."
+#	@echo "NEMS.x successfully created for FIM and GSM core."
 	@echo "ERROR:  Cannot build FIM with other cores yet.  nems.x is NOT created for FIM and GSM core."
 	@exit -1
 
