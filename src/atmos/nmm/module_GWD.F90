@@ -118,7 +118,7 @@
 !       for the 12-km air quality (na12aq) domain
 !
       CLEFF=CLEFFAMP*1.E-5*SQRT(DPHD/DPHD0)
-      write(0,*) 'dphd,cleff=',dphd,cleff
+!     write(0,*) 'dphd,cleff=',dphd,cleff
 !
       END SUBROUTINE GWD_init
 !

@@ -252,10 +252,6 @@
 !
       REAL(kind=KFPT) :: phase1_tim,phase3_tim
 !
-      REAL(kind=KFPT),POINTER :: domain_run_1,domain_run_2,domain_run_3 &
-                                ,pc_cpl_run_cpl1,pc_cpl_run_cpl2        &
-                                ,pc_cpl_run_cpl3,pc_cpl_run_cpl4 
-!
       TYPE(INTEGRATION_TIMERS),POINTER :: TD
 !
 !-----------------------------------------------------------------------
@@ -501,6 +497,7 @@
       check_2way: IF(NEST_MODE=='2-way'                                 &
                          .AND.                                          &
                      I_AM_A_FCST_TASK)THEN     
+      btim0=timef()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Call Phase 1 Coupler Run: Check 2-Way Signals"
@@ -589,6 +586,7 @@
 !
 !-----------------------------------------------------------------------
 !
+        td%pc_cpl_run_cpl1=td%pc_cpl_run_cpl1+(timef()-btim0)
       ENDIF check_2way
 !
 !-----------------------------------------------------------------------
@@ -628,9 +626,9 @@
 !***           from the future [see (1) above].
 !-----------------------------------------------------------------------
 !
-        btim0=timef()
 !
         IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
+          btim0=timef()
 !
           IF(MOD(KOUNT_STEPS,PAR_CHI_TIME_RATIO)==0)THEN                   !<-- Child is at the start of a parent timestep.
 !
@@ -692,11 +690,11 @@
 !
           ENDIF
 !
+          td%pc_cpl_run_cpl2=td%pc_cpl_run_cpl2+(timef()-btim0)
         ENDIF
 !
 !-----------------------------------------------------------------------
 !
-        td%pc_cpl_run_cpl1=td%pc_cpl_run_cpl1+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !***  Call phase 3 of the Run step of the Parent-Child coupler.
@@ -705,13 +703,13 @@
 !***  2-way exchange data from their children.
 !-----------------------------------------------------------------------
 !
-        btim0=timef()
 !
         IF(I_AM_A_FCST_TASK)THEN
 !
           IF(NUM_2WAY_CHILDREN>0)THEN                                      !<-- Parents w/ 2way children call phase 3 of P-C coupler
 !
             IF(KOUNT_STEPS>0)THEN
+              btim0=timef()
 !
 !-----------------------------------------------------------------------
 !
@@ -731,13 +729,13 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+              td%pc_cpl_run_cpl3=td%pc_cpl_run_cpl3+(timef()-btim0)
             ENDIF
 !
           ENDIF
 !
         ENDIF
 !
-        td%pc_cpl_run_cpl2=td%pc_cpl_run_cpl2+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !***  If filtering is not in effect and this is the start or restart
@@ -901,9 +899,9 @@
 !***      recent motion of the nests.
 !-----------------------------------------------------------------------
 !
-        btim0=timef()
 !
         IF(NUM_CHILDREN>0.AND.I_AM_A_FCST_TASK)THEN                        !<-- Fcst tasks call the coupler if there are children
+          btim0=timef()
 !
 !-----------------------------------------------------------------------
 !***  Call the Run step for phase 4 of the Parent-Child coupler.
@@ -930,9 +928,9 @@
                                            ,state_in =             EXP_STATE_CPL_NEST &  !<-- The P-C coupler export state
                                            ,state_out=             IMP_STATE_DOMAIN)     !<-- The Domain import state
 !
+          td%pc_cpl_run_cpl4=td%pc_cpl_run_cpl4+(timef()-btim0)
         ENDIF
 !
-        td%pc_cpl_run_cpl3=td%pc_cpl_run_cpl3+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !***  Call the Run step for phase 5 of the Parent-Child coupler.
@@ -941,7 +939,6 @@
 !***  parents at the end of each parent timestep.
 !-----------------------------------------------------------------------
 !
-        btim0=timef()
 !
         IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
 !
@@ -950,6 +947,7 @@
             IF(MOD(KOUNT_STEPS+1,PAR_CHI_TIME_RATIO)==0                 &  !<-- If true then this child has
                            .AND.                                        &  !    reached the end of a timestep
                MY_DOMAIN_ID>1)THEN                                         !    of its parent.
+               btim0=timef()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
               MESSAGE_CHECK="Call Phase 5 Coupler Run: Children Send 2-Way Data to Parents"
@@ -967,13 +965,13 @@
               CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+              td%pc_cpl_run_cpl5=td%pc_cpl_run_cpl5+(timef()-btim0)
             ENDIF
 !
           ENDIF
 !
         ENDIF
 !
-        td%pc_cpl_run_cpl4=td%pc_cpl_run_cpl4+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !***  If digital filtering is currently executing then call phase 2
@@ -981,9 +979,9 @@
 !***  phase is NMM_FILTERING.
 !-----------------------------------------------------------------------
 !
-        btim0=timef()
 !
         IF(FILTER_METHOD>0)THEN
+          btim0=timef()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="NMM_INTEGRATE: Phase 2 Domain Run for Filtering "
@@ -1001,9 +999,9 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          td%domain_run_2=td%domain_run_2+(timef()-btim0)
         ENDIF
 !
-        td%domain_run_2=td%domain_run_2+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !***  Increment the timestep if integration took place.
@@ -1068,9 +1066,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        btim0=timef()
 !
         IF(FILTER_METHOD==0)THEN
+          btim0=timef()
 !
           CALL ESMF_GridCompRun(gridcomp   =DOMAIN_GRID_COMP            &  !<-- The DOMAIN gridded component
                                ,importState=IMP_STATE_DOMAIN            &  !<-- The DOMAIN import state
@@ -1078,13 +1076,14 @@
                                ,clock      =CLOCK_INTEGRATE             &  !<-- The ESMF Clock for "mini" forecast
                                ,phase      =3                           &  !<-- The phase (subroutine) of DOMAIN Run to execute
                                ,rc         =RC)
+          td%domain_run_3=td%domain_run_3+(timef()-btim0)
+!
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
         ENDIF
-!
-        td%domain_run_3=td%domain_run_3+(timef()-btim0)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Lead forecast task prints timestep information in free forecast.
@@ -1262,11 +1261,57 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          MESSAGE_CHECK="Extract read_moving_child_topo_tim from Parent-Child Cpl Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='read_moving_child_topo_tim'     &  !<-- Name of the attribute to extract
+                                ,value=td%read_moving_child_topo_tim    &  !<-- task 0 time to process receive of move flag
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          MESSAGE_CHECK="Extract barrier_move_tim from Parent-Child Cpl Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='barrier_move_tim'     &  !<-- Name of the attribute to extract
+                                ,value=td%barrier_move_tim    &  !<-- task 0 time to process receive of move flag
+                                ,rc   =RC)
+
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='pscd_tim'     &  !<-- Name of the attribute to extract
+                                ,value=td%pscd_tim    &  !<-- task 0 time to process receive of move flag
+                                ,rc   =RC)
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='pscd1_tim'     &  !<-- Name of the attribute to extract
+                                ,value=td%pscd1_tim    &  !<-- task 0 time to process receive of move flag
+                                ,rc   =RC)
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='pscd2_tim'     &  !<-- Name of the attribute to extract
+                                ,value=td%pscd2_tim    &  !<-- task 0 time to process receive of move flag
+                                ,rc   =RC)
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='pscd3_tim'     &  !<-- Name of the attribute to extract
+                                ,value=td%pscd3_tim    &  !<-- task 0 time to process receive of move flag
+                                ,rc   =RC)
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='pscd4_tim'     &  !<-- Name of the attribute to extract
+                                ,value=td%pscd4_tim    &  !<-- task 0 time to process receive of move flag
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+
         ENDIF
 !
 !-----------------------------------------------------------------------
-!
-        IF (I_AM_LEAD_FCST_TASK .AND. NESTING) WRITE(0,897)
 !
         IF(.NOT. NESTING) THEN                                             !<-- Parent only run
           IF (td%domain_run_1 < 1.0) THEN                                  !<-- An I/O task
@@ -1284,106 +1329,40 @@
 !
         ELSE
           IF(I_AM_A_FCST_TASK)THEN                                          !<-- Nested run and a forecast task
-            IF(NUM_CHILDREN == 0)THEN                                       !<-- A nest with no children
-              IF (td%cpl1_recv_tim > 1.0) THEN                              !<-- Child compute task on the boundary
-                IF (td%domain_run_2 > 1.0) THEN                             !<-- Digital filter
-                  WRITE(0,902)td%domain_run_1                            &
-                             ,td%domain_run_2                            &
-                             ,td%domain_run_3                            &
-                             ,(td%pc_cpl_run_cpl1-td%cpl1_recv_tim)      &
-                             ,td%cpl1_recv_tim                           &
-                             ,td%update_interior_from_nest_tim           &
-                             ,td%update_interior_from_parent_tim
-                ELSE
-                  WRITE(0,903)td%domain_run_1                            &
-                             ,td%domain_run_3                            &
-                             ,(td%pc_cpl_run_cpl1-td%cpl1_recv_tim)      &
-                             ,td%cpl1_recv_tim                           &
-                             ,td%update_interior_from_nest_tim           &
-                             ,td%update_interior_from_parent_tim
-                ENDIF
-              ELSE                                                           !<-- Child compute task not on a boundary
-                IF (td%domain_run_2 > 1.0) THEN                              !<-- Digital filter
-                  WRITE(0,904)td%domain_run_1,td%domain_run_2,td%domain_run_3
-                ELSE
-                  WRITE(0,905)td%domain_run_1,td%domain_run_3                !<-- No digital filter
-                ENDIF
-              ENDIF
+           IF (td%domain_run_2 > 1.0) THEN                                  !<-- Digital filter
+             WRITE(0,800)my_domain_id,td%pc_cpl_run_cpl1,td%pc_cpl_run_cpl2    &
+                        ,td%pc_cpl_run_cpl3,td%domain_run_1,td%pc_cpl_run_cpl4 &
+                        ,td%pc_cpl_run_cpl5,td%domain_run_2,td%domain_run_3
+           ELSE
+            IF(td%domain_run_3 > 1.0) then
+             WRITE(0,801)my_domain_id,td%pc_cpl_run_cpl1,td%pc_cpl_run_cpl2    &
+                        ,td%pc_cpl_run_cpl3,td%domain_run_1,td%pc_cpl_run_cpl4 &
+                        ,td%pc_cpl_run_cpl5,td%domain_run_3
+             WRITE(0,803)my_domain_id,td%parent_bookkeep_moving_tim            &
+                        ,td%cpl2_comp_tim,td%cpl2_send_tim,td%cpl2_wait_tim    &
+                        ,td%barrier_move_tim
+!jaa             WRITE(0,803)my_domain_id,td%parent_bookkeep_moving_tim            &
+!jaa                        ,td%parent_update_moving_tim,td%t0_recv_move_tim       &
+!jaa                        ,td%read_moving_child_topo_tim,td%barrier_move_tim
+            WRITE(0,804)my_domain_id,td%pscd_tim,td%pscd1_tim,td%pscd2_tim    &
+                       ,td%pscd3_tim,td%pscd4_tim
+            ELSE
+             WRITE(0,802)my_domain_id,td%pc_cpl_run_cpl1,td%pc_cpl_run_cpl2    &
+                        ,td%pc_cpl_run_cpl3,td%domain_run_1,td%pc_cpl_run_cpl4 &
+                        ,td%pc_cpl_run_cpl5
+             WRITE(0,803)my_domain_id,td%parent_bookkeep_moving_tim            &
+                        ,td%cpl2_comp_tim,td%cpl2_send_tim,td%cpl2_wait_tim    &
+                        ,td%barrier_move_tim
+!jaa             WRITE(0,803)my_domain_id,td%parent_bookkeep_moving_tim            &
+!jaa                        ,td%parent_update_moving_tim,td%t0_recv_move_tim       &
+!jaa                        ,td%read_moving_child_topo_tim,td%barrier_move_tim
+             WRITE(0,804)my_domain_id,td%pscd_tim,td%pscd1_tim,td%pscd2_tim    &
+                        ,td%pscd3_tim,td%pscd4_tim
+
             ENDIF
-!
-!           WRITE(0,*)'   Total Cpl Phase 1=',pc_cpl_run_cpl1*1.e-3
-!
-            IF(NUM_CHILDREN>0)THEN                                           !<-- Parent task that has a child nest
-              IF (I_AM_LEAD_FCST_TASK) WRITE(0,898)td%t0_recv_move_tim
-!
-              IF(I_AM_A_NEST)THEN
-                IF (td%cpl1_recv_tim > 1.0) THEN                           !<-- Child compute task that is on a boundary
-                  IF (td%domain_run_2 > 1.0) THEN                          !<-- Digital filter
-                    WRITE(0,902)td%domain_run_1                         &
-                               ,td%domain_run_2                         &
-                               ,td%domain_run_3                         &
-                               ,(td%pc_cpl_run_cpl1-td%cpl1_recv_tim)   &
-                               ,td%cpl1_recv_tim                        &
-                               ,td%update_interior_from_nest_tim        &
-                               ,td%update_interior_from_parent_tim
-                  ELSE
-                    WRITE(0,903)td%domain_run_1                         &
-                               ,td%domain_run_3                         &
-                               ,(td%pc_cpl_run_cpl1-td%cpl1_recv_tim)   &
-                               ,td%cpl1_recv_tim                        &
-                               ,td%update_interior_from_nest_tim        &
-                               ,td%update_interior_from_parent_tim
-                  ENDIF
-                ENDIF
-              ENDIF
-!
-              IF( td%cpl2_comp_tim > 0.1) THEN                             !<-- Parent tasks that send boundary data
-                IF (td%domain_run_2 >1.0) THEN                             !<-- Digital filter
-                  WRITE(0,906)td%domain_run_1                           &
-                             ,td%domain_run_2                           &
-                             ,td%domain_run_3                           &
-                             ,td%cpl2_comp_tim                          &
-                             ,td%cpl2_wait_tim                          &
-                             ,td%parent_update_moving_tim
-                ELSE
-                  WRITE(0,907)td%domain_run_1                           &
-                             ,td%domain_run_3                           &
-                             ,td%cpl2_comp_tim                          &
-                             ,td%cpl2_wait_tim                          &
-                             ,td%parent_update_moving_tim
-                ENDIF
-!
-              ELSE                                                         !<-- Parent compute task not on a boundary
-                IF (td%domain_run_2 > 1.0) THEN                            !<-- Digital filter
-                  IF (td%parent_update_moving_tim> 1.0e-2) THEN            !<-- Parent tasks that update moving nests
-                    WRITE(0,900)td%domain_run_1                         &
-                               ,td%domain_run_2                         &
-                               ,td%domain_run_3
-                  ELSE
-                    WRITE(0,908)td%domain_run_1                         &
-                               ,td%domain_run_2                         &
-                               ,td%domain_run_3
-                  ENDIF
-!
-                ELSE
-                  IF (td%parent_update_moving_tim> 1.0e-2) THEN            !<-- Parent tasks that update moving nests
-                    WRITE(0,901)td%domain_run_1,td%domain_run_3         &
-                               ,td%parent_update_moving_tim
-                  ELSE
-                    WRITE(0,909)td%domain_run_1,td%domain_run_3
-                  ENDIF
-                ENDIF
-              ENDIF
-            ENDIF
-!
-            IF(NEST_MODE=='2-way')THEN
-              IF(I_AM_A_NEST)THEN
-!               WRITE(0,910)td%pc_cpl_run_cpl3
-              ENDIF
-            ENDIF
-!
+           ENDIF
           ELSE                                                               !<-- I/O tasks
-!           WRITE(0,899)td%domain_run_3
+           WRITE(0,899)td%domain_run_3
           ENDIF
         ENDIF
 !
@@ -1400,37 +1379,25 @@
                ' cpl wait - time parent task spends waiting for nest tasks to receive boundary data ',/&
                ' cpl 2-way send  - time child task computing/sending exchange data to parent ')
 
- 898    FORMAT(' Task 0 time to process move flag = ',g10.3)
+ 800    FORMAT(' For domain ',i2,' c1 ',g10.3,' c2 ',g10.3,' c3 ',g10.3  &
+               ,' run ',g10.3,' c4 ',g10.3,' c5 ',g10.3,' df ',g10.3     &
+               ,' i/o ',g10.3)
+ 801    FORMAT(' For domain ',i2,' c1 ',g10.3,' c2 ',g10.3,' c3 ',g10.3  &
+               ,' run ',g10.3,' c4 ',g10.3,' c5 ',g10.3,' i/o ',g10.3)
+ 802    FORMAT(' For domain ',i2,' c1 ',f10.5,' c2 ',f10.3,' c3 ',f10.5  &
+               ,' run ',f10.5,' c4 ',f10.5,' c5 ',f10.5)
+!jaa 803    FORMAT(' For domain ',i2,' pbm ',f10.5,' pumt ',f10.5,' rmt ',f10.5  &
+!jaa               ,' rmctt ',f10.5,' bmt ',f10.5)
+ 803    FORMAT(' For domain ',i2,' pbm ',f10.5,' comp ',f10.5,' send ',f10.5  &
+               ,' wait ',f10.5,' bmt ',f10.5)
+ 804    FORMAT(' For domain ',i2,' pscd ',f10.5,' pscd1 ',f10.5,' pscd2 ',f10.5  &
+               ,' pscd3 ',f10.5,' pscd4 ',f10.5)
  899    FORMAT(' I/O task Phase 3= ',g10.3)
  900    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
                ' Phase 3 = ',g10.3,' update parent move = ',g10.3)
  901    FORMAT(' Integrate = ',g10.3,' Phase 3 = ',g10.3,                &
                ' update parent move = ',g10.3)
- 902    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
-               ' Phase 3 = ',g10.3,' cpl compute = ',g10.3,              &
-               ' cpl recv = ',g10.3,                                     &
-               ' upd interior nest = ',g10.3,                            &
-               ' upd interior parent = ',g10.3)
 
- 903    FORMAT(' Integrate = ',g10.3,' Phase 3 = ',g10.3,                &
-               ' cpl compute = ',g10.3,' cpl recv = ',g10.3,             &
-               ' upd interior nest = ',g10.3,                            &
-               ' upd interior parent = ',g10.3)
- 904    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
-               ' Phase 3 = ',g10.3)
- 905    FORMAT(' Integrate = ',g10.3,' Phase 3 = ',g10.3)
- 906    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
-               ' Phase 3 = ',g10.3,                                      &
-               ' cpl compute = ',g10.3,' cpl wait = ',g10.3,             &
-               ' update parent move = ',g10.3)
- 907    FORMAT(' Integrate = ',g10.3,                                    &
-               ' Phase 3 = ',g10.3,                                      &
-               ' cpl compute = ',g10.3,' cpl wait = ',g10.3,             &
-               ' update parent move = ',g10.3)
- 908    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
-               ' Phase 3 = ',g10.3)
- 909    FORMAT(' Integrate = ',g10.3,' Phase 3 = ',g10.3)
- 910    FORMAT(' Child send 2-way data = ',g10.3)
 !
 !-----------------------------------------------------------------------
 !

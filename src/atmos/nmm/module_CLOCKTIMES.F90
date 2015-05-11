@@ -58,13 +58,18 @@
                           ,pc_cpl_run_cpl2                              &
                           ,pc_cpl_run_cpl3                              &
                           ,pc_cpl_run_cpl4                              &
+                          ,pc_cpl_run_cpl5                              &
                           ,cpl1_recv_tim                                &
                           ,cpl2_send_tim                                &
                           ,cpl2_comp_tim                                &
                           ,cpl2_wait_tim                                &
                           ,parent_bookkeep_moving_tim                   &
                           ,parent_update_moving_tim                     &
-                          ,t0_recv_move_tim
+                          ,t0_recv_move_tim                             &
+                          ,read_moving_child_topo_tim                   &
+                          ,barrier_move_tim,pscd_tim,pscd1_tim          &
+                          ,pscd2_tim,pscd3_tim,pscd4_tim
+
 !
 !-----------------------------------------------------------------------
 !***  Associated with moving nests

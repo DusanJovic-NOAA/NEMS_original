@@ -1,4 +1,4 @@
-Wed Apr 15 21:51:41 UTC 2015
+Mon May 11 06:45:57 EDT 2015
 Start Regression test
 
 
@@ -98,8 +98,57 @@ Checking test 7 results ....
 
 
 
-Test 8 gfs_32 Compare GFS results with previous trunk version
-Test 8
+Test 8 nmm_2way_nests Test NMMB-regional with 2-way moving nests
+
+
+baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_2way_nests
+Checking test 8 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_02_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_02_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_03_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_03_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_04_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_04_nio_0012h_00m_00.00s.........OK
+ Test 8  
+
+
+
+Test 9 nmm_2way_nests_restart Test NMMB-regional with 2-way moving nests - RESTART
+
+
+baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_2way_nests
+Checking test 9 results ....
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Test 9  
+
+
+
+Test 10 gfs_32 Compare GFS results with previous trunk version
+Test 10
 Compare GFS results with previous trunk version
 GFS, 32 proc, 1 thread
 
@@ -107,54 +156,6 @@ GFS, 32 proc, 1 thread
 
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
-Checking test 8 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Test 8 PASS 
-Test 9 gfs_16_1_dfi GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
-Test 9
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
-GFS, 16 proc, 2 thread
-
-
-
-
-baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID
-Checking test 9 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Test 9 PASS 
-Test 10 wam_gh_l150 WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
-Test 10
-WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
-GFS, 32 proc, 1 thread
-
-
-
-
-baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150
 Checking test 10 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -175,16 +176,35 @@ Checking test 10 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 10 PASS 
-Test 11 wam_gh_l150_ndsl WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
+Test 11 gfs_16_1_dfi GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
 Test 11
-WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+GFS, 16 proc, 2 thread
+
+
+
+
+baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID
+Checking test 11 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Test 11 PASS 
+Test 12 wam_gh_l150 WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
+Test 12
+WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
 GFS, 32 proc, 1 thread
 
 
 
 
-baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150_NDSL
-Checking test 11 results ....
+baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150
+Checking test 12 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -203,16 +223,45 @@ Checking test 11 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 11 PASS 
-Test 12 gfs_gocart_nemsio GFS_GOCART with NEMSIO
-Test 12
+ Test 12 PASS 
+Test 13 wam_gh_l150_ndsl WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
+Test 13
+WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
+GFS, 32 proc, 1 thread
+
+
+
+
+baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150_NDSL
+Checking test 13 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 13 PASS 
+Test 14 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 14
 GFS_GOCART with NEMSIO
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 12 results ....
+Checking test 14 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -233,6 +282,6 @@ Checking test 12 results ....
  Comparing ngac.t00z.aerf06.........OK
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
- Test 12 passed 
+ Test 14 passed 
 REGRESSION TEST WAS SUCCESSFUL
-Thu Apr 16 03:47:48 UTC 2015
+Mon May 11 09:43:10 EDT 2015

@@ -226,7 +226,7 @@
       integer(4) :: ic1, crate1, cmax1
       integer(4) :: ic2, crate2, cmax2
 
-      call system_clock(count=ic1, count_rate=crate1, count_max=cmax1)
+!     call system_clock(count=ic1, count_rate=crate1, count_max=cmax1)
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -772,8 +772,8 @@
 !-----------------------------------------------------------------------
 !
         IF(TRIM(SHORTWAVE)=='rrtm')THEN
-      call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
-      write(0,*)'RADIATION: ',ic2-ic1
+!     call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
+!     write(0,*)'RADIATION: ',ic2-ic1
 !--- RRTM already calculated variables below
           RETURN
         ENDIF
@@ -904,8 +904,8 @@
 !
       ENDIF
 
-      call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
-      write(0,*)'RADIATION: ',ic2-ic1
+!     call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
+!     write(0,*)'RADIATION: ',ic2-ic1
 
 !
 !-----------------------------------------------------------------------

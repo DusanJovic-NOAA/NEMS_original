@@ -585,7 +585,12 @@
 !
         REAL(kind=KDBL) :: parent_bookkeep_moving_tim                   &
                           ,parent_update_moving_tim                     &
-                          ,t0_recv_move_tim
+                          ,t0_recv_move_tim                             &
+                          ,read_moving_child_topo_tim                   &
+                          ,barrier_move_tim,pscd_tim,pscd1_tim          &
+                          ,pscd2_tim,pscd3_tim,pscd4_tim
+!
+        REAL(kind=KDBL) :: ja1_tim,ja2_tim,ja3_tim,ja4_tim,jat_tim
 !
 !***  The following are for moving nests.
 !
@@ -963,7 +968,12 @@
 !
       REAL(kind=KDBL),POINTER :: parent_bookkeep_moving_tim             &
                                 ,parent_update_moving_tim               &
-                                ,t0_recv_move_tim
+                                ,t0_recv_move_tim                       &
+                                ,read_moving_child_topo_tim             &
+                                ,barrier_move_tim,pscd_tim,pscd1_tim    &
+                                ,pscd2_tim,pscd3_tim,pscd4_tim
+
+      REAL(kind=KDBL),POINTER :: ja1_tim,ja2_tim,ja3_tim,ja4_tim,jat_tim
 !
 !-----------------------------------------
 !***  The following are for moving nests.
@@ -1044,7 +1054,7 @@
       REAL(kind=KFPT),SAVE :: NORTH_LAT_MAX_MVG_NEST                    &  !<-- Do not let nests move north of this latitude (rad)
                              ,SOUTH_LAT_MAX_MVG_NEST                       !<-- Do not let nests move south of this latitude (rad)
 !
-      REAL(kind=KDBL) :: btim,btim0
+      REAL(kind=KDBL) :: btim,btim0,btim1,btim2
 !
       CHARACTER(len=5),SAVE :: NEST_MODE                                   !<--- Is the nesting 1-way or 2-way
 !
@@ -6554,6 +6564,18 @@
       parent_bookkeep_moving_tim=>cc%parent_bookkeep_moving_tim
       parent_update_moving_tim=>cc%parent_update_moving_tim
       t0_recv_move_tim=>cc%t0_recv_move_tim
+      read_moving_child_topo_tim=>cc%read_moving_child_topo_tim
+      barrier_move_tim=>cc%barrier_move_tim
+      pscd_tim=>cc%pscd_tim
+      pscd1_tim=>cc%pscd1_tim
+      pscd2_tim=>cc%pscd2_tim
+      pscd3_tim=>cc%pscd3_tim
+      pscd4_tim=>cc%pscd4_tim
+      ja1_tim=>cc%ja1_tim
+      ja2_tim=>cc%ja2_tim
+      ja3_tim=>cc%ja3_tim
+      ja4_tim=>cc%ja4_tim
+      jat_tim=>cc%jat_tim
 !
       cpl1_prelim_tim=0.
       cpl1_south_h_tim=0.
@@ -6582,6 +6604,18 @@
       parent_bookkeep_moving_tim=0.
       parent_update_moving_tim  =0.
       t0_recv_move_tim          =0.
+      read_moving_child_topo_tim=0.0
+      barrier_move_tim=0.0
+      pscd_tim=0.
+      pscd1_tim=0.
+      pscd2_tim=0.
+      pscd3_tim=0.
+      pscd4_tim=0.
+      ja1_tim=0.
+      ja2_tim=0.
+      ja3_tim=0.
+      ja4_tim=0.
+      jat_tim=0.
 !
 !-----------------------------------------------------------------------
 !
@@ -6839,7 +6873,7 @@
 !
               CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(0)      !<-- Local rank of child's lead task in p-c communicator
               TWOWAY_SIGNAL_TAG=1115+1000*MY_CHILDREN_ID(N)               &  !<-- Use child's domain ID,timestep to create a unique tag
-                                +10*(NTIMESTEP*TIME_RATIO_MY_CHILDREN(N)-1)
+                                +100*(NTIMESTEP*TIME_RATIO_MY_CHILDREN(N)-1)
 !
               CALL MPI_IPROBE(CHILDTASK_0                               &  !<-- Is 2-way signal present from child N's fcst task 0?
                              ,TWOWAY_SIGNAL_TAG                         &  !<-- Tag associated with 2way signal from children
@@ -8724,6 +8758,7 @@
 !-----------------------------------------------------------------------
 !
       btim0=timef()
+      btim2=timef()
 !
 !-----------------------------------------------------------------------
 !***  Initialize the error signal variables.
@@ -8820,6 +8855,8 @@
 !***  be filled after the call to MPI_WAIT.
 !-----------------------------------------------------------------------
 !
+        btim2=timef()
+!
         IF(NTIMESTEP==NEXT_MOVE_TIMESTEP-TIME_RATIO_MY_PARENT*LAG_STEPS)THEN  !<-- Parent sends its shift information at the end of the
 !                                                                             !    timestep in which the decision to shift was made.
           IF(NUM_CHILDREN>0.AND.I_AM_LEAD_FCST_TASK)THEN
@@ -8848,6 +8885,8 @@
 !
             ENDDO
 !
+            pscd1_tim=pscd1_tim+(timef()-btim2)
+!
           ENDIF
 !
         ENDIF
@@ -8855,6 +8894,8 @@
 !-----------------------------------------------------------------------
 !
         this_timestep: IF(NTIMESTEP==NEXT_MOVE_TIMESTEP)THEN
+!
+          btim2=timef()
 !
           PARENT_MOVED=.TRUE.                                              !<-- Parent moved at beginning of current timestep
 !
@@ -8889,6 +8930,8 @@
                                              ,IDS,IDE,IMS,IME,ITS,ITE   &
                                              ,JDS,JDE,JMS,JME,JTS,JTE)
 !
+          read_moving_child_topo_tim=read_moving_child_topo_tim+(timef()-btim2)
+!
         ENDIF  this_timestep
 !
       ENDIF  parent_moves
@@ -8917,6 +8960,8 @@
 !***  halo points.
 !-----------------------------------------------------------------------
 !
+      btim2=timef()
+!
       DO N=1,NUM_CHILDREN
 !
         IF(STATIC_OR_MOVING(N)=='Moving')THEN                              !<-- Select the children who can move.
@@ -8939,6 +8984,8 @@
       ENDDO
 !
       IF(PARENT_MOVED)PARENT_MOVED=.FALSE.
+!
+      pscd2_tim=pscd2_tim + (timef()-btim2)
 !
 !-----------------------------------------------------------------------
 !***  We are at the end of a parent timestep.  If the parent has
@@ -8965,11 +9012,17 @@
 !
 !-----------------------------------------------------------------------
 !
+        btim2=timef()
+!
         CALL MPI_BARRIER(COMM_FCST_TASKS,IRTN)                             !<-- Syncs Probe below with BC ISends above; required
+!
+        barrier_move_tim=barrier_move_tim+(timef()-btim2)
 !
         EXCH_DONE=.FALSE.                                                  !<-- Initialize flag for parent halo exchanges
 !
 !-----------------------------------------------------------------------
+!
+        btim2=timef()
 !
         parent_task_0: IF(I_AM_LEAD_FCST_TASK)THEN                         !<-- Lead parent task will probe for children's shift signals.
 !
@@ -8982,8 +9035,6 @@
             N_MOVING=RANK_MOVING_CHILD(N)                                  !<-- In the list of this parent's children, these can move.
 !
 !-----------------------------------------------------------------------
-!
-      btim=timef()
 !
             check_block1: IF(NTIMESTEP>NTIMESTEP_CHILD_MOVES(N))THEN       !<-- Probe only after child's previous shift is complete.
 !
@@ -9027,8 +9078,6 @@
 !
               ENDIF
 !
-      t0_recv_move_tim=t0_recv_move_tim+(timef()-btim)
-!
 !-----------------------------------------------------------------------
 !
             ENDIF check_block1   
@@ -9040,6 +9089,8 @@
 !-----------------------------------------------------------------------
 !
         ENDIF parent_task_0
+!
+        t0_recv_move_tim=t0_recv_move_tim+(timef()-btim2)
 !
 !-----------------------------------------------------------------------
 !
@@ -9059,6 +9110,8 @@
           check_block2: IF(NTIMESTEP>NTIMESTEP_CHILD_MOVES(N))THEN
 !
 !-----------------------------------------------------------------------
+!
+            btim2=timef()
 !
             CALL MPI_BCAST(MOVE_FLAG(N)                                 &  !<-- Moving child N's signal:  Does it want to move?
                           ,1                                            &  !<-- The timestep is one word
@@ -9096,6 +9149,8 @@
 !
             ENDIF
 !
+            pscd3_tim=pscd3_tim+(timef()-btim2)
+!
 !-----------------------------------------------------------------------
 !
           ENDIF check_block2
@@ -9110,6 +9165,8 @@
           child_moves: IF(NTIMESTEP==NTIMESTEP_CHILD_MOVES(N)-1)THEN       !<-- If true, moving child N will shift at the 
 !                                                                          !    beginning of the next parent timestep.
 !-----------------------------------------------------------------------
+!
+            btim2=timef()
 !
             I_PARENT_SW_OLD=I_PARENT_SW(N_MOVING)                          !<-- Save the previous location of the nest.
             J_PARENT_SW_OLD=J_PARENT_SW(N_MOVING)                          !<--
@@ -9158,8 +9215,9 @@
             SPACE_RATIO=PARENT_CHILD_SPACE_RATIO(N_MOVING)
 !
             N_UPDATE_CHILD_TASKS=0
+            pscd4_tim=pscd4_tim+(timef()-btim2)
 !
-            btim=timef()
+            btim2=timef()
             CALL PARENT_BOOKKEEPING_MOVING(I_PARENT_SW(N_MOVING)        &  !<-- SW corner of nest is on this parent I after move
                                           ,J_PARENT_SW(N_MOVING)        &  !<-- SW corner of nest is on this parent J after move
                                           ,I_PARENT_SW_OLD              &  !<-- SW corner of nest is on this parent I before move
@@ -9210,7 +9268,7 @@
 !
             ENDIF
 !
-     parent_bookkeep_moving_tim=parent_bookkeep_moving_tim+(timef()-btim)
+     parent_bookkeep_moving_tim=parent_bookkeep_moving_tim+(timef()-btim2)
 !
 !-----------------------------------------------------------------------
 !***  While the index limits of each parent update region of each 
@@ -9221,7 +9279,8 @@
 !***  the parent's four surrounding points for bilinear interpolations.
 !-----------------------------------------------------------------------
 !
-            btim=timef()
+            btim2=timef()
+!
             IF(N_UPDATE_CHILD_TASKS>0)THEN
 !
 !-----------------------------------------------------------------------
@@ -9325,7 +9384,7 @@
             ENDIF
 !
             parent_update_moving_tim=parent_update_moving_tim           &
-                                    +(timef()-btim)
+                                    +(timef()-btim2)
 !
 !-----------------------------------------------------------------------
 !***  If the child has executed its final shift before stopping due to
@@ -9356,6 +9415,8 @@
 !-----------------------------------------------------------------------
 !
       ENDIF moving_children
+!
+      btim2=timef()
 !
 !-----------------------------------------------------------------------
 !***  The values of the moving children's next move timesteps need
@@ -9422,24 +9483,61 @@
                             ,value=cpl2_send_tim                        &  !<-- Phase 2 Send time
                             ,rc   =RC)
 !
-     CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
-                            ,name ='parent_bookkeep_moving_tim'        &  !<-- Name of the attribute to insert
-                            ,value=parent_bookkeep_moving_tim          &  !<-- moving nest bookeeping time
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                            ,name ='parent_bookkeep_moving_tim'         &  !<-- Name of the attribute to insert
+                            ,value=parent_bookkeep_moving_tim           &  !<-- moving nest bookeeping time
                             ,rc   =RC)
-
-     CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
-                            ,name ='parent_update_moving_tim'        &    !<-- Name of the attribute to insert
-                            ,value=parent_update_moving_tim          &    !<-- moving nest update time
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                            ,name ='parent_update_moving_tim'           &    !<-- Name of the attribute to insert
+                            ,value=parent_update_moving_tim             &    !<-- moving nest update time
                             ,rc   =RC)
-
-     CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
-                            ,name ='t0_recv_move_tim'                  &  !<-- Name of the attribute to insert
-                            ,value=t0_recv_move_tim                    &  !<-- task 0 time to process receive of move flag
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                            ,name ='t0_recv_move_tim'                   &  !<-- Name of the attribute to insert
+                            ,value=t0_recv_move_tim                     &  !<-- task 0 time to process receive of move flag
                             ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                            ,name ='read_moving_child_topo_tim'         &  !<-- Name of the attribute to insert
+                            ,value=read_moving_child_topo_tim           &  !<-- task 0 time to process receive of move flag
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                            ,name ='barrier_move_tim'                   &  !<-- Name of the attribute to insert
+                            ,value=barrier_move_tim                     &  !<-- task 0 time to process receive of move flag
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                             ,name ='pscd_tim'                          &  !<-- Name of the attribute to insert
+                             ,value=pscd_tim                            &  !<-- task 0 time to process receive of move flag
+                             ,rc   =RC)
+! 
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                             ,name ='pscd1_tim'                         &  !<-- Name of the attribute to insert
+                             ,value=pscd1_tim                           &  !<-- task 0 time to process receive of move flag
+                             ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                             ,name ='pscd2_tim'                         &  !<-- Name of the attribute to insert
+                             ,value=pscd2_tim                            &  !<-- task 0 time to process receive of move flag
+                             ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                             ,name ='pscd3_tim'                         &  !<-- Name of the attribute to insert
+                             ,value=pscd3_tim                            &  !<-- task 0 time to process receive of move flag
+                             ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
+                             ,name ='pscd4_tim'                         &  !<-- Name of the attribute to insert
+                             ,value=pscd4_tim                           &  !<-- task 0 time to process receive of move flag
+                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      pscd_tim=pscd_tim+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !
@@ -11270,7 +11368,7 @@
 !
         IF(I_AM_LEAD_FCST_TASK)THEN                                        !<-- Local task 0 on this child domain ISends
 !
-          TWOWAY_SIGNAL_TAG=1115+1000*MY_DOMAIN_ID+10*NTIMESTEP            !<-- Use child's domain ID,timestep to create a unique tag
+          TWOWAY_SIGNAL_TAG=1115+1000*MY_DOMAIN_ID+100*NTIMESTEP           !<-- Use child's domain ID,timestep to create a unique tag
 !
           CALL MPI_WAIT(HANDLE_SEND_2WAY_SIGNAL                         &  !<-- Handle for this ISend
                        ,JSTAT                                           &  !<-- MPI status object
@@ -14269,6 +14367,18 @@
       parent_bookkeep_moving_tim=>cc%parent_bookkeep_moving_tim
       parent_update_moving_tim  =>cc%parent_update_moving_tim
       t0_recv_move_tim          =>cc%t0_recv_move_tim
+      read_moving_child_topo_tim =>cc%read_moving_child_topo_tim
+      barrier_move_tim          =>cc%barrier_move_tim
+      pscd_tim=>cc%pscd_tim
+      pscd1_tim=>cc%pscd1_tim
+      pscd2_tim=>cc%pscd2_tim
+      pscd3_tim=>cc%pscd3_tim
+      pscd4_tim=>cc%pscd4_tim
+      ja1_tim=>cc%ja1_tim
+      ja2_tim=>cc%ja2_tim
+      ja3_tim=>cc%ja3_tim
+      ja4_tim=>cc%ja4_tim
+      jat_tim=>cc%jat_tim
 !
 !----------------------------------------
 !***  The following are for moving nests

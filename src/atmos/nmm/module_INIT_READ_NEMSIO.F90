@@ -3460,7 +3460,7 @@ integer,allocatable       :: reclev(:)
 !***  Radar-derived T tendencies from GSI analysis
 !-----------------------------------------------------------------------
 !
-      if(int_state%USE_RADAR) then
+      if(int_state%USE_RADAR==1) then
       DO K=1,LM
 !
         DO J=JMS,JME

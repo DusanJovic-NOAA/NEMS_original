@@ -2060,6 +2060,7 @@
         timers(n)%pc_cpl_run_cpl2=0.
         timers(n)%pc_cpl_run_cpl3=0.
         timers(n)%pc_cpl_run_cpl4=0.
+        timers(n)%pc_cpl_run_cpl5=0.
         timers(n)%cpl1_recv_tim=0.
         timers(n)%cpl2_send_tim=0.
         timers(n)%cpl2_comp_tim=0.
@@ -3346,6 +3347,7 @@
 !***  Call the timestepping routine.
 !-----------------------------------------------------------------------
 !
+            btim=timef()
             CALL NMM_INTEGRATE(clock_direction    ='Forward '                &
                               ,domain_grid_comp   =DOMAIN_GRID_COMP          &
                               ,imp_state_domain   =IMP_STATE_DOMAIN          &
@@ -3423,26 +3425,31 @@
 !***       may proceed with their integration.
 !-----------------------------------------------------------------------
 !
-      DO N=1,NUM_GENS
+      IF (NUM_GENS > 1) THEN
+        DO N=1,NUM_GENS
 !
-        MY_DOMAIN_ID = MY_DOMAINS_IN_GENS(N)
-        IF(MY_DOMAIN_ID>0) THEN
-          IF (MY_DOMAIN_ID == 1) THEN
-            WRITE(0,*)' For domain ',my_domain_id,' t1,t2,t3,pb ', &
-                      gentimer1(my_domain_id), &
-                      gentimer2(my_domain_id), &
-                      gentimer3, &
-                      pbcst_tim(my_domain_id)
-          ELSE
-            WRITE(0,*)' For domain ',my_domain_id,' t1,t2,t3,cb ', &
-                      gentimer1(my_domain_id), &
-                      gentimer2(my_domain_id), &
-                      gentimer3, &
-                      cbcst_tim(my_domain_id)
+           MY_DOMAIN_ID = MY_DOMAINS_IN_GENS(N)
+           IF(MY_DOMAIN_ID>0) THEN
+             IF (MY_DOMAIN_ID == 1) THEN
+              WRITE(0,896)my_domain_id,            &
+                          gentimer1(my_domain_id), &
+                          gentimer2(my_domain_id), &
+                          gentimer3,               & 
+                          pbcst_tim(my_domain_id)
+            ELSE
+              WRITE(0,897)my_domain_id,            &
+                          gentimer1(my_domain_id), &
+                          gentimer2(my_domain_id), &
+                          gentimer3,               &
+                          cbcst_tim(my_domain_id)
+            ENDIF
           ENDIF
-        ENDIF
 !
-      ENDDO
+        ENDDO
+      ENDIF
+!
+  896 format (' For domain ',i2,' t1,t2,t3,pb ',4(g10.3))
+  897 format (' For domain ',i2,' t1,t2,t3,cb ',4(g10.3))
 !
 !-----------------------------------------------------------------------
 !
