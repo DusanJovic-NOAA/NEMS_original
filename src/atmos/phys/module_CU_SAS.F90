@@ -109,12 +109,11 @@
 ! For SAS
       INTEGER :: KM,NUM_ICE,NSHAL,NDEEP
       INTEGER, PARAMETER :: IX=1, IM=1, ncloud=1
-      INTEGER :: jcap, kcnv(IX), KBOT(IX), KTOP(IX)
+      INTEGER :: jcap, kcnv(IX), KBOT(IX), KTOP(IX), islimsk(IX)
       REAL(kind=kind_phys), DIMENSION(IX,lm) :: delp, prsl,phil,q1,t1,u1,v1,VVEL,     &
-                                ud_mf,dd_mf,dt_mf, q0,t0,u0,v0
-      REAL(kind=kind_phys), DIMENSION(IX) :: psp,cldwrk,rn,slimsk,hpbl,hflx,evap
+                                ud_mf,dd_mf,dt_mf, q0,t0,u0,v0,cnvc,cnvw
+      REAL(kind=kind_phys), DIMENSION(IX) :: psp,cldwrk,rn,hpbl,hflx,evap
       REAL(kind=kind_phys), DIMENSION(IX,lm,2) :: CLW, CLW0  !! 1-ice  2-liquid 
-      REAL(kind=kind_phys) :: triggerpert(im)
       REAL(kind=kind_phys) :: TMP, DELT, RDELT, landmask
       REAL(kind=kind_phys), PARAMETER :: H1=1., H0=0.,    &
                          mommix=1.0    !HWRF uses this to adjust/tune moment mixing
@@ -205,20 +204,19 @@ dbg1: IF(LPR) THEN
 !
 !.......................................................................
 !$omp parallel do                &
-!$omp     private(j,i,k,landmask,slimsk,zf,kflip,psp,prsl,delp,phil,u1,    &
+!$omp     private(j,i,k,landmask,islimsk,zf,kflip,psp,prsl,delp,phil,u1,    &
 !$omp             v1,t1,q1,clw,ud_mf,dd_mf,dt_mf,cldwrk,vvel,hflx,evap,hpbl,&
-!$omp             kcnv,kbot,ktop,u0,v0,t0,q0,clw0,tmp,rn,jcap)
+!$omp             kcnv,kbot,ktop,u0,v0,t0,q0,clw0,cnvc,cnvw,tmp,rn,jcap)
 !.......................................................................
       DO J=JTS,JTE  
         DO I=ITS,ITE
-          triggerpert(1) = 0.0
           RAINCV(I,J)=0.
 !
 !***  CONVERT TO BMJ LAND MASK (1.0 FOR SEA; 0.0 FOR LAND)
 !
           LANDMASK=XLAND(I,J)-1.
-          SLIMSK(1) = 1. - LANDMASK
-          IF(SICE(I,J) > 0.5) SLIMSK(1) = 2     !! 0-sea; 1-land; 2-ice 
+          ISLIMSK(1) = 1. - LANDMASK
+          IF(SICE(I,J) > 0.5) ISLIMSK(1) = 2     !! 0-sea; 1-land; 2-ice 
 !
 !***  FILL 1-D VERTICAL ARRAYS 
 !
@@ -247,6 +245,8 @@ vloop1:   DO K=1,lm
             ud_mf(1,K) = 0.0
             dd_mf(1,K) = 0.0
             dt_mf(1,K) = 0.0 
+            cnvc(1,K) = 0.  !-- convective cloud cover (new, not yet used)
+            cnvw(1,K) = 0.  !-- convective cloud water (new, not yet used)
             cldwrk(1) = 0.0
 !            VVEL(1,K)    = omgalf(I,J,KFLIP)*CP*RR(I,J,KFLIP)    !! dp/dt pa/s
             VVEL(1,K) = 0.
@@ -268,8 +268,8 @@ vloop1:   DO K=1,lm
 !---  CALL CONVECTION
 !
           CALL sascnvn(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,       &
-               q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,slimsk,             &
-               VVEL,ncloud,ud_mf,dd_mf,dt_mf,triggerpert)
+               q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,islimsk,            &
+               VVEL,ncloud,ud_mf,dd_mf,dt_mf,cnvc,cnvw)
           IF(KCNV(1)>0) THEN
             DEEP=.TRUE.
             SHALLOW=.FALSE.
@@ -280,8 +280,8 @@ vloop1:   DO K=1,lm
 !
           IF(SHALLOW) THEN
             CALL shalcnv(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,     &
-                q1,t1,u1,v1,rn,kbot,ktop,kcnv,slimsk,                   &
-                VVEL,ncloud,hpbl,hflx,evap,ud_mf,dt_mf)
+                q1,t1,u1,v1,rn,kbot,ktop,kcnv,islimsk,                  &
+                VVEL,ncloud,hpbl,hflx,evap,ud_mf,dt_mf,cnvc,cnvw)
             IF(KTOP(1)<1) SHALLOW=.FALSE.
           ENDIF
 !
@@ -360,7 +360,7 @@ dbg4:       IF(LPR) THEN
                 write(0,*)'Conv rain=',rn(1)*1.E3/NCNVC 
                 write(0,*)'kbot,ktop,hpbl=,',kbot(1),ktop(1),hpbl(1)
                 write(0,*)'shallow,deep=,',shallow,deep
-                write(0,*)'slimsk,psp=,',slimsk(1),psp
+                write(0,*)'islimsk,psp=,',islimsk(1),psp
                 write(0,*)'prsl=,',prsl
                 write(0,*)'delp=,',delp
                 write(0,*)'phil=,',phil

@@ -195,7 +195,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  CALL MICROPHY                          !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-           call gscond(im, ix, KM, dtp, prsl, ps,                       &
+           call gscond(im, ix, KM, dtp, dtp, prsl, ps,                &
                        Q_COL, CWM_COL, T_COL,                           &
                        TP1_COL, QP1_COL,  PSP1_1,                     &
                        TP2_COL, QP2_COL,  PSP2_1,                     &

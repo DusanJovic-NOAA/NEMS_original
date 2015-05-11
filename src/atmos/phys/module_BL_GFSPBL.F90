@@ -133,12 +133,13 @@
       REAL(kind=kind_phys), DIMENSION(1,KTE,3) :: dqdt ,qgrs
        real a96, a97, temp1, plow, tz0,seamask,qz0ss
       REAL :: QKLOW, CWMKLOW,RHOKLOW,QFC1,EXNSFC, PSFC, THSK, zmid1
-      LOGICAL :: lpr, lprnt
+      LOGICAL :: lpr, lprnt, dspheat
 !----------------------------------------------------------------------
     !  lpr=.true.  !.false.
       lpr=.false.  !.false.
       ipr=0
       lprnt=.false.
+      dspheat=.false.   !-- Dissipative heating (supported in newer version of GFS PBL)
     !  dtp=DT*float(NPHS)
 !
 !-- Time step is reduced by 0.5 because it is doubled (2x) in subroutine moninq (BSF, 4 Dec 2014)
@@ -339,7 +340,7 @@
      &     ugrs,vgrs,tgrs,qgrs,swh,hlw,xmu,                             &
   !!   &     prsik(1,1),rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
      &     pii,rb,ffmm,ffhh,tsea,qss,hflx,evap,stress,wind,kpbl, &
-     &     prsi,del,prsl,prslk,phii,phil,dtp,                           &
+     &     prsi,del,prsl,prslk,phii,phil,dtp,dspheat,                   &
      &     dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,dkt,              &
      &     kinver,xkzm_m,xkzm_h,xkzm_s                                  &    
      &    ,lprnt,ipr)
