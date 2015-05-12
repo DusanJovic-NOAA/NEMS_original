@@ -129,7 +129,6 @@ fi
  export SCHEDULER=${SCHEDULER:-lsf}
 
  export machine=${machine:-${MACHINE_ID:-WCOSS}}
- export SIGHDR=_SIGHDR_
 #
 # number of output files, default =3, for adiab num_file=1
  if [[ $ADIAB = .true. ]] ; then
@@ -437,7 +436,11 @@ fi
   else
     export GRDI=$RUNDIR/gfsanl.$CDATE
     export SIGI=$RUNDIR/siganl.$CDATE
-    export SFCI=$RUNDIR/sfcanl.$CDATE
+    if [[ $NEMSIO_IN = .true. ]] ; then
+      export SFCI=$RUNDIR/sfnanl.$CDATE
+    else
+      export SFCI=$RUNDIR/sfcanl.$CDATE
+    fi
     export FHINI=00
   fi
 #

@@ -1,4 +1,4 @@
-Thu May  7 16:02:54 UTC 2015
+Mon May 11 19:04:59 UTC 2015
 Start Regression test
 
 
@@ -828,8 +828,23 @@ Checking test 44 results ....
  Comparing SIG.F18.........OK
  Comparing sigf24.........OK
  Test 44 passed 
-Test 45 gfs_dfi_post GFS with POST
+Test 45 gfs_slg_nemsio_read Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions
 Test 45
+Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 45 results ....
+ Comparing sigf00.........OK
+ Comparing SIG.F06.........OK
+ Comparing SIG.F12.........OK
+ Comparing SIG.F18.........OK
+ Comparing sigf24.........OK
+ Test 45 passed 
+Test 46 gfs_dfi_post GFS with POST
+Test 46
 GFS with POST
 GFS, 32 proc, 1 thread
 
@@ -837,35 +852,35 @@ GFS, 32 proc, 1 thread
 
 
 baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_POST
-Checking test 45 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Test 45 PASS 
-Test 46 gfs_gocart_post GFS_GOCART with POST
-Test 46
+Checking test 46 results ....
+ Comparing sigf00............MISSING file
+ Comparing sigf03............MISSING file
+ Comparing sigf06............MISSING file
+ Comparing sigf12............MISSING file
+ Comparing sigf24............MISSING file
+ Comparing sigf48............MISSING file
+ Comparing sfcf00............MISSING file
+ Comparing sfcf03............MISSING file
+ Comparing sfcf06............MISSING file
+ Comparing sfcf12............MISSING file
+ Comparing sfcf24............MISSING file
+ Comparing sfcf48............MISSING file
+ Comparing flxf00............MISSING file
+ Comparing flxf03............MISSING file
+ Comparing flxf06............MISSING file
+ Comparing flxf12............MISSING file
+ Comparing flxf24............MISSING file
+ Comparing flxf48............MISSING file
+ Test 46 PASS 
+Test 47 gfs_gocart_post GFS_GOCART with POST
+Test 47
 GFS_GOCART with POST
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 46 results ....
+Checking test 47 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -894,16 +909,16 @@ Checking test 46 results ....
  Comparing NGAC3d.GrbF06.........OK
  Comparing NGAC3d.GrbF12.........OK
  Comparing NGAC3d.GrbF24.........OK
- Test 46 passed 
-Test 47 gfs_gocart_nemsio GFS_GOCART with NEMSIO
-Test 47
+ Test 47 passed 
+Test 48 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 48
 GFS_GOCART with NEMSIO
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 47 results ....
+Checking test 48 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -924,6 +939,6 @@ Checking test 47 results ....
  Comparing ngac.t00z.aerf06.........OK
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
- Test 47 passed 
+ Test 48 passed 
 REGRESSION TEST WAS SUCCESSFUL
-Fri May  8 01:51:43 UTC 2015
+Tue May 12 00:54:33 UTC 2015

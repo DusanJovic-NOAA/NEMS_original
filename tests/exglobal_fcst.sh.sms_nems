@@ -523,7 +523,8 @@ export SUFOUT=${SUFOUT}
 export NCP=${NCP:-"/bin/cp -p"}
 
 if [ $NEMSIO_IN = .true. ]; then
- export SIGHDR=${SIGHDR:-$NWPROD/util/exec/nemsio_get}
+# export SIGHDR=${SIGHDR:-$NWPROD/util/exec/nemsio_get}
+ export SIGHDR=${SIGHDR:-$NWPROD/ngac.v1.0.0/exec/nemsio_get}
  export JCAP=${JCAP:-$($SIGHDR ${GRDI}$FM jcap |grep -i "jcap" |awk -F"= " '{print $2}' |awk -F" " '{print $1}')}
  export LEVS=${LEVS:-$($SIGHDR ${GRDI}$FM levs|grep -i "levs" |awk -F"= " '{print $2}' |awk -F" " '{print $1}')}
  export LEVR=${LEVR:-$LEVS}
@@ -912,6 +913,7 @@ if [[ $ENS_NUM -le 1 ]] ; then
   if [ $((FHINI+0)) -eq  $((FHROT+0)) ]; then
     if [ $NEMSIO_IN = .true. ]; then
       ln -fs $GRDI  grid_ini
+      ln -fs $GRDI  sig_ini
     else
       ln -fs $SIGI  sig_ini
     fi

@@ -11,7 +11,7 @@ export NEMSIOIN=${NEMSIOIN:-.false.}
 export SIGIOIN=${SIGIOIN:-.true.}
 export NEMSIOOUT=${NEMSIOOUT:-.false.}
 export SIGIOOUT=${SIGIOOUT:-.true.}
-export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
+#export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 export SCHEDULER=${SCHEDULER:-lsf}
 export NTHREADS=1
@@ -93,7 +93,6 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_IEMS_:${IEMS}:g                     \
                      | sed s:_ISOL_:${ISOL}:g                     \
                      | sed s:_ICO2_:${ICO2}:g                     \
-                     | sed s:_SIGHDR_:${SIGHDR}:g                 \
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
                      | sed s:_RTPWD_:${RTPWD_slg}:g               \
                      | sed s:_SLG_:${SLG}:g                       \
@@ -125,13 +124,10 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
  if [ "$NEMSIOIN" = ".true." ]; then
 #    export IC_DIR=${IC_DIR:-${RTPWD_slg}/GFS_DFI_REDUCEDGRID_HYB}
-    export IC_DIR=${IC_DIR:-/nems/save/Weiyu.Yang/gfs.trunk.21242/data.for.eddy/T1148.slg.data}
-#    cp $IC_DIR/gfsanl.$CDATE ${RUNDIR}/.
-    cp $IC_DIR/siganl.gfs.$CDATE ${RUNDIR}/.
-    cp $IC_DIR/sfcanl.gfs.$CDATE ${RUNDIR}/.
+    export IC_DIR=${IC_DIR:-/gpfs/gd1/emc/nems/noscrub/Weiyu.Yang/GFS_SLG_NEMSIO}
+    cp $IC_DIR/gfsanl.$CDATE ${RUNDIR}/.
+    cp $IC_DIR/sfnanl.$CDATE ${RUNDIR}/.
 
-#   cp ${RTPWD_slg}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.$CDATE ${RUNDIR}/.
-#   cp ${RTPWD_slg}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.$CDATE ${RUNDIR}/.
 #to run gfs test
 #   if [ "$rungfstest" = ".true." ]; then
 #     cp /climate/save/wx20wa/esmf/nems/20120913/data/nemsio/gfsanl.$CDATE ${RUNDIR}/.
