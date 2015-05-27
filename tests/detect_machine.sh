@@ -1,8 +1,7 @@
 #!/bin/bash
 
 HOSTNAME='hostname -f'
-export ACCNR=nems
-ACCNR=${ACCNR:-null}
+export ACCNR=${ACCNR:-nems}
 
 case `$HOSTNAME` in
 

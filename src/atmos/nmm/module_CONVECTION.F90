@@ -58,7 +58,7 @@
                        ,PT,PD,T,Q,CWM,TCUCN                             &
                        ,OMGALF,U,V                                      &
                        ,FIS,W0AVG                                       &
-                       ,PREC,ACPREC,CUPREC,CUPPT,CPRATE                 &
+                       ,PREC,ACPREC,CUPREC,ACPREC_TOT,CUPPT,CPRATE      &
                        ,CNVBOT,CNVTOP,SM,LPBL                           &
                        ,HTOP,HTOPD,HTOPS                                &
                        ,HBOT,HBOTD,HBOTS                                &
@@ -147,6 +147,7 @@
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme),intent(inout):: &
        acprec,cldefi &
+      ,acprec_tot &
       ,cnvbot,cnvtop &
       ,cuppt,cuprec &
       ,hbot,htop &
@@ -615,6 +616,7 @@ sas_test: IF(CONVECTION=='sas') THEN
         PCPCOL=RAINCV(I,J)*1.E-3*NCNVC
         PREC(I,J)=PREC(I,J)+PCPCOL
         ACPREC(I,J)=ACPREC(I,J)+PCPCOL
+        ACPREC_TOT(I,J)=ACPREC_TOT(I,J)+PCPCOL
         CUPREC(I,J)=CUPREC(I,J)+PCPCOL
         CUPPT(I,J)=CUPPT(I,J)+PCPCOL
         CPRATE(I,J)=PCPCOL

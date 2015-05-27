@@ -1629,6 +1629,24 @@ integer,allocatable       :: reclev(:)
         enddo
       endif
 !-----------------------------------------------------------------------
+!***  ACPREC_TOT
+!-----------------------------------------------------------------------
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%ACPREC_TOT(I,J)=0.
+      ENDDO
+      ENDDO
+      call getrecn(recname,reclevtyp,reclev,nrec,'acprec_tot','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%ACPREC_TOT(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
 !***  ACSNOM
 !-----------------------------------------------------------------------
       DO J=JMS,JME

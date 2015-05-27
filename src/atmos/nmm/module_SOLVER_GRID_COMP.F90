@@ -1078,6 +1078,7 @@
           int_state%ACSNOM(I,J)= 0.
           int_state%ACSNOW(I,J)= 0.
           int_state%ACPREC(I,J)= 0.
+          int_state%ACPREC_TOT(I,J)= 0.
           int_state%acpcp_ra(I,J)= 0.
           int_state%acpcp_sn(I,J)= 0.
           int_state%acpcp_gr(I,J)= 0.
@@ -5588,7 +5589,8 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                        ,int_state%OMGALF                                  &
                        ,int_state%U,int_state%V                           &
                        ,int_state%FIS,int_state%W0AVG                     &
-                       ,int_state%PREC,int_state%ACPREC,int_state%CUPREC  &
+                       ,int_state%PREC,int_state%ACPREC                   &
+                       ,int_state%CUPREC,int_state%ACPREC_TOT             &
                        ,int_state%CUPPT,int_state%CPRATE                  &
                        ,int_state%CNVBOT,int_state%CNVTOP                 &
                        ,int_state%SM,int_state%LPBL                       &
@@ -5728,7 +5730,8 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                        ,int_state%F_QV,int_state%F_QC,int_state%F_QR       &
                        ,int_state%F_QI,int_state%F_QS,int_state%F_QG       &
                        ,int_state%F_NI,int_state%F_NR                      & ! G. Thompson
-                       ,int_state%PREC,int_state%ACPREC,int_state%AVRAIN   &
+                       ,int_state%PREC,int_state%ACPREC                    &
+                       ,int_state%AVRAIN,int_state%ACPREC_TOT              &
                        ,int_state%acpcp_ra,int_state%acpcp_sn,int_state%acpcp_gr &  ! G. Thompson
                        ,int_state%refl_10cm                                &  !  G. Thompson
                        ,int_state%re_cloud,int_state%re_ice,int_state%re_snow  &  !  G. Thompson
@@ -10127,7 +10130,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
       int_state%NSRFC=NSTEPS_PER_HOUR*int_state%NHRS_SRFC
 !
 !-----------------------------------------------------------------------
-!***  If this is a restarted run frim timestep 0 then zero out
+!***  If this is a restarted run from timestep 0 then zero out
 !***  the accumulated precip since they pass through the analysis
 !***  with nonzero values from the first guess.
 !-----------------------------------------------------------------------
@@ -10136,6 +10139,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%ACPREC(I,J)=0.
+          int_state%ACPREC_TOT(I,J)=0.
           int_state%CUPREC(I,J)=0.
         ENDDO
         ENDDO

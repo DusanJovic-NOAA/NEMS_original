@@ -1,4 +1,4 @@
-Mon May 11 19:04:59 UTC 2015
+Fri May 22 19:20:19 UTC 2015
 Start Regression test
 
 
@@ -6,7 +6,7 @@ Start Regression test
 Test 1 nmm_cntrl Compare NMMB-global results with previous trunk version
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_glob
 Checking test 1 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -23,7 +23,7 @@ Checking test 1 results ....
 Test 2 nmm_nemsio Test NMMB-global NEMSIO as input file
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_glob
 Checking test 2 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -38,7 +38,7 @@ Checking test 2 results ....
 Test 3 nmm_rest Test NMMB-global restart run
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_glob
 Checking test 3 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 3  
@@ -48,7 +48,7 @@ Checking test 3 results ....
 Test 4 nmm_rest_nio Test NMMB-global restart run from NEMSIO file
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_glob
 Checking test 4 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 4  
@@ -58,7 +58,7 @@ Checking test 4 results ....
 Test 5 nmm_decomp Test NMMB-global different decomposition
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_glob
 Checking test 5 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -71,7 +71,7 @@ Checking test 5 results ....
 Test 6 nmm_thread Test NMMB-global threading
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_glob
 Checking test 6 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -86,7 +86,7 @@ Checking test 6 results ....
 Test 7 nmm_reg_ctl Compare NMMB-regional results with previous trunk version
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg
 Checking test 7 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
@@ -110,7 +110,7 @@ Checking test 7 results ....
 Test 8 nmm_reg_nemsio Test NMMB-regional NEMSIO as input file
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg
 Checking test 8 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -123,7 +123,7 @@ Checking test 8 results ....
 Test 9 nmm_reg_rst Test NMMB-regional restart run
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg
 Checking test 9 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 9  
@@ -133,7 +133,7 @@ Checking test 9 results ....
 Test 10 nmm_reg_rst_nio Test NMMB-regional restart run with NEMSIO file
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg
 Checking test 10 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 10  
@@ -143,7 +143,7 @@ Checking test 10 results ....
 Test 11 nmm_reg_decomp Test NMMB-regional different decomposition
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg
 Checking test 11 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -154,7 +154,7 @@ Checking test 11 results ....
 Test 12 nmm_reg_thread Test NMMB-regional threading
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg
 Checking test 12 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -169,7 +169,7 @@ Checking test 12 results ....
 Test 13 nmm_reg_sel_phy Test NMMB-regional with selected GFS physics schemes
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_sel_phy
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_sel_phy
 Checking test 13 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -184,7 +184,7 @@ Checking test 13 results ....
 Test 14 nmm_reg_spec_adv Test NMMB-regional with separate species advection ON
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_spec_adv
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_spec_adv
 Checking test 14 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -199,7 +199,7 @@ Checking test 14 results ....
 Test 15 nmm_reg_spec_adv_rst Test NMMB-regional with separate species advection ON
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_spec_adv
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_spec_adv
 Checking test 15 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -210,7 +210,7 @@ Checking test 15 results ....
 Test 16 nmm_reg_wsm6_gfdl Test NMMB-regional with physics schemes WSM6 and GFDL
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_wsm6_gfdl
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_wsm6_gfdl
 Checking test 16 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -225,7 +225,7 @@ Checking test 16 results ....
 Test 17 nmm_reg_wsm6_rrtm Test NMMB-regional with physics schemes WSM6 and RRTM
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_wsm6_rrtm
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_wsm6_rrtm
 Checking test 17 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -240,7 +240,7 @@ Checking test 17 results ....
 Test 18 nmm_reg_sas_zhao Test NMMB-regional with physics schemes SAS, ZHAO
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_sas_zhao
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_sas_zhao
 Checking test 18 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -255,7 +255,7 @@ Checking test 18 results ....
 Test 19 nmm_reg_thomp Test NMMB-regional with THOMPSON microphysics scheme
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_thomp
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_thomp
 Checking test 19 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -270,22 +270,22 @@ Checking test 19 results ....
 Test 20 nmm_reg_hur Test NMMB-regional with HWRF physics
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_hur
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_hur
 Checking test 20 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s............NOT OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s............NOT OK
- Comparing nmmb_rst_01_bin_0012h_00m_00.00s............NOT OK
- Comparing nmmb_rst_01_nio_0012h_00m_00.00s............NOT OK
- Test 20 FAIL 
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 20  
 
 
 
 Test 21 nmm_reg_pcpadj Test NMMB-regional with precipitation adjustment on
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_pcpadj
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_pcpadj
 Checking test 21 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -300,7 +300,7 @@ Checking test 21 results ....
 Test 22 nmm_reg_timesr Test NMMB-regional writing time series
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_timesr
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_timesr
 Checking test 22 results ....
  Comparing nmmb_hst_01_bin_0006h_00m_00.00s.........OK
  Comparing ts_p01_d01.bin.........OK
@@ -312,7 +312,7 @@ Checking test 22 results ....
 Test 23 nmm_nests Test NMMB-regional with static nests
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_nests
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_nests
 Checking test 23 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -345,7 +345,7 @@ Checking test 23 results ....
 Test 24 nmm_nest_rest Test NMMB-regional static nests with restart
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_nests
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_nests
 Checking test 24 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -362,7 +362,7 @@ Checking test 24 results ....
 Test 25 nmm_reg_filt Test NMMB-regional digital filter with static nests
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg_filt
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_reg_filt
 Checking test 25 results ....
  Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
@@ -377,7 +377,7 @@ Checking test 25 results ....
 Test 26 nmm_mvg_nests Test NMMB-regional with moving nests
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_mvg_nests
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_mvg_nests
 Checking test 26 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -410,7 +410,7 @@ Checking test 26 results ....
 Test 27 nmm_mvg_nests_restart Test NMMB-regional with moving nests - RESTART
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_mvg_nests
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_mvg_nests
 Checking test 27 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -427,7 +427,7 @@ Checking test 27 results ....
 Test 28 nmm_mvg_nests_gens Test NMMB-regional with 1-way moving nests and generational task assignments
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_mvg_nests
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_mvg_nests
 Checking test 28 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -460,7 +460,7 @@ Checking test 28 results ....
 Test 29 nmm_2way_nests Test NMMB-regional with 2-way moving nests
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_2way_nests
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_2way_nests
 Checking test 29 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -493,7 +493,7 @@ Checking test 29 results ....
 Test 30 nmm_2way_nests_restart Test NMMB-regional with 2-way moving nests - RESTART
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_2way_nests
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/NMMB_2way_nests
 Checking test 30 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -514,7 +514,7 @@ GFS, 32 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_NODFI
 Checking test 31 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -543,7 +543,7 @@ GFS, 32 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_ADIAB
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_ADIAB
 Checking test 32 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -558,7 +558,7 @@ GFS, 32 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_NODFI
 Checking test 33 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -581,7 +581,7 @@ GFS, 48 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_NODFI
 Checking test 34 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -605,7 +605,7 @@ GFS, 16 proc, 2 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_NODFI
 Checking test 35 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -625,7 +625,7 @@ GFS, 32 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_NODFI
 Checking test 36 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -651,7 +651,7 @@ GFS, 16 proc, 2 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_NODFI
 Checking test 37 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -671,7 +671,7 @@ GFS, 48 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_NODFI
 Checking test 38 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -695,7 +695,7 @@ GFS, 32 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_DFI_REDUCEDGRID
 Checking test 39 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -721,7 +721,7 @@ GFS, 16 proc, 2 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_DFI_REDUCEDGRID
 Checking test 40 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -740,7 +740,7 @@ GFS, 16 proc, 2 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_hyb_2loop
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_DFI_hyb_2loop
 Checking test 41 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -763,7 +763,7 @@ GFS, 32 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/WAM_gh_l150
 Checking test 42 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -792,7 +792,7 @@ GFS, 32 proc, 1 thread
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150_NDSL
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/WAM_gh_l150_NDSL
 Checking test 43 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -828,59 +828,44 @@ Checking test 44 results ....
  Comparing SIG.F18.........OK
  Comparing sigf24.........OK
  Test 44 passed 
-Test 45 gfs_slg_nemsio_read Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions
+Test 45 gfs_dfi_post GFS with POST
 Test 45
-Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 45 results ....
- Comparing sigf00.........OK
- Comparing SIG.F06.........OK
- Comparing SIG.F12.........OK
- Comparing SIG.F18.........OK
- Comparing sigf24.........OK
- Test 45 passed 
-Test 46 gfs_dfi_post GFS with POST
-Test 46
 GFS with POST
 GFS, 32 proc, 1 thread
 
 
 
 
-baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_POST
-Checking test 46 results ....
- Comparing sigf00............MISSING file
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sigf48............MISSING file
- Comparing sfcf00............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing sfcf48............MISSING file
- Comparing flxf00............MISSING file
- Comparing flxf03............MISSING file
- Comparing flxf06............MISSING file
- Comparing flxf12............MISSING file
- Comparing flxf24............MISSING file
- Comparing flxf48............MISSING file
- Test 46 PASS 
-Test 47 gfs_gocart_post GFS_GOCART with POST
-Test 47
+baseline dir = /meso/noscrub/wx20rv/REGRESSION_TEST_new/GFS_DFI_POST
+Checking test 45 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 45 PASS 
+Test 46 gfs_gocart_post GFS_GOCART with POST
+Test 46
 GFS_GOCART with POST
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 47 results ....
+Checking test 46 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -909,16 +894,16 @@ Checking test 47 results ....
  Comparing NGAC3d.GrbF06.........OK
  Comparing NGAC3d.GrbF12.........OK
  Comparing NGAC3d.GrbF24.........OK
- Test 47 passed 
-Test 48 gfs_gocart_nemsio GFS_GOCART with NEMSIO
-Test 48
+ Test 46 passed 
+Test 47 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 47
 GFS_GOCART with NEMSIO
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 48 results ....
+Checking test 47 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -939,6 +924,6 @@ Checking test 48 results ....
  Comparing ngac.t00z.aerf06.........OK
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
- Test 48 passed 
+ Test 47 passed 
 REGRESSION TEST WAS SUCCESSFUL
-Tue May 12 00:54:33 UTC 2015
+Sat May 23 00:57:10 UTC 2015

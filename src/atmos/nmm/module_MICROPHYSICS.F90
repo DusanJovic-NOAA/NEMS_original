@@ -65,7 +65,7 @@
                          ,F_ICE,F_RAIN,F_RIMEF                          &
                          ,QV,QC,QR,QI,QS,QG,NI,NR                       &
                          ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR       &
-                         ,PREC,ACPREC,AVRAIN                            &
+                         ,PREC,ACPREC,AVRAIN,ACPREC_TOT                 &
                          ,acpcp_ra,acpcp_sn,acpcp_gr, refl_10cm         &
                          ,re_cloud,re_ice,re_snow                       &
                          ,has_reqc,has_reqi,has_reqs                    &
@@ -132,6 +132,7 @@
                                                         ,DFI_TTEN
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACPREC,PREC      &
+                                                      ,ACPREC_TOT       &
                                                       ,AVRAIN              !<-- Was a scalar
 ! G. Thompson added next 4 lines.
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: acpcp_ra,acpcp_sn,acpcp_gr
@@ -532,6 +533,7 @@
         PCPCOL=RAINNCV(I,J)*1.E-3
         PREC(I,J)=PREC(I,J)+PCPCOL
         ACPREC(I,J)=ACPREC(I,J)+PCPCOL
+        ACPREC_TOT(I,J)=ACPREC_TOT(I,J)+PCPCOL
 !
 ! NOTE: RAINNC IS ACCUMULATED INSIDE MICROPHYSICS BUT NMM ZEROES IT OUT ABOVE
 !       SINCE IT IS ONLY A LOCAL ARRAY FOR NOW

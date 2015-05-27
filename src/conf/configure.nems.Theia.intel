@@ -39,8 +39,8 @@ EXTLIBS      = $(NEMSIO_LIB) \
                $(BACIO_LIB) \
                $(W3_LIB) \
                $(SP_LIB) \
-               $(ESMF_LIB) \
                $(NETCDF_LIB) \
+               $(ESMF_LIB) \
                $(SYS_LIB)
 
 ## for the post quilting option

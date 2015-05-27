@@ -102,6 +102,7 @@
 'ACFRCV'           H       R       O      -      -   T  'Accumulated convective cloud fractions between outputs'
 'ACFRST'           H       R       O      -      -   T  'Accumulated statiform cloud fractions between outputs'
 'ACPREC'           H       R       O      -      -   T  'Accumulated precip  (m)'
+'ACPREC_TOT'       H       R       O      -      -   T  'Total accumulated precip from 0hr (m)'
 'ACSNOM'           H       R       O      -      -   T  'Accumulated melted snow  (?)'
 'ACSNOW'           H       R       O      -      -   T  'Accumulated snow  (?)'
 'ACPCP_RA'         -       -       O      -      -   -  'Accumulated rain  (mm)'
