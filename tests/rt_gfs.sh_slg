@@ -124,7 +124,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
  if [ "$NEMSIOIN" = ".true." ]; then
 #    export IC_DIR=${IC_DIR:-${RTPWD_slg}/GFS_DFI_REDUCEDGRID_HYB}
-    export IC_DIR=${IC_DIR:-/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/GFS_SLG_NEMSIO_READ}
+    export IC_DIR=${IC_DIR:-/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/GFS_SLG_NEMSIO}
     cp $IC_DIR/gfsanl.$CDATE ${RUNDIR}/.
     cp $IC_DIR/sfnanl.$CDATE ${RUNDIR}/.
 
