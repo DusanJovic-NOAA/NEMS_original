@@ -91,6 +91,8 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_IDEA_:${IDEA}:g                     \
                      | sed s:_CDATE_:${CDATE}:g                   \
                      | sed s:_IEMS_:${IEMS}:g                     \
+                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
+                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
                      | sed s:_ISOL_:${ISOL}:g                     \
                      | sed s:_ICO2_:${ICO2}:g                     \
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
