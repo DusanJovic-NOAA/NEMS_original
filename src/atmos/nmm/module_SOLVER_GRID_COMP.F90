@@ -2137,9 +2137,14 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert DPHD,JM into the Solver Export State"
+        MESSAGE_CHECK="Insert DPHD,DLMD,JM into the Solver Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
+                              ,name ='DLMD'                             &  !<-- The inserted quantity will have this name
+                              ,value=int_state%DLMD                     &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
 !
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
                               ,name ='DPHD'                             &  !<-- The inserted quantity will have this name
@@ -2320,25 +2325,6 @@
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
                               ,name ='TLM0D'                            &  !<-- Name of the Attribute
                               ,value=int_state%TLM0D                    &  !<-- The central geo lon of the rotated system
-                              ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert DPHD, DLMD into the Solver Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
-                              ,name ='DPHD'                             &  !<-- Name of the Attribute
-                              ,value=int_state%DPHD                     &  !<-- The angular grid increment in X
-                              ,rc   =RC)
-!
-        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
-                              ,name ='DLMD'                             &  !<-- Name of the Attribute
-                              ,value=int_state%DLMD                     &  !<-- The angular grid increment in Y
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

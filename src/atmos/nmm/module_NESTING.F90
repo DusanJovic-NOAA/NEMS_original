@@ -85,6 +85,7 @@
                ,PARENT_TO_CHILD_INIT_NMM                                &
                ,PARENT_UPDATES_HALOS                                    &
                ,PARENT_UPDATES_MOVING                                   &
+               ,REAL_IJ_TO_LATLON                                       &
                ,SET_NEST_GRIDS                                          &
                ,STENCIL_H_EVEN,STENCIL_SFC_H_EVEN                       &
                ,STENCIL_V_EVEN,STENCIL_SFC_V_EVEN                       &
@@ -3027,6 +3028,8 @@
 !***  Only parent tasks participate in this work.
 !-----------------------------------------------------------------------
 !
+      USE module_CONSTANTS,ONLY: PI
+!
 !------------------------
 !***  Argument Variables
 !------------------------
@@ -3066,6 +3069,7 @@
 !
       REAL(kind=KFPT) :: CHILD_LATD_ON_PARENT                           &
                         ,CHILD_LOND_ON_PARENT                           &
+                        ,DEG_TO_RAD                                     &
                         ,DIST                                           &
                         ,R_DLMD,R_DPHD                                  &
                         ,REAL_I_PARENT                                  &
@@ -3090,6 +3094,7 @@
 !
       R_DPHD=1./DPHD_PARENT
       R_DLMD=1./DLMD_PARENT
+      DEG_TO_RAD=PI/180.
 !
       NUM_CHILD_POINTS=0
 !
@@ -3191,10 +3196,10 @@
 !
           DO N=1,4                                                         !<-- Loop over SW, SE, NW, and NE parent points
 !
-            CALL DISTANCE_ON_SPHERE(CHILD_LATD_ON_PARENT               &   !<-- Parent latitiude (deg) of child gridpoint
-                                   ,CHILD_LOND_ON_PARENT               &   !<-- Parent latitiude (deg) of child gridpoint
-                                   ,RLATD(N)                           &   !<-- Latitude (deg) of surrounding parent point N
-                                   ,RLOND(N)                           &   !<-- Longitude (deg) of surrounding parent point N
+            CALL DISTANCE_ON_SPHERE(CHILD_LATD_ON_PARENT*DEG_TO_RAD    &   !<-- Parent latitiude (deg) of child gridpoint
+                                   ,CHILD_LOND_ON_PARENT*DEG_TO_RAD    &   !<-- Parent latitiude (deg) of child gridpoint
+                                   ,RLATD(N)*DEG_TO_RAD                &   !<-- Latitude (deg) of surrounding parent point N
+                                   ,RLOND(N)*DEG_TO_RAD                &   !<-- Longitude (deg) of surrounding parent point N
                                    ,DIST )                                 !<-- Distance (radians) from child point to parent point N
 !
             WGT(N)=1./DIST
@@ -3411,6 +3416,8 @@
 !***  Only parent tasks participate in this work.
 !-----------------------------------------------------------------------
 !
+      USE module_CONSTANTS,ONLY: PI
+!
 !------------------------
 !***  Argument Variables
 !------------------------
@@ -3450,6 +3457,7 @@
 !
       REAL(kind=KFPT) :: CHILD_LATD_ON_PARENT                           &
                         ,CHILD_LOND_ON_PARENT                           &
+                        ,DEG_TO_RAD                                     &
                         ,DIST                                           &
                         ,R_DLMD,R_DPHD                                  &
                         ,REAL_I_PARENT                                  &
@@ -3471,6 +3479,7 @@
 !
       R_DPHD=1./DPHD_PARENT
       R_DLMD=1./DLMD_PARENT
+      DEG_TO_RAD=PI/180.
 !
       NUM_CHILD_POINTS=0
 !
@@ -3566,10 +3575,10 @@
 !
           DO N=1,4                                                         !<-- Loop over SW, SE, NW, and NE parent points
 !
-            CALL DISTANCE_ON_SPHERE(CHILD_LATD_ON_PARENT               &   !<-- Parent latitiude (deg) of child gridpoint
-                                   ,CHILD_LOND_ON_PARENT               &   !<-- Parent latitiude (deg) of child gridpoint
-                                   ,RLATD(N)                           &   !<-- Latitude (deg) of surrounding parent point N
-                                   ,RLOND(N)                           &   !<-- Longitude (deg) of surrounding parent point N
+            CALL DISTANCE_ON_SPHERE(CHILD_LATD_ON_PARENT*DEG_TO_RAD    &   !<-- Parent latitiude (deg) of child gridpoint
+                                   ,CHILD_LOND_ON_PARENT*DEG_TO_RAD    &   !<-- Parent latitiude (deg) of child gridpoint
+                                   ,RLATD(N)*DEG_TO_RAD                &   !<-- Latitude (deg) of surrounding parent point N
+                                   ,RLOND(N)*DEG_TO_RAD                &   !<-- Longitude (deg) of surrounding parent point N
                                    ,DIST )                                 !<-- Distance (radians) from child point to parent point N
 !
             WGT(N)=1./DIST
@@ -3888,6 +3897,7 @@
 !
       RLATD=GLATD
       RLOND=-GLOND
+      IF(RLOND<-180.)RLOND=RLOND+360.
 !
 !-----------------------------------------------------------------------
 !
@@ -3897,8 +3907,163 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE DISTANCE_ON_SPHERE(RLAT_1,RLON_1                      &
-                                   ,RLAT_2,RLON_2                      &
+      SUBROUTINE REAL_IJ_TO_LATLON (I_INDEX                             &
+                                   ,J_INDEX                             &
+                                   ,IM                                  &
+                                   ,JM                                  &
+                                   ,TPH0                                &
+                                   ,TLM0                                &
+                                   ,DPH                                 &
+                                   ,DLM                                 &
+                                   ,RLAT                                &
+                                   ,RLON )
+!
+!-----------------------------------------------------------------------
+!***  Given the (I,J) of mass points on an Arakawa B-Grid, compute
+!***  the latitudes and longitudes on the given projection.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IM                               &  !<-- Full I dimension
+                                      ,JM                                  !<-- Full J dimension
+!
+      REAL(kind=KFPT),INTENT(IN) :: I_INDEX                             &  !<-- Real I value on the grid
+                                   ,J_INDEX                             &  !<-- Real J value on the grid
+                                   ,DPH                                 &  !<-- Latitude grid increment (radians)
+                                   ,DLM                                 &  !<-- Longitude grid increment (radians)
+                                   ,TPH0                                &  !<-- Central latitude (rad, positive north) of projection
+                                   ,TLM0                                   !<-- Central longitude (rad, positive east) of projection
+!
+      REAL(kind=KFPT),INTENT(OUT) :: RLAT                               &  !<-- Latitude (rad, positive north) of point on projection
+                                    ,RLON                                  !<-- Longitude (rad, positive east) of point on projection
+!
+!-----------------------------------------------------------------------
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I,IEND,ISTART,J,JEND,JSTART
+!
+      REAL(kind=KDBL) :: ARG1,ARG2,COL_MID,FCTR,GLATR,GLATD,GLOND       &
+                        ,HALF,ONE,PI,R2D,ROW_MID,TLAT,TLON
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!***  Convert from transformed grid location (I,J) 
+!***  to geographic coordinates (degrees).
+!-----------------------------------------------------------------------
+!
+      ONE=1.0
+      HALF=1./2.
+      PI=DACOS(-ONE)
+      R2D=180./PI
+!
+      ROW_MID=(JM+ONE)*HALF
+      COL_MID=(IM+ONE)*HALF
+!
+!-----------------------------------------------------------------------
+!
+      J=J_INDEX
+      I=I_INDEX
+!
+!-----------------------------------------------------------------------
+!***  Find the rotated latitude (positive north) and 
+!***  longitude (positive east).
+!-----------------------------------------------------------------------
+!
+      TLAT=(J-ROW_MID)*DPH
+      TLON=(I-COL_MID)*DLM
+!
+!     WRITE(0,50)I,J,TLAT*R2D,TLOND*R2D
+   50 FORMAT(' I=',I4,' J=',I4,'  Projection latitude=',F8.3            &
+                                       ,4X,'longitude=',F8.3)
+!
+!-----------------------------------------------------------------------
+!***  Now convert to geographic latitude (positive north) and
+!***  longitude (positive west) in degrees.
+!-----------------------------------------------------------------------
+!
+      ARG1=DSIN(TLAT)*COS(TPH0)+DCOS(TLAT)*SIN(TPH0)*DCOS(TLON)
+      RLAT=ASIN(ARG1)
+!
+      ARG2=DCOS(TLAT)*DCOS(TLON)/(DCOS(TLAT)*COS(TPH0))-                &
+           DTAN(TLAT)*TAN(TPH0)
+      IF(ABS(ARG2)>1.)ARG2=ABS(ARG2)/ARG2
+      FCTR=1.
+      IF(TLON>0.)FCTR=1.
+      IF(TLON>PI)FCTR=-1.
+!
+      RLON=-TLM0+FCTR*DACOS(ARG2)
+      RLON=-RLON
+      IF(RLON<-PI)RLON=RLON+PI*2.
+!
+!     WRITE(6,100)I,J,RLAT*R2D,RLON*R2D
+  100 FORMAT(' I=',I4,' J=',I4                                          &
+            ,'  Geographic latitude=',F9.5,'  longitude=',F10.5)
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE REAL_IJ_TO_LATLON
+!
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE GEO_TO_ROT_LATLON(GLAT,GLON,TPH0,TLM0                  &
+                                  ,RLAT,RLON )
+!
+!-----------------------------------------------------------------------
+!***  Convert from geographic coordinates to latitude/longitude on
+!***  a rotated projection.
+!-----------------------------------------------------------------------
+!
+      USE module_CONSTANTS,ONLY: PI
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      REAL(kind=KFPT),INTENT(IN) :: GLAT,GLON                           &  !<-- Geographic lat/lon (rad, +east) of point
+                                   ,TPH0,TLM0                              !<-- Geographic lat/lon (rad, +east) of projection center
+!
+      REAL(kind=KFPT),INTENT(OUT) :: RLAT,RLON                             !<-- Lat/lon (rad) of point on the projection
+!
+!-----------------------------------------------------------------------
+!
+!--------------------
+!*** Local Variables
+!--------------------
+!
+      REAL(kind=KFPT) :: X,Y,Z
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      X=COS(TPH0)*COS(GLAT)*COS(GLON-TLM0)+SIN(TPH0)*SIN(GLAT)
+      Y=COS(GLAT)*SIN(GLON-TLM0)
+      Z=COS(TPH0)*SIN(GLAT)-SIN(TPH0)*COS(GLAT)*COS(GLON-TLM0)
+      RLAT=ATAN(Z/SQRT(X*X+Y*Y))
+      RLON=ATAN(Y/X)
+      IF(X<0.)THEN
+        RLON=RLON+PI
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE GEO_TO_ROT_LATLON
+!
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE DISTANCE_ON_SPHERE(RLAT_1,RLON_1                       &
+                                   ,RLAT_2,RLON_2                       &
                                    ,DISTANCE )                  
 !
 !-----------------------------------------------------------------------
@@ -3910,8 +4075,8 @@
 !***  Argument Variables
 !------------------------
 !
-      REAL(kind=KFPT),INTENT(IN) :: RLAT_1,RLON_1                       &  !<-- Lat/lon (deg, +east) of point 1
-                        ,RLAT_2,RLON_2                                     !<-- Lat/lon (deg, +east) of point 2
+      REAL(kind=KFPT),INTENT(IN) :: RLAT_1,RLON_1                       &  !<-- Lat/lon (rad, +east) of point 1
+                                   ,RLAT_2,RLON_2                          !<-- Lat/lon (rad, +east) of point 2
 !
       REAL(kind=KFPT),INTENT(OUT) :: DISTANCE                              !<-- Distance (radians) between points 1 and 2
 !
@@ -3921,31 +4086,26 @@
 !*** Local Variables
 !--------------------
 !
-      REAL(kind=KDBL) :: ALPHA,ARG,BETA,CROSS,DLON,DTR                  &
-                        ,PHI1,PHI2,PI,PI_H
+      REAL(kind=KDBL) :: ALPHA,ARG,BETA,CROSS,DLON,PI_H
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       PI_H=ACOS(0.)
-      PI=2.*PI_H
-      DTR=PI/180.
 !
 !-----------------------------------------------------------------------
 !
-      PHI1=RLAT_1*DTR
-      PHI2=RLAT_2*DTR
-      DLON=(RLON_2-RLON_1)*DTR
+      DLON=RLON_2-RLON_1
 !
-      CROSS=ACOS(COS(DLON)*COS(PHI2))
-      ARG=TAN(PHI2)/SIN(DLON)
+      CROSS=ACOS(COS(DLON)*COS(RLAT_2))
+      ARG=TAN(RLAT_2)/SIN(DLON)
       ALPHA=ATAN(ARG)
       IF(DLON<0.)ALPHA=-ALPHA
       BETA=PI_H-ALPHA
 !
-      DISTANCE=ACOS(COS(PHI1)*COS(PHI2)*COS(DLON)                       &
-                   +SIN(PHI1)*SIN(CROSS)*COS(BETA))
+      DISTANCE=ACOS(COS(RLAT_1)*COS(RLAT_2)*COS(DLON)                   &
+                   +SIN(RLAT_1)*SIN(CROSS)*COS(BETA))
 !
 !-----------------------------------------------------------------------
 !
@@ -4786,7 +4946,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(1:3) :: LBND_3D,UBND_3D
 !
-      REAL(kind=KFPT) :: DPHD,DYH,PDTOP,PT
+      REAL(kind=KFPT) :: DLMD,DPHD,DYH,PDTOP,PT
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ARRAY_1D
 !
@@ -5470,32 +5630,42 @@
 !
       DEALLOCATE(ARRAY_1D)
 !
-!------------------------
-!***  Transfer DPHD,JM
-!------------------------
+!----------------------------
+!***  Transfer DPHD,DLMD,,JM
+!----------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract DPHD,JM from Solver Export State"
+      MESSAGE_CHECK="Extract DPHD,DLMD,JM from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
-                            ,name ='DPHD'                               &  !<-- Name of DYH scalar
+                            ,name ='DPHD'                               &  !<-- Latitude grid increment (deg)
                             ,value=DPHD                                 &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
       CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
-                            ,name ='DPHD'                               &  !<-- Name of DYH scalar
+                            ,name ='DPHD'                               &  !<-- Latitude grid increment (deg)
                             ,value=DPHD                                 &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
       CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
-                            ,name ='JM'                                 &  !<-- Name of DYH scalar
+                            ,name ='DLMD'                               &  !<-- Longitude grid increment (deg)
+                            ,value=DLMD                                 &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='DLMD'                               &  !<-- Longitude grid increment (deg)
+                            ,value=DLMD                                 &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
+                            ,name ='JM'                                 &  !<-- J index extent of domain
                             ,value=JM                                   &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
       CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
-                            ,name ='JM'                                 &  !<-- Name of DYH scalar
+                            ,name ='JM'                                 &  !<-- J index extent of domain
                             ,value=JM                                   &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !

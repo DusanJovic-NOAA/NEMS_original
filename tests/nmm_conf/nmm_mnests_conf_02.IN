@@ -331,6 +331,7 @@ parent_child_space_ratio: 3  # Ratio of parent grid increment to this nests's
 
 my_domain_moves: true        # Does this domain move?
 move_type: storm             # Type of this domain move (storm, prescribed)
+centers_distance: 6.0        # Grid increments on this nest between its and its inner nest's centers before this nest shifts
 latitude_limit: 60.          # Nests will not move poleward of this latitude (degrees)
 
 ratio_sfc_files: 3           # Ratio of uppermost parent grid increment to this moving nest's 

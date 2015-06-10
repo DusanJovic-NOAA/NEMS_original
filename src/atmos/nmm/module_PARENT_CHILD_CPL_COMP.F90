@@ -370,6 +370,8 @@
 !
         INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: SHIFT_INFO_CHILDREN
 !
+        REAL(kind=KFPT) :: CENTERS_DISTANCE
+        REAL(kind=KFPT) :: DLM
         REAL(kind=KFPT) :: DPH
         REAL(kind=KFPT) :: DYH
         REAL(kind=KFPT) :: PDTOP
@@ -754,7 +756,9 @@
 !
       INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: SHIFT_INFO_CHILDREN
 !
-      REAL(kind=KFPT),POINTER :: DPH                                    &
+      REAL(kind=KFPT),POINTER :: CENTERS_DISTANCE                       &
+                                ,DLM                                    &
+                                ,DPH                                    &
                                 ,DYH                                    &
                                 ,PDTOP                                  &
                                 ,PT                                     &
@@ -1822,6 +1826,8 @@
                         ,REAL_J
 !
       REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_R3D
+!
+      REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,PI
 !
       CHARACTER(len=2) :: INT_TO_CHAR
       CHARACTER(len=6) :: FMT='(I2.2)'
@@ -2905,17 +2911,23 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!-------------
-!***  DPHD,JM
-!-------------
+!------------------
+!***  DPHD,DLMD,JM
+!------------------
 !
+      DLM=>cc%DLM
       DPH=>cc%DPH
       JM=>cc%JM
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~~~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract DPHD from Parent-Child Coupler Import State"
+      MESSAGE_CHECK="Extract DPHD,DLMD from Parent-Child Coupler Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~~~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='DLMD'                               &  !<-- Extract grid's longitude increment (deg)
+                            ,value=DLM                                  &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
                             ,name ='DPHD'                               &  !<-- Extract grid's latitude increment (deg)
@@ -2931,7 +2943,13 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      DPH=DPH*ACOS(-1.)/180.                                               !<-- Convert from degrees to radians
+      D_ONE=1.
+      D_180=180.
+      PI=DACOS(-D_ONE)
+      D2R=PI/D_180
+!
+      DLM=DLM*D2R                                                          !<-- Convert from degrees to radians
+      DPH=DPH*D2R                                                          !<-- Convert from degrees to radians
 !
 !------------
 !***  INDX_Q
@@ -6222,6 +6240,34 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  What is the distance between this moving nest's center
+!***  and its moving child's before this nest will consider 
+!***  shifting in order to follow its child?  The value is only
+!***  relevant for a moving nest with a child.  Units are grid
+!***  increments on this moving nest's grid.
+!-----------------------------------------------------------------------
+!
+          CENTERS_DISTANCE=R4_IN                                           !<-- Initialize to nonsense
+!
+          IF(NUM_CHILDREN>0.AND.MY_DOMAIN_MOVES)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="P-C Init2: Outer nest reads centers separation"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_ConfigGetAttribute(config=CF_MINE                 &  !<-- The nest's config object
+                                        ,value =CENTERS_DISTANCE        &  !<-- Distance between outer/inner nest centers before outer shift
+                                        ,label ='centers_distance:'     &  !<-- The configure label
+                                        ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
 !***  What is the latitude (degrees) past which no nests will be 
 !***  allowed to move?
 !-----------------------------------------------------------------------
@@ -7015,9 +7061,10 @@
                            ,COMM_FCST_TASKS                             &
                            ,ID_GRANDPARENT                              &
                            ,MY_DOMAIN_ID,MYPE_LOCAL                     &
-                           ,N,NTIMESTEP,NTAG0
+                           ,N,NN,NTIMESTEP,NTAG0
 !
-      INTEGER(kind=KINT) :: I_SHIFT,J_SHIFT
+      INTEGER(kind=KINT) :: I_SHIFT,I_SHIFT_MY_GRID,I_SHIFT_PARENT_GRID &
+                           ,J_SHIFT,J_SHIFT_MY_GRID,J_SHIFT_PARENT_GRID
 !
       INTEGER(kind=KINT) :: IERR,IRTN,RC,RC_CPL_RUN
 !
@@ -7026,11 +7073,16 @@
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
       REAL(kind=KFPT) :: CHILD_DOMAIN_EW,CHILD_DOMAIN_NS                &
+                        ,DIFF_I,DIFF_J                                  &
                         ,DT_GRANDPARENT,SHIFT_LAT
+!
+      REAL(kind=KFPT) :: CENTER_I_INNER,CENTER_I_OUTER                  &
+                        ,CENTER_J_INNER,CENTER_J_OUTER
 !
       REAL(kind=KFPT) :: DIST_EAST,DIST_WEST                            &
                         ,DIST_NORTH,DIST_SOUTH                          &
-                        ,DIST_TO_PARENT_BNDRY
+                        ,DIST_TO_PARENT_BNDRY                           &
+                        ,DISTANCE
 !
       REAL(kind=KFPT) :: DISTN_TO_PARENT_BNDRY                          &
                         ,DISTN_EAST,DISTN_WEST                          &
@@ -7487,115 +7539,194 @@
       CALL NEST_RECVS_BC_DATA('Future')
 !
 !-----------------------------------------------------------------------
-!***  Moving nests now decide if they want to move and then tell their
-!***  parents if the answer is yes.  The move will be executed LAG_STEPS
-!***  parent timesteps later in this routine immediately above.  By that
-!***  that time the parent will have learned that the nest wants to move
+!***  A moving nest will now invoke the storm location routine to 
+!***  determine if it should shift.  However there are several factors
+!***  that will force the nest to skip calling the routine:
+!***   (1) In telescoping moving nests only the innermost calls the
+!***       storm location routine.  This prevents different generations
+!***       of moving nests over the same storm from deciding to move
+!***       in different ways.
+!***   (2) If the nest has already called the routine and is waiting
+!***       to execute the shift then it does not call the routine 
+!***       again until its shift is carried out.
+!***   (3) If the nest is forcing its parent to shift to avoid a 
+!***       collision then it will not call the routine until it knows
+!***       the parent has completed its evasive shift.
+!***   (4) If a nest's or its parent's poleward boundary has moved
+!***       beyond the user-specified latitude limit then the nest
+!***       is permanently immobilized.
+!
+!***  If the nest calls the storm location routine and decides it 
+!***  wants to move then the shift will be executed LAG_STEPS parent
+!***  timesteps later in this routine immediately above.  By that
+!***  time its parent will have learned that the nest wants to move
 !***  and will have prepared BC and internal shift data valid at the
-!***  proper timestep.  If the nest is still waiting to shift following
-!***  the most recent decision to do so then it does not enter the
-!***  storm motion routine.  Likewise in the special case in which the
-!***  child has immobilized itself while forcing its parent to shift,
-!***  the child will not consider shifting until it is informed that
-!***  its parent has moved.
+!***  proper timestep.
 !-----------------------------------------------------------------------
 !
       moving_children_b: IF(MY_DOMAIN_MOVES)THEN                           !<-- Select the moving nests
 !
 !-----------------------------------------------------------------------
 !
-        motion: IF(.NOT.I_WANT_TO_MOVE                                  &
+        motion: IF(.NOT.I_WANT_TO_MOVE                                  &  !<-- Nest not waiting to shift from earlier call to routine
                          .AND.                                          &
-                   .NOT.FORCED_PARENT_SHIFT                             &
+                   .NOT.FORCED_PARENT_SHIFT                             &  !<-- Nest not immobilized after forcing its parent to shift
                          .AND.                                          &
-                   .NOT.STOP_MY_MOTION)THEN
-!
-          IF (TRIM(MOVE_TYPE) == 'storm') THEN
-!
-            CALL COMPUTE_STORM_MOTION(NTIMESTEP                         &
-                                     ,LAST_STEP_MOVED                   &
-                                     ,DT_DOMAIN(MY_DOMAIN_ID)           &
-                                     ,NUM_PES_FCST                      &
-                                     ,COMM_FCST_TASKS                   &
-                                     ,FIS                               &
-                                     ,PD                                &
-                                     ,PINT                              &
-                                     ,T                                 &
-                                     ,Q                                 &
-                                     ,CW                                &
-                                     ,U                                 &
-                                     ,V                                 &
-                                     ,DSG2                              &
-                                     ,PDSG1                             &
-                                     ,DXH                               &
-                                     ,DYH                               &
-                                     ,SM                                &
-                                     ,I_SW_PARENT_CURRENT               &
-                                     ,J_SW_PARENT_CURRENT               &
-                                     ,I_WANT_TO_MOVE                    &
-                                     ,I_SW_PARENT_NEW                   &
-                                     ,J_SW_PARENT_NEW                   &
-                                     ,MY_DOMAIN_ID )
-!
-          ELSE IF (TRIM(MOVE_TYPE) == 'prescribed') THEN
-
-            CALL PRESCRIBED_MOVE(NTIMESTEP,DT_DOMAIN(MY_DOMAIN_ID)      &
-                                 ,I_WANT_TO_MOVE                        &
-                                 ,I_SW_PARENT_CURRENT                   &
-                                 ,J_SW_PARENT_CURRENT                   &
-                                 ,I_SW_PARENT_NEW                       &
-                                 ,J_SW_PARENT_NEW )
-
-!          ELSE IF (TRIM(MOVE_TYPE) == 'artificial5') THEN
-!
-!            CALL ARTIFICIAL_MOVE5(NTIMESTEP                             &
-!                                 ,KOUNT_MOVES                           &
-!                                 ,I_WANT_TO_MOVE                        &
-!                                 ,I_SW_PARENT_CURRENT                   &
-!                                 ,J_SW_PARENT_CURRENT                   &
-!                                 ,I_SW_PARENT_NEW                       &
-!                                 ,J_SW_PARENT_NEW )
-
-          ELSE
- 
-            WRITE(0,*)' Unknown move type :', TRIM(MOVE_TYPE)
-            WRITE(0,*)' ABORTING!'
-            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
-
-          ENDIF
+                   .NOT.STOP_MY_MOTION)THEN                                !<-- Nest not immobilized at the specified latitude limit.
 !
 !-----------------------------------------------------------------------
-!***  If this domain is a parent and it has just now decided it wants
-!***  to shift then first check if any of the children have already
-!***  decided to shift but have not yet executed the shift.  If this
-!***  is the case then the parent ignores its desire to shift.
+!
+          innermost: IF(NUM_CHILDREN==0)THEN                               !<-- Only innermost moving nests explicitly follow storms
+!                                                                          !    whereas outer nests follow their inner nests.
 !-----------------------------------------------------------------------
 !
-          IF(I_WANT_TO_MOVE.AND.NUM_CHILDREN>0)THEN
+            IF (TRIM(MOVE_TYPE) == 'storm') THEN
 !
-            DO N=1,NUM_CHILDREN
+              CALL COMPUTE_STORM_MOTION(NTIMESTEP                       &
+                                       ,LAST_STEP_MOVED                 &
+                                       ,DT_DOMAIN(MY_DOMAIN_ID)         &
+                                       ,NUM_PES_FCST                    &
+                                       ,COMM_FCST_TASKS                 &
+                                       ,FIS                             &
+                                       ,PD                              &
+                                       ,PINT                            &
+                                       ,T                               &
+                                       ,Q                               &
+                                       ,CW                              &
+                                       ,U                               &
+                                       ,V                               &
+                                       ,DSG2                            &
+                                       ,PDSG1                           &
+                                       ,DXH                             &
+                                       ,DYH                             &
+                                       ,SM                              &
+                                       ,I_SW_PARENT_CURRENT             &
+                                       ,J_SW_PARENT_CURRENT             &
+                                       ,I_WANT_TO_MOVE                  &
+                                       ,I_SW_PARENT_NEW                 &
+                                       ,J_SW_PARENT_NEW                 &
+                                       ,MY_DOMAIN_ID )
 !
-              IF(NTIMESTEP<=SHIFT_INFO_CHILDREN(1,N)                    &
-                              .AND.                                     &
-                 SHIFT_INFO_CHILDREN(1,N)                               &
-                   <=NTIMESTEP+TIME_RATIO_MY_PARENT*LAG_STEPS)THEN
+            ELSE IF (TRIM(MOVE_TYPE) == 'prescribed') THEN
+
+              CALL PRESCRIBED_MOVE(NTIMESTEP,DT_DOMAIN(MY_DOMAIN_ID)    &
+                                   ,I_WANT_TO_MOVE                      &
+                                   ,I_SW_PARENT_CURRENT                 &
+                                   ,J_SW_PARENT_CURRENT                 &
+                                   ,I_SW_PARENT_NEW                     &
+                                   ,J_SW_PARENT_NEW )
+
+!            ELSE IF (TRIM(MOVE_TYPE) == 'artificial5') THEN
 !
-                I_WANT_TO_MOVE=.FALSE.
-                I_SW_PARENT_NEW=I_SW_PARENT_CURRENT
-                J_SW_PARENT_NEW=J_SW_PARENT_CURRENT
-                IF(I_AM_LEAD_FCST_TASK)THEN
-                  WRITE(0,51511)MY_DOMAIN_ID,NTIMESTEP                  &
-                               ,N,SHIFT_INFO_CHILDREN(1,N)
-51511             FORMAT(' CHILDREN_RECV MY_DOMAIN_ID=',I2,' NTIMESTEP=',I6 &
-                        ,' I wanted to move but child #',I2,' will shift at ',i6)
-                  WRITE(0,51512)
-51512             FORMAT(' So I will not shift.')
+!              CALL ARTIFICIAL_MOVE5(NTIMESTEP                           &
+!                                   ,KOUNT_MOVES                         &
+!                                   ,I_WANT_TO_MOVE                      &
+!                                   ,I_SW_PARENT_CURRENT                 &
+!                                   ,J_SW_PARENT_CURRENT                 &
+!                                   ,I_SW_PARENT_NEW                     &
+!                                   ,J_SW_PARENT_NEW )
+
+            ELSE
+   
+              WRITE(0,*)' Unknown move type :', TRIM(MOVE_TYPE)
+              WRITE(0,*)' ABORTING!'
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+            ENDIF
+!
+          ENDIF innermost
+!
+!-----------------------------------------------------------------------
+!***  The motion of a moving parent is essentially determined by the
+!***  motion of its child.  The parent watches the location of its
+!***  child and when the distance between the centers of the two
+!***  domains exceeds the specified value then the parent shifts in
+!***  order to bring its center as close as possible to the child's.
+!***  However that desired shift must also be great enough to span
+!***  at least one of its own parent's grid increments since all
+!***  nests move so that their SW corner coincides with an H point
+!***  on their parent's grid.
+!-----------------------------------------------------------------------
+!
+          outer: IF(NUM_CHILDREN>0                                      &  !<-- This moving child has a moving child.
+                          .AND.                                         &
+                    NTIMESTEP>NEXT_MOVE_TIMESTEP)THEN                      !<-- Wait 1 timestep after shifting before considering another.
+!
+!-----------------------------------------------------------------------
+!
+            N=1                                                            !<-- Moving nests can have only one child for now.
+!
+            CENTER_I_OUTER=0.5*(IDS+IDE)
+            CENTER_J_OUTER=0.5*(JDS+JDE)
+!
+            CENTER_I_INNER=I_PARENT_SW(N)                               &
+                          +0.5*(IM_CHILD(N)-1.)*CHILD_PARENT_SPACE_RATIO(N)
+            CENTER_J_INNER=J_PARENT_SW(N)                               &
+                          +0.5*(JM_CHILD(N)-1.)*CHILD_PARENT_SPACE_RATIO(N)
+            DIFF_I=CENTER_I_INNER-CENTER_I_OUTER
+            DIFF_J=CENTER_J_INNER-CENTER_J_OUTER
+!
+            DISTANCE=SQRT(DIFF_I**2+DIFF_J**2)                             !<-- Distance in outer nest grid increments
+                                                                           !    between the outer and inner nest centers.
+!
+            I_SHIFT_PARENT_GRID=NINT(DIFF_I/REAL(SPACE_RATIO_MY_PARENT))   !<-- Prospective I shift on this nest's parent's grid.
+            J_SHIFT_PARENT_GRID=NINT(DIFF_J/REAL(SPACE_RATIO_MY_PARENT))   !<-- Prospective J shift on this nest's parent's grid.
+            I_SHIFT_MY_GRID=I_SHIFT_PARENT_GRID*SPACE_RATIO_MY_PARENT      !<-- Prospective I shift on this nest's grid.
+            J_SHIFT_MY_GRID=J_SHIFT_PARENT_GRID*SPACE_RATIO_MY_PARENT      !<-- Prospective J shift on this nest's grid.
+!
+!-----------------------------------------------------------------------
+!***  The outer moving nest now checks to see if the distance between 
+!***  its center and its moving child's exceeds the pre-specified
+!***  value.  If it does then it will set a prospective shift as 
+!***  long as that shift will span at least one of its parent's grid 
+!***  increments since all nest motion involves moving the SW corner
+!***  of the nest domain from one parent H point to another. 
+!-----------------------------------------------------------------------
+!
+            IF(DISTANCE>CENTERS_DISTANCE                                &  !<-- Inner nest center exceeds distance for outer nest shift.
+                         .AND.                                          &
+               (ABS(I_SHIFT_PARENT_GRID)>=1                             &  !<-- Outer nest shift must be at least
+                         .OR.                                           &  !    one grid increment in I or J
+                ABS(J_SHIFT_PARENT_GRID)>=1))THEN                          !    on its parent's grid.
+!
+              I_WANT_TO_MOVE=.TRUE.
+!
+              I_SW_PARENT_NEW=I_SW_PARENT_CURRENT+I_SHIFT_PARENT_GRID      !<-- This nest's SW corner will lie on this I and J
+              J_SW_PARENT_NEW=J_SW_PARENT_CURRENT+J_SHIFT_PARENT_GRID      !    of its parent's domain after this shift.
+!
+!-----------------------------------------------------------------------
+!***  This moving parent wants to shift since its and its childs
+!***  centers are now too far apart.  However make sure the child
+!***  is not already prepared to shift again.  If it is then the
+!***  parent will not shift.
+!-----------------------------------------------------------------------
+!
+              DO NN=1,NUM_CHILDREN
+                IF(NTIMESTEP<=SHIFT_INFO_CHILDREN(1,NN)                 &
+                                .AND.                                   &
+                   SHIFT_INFO_CHILDREN(1,NN)                            &
+                     <=NTIMESTEP+TIME_RATIO_MY_PARENT*LAG_STEPS)THEN
+!
+                  I_WANT_TO_MOVE=.FALSE.
+                  I_SW_PARENT_NEW=I_SW_PARENT_CURRENT
+                  J_SW_PARENT_NEW=J_SW_PARENT_CURRENT
+!
+                  IF(I_AM_LEAD_FCST_TASK)THEN
+                    WRITE(0,51511)MY_DOMAIN_ID,NTIMESTEP                &
+                                 ,N,SHIFT_INFO_CHILDREN(1,NN)
+51511               FORMAT(' CHILDREN_RECV MY_DOMAIN_ID=',I2,' NTIMESTEP=',I6 &
+                          ,' I wanted to move but child #',I2,' will shift at ',i6)
+                    WRITE(0,51512)
+51512               FORMAT(' So I will not shift.')
+                  ENDIF
                 ENDIF
-              ENDIF
+              ENDDO
 !
-            ENDDO
+!-----------------------------------------------------------------------
 !
-          ENDIF
+            ENDIF
+!
+          ENDIF outer
 !
 !-----------------------------------------------------------------------
 !
@@ -7621,7 +7752,7 @@
             WRITE(0,52054)MY_FORCED_SHIFT(1),MY_FORCED_SHIFT(2)
 52053       FORMAT(' CHILDREN_RECV child_forces_my_shift i_want_to_move=',L1,' move_flag_sent=',L1,' my_domain_id=',I2,' ntimestep=',I5)
 52054       FORMAT(' my forced I shift=',i4,' my forced J shift=',I4)
-          endif
+          ENDIF
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -7825,29 +7956,29 @@
                   CHILD_FORCES_MY_SHIFT=.FALSE.                            !<-- If my child forced this move then reset the flag now.
                 ENDIF
 !
-!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Insert NEXT_MOVE_TIMESTEP into P-C export start"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
                 CALL ESMF_AttributeSet(state=EXP_STATE                  &  !<-- The Parent-Child coupler export state
                                       ,name ='NEXT_MOVE_TIMESTEP'       &  !<-- Insert Attribute with this name
                                       ,value=NEXT_MOVE_TIMESTEP         &  !<-- Nest will shift during this timestep
                                       ,rc   =RC )
 !
-!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
-!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
                 I_SHIFT_CHILD=(I_SW_PARENT_NEW-I_SW_PARENT_CURRENT)     &  !<-- The shift in I in this domain's space
                               *SPACE_RATIO_MY_PARENT
                 J_SHIFT_CHILD=(J_SW_PARENT_NEW-J_SW_PARENT_CURRENT)     &  !<-- The shift in J in this domain's space
                               *SPACE_RATIO_MY_PARENT
 !
-!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Insert I_SHIFT/J_SHIFT in RUN_RECV"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
                 CALL ESMF_AttributeSet(state=EXP_STATE                  &  !<-- The Parent-Child coupler export state
                                       ,name ='I_SHIFT'                  &  !<-- Insert Attribute with this name
@@ -7874,9 +8005,9 @@
                                       ,value=LAST_STEP_MOVED            &  !<-- Motion of nest in J on its grid
                                       ,rc   =RC )
 !
-!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
-!   ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  If this child wants to shift too soon after a restart output
@@ -12080,7 +12211,7 @@
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: PARENT_CHILD_RATIO
 !
 !
-      REAL(kind=KFPT) :: DPHD,DYH,PDTOP,PT
+      REAL(kind=KFPT) :: DLMD,DPHD,DYH,PDTOP,PT
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ARRAY_1D
 !
@@ -13226,13 +13357,23 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
-                            ,name ='DPHD'                               &  !<-- Extract DYH
+                            ,name ='DPHD'                               &  !<-- Extract latitude grid increment (deg)
                             ,value=DPHD                                 &  !<-- Put the extracted value here
                             ,rc   =RC)
 !
       CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
-                            ,name ='DPHD'                               &  !<-- Insert DYH
+                            ,name ='DPHD'                               &  !<-- Insert latitude grid increment (deg)
                             ,value=DPHD                                 &  !<-- Insert this value
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='DLMD'                               &  !<-- Extract longitude grid increment (deg)
+                            ,value=DLMD                                 &  !<-- Put the extracted value here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='DLMD'                               &  !<-- Insert longitude grid increment (deg)
+                            ,value=DLMD                                 &  !<-- Insert this value
                             ,rc   =RC)
 !
       CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
@@ -14160,16 +14301,18 @@
       NUM_TASKS_SEND_V_W=>cc%NUM_TASKS_SEND_V_W
       NUM_TASKS_SEND_V_E=>cc%NUM_TASKS_SEND_V_E
 !
-      DPH        =>cc%DPH
-      DYH        =>cc%DYH
-      PDTOP      =>cc%PDTOP
-      PT         =>cc%PT
-      SB_1       =>cc%SB_1
-      WB_1       =>cc%WB_1
-      TPH0_1     =>cc%TPH0_1
-      TLM0_1     =>cc%TLM0_1
-      RECIP_DPH_1=>cc%RECIP_DPH_1
-      RECIP_DLM_1=>cc%RECIP_DLM_1
+      CENTERS_DISTANCE=>cc%CENTERS_DISTANCE
+      DLM             =>cc%DLM
+      DPH             =>cc%DPH
+      DYH             =>cc%DYH
+      PDTOP           =>cc%PDTOP
+      PT              =>cc%PT
+      SB_1            =>cc%SB_1
+      WB_1            =>cc%WB_1
+      TPH0_1          =>cc%TPH0_1
+      TLM0_1          =>cc%TLM0_1
+      RECIP_DPH_1     =>cc%RECIP_DPH_1
+      RECIP_DLM_1     =>cc%RECIP_DLM_1
       RECIP_PARENT_SPACE_RATIO=>cc%RECIP_PARENT_SPACE_RATIO
 !
       DT_DOMAIN=>cc%DT_DOMAIN

@@ -15,6 +15,20 @@ case `$HOSTNAME` in
   t14a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide 3
   t14a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide 4
 
+  g20a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
+  g20a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
+  g20a3.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
+  g21a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
+  g21a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
+  g21a3.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
+
+  t20a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
+  t20a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
+  t20a3.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
+  t21a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
+  t21a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
+  t21a3.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
+
   gaea1.ncrc.gov)                    MACHINE_ID=gaea ;; ### gaea1
   gaea2.ncrc.gov)                    MACHINE_ID=gaea ;; ### gaea2
   gaea3.ncrc.gov)                    MACHINE_ID=gaea ;; ### gaea3

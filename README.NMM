@@ -95,7 +95,7 @@ For 1-way nesting:
        naturally preferable.
    (g) Set 'my_domain_moves' to false.
 
-(4) Moving nest configure files.  See the example in job/configfile_moving_nmm .
+(4) Moving nest configure files.  See regrtession test examples: tests/nmm_conf/nmm_mnests*conf_*
    (a) Follow all instructions in 3(a)-(f).  
    (b) Set 'my_domain_moves' to true.
    (c) Set 'ratio_sfc_files' to the ratio of the uppermost parent's grid increment to this moving nest's.  Again this should
@@ -112,10 +112,14 @@ For 1-way nesting:
        rows around the edge of the nest domain that must be updated by the parent after the nest moves.  The nest does not
        use its own data in these rows for updating itself because V is not present on the north/east sides and some variables
        needed in the integration part of the domain are not computed in these rows.
-   (e) For now any child of a moving nest must be a moving nest and not a static nest.  A static child would be tied to the parent
-       and so when the parent moves then its child would move with it.  A moving child is not tied to its parent and so when the
-       parent moves then its child does not move with it and the child continues to determine its own motion independently.
-   (f) The file called nest.txt must be present in the working directory.  The file's first column holds critical specifications
+   (e) If a moving nest has a child moving nest then for the outer nest set the value of 'centers_distance'.  This is the distance
+       in units of the outer nest's grid increments that the inner nest's center can move from the outer nest's center before the
+       outer nest shifts so as to bring their centers very near to each other again.
+   (e) If the uppermost parent domain is global then set the value of 'latitude_limit'.  If a nest domain (or the outermost nest
+       in a telescoping complex of nests) reaches this latitude in either hemisphere then the nest stops and never moves again.
+       Thus the nest's delta X cannot become too small due to converging meridians which would result in violation of the CFL
+       criterion.
+   (f) The file called nest.txt must be present in the working directory.  The file's 2nd column holds critical specifications
        regarding variables in the Solver internal state when nests move.  An explanation is given at the beginning of that file.
 
 (5) Task assignment:
