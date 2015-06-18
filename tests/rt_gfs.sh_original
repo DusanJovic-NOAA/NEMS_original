@@ -80,7 +80,6 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_MEMBER_NAMES_:${MEMBER_NAMES}:g     \
                      | sed s:_CP2_:${CP2}:g                       \
                      | sed s:_RUNDIR_:${RUNDIR}:g                 \
-                     | sed s:_RESTART_:${RESTART}:g                 \
                      | sed s:_PATHTR_:${PATHTR}:g                 \
                      | sed s:_FDFI_:${FDFI}:g                     \
                      | sed s:_FHOUT_:${FHOUT}:g                   \
@@ -316,19 +315,18 @@ echo ${TEST_DESCR}
 (echo "GFS, ${TASKS} proc, ${THRD} thread";echo;echo)>> ${REGRESSIONTEST_LOG}
  echo "GFS, ${TASKS} proc, ${THRD} thread";echo;echo
 
-#???????????????????????????????????
-## wait for the job to enter the queue
-#job_running=0
-#until [ $job_running -eq 1 ] ; do
-# echo "TEST is waiting to enter the queue"
-# if [ $SCHEDULER = 'moab' ]; then
-#  job_running=`$SHOWQ -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
-# elif [ $SCHEDULER = 'pbs' ]; then
-#  job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
-# elif [ $SCHEDULER = 'lsf' ]; then
-#  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`;sleep 5
-# fi
-#done
+# wait for the job to enter the queue
+job_running=0
+until [ $job_running -eq 1 ] ; do
+ echo "TEST is waiting to enter the queue"
+ if [ $SCHEDULER = 'moab' ]; then
+  job_running=`$SHOWQ -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+ elif [ $SCHEDULER = 'pbs' ]; then
+  job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+ elif [ $SCHEDULER = 'lsf' ]; then
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`;sleep 5
+ fi
+done
 
 job_running=1
 
