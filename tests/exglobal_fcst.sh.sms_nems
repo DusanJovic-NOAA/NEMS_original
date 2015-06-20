@@ -812,9 +812,7 @@ export PGM='$FCST_LAUNCHER $DATA/$(basename $FCSTEXEC)'
 export pgm=$PGM
 $LOGSCRIPT
 ${NCP} $FCSTEXEC $DATA
-# When testing the restart run, should not remove all, Weiyu.
-#------------------------------------------------------------
-# rm -f NULL
+rm -f NULL
 FH=$((10#$FHINI))
 [[ $FH -lt 10 ]]&&FH=0$FH
 if [[ $FHINI -gt 0 ]] ; then
@@ -915,7 +913,7 @@ if [[ $ENS_NUM -le 1 ]] ; then
   if [ $((FHINI+0)) -eq  $((FHROT+0)) ]; then
     if [ $NEMSIO_IN = .true. ]; then
       ln -fs $GRDI  grid_ini
-#      ln -fs $GRDI  sig_ini
+      ln -fs $GRDI  sig_ini
     else
       ln -fs $SIGI  sig_ini
     fi

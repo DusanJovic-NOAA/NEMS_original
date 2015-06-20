@@ -197,10 +197,7 @@ date > ${REGRESSIONTEST_LOG}
 echo "Start Regression test" >> ${REGRESSIONTEST_LOG}
 (echo;echo;echo)             >> ${REGRESSIONTEST_LOG}
 
-export RUNDIR_ROOT=${PTMP}/${USER}/test_restart_gfs
-# export RUNDIR_ROOT=${PTMP}/${USER}/test_restart_gfs_direct_run
-
-#export RUNDIR_ROOT=${PTMP}/${USER}/rt_$$
+export RUNDIR_ROOT=${PTMP}/${USER}/rt_$$
 mkdir -p ${RUNDIR_ROOT}
 
 source default_vars.sh
@@ -258,9 +255,6 @@ cat $TESTS_FILE | while read line; do
   die "Unknown command $line"
   
 done
-
-#??????????????????????
-exit
 
 # Finalize, Clenaup
 rm -f err out nmm_msub nmm_bsub nmm_qsub nmm_run gfs_fcst_run \
