@@ -16,7 +16,7 @@ if [ $MACHINE_ID = wcoss ]; then
   TASKS_mvg1=96  ; TPN_mvg1=16 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=96  ; TPN_mvg2=16 ; INPES_mvg2=05 ; JNPES_mvg2=18 ; WTPG_mvg2=2
 
-elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
+elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus -o $MACHINE_ID = theia ]; then
 
   TASKS_dflt=48  ; TPN_dflt=   ; INPES_dflt=05 ; JNPES_dflt=09 ; WTPG_dflt=3
   TASKS_thrd=48  ; TPN_thrd=   ; INPES_thrd=05 ; JNPES_thrd=09 ; WTPG_thrd=3

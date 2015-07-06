@@ -56,7 +56,7 @@ EXTLIBS_POST = $(POST_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-FC          = mpiifort -g -openmp  -mkl=sequential
+FC          = mpiifort -g -openmp  -mkl=sequential -diag-disable 8290,8291
 FPP         = -fpp
 FREE        = -free
 FIXED       = -fixed

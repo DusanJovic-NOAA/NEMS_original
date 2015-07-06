@@ -76,7 +76,7 @@ cat nmm_conf/nmm_msub.IN         | sed s:_JBNME_:${JBNME}:g   \
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
-cat nmm_conf/nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
+cat nmm_conf/nmm_${MACHINE_ID}_qsub.IN   | sed s:_JBNME_:${JBNME}:g   \
                                  | sed s:_ACCNR_:${ACCNR}:g   \
                                  | sed s:_QUEUE_:${QUEUE}:g   \
                                  | sed s:_SRCD_:${PATHTR}:g   \

@@ -206,14 +206,14 @@ fi
    if [ "$IDEA" = ".true." ]; then
      cp ${RTPWD}/WAM_gh_l150/*anl*${CDATE} ${RUNDIR}/.
    else
-     export dprefix2=${dprefix2:-""}
+     export dprefix=${dprefix:-""}
      if [ "$rungfstest" = ".true." ] ; then
        if [ $MACHINE_ID = wcoss ] ; then
-         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
+         IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
        elif [ $MACHINE_ID = ccs ] ; then
-         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/wx23sm/data}
+         IC_DIR=${IC_DIR:-$dprefix/global/noscrub/wx23sm/data}
        elif [ $MACHINE_ID = zeus ] ; then
-         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
+         IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
        fi
        cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.
        cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.

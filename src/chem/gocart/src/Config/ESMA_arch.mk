@@ -92,8 +92,9 @@ ifeq ($(ARCH),Linux)
 # Determine which site we are at
 # ------------------------------
   SITE := $(patsubst fe%,zeus,$(SITE))
-  SITE := $(patsubst t%,wcoss,$(SITE))
-  SITE := $(patsubst g%,wcoss,$(SITE))
+  SITE := $(patsubst tf%,theia,$(SITE))
+  SITE := $(patsubst t1%,wcoss,$(SITE))
+  SITE := $(patsubst g1%,wcoss,$(SITE))
 echo SITE= ${SITE}
 
 #
@@ -644,6 +645,37 @@ echo SITE= ${SITE}
      FC := ifort
      F2PY = /usr/bin/f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
 ##   FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
+     FOPT := -O -g -traceback
+     FPE := -fp-model source
+     BIG_ENDIAN =-convert big_endian
+     BYTERECLEN =-assume byterecl
+     FREAL8 = -r8
+     ESMA_REAL=$(FREAL8)
+     FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
+     FREE_SOURCE = -free
+     FIXED_SOURCE = -fixed
+     ACG_FLAGS += -P # enforce native precision in specs
+  endif
+
+  ifeq (${SITE},theia)
+     ESMF_ROOT = /apps/esmf/6.3.0rp1/intel/intelmpi
+     include $(ESMF_ROOT)/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+     DIR_NETCDF = /apps/netcdf/4.3.0-intel
+     DIR_ESMF   = ${ESMF_DIR}
+     BASEDIR = /usr/local
+     DEF_SDF =
+     ESMA_SDF = netcdf
+     INC_NETCDF = $(DIR_NETCDF)/include
+     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /apps/hdf5/1.8.14-intel/lib/libhdf5_hl.a /apps/hdf5/1.8.14-intel/lib/libhdf5.a
+     INC_SDF = $(INC_NETCDF)
+     LIB_SDF = $(LIB_NETCDF)
+     INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/modO/Linux.intel.64.intelmpi.default
+     LIB_ESMF =  $(ESMF_ROOT)/lib/libO/Linux.intel.64.intelmpi.default/libesmf.a
+     INC_MPI =  ${MPI_ROOT}/include
+
+     EXTENDED_SOURCE = -extend_source
+     FC := ifort
+     F2PY = /usr/bin/f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
      FOPT := -O -g -traceback
      FPE := -fp-model source
      BIG_ENDIAN =-convert big_endian

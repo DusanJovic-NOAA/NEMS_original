@@ -86,6 +86,14 @@ elif [[ $1 = 6_gsm_zeus ]]; then
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 6.3.0r series library on zeus"
+elif [[ $1 = 6_nmm_theia ]]; then
+     set -x
+     cp conf/configure.nems.Theia.intel conf/configure.nems
+     touch conf/externals.nems
+     cp conf/modules.nems.Theia conf/modules.nems
+     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 6.3.0rp1 series library on theia"
 elif [[ $1 = 6_gaea ]]; then
      set -x
      cp conf/configure.nems.Gaea.intel conf/configure.nems

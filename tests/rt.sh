@@ -23,8 +23,7 @@ usage() {
 
 source detect_machine.sh
 
-export dprefix1=""
-export dprefix2=""
+export dprefix=""
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 if [ $MACHINE_ID = wcoss ]; then
   source /usrx/local/Modules/default/init/sh
@@ -43,16 +42,24 @@ elif [ $MACHINE_ID = zeus ]; then
   source /usr/share/Modules/init/sh
   export ACCNR
   export QUEUE=batch
-#  export QUEUE=debug
-  export dprefix1=/scratch1/portfolios/NCEPDEV
-  export dprefix2=/scratch2/portfolios/NCEPDEV
-  export DISKNM=$dprefix2/meso
-  export STMP=$dprefix2/stmp
-  export PTMP=$dprefix2/ptmp
-# export PTMP=$dprefix2/stmp
+  export dprefix=/scratch2/portfolios/NCEPDEV
+  export DISKNM=$dprefix/meso
+  export STMP=$dprefix/stmp
+  export PTMP=$dprefix/ptmp
   export SCHEDULER=pbs
-  export SIGHDR=$dprefix2/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
+  export SIGHDR=$dprefix/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
   export SLG=.false.
+elif [ $MACHINE_ID = theia ]; then
+  source /apps/lmod/lmod/init/sh
+  export ACCNR
+  export QUEUE=batch
+  export dprefix=/scratch4/NCEPDEV
+  export DISKNM=$dprefix/meso
+  export STMP=$dprefix/stmp4
+  export PTMP=$dprefix/stmp3
+  export SCHEDULER=pbs
+# export SIGHDR=$dprefix/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
+# export SLG=.false.
 else
   die "Unknown machine ID, please edit detect_machine.sh file"
 fi
@@ -125,25 +132,17 @@ if [[ $CREATE_BASELINE == true ]]; then
   if [[ $CB_arg != gfs ]]; then
     echo "copy gfs"
 set +e
-#   cp ${RTPWD}/GEFS_m4/*                  ${RTPWD_U}/GEFS_m4/.
-#   cp ${RTPWD}/GEFS_m4_5.2.0rp1/*         ${RTPWD_U}/GEFS_m4_5.2.0rp1/.
-#   cp ${RTPWD}/GEFS_m4_6.1.1/*            ${RTPWD_U}/GEFS_m4_6.1.1/.
     cp ${RTPWD}/GFS_ADIAB/*                ${RTPWD_U}/GFS_ADIAB/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*      ${RTPWD_U}/GFS_DFI_REDUCEDGRID/.
-#   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*  ${RTPWD_U}/GFS_DFI_REDUCEDGRID_HYB/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop/*        ${RTPWD_U}/GFS_DFI_hyb_2loop/.
-#   cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*    ${RTPWD_U}/GFS_DFI_hyb_2loop_nst/.
-    cp ${RTPWD}/GFS_NODFI/*                ${RTPWD_U}/GFS_NODFI/.
-#   cp ${RTPWD}/GFS_NODFI_5.2.0rp1/*       ${RTPWD_U}/GFS_NODFI_5.2.0rp1/.
-#   cp ${RTPWD}/GFS_NODFI_6.1.1/*          ${RTPWD_U}/GFS_NODFI_6.1.1/.
-#   cp ${RTPWD}/GFS_OPAC/*                 ${RTPWD_U}/GFS_OPAC/.
-    cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
-    cp ${RTPWD}/WAM_gh_l150_NDSL/*         ${RTPWD_U}/WAM_gh_l150_NDSL/.
     cp ${RTPWD}/GFS_DFI_NEMSIO/*           ${RTPWD_U}/GFS_DFI_NEMSIO/.
     cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*      ${RTPWD_U}/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop/*        ${RTPWD_U}/GFS_DFI_hyb_2loop/.
+    cp ${RTPWD}/GFS_NODFI/*                ${RTPWD_U}/GFS_NODFI/.
     cp ${RTPWD}/GFS_SLG_adiab/*            ${RTPWD_U}/GFS_SLG_adiab/.
     cp ${RTPWD}/GFS_SLG_adiab_DFI/*        ${RTPWD_U}/GFS_SLG_adiab_DFI/.
     cp ${RTPWD}/GFS_NODFI_ESMF_6.3.0rAPI/* ${RTPWD_U}/GFS_NODFI_ESMF_6.3.0rAPI/.
+    cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
+    cp ${RTPWD}/WAM_gh_l150_NDSL/*         ${RTPWD_U}/WAM_gh_l150_NDSL/.
 set -e
   fi
   if [[ $CB_arg != nmm ]]; then
@@ -157,12 +156,13 @@ set +e
     cp ${RTPWD}/NMMB_nests/*               ${RTPWD_U}/NMMB_nests/.
     cp ${RTPWD}/NMMB_reg/*                 ${RTPWD_U}/NMMB_reg/.
     cp ${RTPWD}/NMMB_reg_filt/*            ${RTPWD_U}/NMMB_reg_filt/.
+    cp ${RTPWD}/NMMB_reg_hur/*             ${RTPWD_U}/NMMB_reg_hur/.
     cp ${RTPWD}/NMMB_reg_pcpadj/*          ${RTPWD_U}/NMMB_reg_pcpadj/.
-    cp ${RTPWD}/NMMB_reg_spec_adv/*        ${RTPWD_U}/NMMB_reg_spec_adv/.
+    cp ${RTPWD}/NMMB_reg_post/*            ${RTPWD_U}/NMMB_reg_post/.
     cp ${RTPWD}/NMMB_reg_sas_zhao/*        ${RTPWD_U}/NMMB_reg_sas_zhao/.
     cp ${RTPWD}/NMMB_reg_sel_phy/*         ${RTPWD_U}/NMMB_reg_sel_phy/.
+    cp ${RTPWD}/NMMB_reg_spec_adv/*        ${RTPWD_U}/NMMB_reg_spec_adv/.
     cp ${RTPWD}/NMMB_reg_thomp/*           ${RTPWD_U}/NMMB_reg_thomp/.
-    cp ${RTPWD}/NMMB_reg_hur/*             ${RTPWD_U}/NMMB_reg_hur/.
     cp ${RTPWD}/NMMB_reg_timesr/*          ${RTPWD_U}/NMMB_reg_timesr/.
     cp ${RTPWD}/NMMB_reg_wsm6_gfdl/*       ${RTPWD_U}/NMMB_reg_wsm6_gfdl/.
     cp ${RTPWD}/NMMB_reg_wsm6_rrtm/*       ${RTPWD_U}/NMMB_reg_wsm6_rrtm/.

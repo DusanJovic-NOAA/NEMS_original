@@ -61,7 +61,7 @@ EXTLIBS_POST = $(POST_LIB) \
 #----------------
 #FC          = mpiifort -g -traceback -openmp  -mkl=sequential -check bounds -check uninit
 # FC          = mpiifort -g -traceback -openmp  -mkl=sequential
- FC          = mpiifort -g -openmp  -mkl=sequential
+ FC          = mpiifort -g -openmp  -mkl=sequential -diag-disable 8290,8291
 FPP         = -fpp
 CC          = mpcc
 FREE        = -free
