@@ -72,5 +72,6 @@ export SPECTRALLOOP=3
 export IEMS=1
 export ISOL=2
 export ICO2=2
+export RESTART=.false.
 
 RUN_SCRIPT=rt_gfs.sh_slg

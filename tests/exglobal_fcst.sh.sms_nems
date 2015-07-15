@@ -812,7 +812,13 @@ export PGM='$FCST_LAUNCHER $DATA/$(basename $FCSTEXEC)'
 export pgm=$PGM
 $LOGSCRIPT
 ${NCP} $FCSTEXEC $DATA
-rm -f NULL
+
+# When testing the restart run, should not remove all, Weiyu.
+#------------------------------------------------------------
+if [ $RESTART=.false. ] ; then
+  rm -f NULL
+fi
+
 FH=$((10#$FHINI))
 [[ $FH -lt 10 ]]&&FH=0$FH
 if [[ $FHINI -gt 0 ]] ; then

@@ -39,7 +39,6 @@ fi
  export ICO2=_ICO2_
  export ISOL=_ISOL_
  export SLG=_SLG_
- echo SLG=$SLG
 
  if [[ $SLG = .true. ]] ; then
    module load ibmpe
@@ -160,16 +159,19 @@ fi
 NST_SPINUP=${NST_SPINUP:-.false.}
 
 # restart default is coldstart
-#export RESTART=_RESTART_
+ export RESTART=_RESTART_
+ export RESTART=${RESTART:-.false.}
+ if [ $RESTART = .true. ] ; then
+    export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
+ fi
 #read one time step input data
  export FHROT=_FHROT_
 # restart file output frequency
  export FHRES=_FHRES_
  export FHOUT=_FHOUT_
  export FHZER=_FHZER_
- export RESTART==${RESTART:-.false.}
- export LONB==_LONB_
- export LATB==_LATB_
+ export LONB=_LONB_
+ export LATB=_LATB_
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
 # export SFCPRESS_ID=2
@@ -360,7 +362,7 @@ if [ $SLG = .true. ] ; then
    export shuff_lats_r=.false.
    export semilag=.true.
 else
-   export zflxtvd=.true.
+#   export zflxtvd=.true.
    export shuff_lats_a=.true.
    export shuff_lats_r=.true.
    export semilag=.false.

@@ -15,12 +15,17 @@ export CNTL_DIR=GFS_NODFI
 
 export LIST_FILES="sigf03 sigf06 sigf12 sigf24 sigf48 \
                    sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-                   flxf03 flxf06 flxf48"
-#                   flxf03 flxf06 flxf12 flxf24 flxf48"
+                   flxf03 flxf06 flxf12 flxf24 flxf48"
 
 export_gsm
 export TASKS=48
 export PE1=46
 export WLCLK=80
+export NDAYS=2
+export FHRES=12
+export zflxtvd=.false.
+export FHOUT_HF=6
+export RESTART=.true.
+export SIGHDR=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
 
 RUN_SCRIPT=rt_gfs.sh

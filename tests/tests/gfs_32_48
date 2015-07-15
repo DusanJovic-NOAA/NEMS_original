@@ -15,5 +15,6 @@ export LIST_FILES="sigf03 sigf06 sigf12 sigf24 \
 export_gsm
 export NDAYS=1
 export CP2=.true.
+export FHRES=12
 
 RUN_SCRIPT=rt_gfs.sh

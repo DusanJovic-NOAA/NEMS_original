@@ -201,7 +201,7 @@ export PHYVARS=ras=$ras,zhao_mic=$zhao_mic,lsm=$lsm,old_monin=$old_monin,sashal=
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #
-if [$SLG = .true. ]; then
+if [ $SLG = .true. ]; then
   export NGPTC=${NGPTC:-30}
 else
   export NGPTC=${NGPTC:-8}

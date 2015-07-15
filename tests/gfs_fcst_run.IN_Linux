@@ -113,7 +113,11 @@ fi
 NST_SPINUP=${NST_SPINUP:-.false.}
 
 # restart default is coldstart
-#export RESTART=_RESTART_
+ export RESTART=_RESTART_
+ export RESTART=${RESTART:-.false.}
+ if [ $RESTART = .true. ] ; then
+    export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
+ fi
 #read one time step input data
 # export FHROT=_FHROT_
 # restart file output frequency

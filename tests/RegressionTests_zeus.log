@@ -1,4 +1,4 @@
-Fri Jul  3 18:04:58 UTC 2015
+Fri Jul 10 17:41:39 UTC 2015
 Start Regression test
 
 
@@ -516,24 +516,24 @@ GFS, 32 proc, 1 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
 Checking test 31 results ....
- Comparing sigf00............MISSING file
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sigf48............MISSING file
- Comparing sfcf00............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing sfcf48............MISSING file
- Comparing flxf00............MISSING file
- Comparing flxf03............MISSING file
- Comparing flxf06............MISSING file
- Comparing flxf12............MISSING file
- Comparing flxf24............MISSING file
- Comparing flxf48............MISSING file
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 31 PASS 
 Test 32 gfs_32_adiab Compare GFS adiabatic results with previous trunk version
 Test 32
@@ -545,10 +545,10 @@ GFS, 32 proc, 1 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_ADIAB
 Checking test 32 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
  Test 32 PASS 
 Test 33 gfs_32_48 Test GFS with 2-copy option
 Test 33
@@ -560,18 +560,18 @@ GFS, 32 proc, 1 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
 Checking test 33 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing flxf03............MISSING file
- Comparing flxf06............MISSING file
- Comparing flxf12............MISSING file
- Comparing flxf24............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
  Test 33 PASS 
 Test 34 gfs_decomp_restart Test GFS different decomposition and restart
 Test 34
@@ -583,19 +583,21 @@ GFS, 48 proc, 1 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
 Checking test 34 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sigf48............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing sfcf48............MISSING file
- Comparing flxf03............MISSING file
- Comparing flxf06............MISSING file
- Comparing flxf48............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 34 PASS 
 Test 35 gfs_16_32 Test GFS threads
 Test 35
@@ -607,15 +609,15 @@ GFS, 16 proc, 2 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
 Checking test 35 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing flxf06............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf06.........OK
  Test 35 PASS 
 Test 36 gfs_32_noquilt GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
 Test 36
@@ -627,21 +629,21 @@ GFS, 32 proc, 1 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
 Checking test 36 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sigf48............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing sfcf48............MISSING file
- Comparing flxf03............MISSING file
- Comparing flxf06............MISSING file
- Comparing flxf12............MISSING file
- Comparing flxf24............MISSING file
- Comparing flxf48............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 36 PASS 
 Test 37 gfs_16_48_noquilt_nsout Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
 Test 37
@@ -653,15 +655,15 @@ GFS, 16 proc, 2 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
 Checking test 37 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing flxf06............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf06.........OK
  Test 37 PASS 
 Test 38 gfs_46_48_noquilt_nsout Test GFS, 48 proc, 1 thread, no quilt
 Test 38
@@ -673,19 +675,19 @@ GFS, 48 proc, 1 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_NODFI
 Checking test 38 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sigf48............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing sfcf48............MISSING file
- Comparing flxf03............MISSING file
- Comparing flxf06............MISSING file
- Comparing flxf48............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf48.........OK
  Test 38 PASS 
 Test 39 gfs_32_16_dfi GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
 Test 39
@@ -697,21 +699,21 @@ GFS, 32 proc, 1 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID
 Checking test 39 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sigf48............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
- Comparing sfcf48............MISSING file
- Comparing flxf03............MISSING file
- Comparing flxf06............MISSING file
- Comparing flxf12............MISSING file
- Comparing flxf24............MISSING file
- Comparing flxf48............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 39 PASS 
 Test 40 gfs_16_1_dfi GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
 Test 40
@@ -723,14 +725,14 @@ GFS, 16 proc, 2 thread
 
 baseline dir = /scratch2/portfolios/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID
 Checking test 40 results ....
- Comparing sigf03............MISSING file
- Comparing sigf06............MISSING file
- Comparing sigf12............MISSING file
- Comparing sigf24............MISSING file
- Comparing sfcf03............MISSING file
- Comparing sfcf06............MISSING file
- Comparing sfcf12............MISSING file
- Comparing sfcf24............MISSING file
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
  Test 40 PASS 
 Test 41 wam_gh_l150 WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
 Test 41
@@ -888,4 +890,4 @@ Checking test 45 results ....
  Comparing ngac.t00z.aerf24.........OK
  Test 45 passed 
 REGRESSION TEST WAS SUCCESSFUL
-Sat Jul  4 03:04:17 UTC 2015
+Sat Jul 11 03:57:28 UTC 2015

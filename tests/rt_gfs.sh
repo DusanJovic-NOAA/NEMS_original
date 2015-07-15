@@ -80,6 +80,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_MEMBER_NAMES_:${MEMBER_NAMES}:g     \
                      | sed s:_CP2_:${CP2}:g                       \
                      | sed s:_RUNDIR_:${RUNDIR}:g                 \
+                     | sed s:_RESTART_:${RESTART}:g               \
                      | sed s:_PATHTR_:${PATHTR}:g                 \
                      | sed s:_FDFI_:${FDFI}:g                     \
                      | sed s:_FHOUT_:${FHOUT}:g                   \
@@ -210,8 +211,6 @@ fi
      if [ "$rungfstest" = ".true." ] ; then
        if [ $MACHINE_ID = wcoss ] ; then
          IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
-       elif [ $MACHINE_ID = ccs ] ; then
-         IC_DIR=${IC_DIR:-$dprefix/global/noscrub/wx23sm/data}
        elif [ $MACHINE_ID = zeus ] ; then
          IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
        fi
