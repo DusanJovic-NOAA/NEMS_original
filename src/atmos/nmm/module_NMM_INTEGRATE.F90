@@ -112,6 +112,7 @@
                               ,MY_DOMAIN_MOVES                          &
                               ,LAST_GENERATION                          &
                               ,MYPE                                     &
+                              ,COMM_GLOBAL                              &
                               ,GENERATION_FINISHED                      &
                               ,TIMERS_DOMAIN                            &
                               ,NPE_PRINT                                &
@@ -132,7 +133,8 @@
 !*** Arguments IN
 !-----------------
 !
-      INTEGER(kind=KINT),INTENT(IN) :: FILTER_METHOD                    &  !<-- The type of digital filtering desired
+      INTEGER(kind=KINT),INTENT(IN) :: COMM_GLOBAL                      &  !<-- The MPI communicator for all tasks (COMM_WORLD)
+                                      ,FILTER_METHOD                    &  !<-- The type of digital filtering desired
                                       ,MYPE                             &  !<-- Local task rank on this domain
                                       ,NPE_PRINT                        &  !<-- Task to print clocktimes
                                       ,NUM_2WAY_CHILDREN                   !<-- How many 2-way children on this domain?
@@ -222,7 +224,9 @@
       LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_PARENT                        &
                            ,RECV_ALL_CHILD_DATA 
       LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY                     &
+                           ,FREE_FORECAST                               &
                            ,FREE_TO_INTEGRATE                           &
+                           ,I_AM_ACTIVE                                 &
                            ,INTEGRATED_SOLVER
 !
       TYPE(ESMF_Time) :: ALARM_HISTORY_RING                             &
@@ -486,6 +490,41 @@
 !-----------------------------------------------------------------------
 !
         KOUNT_STEPS=domain_int_state%KOUNT_TIMESTEPS
+        I_AM_ACTIVE=.TRUE.
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM_INTEGRATE: Extract Free Forecast flag"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_CPL_NEST           &  !<-- The parent-child coupler import state
+                              ,name ='Free Forecast'              &  !<-- Flag for free forecasts.
+                              ,value=FREE_FORECAST                &  !<-- Is this the freee forecast?
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(I_AM_A_FCST_TASK.AND..NOT.FREE_FORECAST)THEN
+          IF(MY_DOMAIN_ID>1.OR.NUM_CHILDREN>1)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="NMM_INTEGRATE: Extract I_AM_ACTIVE"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST             &  !<-- The parent-child coupler export state
+                                  ,name ='I Am Active'                  &  !<-- Flag for digital filter activity.
+                                  ,value=I_AM_ACTIVE                    &  !<-- Is this domain active in the digital filter?
+                                  ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  For 2-way nesting check for the signals from parents and
@@ -659,16 +698,20 @@
 !
 !-----------------------------------------------------------------------
 !***  The new nest boundary data must be moved from the Parent-Child
-!***  coupler into the nest's DOMAIN component.
+!***  coupler into the nest's DOMAIN component.  Do not do this
+!***  if the digital filter is running and the child domain is not
+!***  active.
 !-----------------------------------------------------------------------
 !
-            CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                          &  !<-- This task lies on a south boundary?
-                                             ,n_bdy    =N_BDY                          &  !<-- This task lies on a north boundary?
-                                             ,w_bdy    =W_BDY                          &  !<-- This task lies on a west boundary?
-                                             ,e_bdy    =E_BDY                          &  !<-- This task lies on an east boundary?
-                                             ,nest     =domain_int_state%I_AM_A_NEST   &  !<-- The nest flag (yes or no)
-                                             ,state_in =EXP_STATE_CPL_NEST             &  !<-- The P-C coupler export state
-                                             ,state_out=IMP_STATE_DOMAIN)                 !<-- The Domain import state
+            IF(FREE_FORECAST.OR.(FILTER_METHOD>0.AND.I_AM_ACTIVE))THEN
+              CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                         &  !<-- This task lies on a south boundary?
+                                               ,n_bdy    =N_BDY                         &  !<-- This task lies on a north boundary?
+                                               ,w_bdy    =W_BDY                         &  !<-- This task lies on a west boundary?
+                                               ,e_bdy    =E_BDY                         &  !<-- This task lies on an east boundary?
+                                               ,nest     =domain_int_state%I_AM_A_NEST  &  !<-- The nest flag (yes or no)
+                                               ,state_in =EXP_STATE_CPL_NEST            &  !<-- The P-C coupler export state
+                                               ,state_out=IMP_STATE_DOMAIN)                !<-- The Domain import state
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !***  If the nest is movable then the DOMAIN component must be 
@@ -830,12 +873,16 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_GridCompRun(gridcomp   =DOMAIN_GRID_COMP              &  !<-- The DOMAIN gridded component
-                             ,importState=IMP_STATE_DOMAIN              &  !<-- The DOMAIN import state
-                             ,exportState=EXP_STATE_DOMAIN              &  !<-- The DOMAIN export state
-                             ,clock      =CLOCK_INTEGRATE               &  !<-- The ESMF DOMAIN Clock
-                             ,phase      =1                             &  !<-- The phase (subroutine) of DOMAIN Run to execute
-                             ,rc         =RC)
+        IF(I_AM_A_FCST_TASK)THEN
+          IF(FREE_FORECAST.OR.(FILTER_METHOD>0.AND.I_AM_ACTIVE))THEN
+            CALL ESMF_GridCompRun(gridcomp   =DOMAIN_GRID_COMP          &  !<-- The DOMAIN gridded component
+                                 ,importState=IMP_STATE_DOMAIN          &  !<-- The DOMAIN import state
+                                 ,exportState=EXP_STATE_DOMAIN          &  !<-- The DOMAIN export state
+                                 ,clock      =CLOCK_INTEGRATE           &  !<-- The ESMF DOMAIN Clock
+                                 ,phase      =1                         &  !<-- The phase (subroutine) of DOMAIN Run to execute
+                                 ,rc         =RC)
+          ENDIF
+        ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
@@ -913,12 +960,12 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL           &  !<-- The parent-child coupler component
-                                ,importState=IMP_STATE_CPL_NEST         &  !<-- The parent-child coupler import state
-                                ,exportState=EXP_STATE_CPL_NEST         &  !<-- The parent-child coupler export state
-                                ,clock      =CLOCK_INTEGRATE            &  !<-- The DOMAIN Clock
-                                ,phase      =4                          &  !<-- The phase (subroutine) of the coupler to execute
-                                ,rc         =RC)
+          CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL             &  !<-- The parent-child coupler component
+                              ,importState=IMP_STATE_CPL_NEST           &  !<-- The parent-child coupler import state
+                              ,exportState=EXP_STATE_CPL_NEST           &  !<-- The parent-child coupler export state
+                              ,clock      =CLOCK_INTEGRATE              &  !<-- The DOMAIN Clock
+                              ,phase      =4                            &  !<-- The phase (subroutine) of the coupler to execute
+                              ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
@@ -979,8 +1026,7 @@
 !***  phase is NMM_FILTERING.
 !-----------------------------------------------------------------------
 !
-!
-        IF(FILTER_METHOD>0)THEN
+        IF(FILTER_METHOD>0.AND.I_AM_A_FCST_TASK.AND.I_AM_ACTIVE)THEN
           btim0=timef()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

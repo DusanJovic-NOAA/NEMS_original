@@ -156,6 +156,7 @@ set +e
     cp ${RTPWD}/NMMB_nests/*               ${RTPWD_U}/NMMB_nests/.
     cp ${RTPWD}/NMMB_reg/*                 ${RTPWD_U}/NMMB_reg/.
     cp ${RTPWD}/NMMB_reg_filt/*            ${RTPWD_U}/NMMB_reg_filt/.
+    cp ${RTPWD}/NMMB_reg_filt_zombie/*     ${RTPWD_U}/NMMB_reg_filt_zombie/.
     cp ${RTPWD}/NMMB_reg_hur/*             ${RTPWD_U}/NMMB_reg_hur/.
     cp ${RTPWD}/NMMB_reg_pcpadj/*          ${RTPWD_U}/NMMB_reg_pcpadj/.
     cp ${RTPWD}/NMMB_reg_post/*            ${RTPWD_U}/NMMB_reg_post/.

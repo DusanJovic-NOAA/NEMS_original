@@ -411,7 +411,8 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: CONFIG_ID,ISTAT,LB,LNSH,LNSV                &
+      INTEGER(kind=KINT) :: CONFIG_ID,FILT_METHOD_CHILD                 &
+                           ,ISTAT,LB,LNSH,LNSV                          &
                            ,MAX_DOMAINS,N,NLEV_H,NLEV_V                 &
                            ,NFCST,NPHS,NTSD,NUM_DOMAINS,NUM_FIELDS      &
                            ,NUM_PES_FCST,NV                             &
@@ -460,12 +461,15 @@
 !
       LOGICAL(kind=KLOG) :: CALL_BUILD_MOVE_BUNDLE                      &
                            ,CFILE_EXIST                                 &
+                           ,I_AM_ACTIVE                                 &
                            ,INPUT_READY_MY_CHILD                        &
                            ,NEMSIO_INPUT                                &
                            ,OPENED
 !
       LOGICAL(kind=KLOG) :: I_AM_A_FCST_TASK                            &
                            ,I_AM_A_PARENT 
+!
+      LOGICAL(kind=KLOG),DIMENSION(:),ALLOCATABLE :: CHILD_ACTIVE
 !
       CHARACTER(2)  :: INT_TO_CHAR
       CHARACTER(5)  :: NEST_MODE    
@@ -3071,10 +3075,6 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF(ASSOCIATED(MY_CHILDREN_ID))THEN
-          DEALLOCATE(MY_CHILDREN_ID)
-        ENDIF
-!
 !-----------------------------------------------------------------------
 !***  Send the next move timestep of the moving children to the
 !***  Parent-Child coupler.  If this is a restarted run then the
@@ -3091,7 +3091,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_AttributeSet(state    =IMP_STATE                    &  !<-- The Domain import state
-                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Name of the attribute to extract
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Name of the attribute to insert
                                 ,itemCount=NUM_DOMAINS_MAX              &  !<-- Number of items in the array
                                 ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- Put the Attribute here
                                 ,rc       =RC)
@@ -3248,6 +3248,10 @@
 !
       IF(I_AM_A_FCST_TASK)THEN
 !
+        IF(NUM_CHILDREN>0)THEN
+          ALLOCATE(CHILD_ACTIVE(1:NUM_CHILDREN))
+        ENDIF
+!
 !-----------------------------------------------------------------------
 !***  Create and fill the Filter Bundles.  Since the current task
 !***  might lie on more than one domain if the user selects 2-way
@@ -3301,10 +3305,101 @@
           NULLIFY(domain_int_state%SAVE_2D_PHYS)
           NULLIFY(domain_int_state%SAVE_3D_PHYS)
 !
+!-----------------------------------------------------------------------
+!***  We want to be able to run the digital filter on a group of
+!***  parents and children where some of the children are not 
+!***  active in the filtering.  When the free forecast begins then
+!***  all domains will be active.  Set flags in the Domain export
+!***  state indicating if a domain will be inactive if the digital
+!***  filter runs as well as if any of its children will not be
+!***  active.
+!-----------------------------------------------------------------------
+!
+          I_AM_ACTIVE=.TRUE.
+!
+          IF(NUM_CHILDREN>0)THEN
+!
+            DO N=1,NUM_CHILDREN                               !<-- Loop through the children
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Children's DFI method from Config File"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_ConfigGetAttribute(config=CF(MY_CHILDREN_ID(N))  &  !<-- The child's config object
+                                          ,value =FILT_METHOD_CHILD      &  !<-- Child's digital filter methodigital filter method
+                                          ,label ='filter_method:'       &  !<-- Give this label's value to the previous variable
+                                          ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              IF(FILT_METHOD_CHILD>0)THEN
+                CHILD_ACTIVE(N)=.TRUE.
+              ELSE
+                CHILD_ACTIVE(N)=.FALSE.
+              ENDIF
+!
+            ENDDO
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ELSEIF(FILT_METHOD==0)THEN
+!
+          I_AM_ACTIVE=.FALSE.        
+!
+          IF(NUM_CHILDREN>0)THEN
+            DO N=1,NUM_CHILDREN
+              CHILD_ACTIVE(N)=.FALSE.                                      !<-- Children can run DFI only if their parent does.
+            ENDDO
+          ENDIF
+!
         ENDIF
 !
 !-----------------------------------------------------------------------
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Add DFI flag for this domain into Domain export state"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain component export state
+                              ,name ='I Am Active'                      &  !<-- Use this name inside the state
+                              ,value=I_AM_ACTIVE                        &  !<-- The logical being inserted into the export state
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(NUM_CHILDREN>0)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert child DFI flags into Domain Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =EXP_STATE                    &  !<-- The Domain export state
+                                ,name     ='Child Active'               &  !<-- Name of the attribute to insert
+                                ,itemCount=NUM_CHILDREN                 &  !<-- Number of items in the array
+                                ,valueList=CHILD_ACTIVE                 &  !<-- Insert this attribute.
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          DEALLOCATE(CHILD_ACTIVE)
+!
+        ENDIF
+!
+      ENDIF
+!
+      IF(ASSOCIATED(MY_CHILDREN_ID))THEN
+        DEALLOCATE(MY_CHILDREN_ID)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -3379,7 +3474,8 @@
       REAL(kind=KFPT),DIMENSION(1:2) :: SW_X
 !
       LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY                        !<-- Are tasks on a domain boundary?
-      LOGICAL(kind=KLOG) :: MOVE_NOW
+      LOGICAL(kind=KLOG) :: DIG_FILTER,FREE_FORECAST                    &
+                           ,I_AM_ACTIVE,MOVE_NOW
       INTEGER(kind=KINT) :: use_radar_default ! 520r-series work-around Attribute intent() issues
 !
       TYPE(ESMF_TimeInterval) :: DT_ESMF
@@ -3555,6 +3651,44 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  For digital filtering check to see if we are in the free forecast
+!***  and if this domain is active during digital filtering.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Free Forecast flag from Domain Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Domain import state
+                              ,name ='Free Forecast'                    &  !<-- Name of the attribute to extract
+                              ,value=FREE_FORECAST                      &  !<-- Is this the free forecast?
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        DIG_FILTER=.FALSE.
+        IF(.NOT.FREE_FORECAST)THEN
+          DIG_FILTER=.TRUE.
+        ENDIF       
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract DFI Active flag from Domain Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE                          &  !<-- The Domain import state
+                              ,name ='I Am Active'                      &  !<-- Name of the attribute to extract
+                              ,value=I_AM_ACTIVE                        &  !<-- Does this domain participate in the digital filter?
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !***  Extract the Solver internal state.
 !-----------------------------------------------------------------------
 !
@@ -3602,15 +3736,17 @@
 !
         nests: IF(domain_int_state%I_AM_A_NEST)THEN
 !
-          CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                            &  !<-- This task lies on a south boundary?
-                                           ,n_bdy    =N_BDY                            &  !<-- This task lies on a north boundary?
-                                           ,w_bdy    =W_BDY                            &  !<-- This task lies on a west boundary?
-                                           ,e_bdy    =E_BDY                            &  !<-- This task lies on an east boundary?
-                                           ,clock    =CLOCK_DOMAIN                     &  !<-- The Domain Clock
-                                           ,nest     =domain_int_state%I_AM_A_NEST     &  !<-- The nest flag (yes or no)
-                                           ,ratio    =PARENT_CHILD_TIME_RATIO          &  !<-- # of child timesteps per parent timestep
-                                           ,state_in =IMP_STATE                        &  !<-- Domain component's import state
-                                           ,state_out=domain_int_state%IMP_STATE_SOLVER)  !<-- The Solver import state
+          IF(FREE_FORECAST.OR.(DIG_FILTER.AND.I_AM_ACTIVE))THEN
+            CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                            &  !<-- This task lies on a south boundary?
+                                             ,n_bdy    =N_BDY                            &  !<-- This task lies on a north boundary?
+                                             ,w_bdy    =W_BDY                            &  !<-- This task lies on a west boundary?
+                                             ,e_bdy    =E_BDY                            &  !<-- This task lies on an east boundary?
+                                             ,clock    =CLOCK_DOMAIN                     &  !<-- The Domain Clock
+                                             ,nest     =domain_int_state%I_AM_A_NEST     &  !<-- The nest flag (yes or no)
+                                             ,ratio    =PARENT_CHILD_TIME_RATIO          &  !<-- # of child timesteps per parent timestep
+                                             ,state_in =IMP_STATE                        &  !<-- Domain component's import state
+                                             ,state_out=domain_int_state%IMP_STATE_SOLVER)  !<-- The Solver import state
+          ENDIF
 !
 !-----------------------------------------------------------------------
 !

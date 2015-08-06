@@ -433,6 +433,7 @@
         LOGICAL(kind=KLOG) :: FIRST_CALL_RECV_2WAY
         LOGICAL(kind=KLOG) :: FIRST_CALL_RECV_BC
         LOGICAL(kind=KLOG) :: FORCED_PARENT_SHIFT
+        LOGICAL(kind=KLOG) :: I_AM_ACTIVE
         LOGICAL(kind=KLOG) :: I_AM_LEAD_FCST_TASK
         LOGICAL(kind=KLOG) :: I_WANT_TO_MOVE
         LOGICAL(kind=KLOG) :: MOVE_FLAG_SENT
@@ -440,6 +441,7 @@
         LOGICAL(kind=KLOG) :: PARENT_WANTS_TO_MOVE
         LOGICAL(kind=KLOG) :: STOP_MY_MOTION
 !
+        LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: CHILD_ACTIVE
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MOVE_FLAG
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SEND_CHILD_DATA
         LOGICAL(kind=KLOG),DIMENSION(:),ALLOCATABLE :: CALLED_PARENT_2WAY_BOOKKEEPING
@@ -819,6 +821,7 @@
       LOGICAL(kind=KLOG),POINTER :: FIRST_CALL_RECV_2WAY
       LOGICAL(kind=KLOG),POINTER :: FIRST_CALL_RECV_BC
       LOGICAL(kind=KLOG),POINTER :: FORCED_PARENT_SHIFT
+      LOGICAL(kind=KLOG),POINTER :: I_AM_ACTIVE
       LOGICAL(kind=KLOG),POINTER :: I_AM_LEAD_FCST_TASK
       LOGICAL(kind=KLOG),POINTER :: I_WANT_TO_MOVE
       LOGICAL(kind=KLOG),POINTER :: MOVE_FLAG_SENT
@@ -827,6 +830,7 @@
       LOGICAL(kind=KLOG),POINTER :: STOP_MY_MOTION
 !
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: CALLED_PARENT_2WAY_BOOKKEEPING
+      LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: CHILD_ACTIVE
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MOVE_FLAG
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SEND_CHILD_DATA
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SIGNAL_2WAY_SEND_READY
@@ -1063,6 +1067,8 @@
       CHARACTER(len=5),SAVE :: NEST_MODE                                   !<--- Is the nesting 1-way or 2-way
 !
       CHARACTER(len=99) :: CONFIG_FILE_NAME
+!
+      LOGICAL(kind=KLOG) :: FREE_FORECAST,DIG_FILTER
 !
       LOGICAL(kind=KLOG),SAVE :: GLOBAL_TOP_PARENT                      &  !<-- Is the uppermost parent global?
                                 ,RESTART                                   !<-- Is this a restarted run?
@@ -1793,8 +1799,8 @@
 !
       INTEGER(kind=KINT) :: I,J,L
 !
-      INTEGER(kind=KINT) :: CHILDTASK_0,CONFIG_ID,HANDLE_X,H_OR_V_INT   &
-                           ,ID_CHILD,ID_DOM                             &
+      INTEGER(kind=KINT) :: CHILD_FILTER,CHILDTASK_0,CONFIG_ID          &
+                           ,H_OR_V_INT,HANDLE_X,ID_CHILD,ID_DOM         &
                            ,IDIM,IEND,ISTART,IUNIT_FIS_NEST             &
                            ,JCORNER,JDIM,JEND,JSTART,JSTOP              &
                            ,KOUNT                                       &
@@ -3567,7 +3573,6 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!
 !-----------------------------------------------------------------------
 !***  If this child moves then some additional information is gathered.
 !-----------------------------------------------------------------------
@@ -4039,6 +4044,13 @@
           CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         N_BLEND_V_CHILD=>cc%N_BLEND_V_CHILD
+!
+        ALLOCATE(cc%CHILD_ACTIVE(1:NUM_CHILDREN),stat=ISTAT)               !<-- Will child participate in the digital filtering?
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate cpl_composite%CHILD_ACTIVE stat=',ISTAT
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
+        ENDIF
+        CHILD_ACTIVE=>cc%CHILD_ACTIVE
 !
         ALLOCATE(cc%INC_FIX(1:NUM_CHILDREN),stat=ISTAT)                    !<-- See below where INC_FIX is filled
         IF(ISTAT/=0)THEN
@@ -4793,6 +4805,75 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       cc%NTIMESTEP_FINAL=NHOURS_FCST*3600./DT_DOMAIN(MY_DOMAIN_ID)-1       !<-- This domain's final timestep in the forecast
+!
+!-----------------------------------------------------------------------
+!***  If there is digital filtering does this domain participate?
+!***  Currently a nest must be static and 1-way for this to be
+!***  considered.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="P-C Init1: Extract domain DFI flag from P-C cpl imp state"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='I Am Active'                        &  !<-- Name of Attribute to extract
+                            ,value=I_AM_ACTIVE                          &  !<-- Does domain participate in digital filtering?
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Insert the flag indicating digital filter activity into the
+!***  P-C coupler export state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="P-C Init1: Insert DFI activity flag into P-C Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The P-C coupler's export state
+                            ,name ='I Am Active'                        &
+                            ,value=I_AM_ACTIVE                          &  !<-- Does this domain execute the digital filter?
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IF(NUM_CHILDREN>0)THEN
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract child DFI flags from P-C cpl import state"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='Child Active'                 &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=CHILD_ACTIVE                   &  !<-- Which children participate in digital filtering?
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert child DFI flags into P-C cpl export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state    =EXP_STATE                      &  !<-- This Parent_child Coupler export state
+                              ,name     ='Child Active'                 &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of words in the data
+                              ,valueList=CHILD_ACTIVE                   &  !<-- Which children participate in digital filtering?
+                              ,rc       =RC)
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -7152,6 +7233,31 @@
 !
       CALL POINT_TO_COMPOSITE(MY_DOMAIN_ID)
 !
+!----------------------------------
+!***  Are we in the free forecast?
+!----------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="PARENTS_SEND_CHILD_DATA: Extract Free Forecast flag"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='Free Forecast'                      &  !<-- Name of the attribute to extract
+                            ,value=FREE_FORECAST                        &  !<-- Is this the free forecast?
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      DIG_FILTER=.FALSE.
+      IF(.NOT.FREE_FORECAST)THEN
+        DIG_FILTER=.TRUE.
+      ELSEIF(FREE_FORECAST)THEN
+        I_AM_ACTIVE=.TRUE.                                                 !<-- All domains are always active in the free forecast.
+      ENDIF     
+!
 !-----------------------------------------------------------
 !***  Intracommunicator for current domain's forecast tasks
 !-----------------------------------------------------------
@@ -7521,7 +7627,7 @@
       ENDIF moving_parent
 !
 !-----------------------------------------------------------------------
-!***  All children receive boundary data from their parents from one
+!***  Children receive boundary data from their parents from one
 !***  parent timestep in the future which will be put into the Parent-
 !***  Child coupler export state on its way to the dynamics where it
 !***  will be used to compute boundary tendencies through the next
@@ -7534,9 +7640,16 @@
 !***  the child's location-dependent working pointers for the boundary
 !***  data were already reset for the new location in the IF block for
 !***  NTIMESTEP==NEXT_MOVE_TIMESTEP above.
+!
+!***  If the digital filter is running and this child is not active
+!***  in it then it does not receive.
 !-----------------------------------------------------------------------
 !
-      CALL NEST_RECVS_BC_DATA('Future')
+      IF(FREE_FORECAST.OR.(DIG_FILTER.AND.I_AM_ACTIVE))THEN
+!
+        CALL NEST_RECVS_BC_DATA('Future')
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  A moving nest will now invoke the storm location routine to 
@@ -8879,8 +8992,9 @@
 !
       INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
-      LOGICAL(kind=KLOG) :: EXCH_DONE,INTEGRATE_TIMESTEP                &
-                           ,PARENT_MOVED,SHIFT_INFO_IS_PRESENT
+      LOGICAL(kind=KLOG) :: EXCH_DONE                                   &
+                           ,INTEGRATE_TIMESTEP,PARENT_MOVED             &
+                           ,SHIFT_INFO_IS_PRESENT
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
@@ -8918,6 +9032,29 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!----------------------------------
+!***  Are we in the free forecast?
+!----------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="PARENTS_SEND_CHILD_DATA: Extract Free Forecast flag"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='Free Forecast'                      &  !<-- Name of the attribute to extract
+                            ,value=FREE_FORECAST                        &  !<-- Is this the free forecast?
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      DIG_FILTER=.FALSE.
+      IF(.NOT.FREE_FORECAST)THEN
+        DIG_FILTER=.TRUE.
+      ENDIF     
 !
 !-----------------------------------------------------------------------
 !***  Point to the correct part of the composite object which will
@@ -9110,7 +9247,11 @@
 !
         ENDIF
 !
-        CALL COMPUTE_SEND_NEST_BC_DATA(N,'Future')                         !<-- Parent sends BC data to all children from their future.
+        IF(FREE_FORECAST.OR.(DIG_FILTER.AND.CHILD_ACTIVE(N)))THEN          !<-- For DFI, check that the child is participating.
+!
+          CALL COMPUTE_SEND_NEST_BC_DATA(N,'Future')                       !<-- Parent sends BC data to children from their future.
+!
+        ENDIF
 !
       ENDDO
 !
@@ -12219,7 +12360,9 @@
 !
       TYPE(ESMF_VM) :: VM_DOMAIN
 !
-      LOGICAL(kind=KLOG) :: RESTART
+      LOGICAL(kind=KLOG) :: I_AM_ACTIVE,RESTART
+!
+      LOGICAL(kind=KLOG),DIMENSION(:),ALLOCATABLE :: CHILD_ACTIVE
 !
       TYPE(WRAP_DOMAIN_INTERNAL_STATE) :: WRAP_DOMAIN
 !
@@ -14130,6 +14273,70 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  Transfer the flags indicating whether a domain and any of its
+!***  children are active in the digital filtering.
+!-----------------------------------------------------------------------
+!
+      IF(I_AM_A_FCST_TASK)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract DFI flag for this domain"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
+                              ,name ='I Am Active'                      &  !<-- Name of Attribute to extract
+                              ,value=I_AM_ACTIVE                        &  !<-- Does this domain participate in digital filtering?
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                 &  !<-- The P-C coupler import state
+                              ,name ='I Am Active'                      &  !<-- Name of Attribute to set.
+                              ,value=I_AM_ACTIVE                        &  !<-- Does this domain participate in digital filtering?
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(NUM_CHILDREN>0)THEN
+          ALLOCATE(CHILD_ACTIVE(1:NUM_CHILDREN))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract child DFI flags from Domain export state"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
+                                ,name ='Child Active'                    &  !<-- The name of the Attribute 
+!                               ,itemCount=NUM_CHILDREN                  &  !<-- # of words in data list
+                                ,valueList=CHILD_ACTIVE                  &  !<-- Put extracted values here 
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add child DFI flags to the Parent-Child Cpl Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                &  !<-- The Parent-Child Coupler's import state
+                                ,name ='Child Active'                    &  !<-- The name of the Attribute
+                                ,itemCount=NUM_CHILDREN                  &  !<-- # of words in data list
+                                ,valueList=CHILD_ACTIVE                  &  !<-- Put added values here 
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          DEALLOCATE(CHILD_ACTIVE)
+        ENDIF
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
 !
       END SUBROUTINE PARENT_CHILD_COUPLER_SETUP
 !
@@ -14363,6 +14570,7 @@
       FIRST_CALL_RECV_2WAY         =>cc%FIRST_CALL_RECV_2WAY
       FIRST_CALL_RECV_BC           =>cc%FIRST_CALL_RECV_BC
       FORCED_PARENT_SHIFT          =>cc%FORCED_PARENT_SHIFT
+      I_AM_ACTIVE                  =>cc%I_AM_ACTIVE
       I_AM_LEAD_FCST_TASK          =>cc%I_AM_LEAD_FCST_TASK
       I_WANT_TO_MOVE               =>cc%I_WANT_TO_MOVE
       MOVE_FLAG_SENT               =>cc%MOVE_FLAG_SENT
@@ -14370,6 +14578,7 @@
       MY_PARENT_MOVES              =>cc%MY_PARENT_MOVES
 !
       CALLED_PARENT_2WAY_BOOKKEEPING=>cc%CALLED_PARENT_2WAY_BOOKKEEPING
+      CHILD_ACTIVE          =>cc%CHILD_ACTIVE
       CHILD_FORCES_MY_SHIFT =>cc%CHILD_FORCES_MY_SHIFT
       MOVE_FLAG             =>cc%MOVE_FLAG
       SEND_CHILD_DATA       =>cc%SEND_CHILD_DATA
@@ -20028,8 +20237,6 @@
                            ,N_SIDE,NUM_TASKS_SEND,NTX                   &
                            ,RC
 !
-      INTEGER(kind=KINT) :: LOG_LENGTH
-!
       INTEGER(kind=KINT),DIMENSION(:,:,:),POINTER :: I_INDX_PARENT_BND  &
                                                     ,J_INDX_PARENT_BND
 !
@@ -20051,9 +20258,6 @@
       TYPE(REAL_DATA),DIMENSION(:),POINTER :: CHILD_BOUND_H             &
                                              ,FIS_CHILD_BND             &
                                              ,PDB
-!
-!
-      REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: TMP
 !
       integer,dimension(8) :: values
 !
@@ -20126,10 +20330,10 @@
 !$omp         j,j_end,j_end_transfer,j_north,j_south,                   &
 !$omp         j_start,j_start_transfer,                                 &
 !$omp         kount_pts,kount_transfer,                                 &
-!$omp         l,log_length,log_p1_parent,log_pbot,log_ptop,             &
+!$omp         l,log_p1_parent,log_pbot,log_ptop,                        &
 !$omp         ntx,pdtop_pt,phi_diff,phi_interp,pint_interp,psfc_child,  &
 !$omp         px_ne,px_nw,px_se,px_sw,                                  &
-!$omp         q_interp,t_interp,tmp,wght_ne,wght_nw,wght_se,wght_sw)
+!$omp         q_interp,t_interp,wght_ne,wght_nw,wght_se,wght_sw)
 !.......................................................................
 !
         child_task_loop: DO NTX=1,NUM_TASKS_SEND                            !<-- Fill bndry data for each child task on the child bndry
@@ -20403,7 +20607,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        ENDDO child_task_loop
+       ENDDO child_task_loop
 !
 !.......................................................................
 !$omp end parallel do
@@ -20592,8 +20796,6 @@
 !
       REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PINT_INTERP_LO
 !
-      REAL(kind=KFPT),DIMENSION(1:LM+1,1:4) :: C_TMP                       !<-- Working array for ESSL spline call
-!
       REAL(kind=KFPT),DIMENSION(:),POINTER :: VBL_COL_CHILD
 !
       REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: WEIGHT_BND
@@ -20667,16 +20869,16 @@
 !-----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp private(c_tmp,coeff_1,delp_extrap,dp1,dp2,dp3,                    &
+!$omp private(coeff_1,delp_extrap,dp1,dp2,dp3,factor,                   &
 !$omp         i,i_east,i_end,i_end_expand,i_start,i_start_expand,       &
 !$omp         i_west,inversion,                                         &
 !$omp         j,j_end,j_end_expand,j_north,j_south,                     &
 !$omp         j_start,j_start_expand,                                   &
-!$omp         knt_pts,knt_pts_x,loc_1,l,loc_2,                          &
+!$omp         knt_pts,knt_pts_x,l,l_vbl,loc_1,loc_2,                    &
 !$omp         n_add,n_stride,ntx,num_levs_spline,                       &
 !$omp         p_input,pdtop_pt,pint_interp_hi,pint_interp_lo,           &
 !$omp         pmid_child,pmid_interp,prod1,prod2,prod3,                 &
-!$omp         px_ne,px_nw,px_se,px_sw,r_delp,                           &
+!$omp         px_ne,px_nw,px_se,px_sw,r_delp,sec_deriv,                 &
 !$omp         t_lowest,vbl_col_child,vbl_input,vbl_interp,              &
 !$omp         wght_ne,wght_nw,wght_se,wght_sw)
 !.......................................................................
@@ -20851,8 +21053,8 @@
                                         *VBL_PARENT(I_WEST,J_NORTH,L)   &  !
                                        +WGHT_NE                         &  !
                                         *VBL_PARENT(I_EAST,J_NORTH,L)      !<--
-!     if(i==isee.and.j==jsee.and.l==ksee)then 
-!     if(n_side==2)then 
+!     if(i==isee.and.j==jsee.and.l==ksee)then
+!     if(n_side==2)then
 !       write(0,44370)trim(vbl_name)
 !       write(0,44371)vbl_interp(knt_pts,l_vbl),knt_pts,i_west,i_east,j_south,j_north
 !       write(0,44372)wght_sw,wght_se,wght_nw,wght_ne
@@ -21778,7 +21980,7 @@
                            ,NUM_LEVS_SEC                                &
                            ,LM                                          &  !<-- Interpolate to this many parent midlayers
                            ,PMID_PARENT                                 &  !<-- Target output pressures at parent's midlayers
-                           ,VBL_OUT )                                      !<-- Values in the column at I,J adjusted for topo differences
+                           ,VBL_OUT)                                       !<-- Values in the column at I,J adjusted for topo differences
 !
                 DO L=1,LM
                   VBL_COL(L)=VBL_OUT(L)                                    !<-- Transfer adjusted column values back into 2-way data

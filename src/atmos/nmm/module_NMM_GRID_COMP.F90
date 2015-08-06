@@ -89,7 +89,9 @@
                            ,TIMESTEP_SEC_NUMERATOR                      &
                            ,TIMESTEP_SEC_DENOMINATOR
 !
-      INTEGER(kind=KINT),SAVE :: FILTER_METHOD                             !<-- Digital filter flag (0->no filter; >0->filter type)
+      INTEGER(kind=KINT),SAVE :: COMM_GLOBAL                            &  !<-- The MPI communicator for all tasks (COMM_WORLD)
+                                ,FILTER_METHOD                             !<-- Digital filter flag (0->no filter; >0->filter type)
+!
       INTEGER(kind=KINT),SAVE :: USE_RADAR                                 !<-- Radar GSI heating rate flag (0 -> don't apply; >0 -> apply)          
 !
       INTEGER(kind=KINT),POINTER :: COMM_TO_MY_PARENT                   &  !<-- Intercommunicator between a domain and its parent
@@ -137,8 +139,7 @@
       INTEGER(kind=KINT) :: KOUNT_STEPS=0                               &
                            ,NUM_GENS=1                                     !<-- The # of generations of domains (only for 2-way nests)
 !
-      INTEGER(kind=KINT) :: COMM_GLOBAL                                 &  !<-- Communicator for ALL tasks in the run
-                           ,COMM_MY_DOMAIN                              &  !<-- Each domain's local intracommunicator
+      INTEGER(kind=KINT) :: COMM_MY_DOMAIN                              &  !<-- Each domain's local intracommunicator
                            ,FULL_GEN                                    &  !<-- The 1st generation of domains that uses all fcst tasks
                            ,MY_DOMAIN_ID                                &  !<-- The ID of each domain
                            ,NUM_DOMAINS_MINE                               !<-- The # of domains on which each task resides
@@ -3082,7 +3083,7 @@
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
-      LOGICAL(kind=KLOG) :: LAST_GENERATION
+      LOGICAL(kind=KLOG) :: I_AM_ACTIVE,FREE_FORECAST,LAST_GENERATION
 !
       TYPE(ESMF_Time) :: CURRTIME
 !
@@ -3132,7 +3133,53 @@
 !
 !-----------------------------------------------------------------------
 !
+        DO N=1,NUM_GENS
+!
+          MY_DOMAIN_ID=MY_DOMAINS_IN_GENS(N)                                 !<-- Task's domain in generation N
+
+          IF(MY_DOMAIN_ID>0)THEN                                             !<-- Domain ID is 0 for 2-way nesting if task not in generation N
+!
+            IMP_STATE_DOMAIN=>nmm_int_state%IMP_STATE_DOMAIN(MY_DOMAIN_ID)   !<-- This domain's import state
+            IMP_STATE_CPL_NEST=>nmm_int_state%IMP_STATE_PC_CPL(MY_DOMAIN_ID)
+            FREE_FORECAST=.FALSE.
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_Run: Set Free Forecast flag in the Domain import state"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN             &  !<-- This DOMAIN component's import state 
+                                  ,name ='Free Forecast'              &  !<-- The forecast is in the digital filter.
+                                  ,value=FREE_FORECAST                &  !<-- Value of filter method flag
+                                  ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_Run: Set Free Forecast flag in the P-C import state"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST           &  !<-- This DOMAIN component's import state 
+                                  ,name ='Free Forecast'              &  !<-- The forecast is in the digital filter.
+                                  ,value=FREE_FORECAST                &  !<-- Value of filter method flag
+                                  ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          ENDIF
+!
+        ENDDO
+!
+!-----------------------------------------------------------------------
+!
         CALL RUN_DIGITAL_FILTER_NMM                                        !<-- See internal subroutine below.
+!
+!-----------------------------------------------------------------------
 !
       ENDIF
 !
@@ -3142,6 +3189,7 @@
 !-----------------------------------------------------------------------
 !
       FILTER_METHOD=0                                                      !<-- Filter is done or was not run so set method to 0
+      I_AM_ACTIVE=.TRUE.                                                   !<-- All domains are active in the free forecast.
       USE_RADAR=0                                                          !<-- Radar filter is done or was not run         
 !
       DO N=1,NUM_GENS
@@ -3151,6 +3199,7 @@
         IF(MY_DOMAIN_ID>0)THEN                                             !<-- Domain ID is 0 for 2-way nesting if task not in generation N
 !
           IMP_STATE_DOMAIN=>nmm_int_state%IMP_STATE_DOMAIN(MY_DOMAIN_ID)   !<-- This domain's import state
+          EXP_STATE_DOMAIN=>nmm_int_state%EXP_STATE_DOMAIN(MY_DOMAIN_ID)   !<-- This domain's export state
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="NMM_Run: Set Filter Method to 0 in DOMAIN import state"
@@ -3165,19 +3214,66 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-          MESSAGE_CHECK="NMM_Run: Set USE_RADAR to 0 in DOMAIN import state"      
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="NMM_Run: Set domain active flag in DOMAIN export state"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN             & !<-- This DOMAIN component's import state      
-                                ,name ='Use_Radar'                  & !<-- Flag for radar filter     
-                                ,value=USE_RADAR                    & !<-- Value of radar filter flag    
+          CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN             &  !<-- This DOMAIN component's export state 
+                                ,name ='I Am Active'                &  !<-- This domain is active in the forecast.
+                                ,value=I_AM_ACTIVE                  &  !<-- Value of filter method flag
                                 ,rc   =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="NMM_Run: Set USE_RADAR to 0 in DOMAIN import state"      
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                 & !<-- This DOMAIN component's import state      
+                                ,name ='Use_Radar'                      & !<-- Flag for radar filter     
+                                ,value=USE_RADAR                        & !<-- Value of radar filter flag    
+                                ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          IMP_STATE_DOMAIN=>nmm_int_state%IMP_STATE_DOMAIN(MY_DOMAIN_ID)   !<-- This domain's import state
+          IMP_STATE_CPL_NEST=>nmm_int_state%IMP_STATE_PC_CPL(MY_DOMAIN_ID)
+          FREE_FORECAST=.TRUE.
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="NMM_Run: Set Free Forecast flag in the Domain import state"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                 &  !<-- This DOMAIN component's import state 
+                                ,name ='Free Forecast'                  &  !<-- The forecast is now free.
+                                ,value=FREE_FORECAST                    &  !<-- Is this the free forecast?
+                                ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="NMM_Run: Set Free Forecast flag in the P-C import state"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST               &  !<-- This P-C coupler component's import state 
+                                ,name ='Free Forecast'                  &  !<-- The forecast is now free.
+                                ,value=FREE_FORECAST                    &  !<-- Is this the free forecast?
+                                ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         ENDIF
 !
@@ -3380,6 +3476,7 @@
                               ,my_domain_moves    =MY_DOMAIN_MOVES           &
                               ,last_generation    =LAST_GENERATION           &
                               ,mype               =MYPE_LOCAL                &
+                              ,comm_global        =COMM_GLOBAL               &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)      &
                               ,npe_print          =NPE_PRINT                 &
                               ,print_timing       =PRINT_TIMING )
@@ -3819,6 +3916,7 @@
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
                               ,last_generation    =LAST_GENERATION             &
                               ,mype               =MYPE_LOCAL                  &
+                              ,comm_global        =COMM_GLOBAL               &
                               ,generation_finished=GENERATION_FINISHED(N)      &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)        &
                               ,npe_print          =NPE_PRINT                   &
@@ -4229,6 +4327,7 @@
                               ,my_domain_moves    =MY_DOMAIN_MOVES            &
                               ,last_generation    =LAST_GENERATION            &
                               ,mype               =MYPE_LOCAL                 &
+                              ,comm_global        =COMM_GLOBAL               &
                               ,generation_finished=GENERATION_FINISHED(N)     &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)       &
                               ,npe_print          =NPE_PRINT                  &
@@ -4522,6 +4621,7 @@
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
                               ,last_generation    =LAST_GENERATION             &
                               ,mype               =MYPE_LOCAL                  &
+                              ,comm_global        =COMM_GLOBAL               &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)        &
                               ,npe_print          =NPE_PRINT                   &
                               ,print_timing       =PRINT_TIMING )
@@ -4854,6 +4954,7 @@
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
                               ,last_generation    =LAST_GENERATION             &
                               ,mype               =MYPE_LOCAL                  &
+                              ,comm_global        =COMM_GLOBAL               &
                               ,generation_finished=GENERATION_FINISHED(N)      &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)        &
                               ,npe_print          =NPE_PRINT                   &
@@ -5165,6 +5266,7 @@
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
                               ,last_generation    =LAST_GENERATION             &
                               ,mype               =MYPE_LOCAL                  &
+                              ,comm_global        =COMM_GLOBAL               &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)        &
                               ,npe_print          =NPE_PRINT                   &
                               ,print_timing       =PRINT_TIMING )

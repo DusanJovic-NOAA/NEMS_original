@@ -146,6 +146,12 @@ if [ ${GBRG} = fltr ]; then
   cp nmm_conf/nmm_fltr_conf_03 configure_file_03
 fi
 
+if [ ${GBRG} = fltr_zombie ]; then
+  rm -f configure_file_02 configure_file_03 configure_file_04
+  cp nmm_conf/nmm_fltr_conf_02 configure_file_02
+  cp nmm_conf/nmm_fltr_zombie_conf_03 configure_file_03
+fi
+
 ####################################################################################################
 # Submit test
 ####################################################################################################
