@@ -126,7 +126,7 @@
       INTEGER :: jcap, kcnv(IX), KBOT(IX), KTOP(IX)
       REAL(kind=kind_phys), DIMENSION(IX,lm) :: delp, prsl,phil,q1,t1,  &
                                                 u1,v1,VVEL,             &
-                                ud_mf,dd_mf,dt_mf, q0,t0,u0,v0,DOT
+                                ud_mf,dd_mf,dt_mf, q0,t0,u0,v0
       REAL(kind=kind_phys), DIMENSION(IX) :: psp,cldwrk,rn,slimsk,hpbl, &
                                              hflx,evap,rcs, ps_kpa
       REAL(kind=kind_phys), DIMENSION(IX,lm,2) :: CLW, CLW0  !! 1-ice  2-liquid 
@@ -398,11 +398,11 @@
       IF(MESOSAS) THEN
       CALL  sascnvn_meso(im,ix,km,jcap,delt,delp*0.001,prsl*0.001,psp*0.001,phil,clw,   & 
      &     q1,t1,u1,v1,rcs,cldwrk,rn,kbot,ktop,kcnv,slimsk,        &
-     &     dot,ncloud,pgcon_use,massf)    
+     &     vvel,ncloud,pgcon_use,massf)    
       ELSE
       CALL  sascnvn_hur(im,ix,km,jcap,delt,delp*0.001,prsl*0.001,psp*0.001,phil,clw,   & 
      &     q1,t1,u1,v1,rcs,cldwrk,rn,kbot,ktop,kcnv,slimsk,        &
-     &     dot,ncloud,pgcon_use,massf)    
+     &     vvel,ncloud,pgcon_use,massf)    
       ENDIF                     
 !hwrf
 

@@ -1,4 +1,4 @@
-Wed Aug  5 06:26:12 EDT 2015
+Thu Sep  3 18:07:15 UTC 2015
 Start Regression test
 
 
@@ -6,7 +6,7 @@ Start Regression test
 Test 1 nmm_cntrl Compare NMMB-global results with previous trunk version
 
 
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_glob
+baseline dir = /scratch4/NCEPDEV/stmp4/Weiguo.Wang/REGRESSION_TEST/NMMB_glob
 Checking test 1 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -23,7 +23,7 @@ Checking test 1 results ....
 Test 2 nmm_rest_nio Test NMMB-global restart run from NEMSIO file
 
 
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_glob
+baseline dir = /scratch4/NCEPDEV/stmp4/Weiguo.Wang/REGRESSION_TEST/NMMB_glob
 Checking test 2 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 2  
@@ -33,7 +33,7 @@ Checking test 2 results ....
 Test 3 nmm_decomp Test NMMB-global different decomposition
 
 
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_glob
+baseline dir = /scratch4/NCEPDEV/stmp4/Weiguo.Wang/REGRESSION_TEST/NMMB_glob
 Checking test 3 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -46,7 +46,7 @@ Checking test 3 results ....
 Test 4 nmm_thread Test NMMB-global threading
 
 
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_glob
+baseline dir = /scratch4/NCEPDEV/stmp4/Weiguo.Wang/REGRESSION_TEST/NMMB_glob
 Checking test 4 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -61,7 +61,7 @@ Checking test 4 results ....
 Test 5 nmm_reg_nemsio Test NMMB-regional NEMSIO as input file
 
 
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_reg
+baseline dir = /scratch4/NCEPDEV/stmp4/Weiguo.Wang/REGRESSION_TEST/NMMB_reg
 Checking test 5 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -74,7 +74,7 @@ Checking test 5 results ....
 Test 6 nmm_reg_rst Test NMMB-regional restart run
 
 
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_reg
+baseline dir = /scratch4/NCEPDEV/stmp4/Weiguo.Wang/REGRESSION_TEST/NMMB_reg
 Checking test 6 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 6  
@@ -84,49 +84,19 @@ Checking test 6 results ....
 Test 7 nmm_nest_rest Test NMMB-regional static nests with restart
 
 
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_nests
+baseline dir = /scratch4/NCEPDEV/stmp4/Weiguo.Wang/REGRESSION_TEST/NMMB_nests
 Checking test 7 results ....
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s............NOT OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s............NOT OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
- Test 7 FAIL 
-
-
-
-Test 8 nmm_reg_filt Test NMMB-regional digital filter with static nests
-
-
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_reg_filt
-Checking test 8 results ....
- Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_02_bin_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_02_nio_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_03_bin_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_03_nio_0003h_00m_00.00s.........OK
- Test 8  
-
-
-
-Test 9 nmm_reg_filt_zombie Test NMMB-regional digital filter with zombie grandchild
-
-
-baseline dir = /scratch4/NCEPDEV/meso/noscrub/Tom.Black/REGRESSION_TEST/NMMB_reg_filt_zombie
-Checking test 9 results ....
- Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_02_bin_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_02_nio_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_03_bin_0003h_00m_00.00s.........OK
- Comparing nmmb_hst_03_nio_0003h_00m_00.00s.........OK
- Test 9  
+ Test 7  
 
 
 
 REGRESSION TEST WAS SUCCESSFUL
-Wed Aug  5 07:16:00 EDT 2015
+Thu Sep  3 19:03:47 UTC 2015
