@@ -429,7 +429,7 @@ CONTAINS
    integer :: n
    real    :: pi
 
-!! Initial size distribution of dust, D'Almeida[1987]
+!! Initial size distribution of dust, D Almeida[1987]
 !  integer, parameter :: nmodes = 3
 !  real, parameter    :: MMD(nmodes) = (/0.832, 4.82, 19.38/) * 1e-6   ! mass median diameter, [m]
 !  real, parameter    :: sigma_g(nmodes) = (/2.1, 1.9, 1.6/)           ! geometric standard deviation

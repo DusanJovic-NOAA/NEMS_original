@@ -356,7 +356,7 @@ contains
     if(STATUS==MAPL_NoShm) allocate(gg2(npx,npy,3),stat=status)
     VERIFY_(STATUS)
 
-! Argument AmNodeRoot passed to GetWeights identifies if we're using SHMEM
+! Argument AmNodeRoot passed to GetWeights identifies if we are using SHMEM
 ! and then only the NodeRoot gets weights, otherwise everyone does
 !-------------------------------------------------------------------------
      if (doSubSet) then

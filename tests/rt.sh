@@ -58,8 +58,8 @@ elif [ $MACHINE_ID = theia ]; then
   export STMP=$dprefix/stmp4
   export PTMP=$dprefix/stmp3
   export SCHEDULER=pbs
-# export SIGHDR=$dprefix/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
-# export SLG=.false.
+  export SIGHDR=$dprefix/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
+  export SLG=.false.
 else
   die "Unknown machine ID, please edit detect_machine.sh file"
 fi
@@ -74,6 +74,7 @@ fi
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+#export RTPWD=/scratch4/NCEPDEV/nems/noscrub/Weiyu.Yang/REGRESSION_TEST
 
 export CREATE_BASELINE=false
 CB_arg=''

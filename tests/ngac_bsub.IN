@@ -35,6 +35,9 @@ export MACHINE_ID=_MACHINE_ID_
 export SCHEDULER=_SCHED_
 cd _RUND_
 
+export NEMSIO_IN=_NEMSIOIN_
+export NEMSIO_OUT=_NEMSIOOUT_
+
 ##mpirun.lsf ./NEMS.x
 export RUN_ENVIR=dev
 export cyc=00
@@ -48,7 +51,13 @@ export FCST_SCRIPT_DIR=_NEMSDIR_/tests
 export PDY=20120717
 
 export GRDI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.gfsanl
-export SFCI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.sfcanl
+
+if [ $NEMSIO_IN = .true. ] ; then
+  export SFCI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.sfnanl
+else
+  export SFCI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.sfcanl
+fi
+
 export FIXGLOBAL=/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am
 
 _RUND_/JNGAC_FORECAST.sms.para

@@ -660,13 +660,14 @@ echo SITE= ${SITE}
   ifeq (${SITE},theia)
      ESMF_ROOT = /apps/esmf/6.3.0rp1/intel/intelmpi
      include $(ESMF_ROOT)/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+#     DIR_NETCDF = /apps/netcdf/4.3.3-rc2-intel-impi
      DIR_NETCDF = /apps/netcdf/4.3.0-intel
      DIR_ESMF   = ${ESMF_DIR}
      BASEDIR = /usr/local
      DEF_SDF =
      ESMA_SDF = netcdf
      INC_NETCDF = $(DIR_NETCDF)/include
-     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /apps/hdf5/1.8.14-intel/lib/libhdf5_hl.a /apps/hdf5/1.8.14-intel/lib/libhdf5.a
+     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /apps/hdf5/1.8.14-intel/lib/libhdf5_hl.a /apps/hdf5/1.8.14-intel/lib/libhdf5.a /apps/szip/2.1/lib/libsz.a -lz
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)
      INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/modO/Linux.intel.64.intelmpi.default
@@ -674,7 +675,7 @@ echo SITE= ${SITE}
      INC_MPI =  ${MPI_ROOT}/include
 
      EXTENDED_SOURCE = -extend_source
-     FC := ifort
+     FC := mpiifort
      F2PY = /usr/bin/f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
      FOPT := -O -g -traceback
      FPE := -fp-model source

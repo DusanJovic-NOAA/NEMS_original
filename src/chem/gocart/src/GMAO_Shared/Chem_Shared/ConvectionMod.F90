@@ -338,7 +338,7 @@ END SUBROUTINE convection
 !        (I1:I2,J1:J2,KM).  T(IREF,JREF,L) is now T(I,J,L). (bmy, 9/27/01)
 !  (5 ) Removed obsolete code from 9/01 (bmy, 10/23/01)
 !  (6 ) Fix 2 bugs for aerosol scavenging in Rn-Pb-Be simulation: 
-!        (a) set F(:,:,1) = 0 since we don't do any scavenging there.  
+!        (a) set F(:,:,1) = 0 since we do not do any scavenging there.  
 !        (b) DO L = 2, KM to avoid any subscript range out of bounds 
 !        errors (rjp, hyl, bmy, 1/10/02)
 !  (7 ) Now set F=0 in the first level for all tracers.  Also now
@@ -349,15 +349,15 @@ END SUBROUTINE convection
 !        BXHEIGHT from "dao_mod.f" instead of from "CMN_NOX".  Now bundled
 !        into "wetscav_mod.f".  Now references IDTHNO3, IDTH2O2, etc, from
 !        F90 module "tracerid_mod.f".  Added internal routines F_AEROSOL
-!        and GET_ISOL.  Rewritten so that we don't duplicate code for 
+!        and GET_ISOL.  Rewritten so that we do not duplicate code for 
 !        different chemistry simulations. (bmy, 1/17/03)
 !  (10) Now compute F for SO2 in the same way for both fullchem and offline 
 !        simulations (rjp, bmy, 3/23/03)
 !  (11) Added slots for carbon aerosol & dust tracers.  Now modified internal
-!        routine GET_ISOL so it's not hardwired anymore. (rjp, bmy, 4/5/04)
+!        routine GET_ISOL so it is not hardwired anymore. (rjp, bmy, 4/5/04)
 !  (12) Added slots for sea salt aerosol tracers (rjp, bec, bmy, 4/20/04)
 !  (13) Added slots for secondary organic aerosol tracers (rjp, bmy, 7/13/04)
-!  (14) Remove reference to CMN, it's not needed.  Made internal routine
+!  (14) Remove reference to CMN, it is not needed.  Made internal routine
 !        F_AEROSOL a module procedure rather than an internal routine to
 !        COMPUTE_F in order to facilitate parallelization on the Altix.  Also
 !        now pass all arguments explicitly to F_AEROSOL. (bmy, 7/20/04)
@@ -923,7 +923,7 @@ END SUBROUTINE f_aerosol
                     !
                     ! Bug fix for the cloud base layer, which is not 
                     ! necessarily in the boundary layer, and for 
-                    ! GEOS-5, there could be "secondary convection 
+                    ! GEOS-5, there could be secondary convection 
                     ! plumes - one in the PBL and another one not.
                     !
                     ! NOTE: TERM_2 and TERM_3 are the same terms as described

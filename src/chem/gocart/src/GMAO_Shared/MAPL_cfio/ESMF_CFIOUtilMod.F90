@@ -494,7 +494,7 @@
 ! Check FID here.
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
-! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXNCNAM, but it can not be used in a character*MAXNCNAM statement.
 
       if (MAXCHR .LT. MAXNCNAM) then
         print *, 'CFIO_DimInquire warning: MAXNCNAM is larger than ', &
@@ -1788,7 +1788,7 @@
       end subroutine CFIO_GetCharAtt
 
 
-!  The following function was taken from the book "Numerical Recipes in 
+!  The following function was taken from the book Numerical Recipes in 
 !  FORTRAN, the art of scientific computing (2nd Ed.), by William H. Press,
 !  Saul A. Teukolsky, William T. Vetterling, and Brian P. Flannery (Cambridge 
 !  University Press, 1992). 
@@ -1872,7 +1872,7 @@
 !                 representing a date in the format YYYYMMDD and one 
 !                 representing a time in the format HHMMSS.  This function 
 !                 determines the Julian day of each date using the "julday"
-!                 function from the book "Numerical Recipes in FORTRAN, the 
+!                 function from the book Numerical Recipes in FORTRAN, the 
 !                 art of scientific computing (2nd Ed.), by William H. Press, 
 !                 Saul A. Teukolsky, William T. Vetterling, and Brian P. 
 !                 Flannery (Cambridge University Press, 1992).  The difference
@@ -2263,7 +2263,7 @@
       call ncpopt(NCVERBOS)
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
-! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXNCNAM, but it can not be used in a character*MAXNCNAM statement.
 
       if (MAXCHR .LT. MAXNCNAM) then
         print *, 'CFIO_PutVar warning: MAXNCNAM is larger than ', &
@@ -2488,7 +2488,7 @@
 
       timeDimId = ncdid (fid, 'time', rc)
       call ncdinq (fid, timeDimId, dimName, dimSize, rc)
-      dimSize = dimSize - 1           ! We've already written the 
+      dimSize = dimSize - 1           ! We have already written the 
                                       ! the new time.
       allocate ( allTimes (MAX(timeIndex,dimSize)) )
       allocate ( fminutes_32 (MAX(timeIndex,dimSize)) )
@@ -2675,7 +2675,7 @@
       call ncpopt(NCVERBOS)
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
-! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXNCNAM, but it can not be used in a character*MAXNCNAM statement.
 
       if (MAXCHR .LT. MAXNCNAM) then
         print *, 'CFIO_GetVar warning: MAXNCNAM is larger than ', &
@@ -3063,7 +3063,7 @@
       call ncpopt(NCVERBOS)
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
-! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXNCNAM, but it can not be used in a character*MAXNCNAM statement.
 
       if (MAXCHR .LT. MAXNCNAM) then
         print *, 'CFIO_GetVar warning: MAXNCNAM is larger than ',&
@@ -3470,7 +3470,7 @@
       call ncpopt(NCVERBOS)
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
-! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXNCNAM, but it can not be used in a character*MAXNCNAM statement.
 
       if (MAXCHR .LT. MAXNCNAM) then
         print *, 'CFIO_PutVar warning: MAXNCNAM is larger than ',&
@@ -3710,7 +3710,7 @@
 ! This will insure missing times are defined with the proper time value.
 
       call ncdinq (fid, timeDimId, dimName, dimSize, rc)
-      dimSize = dimSize - 1                           ! We've already written the 
+      dimSize = dimSize - 1                           ! We have already written the 
                                                       ! the new time.
       allocate ( allTimes (MAX(timeIndex,dimSize)) )
       allocate ( fminutes_32 (MAX(timeIndex,dimSize)) )
@@ -4069,7 +4069,7 @@
 
       integer,intent(in ),optional :: nymd
 			! yyyymmdd, substituting "%y4", "%y2", "%m1",
-			! "%m2", "%mc", "%Mc', and "%MC"
+			! "%m2", "%mc", "%Mc", and "%MC"
 
       integer,intent(in ),optional :: nhms
 			! hhmmss, substituting "%h1", "%h2", "%h3",
@@ -5045,7 +5045,7 @@ end subroutine die
       outPRange = .FALSE.
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
-! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXNCNAM, but it can not be used in a character*MAXNCNAM statement.
 
       if (MAXCHR .LT. MAXNCNAM) then
         print *, 'EOS_PutVar warning: MAXNCNAM is larger than ', &
@@ -5092,7 +5092,7 @@ end subroutine die
 
         ! look for a "units" attribute.  if none, use a dummy string for units.
 
-        dimUnits = REPEAT(' ',MAXCHR)  ! zero out dimUnits: sfrcatt won't pad 
+        dimUnits = REPEAT(' ',MAXCHR)  ! zero out dimUnits: sfrcatt will not pad 
                                        ! with blanks.
         attrIdx = sffattr (dimid, 'units')
         if (attrIdx .GE. 0) then

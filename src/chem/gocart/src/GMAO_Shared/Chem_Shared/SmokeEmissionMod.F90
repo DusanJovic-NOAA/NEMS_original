@@ -323,7 +323,7 @@ alt_frac(:,:,:) = 0.
 date = date - 20030500
 
 !--
-! Is this code obsolete? This code was used when I didn't have a MINX
+! Is this code obsolete? This code was used when I did not have a MINX
 !  profile, only the mean and standard deviation
 
 altitude = -9999.99
@@ -404,7 +404,7 @@ do j = j1, j2
         !
         ! Need to check for valid observations within each column.
         ! If they exist, then use the profile
-        ! If they don't exist, spread the smoke evenly around the
+        ! If they do not exist, spread the smoke evenly around the
         !  mean altitude for the region such that the smoke is
         !  confined to +/- 1 standard deviation from the regional mean
 
@@ -558,7 +558,7 @@ End Module SmokeEmissionMod
 
 !---------------------------------------------------------------------------
 !
-! JAS: I'm storing old comments and code down here at the end of the routine
+! JAS: I am storing old comments and code down here at the end of the routine
 
 #define JAS
 #ifndef JAS
@@ -629,10 +629,10 @@ End Module SmokeEmissionMod
 ! JAS, I ought to be using carma_bins
 ! JAS, carma_bins got lost in converstion to GEOS-5
 
-! JAS, looks like I'm ignoring the .rc file for now
+! JAS, looks like I am ignoring the .rc file for now
 !      originally, we were using MKS -- now, rc file uses cgs
-!      seeing how I'm ignoring the rc file for now, I can stay w/ MKS as
-!        long as I'm consistent
+!      seeing how I am ignoring the rc file for now, I can stay w/ MKS as
+!        long as I am consistent
 
 !  if ( NBIN .eq. 16 ) then
 !    SM_radius(1) = 25.e-9                 ! meter(m)
@@ -679,7 +679,7 @@ End Module SmokeEmissionMod
 !        if( i .eq. 1 .and. j .eq. 1 ) print *,'k = ', k, ' Ps @ k = ', &
 !         ple(i,j,k), ple(i,j,k-1)
 
-! JAS -- I am coopting Pete's code for finding the alitudes of various
+! JAS -- I am coopting Petes code for finding the alitudes of various
 !        layers to do my elevated layers code
 
 !  Now update the tracer mixing ratios with the aerosol sources
@@ -711,7 +711,7 @@ K_LOOP: do k = km, 1, -1
 ! JAS if p is in between good src altitudes then
 !     n = mod(date,8) + 1
 !     MUST comment out previous vtracer stuff so that extra emissions
-!     don't occur
+!     do not occur
 !
 !          n = 0
 !          if ( ( p0(i,j) .ge. 600.e2 .and. p1 .lt. 600.e2 ) &

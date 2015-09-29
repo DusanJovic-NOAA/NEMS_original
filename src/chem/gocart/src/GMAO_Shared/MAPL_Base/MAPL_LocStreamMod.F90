@@ -1326,7 +1326,7 @@ contains
     STREAM => LocStream%Ptr
 
 
-! Get the attached grid's info
+! Get the attached grids info
 !-----------------------------
   
     call ESMF_GridGet(GRID, NAME=GNAME, RC=STATUS)
@@ -1589,7 +1589,7 @@ subroutine MAPL_LocStreamTransformT2G (LocStream, OUTPUT, INPUT, MASK, SAMPLE, T
 
   ASSERT_(LocStream%Ptr%Current_Tiling > 0)
 
-! that's the size of the output array
+! thats the size of the output array
 !------------------------------------
 
   call ESMF_GRID_INTERIOR  (LocStream%Ptr%GRID, I1,IN,J1,JN)
@@ -1767,7 +1767,7 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
   if (usableATTACHED) then
      ASSERT_(LocStream%Ptr%Current_Tiling > 0)
 
-! that's the size of the output array
+! thats the size of the output array
 !------------------------------------
 
      call ESMF_GRID_INTERIOR  (LocStream%Ptr%GRID, I1,IN,J1,JN)
@@ -1977,7 +1977,7 @@ subroutine MAPL_LocStreamTransformT2T ( OUTPUT, XFORM, INPUT, RC )
      if (associated(Xform%PTR%senders)) then
         do n=1,size(Xform%PTR%senders)
 #if defined(TWO_SIDED_COMM)
-! ALT: the senders' id is also used as a mpi_tag 
+! ALT: the senders id is also used as a mpi_tag 
            msg_tag = Xform%PTR%senders(N)
            call MPI_RECV(FULLINPUT(offset), Xform%PTR%len(N), MPI_REAL, &
                          Xform%PTR%senders(N), msg_tag, &
@@ -2319,7 +2319,7 @@ subroutine MAPL_LocStreamCreateXform ( Xform, LocStreamOut, LocStreamIn, NAME, M
      allocate(GLOBAL_IdByPe(LocStreamIn%Ptr%NT_GLOBAL), STAT=STATUS)
      VERIFY_(STATUS)
 
-! Collect all tile ides in the input stream's pe order
+! Collect all tile ides in the input streams pe order
 !-----------------------------------------------------
 
      call ESMFL_FCOLLECT(LocStreamIn%Ptr%TILEGRID, GLOBAL_IdByPe, &

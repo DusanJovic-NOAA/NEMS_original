@@ -175,7 +175,7 @@ fi
   if [ $IDVC = 2 ] ; then
     export IC_DIR=${IC_DIR:-${RTPWD}/GFS_DFI_POST}
     cp $IC_DIR/gfsanl.$CDATE ${RUNDIR}/.
-    cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
+    cp $IC_DIR/sfnanl.$CDATE ${RUNDIR}/.
 
 #   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.$CDATE ${RUNDIR}/.
 #   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.$CDATE ${RUNDIR}/.
@@ -212,6 +212,8 @@ fi
        if [ $MACHINE_ID = wcoss ] ; then
          IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
        elif [ $MACHINE_ID = zeus ] ; then
+         IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
+       elif [ $MACHINE_ID = theia ] ; then
          IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
        fi
        cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.

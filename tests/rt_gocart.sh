@@ -38,6 +38,8 @@ cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_REGSDIR_:${REGSDIR}:g   \
                     | sed s:_CONFIG_:${PARA_CONFIG}:g   \
                     | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
+                    | sed s:_NEMSIOIN_:${NEMSIOIN}:g   \
+                    | sed s:_NEMSIOOUT_:${NEMSIOOUT}:g   \
                     | sed s:_ACCNR_:${ACCNR}:g   \
                     | sed s:_QUEUE_:${QUEUE}:g   \
                     | sed s:_WLCLK_:${WLCLK}:g   \
@@ -57,6 +59,8 @@ cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_REGSDIR_:${REGSDIR}:g   \
                     | sed s:_CONFIG_:${PARA_CONFIG}:g   \
                     | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
+                    | sed s:_NEMSIOIN_:${NEMSIOIN}:g   \
+                    | sed s:_NEMSIOOUT_:${NEMSIOOUT}:g   \
                     | sed s:_ACCNR_:${ACCNR}:g   \
                     | sed s:_QUEUE_:${QUEUE}:g   \
                     | sed s:_WLCLK_:${WLCLK}:g   \

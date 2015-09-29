@@ -846,7 +846,7 @@
       integer(c_int), parameter :: keypre = 456000000
 
 !!! Get an empty spot in the list of allocated segments
-!!! and use its index as the segment's key
+!!! and use its index as the segments key
 
       pos=1
       do while(pos<=size(Segs))

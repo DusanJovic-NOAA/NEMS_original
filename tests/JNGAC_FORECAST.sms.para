@@ -23,6 +23,7 @@ export RUN_ENVIR=${RUN_ENVIR:-prod}
 #
 # Specify the platform
 #
+
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 export SCHEDULER=${SCHEDULER:-lsf}
 
@@ -136,7 +137,7 @@ export cycle=t${cyc}z
 # VERBOSE  - Specify Verbose Output 
 ################################################################
 export SAVEGES=${SAVEGES:-YES}
-export SENDSMS=${SENDSMS:-YES}
+export SENDSMS=${SENDSMS:-NO}
 export SENDCOM=${SENDCOM:-YES}
 export SENDDBN=${SENDDBN:-NO}
 export RERUN=${RERUN:-NO}
@@ -212,7 +213,11 @@ if [ -f $GESdir/grdr1 -a -f $GESdir/grdr2 -a -f $GESdir/sigr1 -a -f $GESdir/sigr
     export FHINI=${FHINI:-$($SIGHDR ${GRDI} NFHOUR |grep -i "NFHOUR" |awk -F"= " '{print $2}')}
 else
     export GRDI=${GRDI:-$GESdir/${RUN}.${cycle}.gfsanl}
+if [ $NEMSIO_IN = .true. ] ; then
+    export SFCI=${SFCI:-$GESdir/${RUN}.${cycle}.sfnanl}
+else
     export SFCI=${SFCI:-$GESdir/${RUN}.${cycle}.sfcanl}
+fi
     export FHINI=00
 fi
 

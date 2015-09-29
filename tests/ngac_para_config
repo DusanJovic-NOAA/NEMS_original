@@ -20,12 +20,16 @@ set -x
 # SENDDBN: Set to NO for developers, default to YES
 
 # export HOMEngac=${HOMEngac:-/global/save/wx23lu/NGAC/Q4FY12_v1.0.0}  # location of ngac package
+  export machine=${machine:-${MACHINE_ID:-WCOSS}}
   export HOMEGLOBAL=${HOMEGLOBAL:-$NWPROD}
+  if [ $machine = 'theia' ]; then
+    export PTMP=/scratch4/NCEPDEV/stmp3
+  fi
   export PTMP=${PTMP:-/ptmpp1}
-  export DATA_IN=${DATA_IN:-/$PTMP/$LOGNAME}
+  export DATA_IN=${DATA_IN:-$PTMP/$LOGNAME}
   export COM_IN=${COM_IN:-${DATA_IN}/${RUN}}                           # location of input files
   export COM_OUT=${COM_OUT:-${DATA_IN}/${RUN}}                         # location of output files
-  export gespath=${gespath:-/$PTMP/wx23lu/${RUN}.GESdir}                # location of guess files
+  export gespath=${gespath:-$PTMP/wx23lu/${RUN}.GESdir}                # location of guess files
   export DEV_SMS=NO
   export SENDDBN=NO
   usergroup=${usergroup:-dev}
@@ -59,8 +63,13 @@ set -x
 if [ $SCHEDULER = 'loadleveler' ]; then
   export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
 elif [ $SCHEDULER = 'pbs' ]; then
-  export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
-  export PARM_NGAC=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/NGAC/v2.0.0/parm
+   if [ $machine = 'zeus' ]; then
+    export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
+    export PARM_NGAC=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/NGAC/v2.0.0/parm
+   elif [ $machine = 'theia' ]; then
+    export nemsioget=/scratch4/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
+    export PARM_NGAC=/scratch4/NCEPDEV/nems/save/Jun.Wang/NGAC/v2.0.0/parm
+   fi
 elif [ $SCHEDULER = 'lsf' ]; then
   export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
   export PARM_NGAC=/nems/noscrub/Jun.Wang/NGAC/v2.0.0/parm
@@ -68,8 +77,14 @@ fi
 
 ### specify utilscript and utilexec
 if [ $SCHEDULER = 'pbs' ]; then
- export utilscript=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/ush
- export utilexec=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/exec
+   if [ $machine = 'zeus' ]; then
+     export utilscript=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/ush
+     export utilexec=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/exec
+   elif [ $machine = 'theia' ]; then
+     export utilscript=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/ush
+     export utilexec=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/exec
+   fi
+
 fi
 
  export FCSTEXEC=${NEMSDIR}/exe/NEMS.x
@@ -93,6 +108,5 @@ if [ $SCHEDULER = 'pbs' ]; then
   export POST_GRIBVERSION=grib1
 fi
 
-export machine=${machine:-${MACHINE_ID:-WCOSS}}
 
 

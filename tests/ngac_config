@@ -320,6 +320,7 @@ POST_NCEPGRB2TBL=${POST_NCEPGRB2TBL:-$G2TMPL_TBL_DIR/params_grib2_tbl_new}
 
 POST_AVBLFLDSXML=${POST_AVBLFLDSXML:-$PARM_NGAC/ngac_post_avblflds.xml}
 POSTCTLFILE=${POSTCTLFILE:-$PARM_NGAC/ngac_postcntrl.parm}
+
 POST_PARM=${POST_PARM:-$PARM_NGAC/ngac_postcntrl.xml}
 
 ############################################################

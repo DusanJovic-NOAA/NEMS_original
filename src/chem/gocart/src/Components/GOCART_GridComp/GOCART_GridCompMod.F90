@@ -81,7 +81,7 @@ CONTAINS
 
 ! !ARGUMENTS:
 
-    type(ESMF_GridComp), intent(INOUT) :: GC  ! gridded component
+    type(ESMF_GridComp)                :: GC  ! gridded component
     integer, optional                  :: RC  ! return code
 
 ! !DESCRIPTION: Sets Initialize, Run and Finalize services. 
@@ -1031,30 +1031,30 @@ end if ! doing GOCART
 !
    subroutine InitializeSingle_ ( gc, impChem, expChem, clock, rc)
      implicit NONE
-     type(ESMF_Clock),  intent(inout) :: clock      ! The clock
-     type(ESMF_GridComp), intent(inout)  :: gc      ! Grid Component
-     type(ESMF_State), intent(inout) :: impChem     ! Import State
-     type(ESMF_State), intent(inout) :: expChem     ! Export State
+     type(ESMF_Clock)                 :: clock      ! The clock
+     type(ESMF_GridComp)                 :: gc      ! Grid Component
+     type(ESMF_State)                :: impChem     ! Import State
+     type(ESMF_State)                :: expChem     ! Export State
      integer, intent(out) ::  rc                    ! Error return code
      call Initialize__ ( gc, impChem, expChem, clock, 0, rc)
    end subroutine InitializeSingle_
 
    subroutine Initialize1_ ( gc, impChem, expChem, clock, rc)
      implicit NONE
-     type(ESMF_Clock),  intent(inout) :: clock      ! The clock
-     type(ESMF_GridComp), intent(inout)  :: gc      ! Grid Component
-     type(ESMF_State), intent(inout) :: impChem     ! Import State
-     type(ESMF_State), intent(inout) :: expChem     ! Export State
+     type(ESMF_Clock)                 :: clock      ! The clock
+     type(ESMF_GridComp)                 :: gc      ! Grid Component
+     type(ESMF_State)                :: impChem     ! Import State
+     type(ESMF_State)                :: expChem     ! Export State
      integer, intent(out) ::  rc                    ! Error return code
      call Initialize__ ( gc, impChem, expChem, clock, 1, rc)
    end subroutine Initialize1_
 
    subroutine Initialize2_ ( gc, impChem, expChem, clock, rc)
      implicit NONE
-     type(ESMF_Clock),  intent(inout) :: clock      ! The clock
-     type(ESMF_GridComp), intent(inout)  :: gc      ! Grid Component
-     type(ESMF_State), intent(inout) :: impChem     ! Import State
-     type(ESMF_State), intent(inout) :: expChem     ! Export State
+     type(ESMF_Clock)                 :: clock      ! The clock
+     type(ESMF_GridComp)                 :: gc      ! Grid Component
+     type(ESMF_State)                :: impChem     ! Import State
+     type(ESMF_State)                :: expChem     ! Export State
      integer, intent(out) ::  rc                    ! Error return code
      call Initialize__ ( gc, impChem, expChem, clock, 2, rc)
    end subroutine Initialize2_
@@ -1078,13 +1078,13 @@ end if ! doing GOCART
 
 ! !INPUT PARAMETERS:
 
-   type(ESMF_Clock),  intent(inout) :: clock      ! The clock
+   type(ESMF_Clock)                 :: clock      ! The clock
 
 ! !OUTPUT PARAMETERS:
 
-   type(ESMF_GridComp), intent(inout)  :: gc      ! Grid Component
-   type(ESMF_State), intent(inout) :: impChem     ! Import State
-   type(ESMF_State), intent(inout) :: expChem     ! Export State
+   type(ESMF_GridComp)                 :: gc      ! Grid Component
+   type(ESMF_State)                :: impChem     ! Import State
+   type(ESMF_State)                :: expChem     ! Export State
    integer, intent(in)  ::  option                ! Controls multi-phase options
                                                   ! 0 - single phase (as in GEOS-5)
                                                   ! 1 - phase 1 out of 2 (as in GFS)
@@ -1561,13 +1561,13 @@ CONTAINS
 
 ! !INPUT PARAMETERS:
 
-   type(ESMF_Clock),  intent(inout) :: clock      ! The clock
+   type(ESMF_Clock)                 :: clock      ! The clock
 
 ! !OUTPUT PARAMETERS:
 
-   type(ESMF_GridComp), intent(inout)  :: gc      ! Grid Component
-   type(ESMF_State), intent(inout) :: impChem     ! Import State
-   type(ESMF_State), intent(inout) :: expChem     ! Export State
+   type(ESMF_GridComp)                 :: gc      ! Grid Component
+   type(ESMF_State)                :: impChem     ! Import State
+   type(ESMF_State)                :: expChem     ! Export State
    integer, intent(out) ::  rc                    ! Error return code:
                                                   !  0 - all is well
                                                   !  1 - 
@@ -1880,13 +1880,13 @@ CONTAINS
 
 ! !INPUT PARAMETERS:
 
-   type(ESMF_Clock),  intent(inout) :: clock      ! The clock
+   type(ESMF_Clock)                 :: clock      ! The clock
 
 ! !OUTPUT PARAMETERS:
 
-   type(ESMF_GridComp), intent(inout)  :: gc      ! Grid Component
-   type(ESMF_State), intent(inout) :: impChem     ! Import State
-   type(ESMF_State), intent(inout) :: expChem     ! Export State
+   type(ESMF_GridComp)                 :: gc      ! Grid Component
+   type(ESMF_State)                :: impChem     ! Import State
+   type(ESMF_State)                :: expChem     ! Export State
    integer, intent(out) ::  rc                    ! Error return code:
                                                   !  0 - all is well
                                                   !  1 - 
@@ -1974,8 +1974,8 @@ CONTAINS
     subroutine extract_ ( gc, clock, chemReg, gcChem, w_c, nymd, nhms, cdt, &
                           rc, state )
 
-    type(ESMF_GridComp), intent(INout)  :: gc
-    type(ESMF_Clock), intent(in)     :: clock
+    type(ESMF_GridComp)                 :: gc
+    type(ESMF_Clock)                 :: clock
     type(Chem_Registry), pointer     :: chemReg
     type(Aero_GridComp), pointer     :: gcChem
     type(Chem_Bundle), pointer       :: w_c
@@ -2079,10 +2079,10 @@ CONTAINS
 !___NCEP___
     subroutine extract_gfs_ ( gc, GOCART_OWNS_TRACERS, rc, impChem, cdt)
 
-    type(ESMF_GridComp), intent(inout)       :: gc          ! Grid Component
+    type(ESMF_GridComp)                      :: gc          ! Grid Component
     logical, intent(out)                     :: GOCART_OWNS_TRACERS
     integer, intent(out)                     :: rc          ! Error return code
-    type(ESMF_State), optional, intent(in)   :: impChem     ! Import State
+    type(ESMF_State), optional               :: impChem     ! Import State
     real, optional, intent(out)              :: cdt         ! Time step
 
 

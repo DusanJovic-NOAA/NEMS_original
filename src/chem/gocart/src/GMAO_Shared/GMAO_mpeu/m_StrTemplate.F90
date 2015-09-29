@@ -95,7 +95,7 @@ contains
 
       integer,intent(in ),optional :: nymd
 			! yyyymmdd, substituting "%y4", "%y2", "%m1",
-			! "%m2", "%mc", "%Mc', and "%MC"
+			! "%m2", "%mc", "%Mc", and "%MC"
 
       integer,intent(in ),optional :: nhms
 			! hhmmss, substituting "%h1", "%h2", "%h3",

@@ -239,7 +239,7 @@
     allocate(delz(i1:i2,j1:j2,1:km), stat=ier)
     if(ier /= 0) call die(myname,'could not allocate space for delz')
 
-!   If "hghtefile" is provided let's get delz that way
+!   If "hghtefile" is provided let us get delz that way
     if(found_hghtefile) then
      allocate(hghte(i1:i2,j1:j2,1:km+1), stat=ier)
      if(ier /= 0) call die(myname,'could not allocate space for HGHTE')
@@ -566,7 +566,7 @@
   this%delp = w_c%delp
   this%rh   = 0.
 ! NB: as a hack I may use this%rh as a storage variable;
-!     I'll reset at the end
+!     I will reset at the end
   do n = 1, regOut%nq
    this%qa(n)%data3d = 0.0
   end do
@@ -590,7 +590,7 @@
       if(idepol .gt. 0) then
         this%qa(idepol)%data3d(i,j,k) &
          = this%qa(idepol)%data3d(i,j,k) + (p11_-p22_)*ssa_*tau_
-!       See how we are using this%rh; don't forget!
+!       See how we are using this%rh; do not forget!
         this%rh(i,j,k) = this%rh(i,j,k) + (p11_+p22_)*ssa_*tau_
       endif
 

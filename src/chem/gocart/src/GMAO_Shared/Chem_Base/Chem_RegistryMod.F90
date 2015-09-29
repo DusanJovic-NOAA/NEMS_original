@@ -44,7 +44,7 @@
 !
 !  04May2003 da Silva  First crack.
 !  03Sep2004 da Silva  Added stratospheric chemistry hooks.
-!   4Oct2004 Nielsen   Added stratospheric species' names.
+!   4Oct2004 Nielsen   Added stratospheric species names.
 !   9Dec2004 Nielsen   Added Chem_RegistryPrint.
 !  29Mar2005 da Silva  H2O/O3 can now be turned off
 !  25Jul2005 da Silva  In preparation for GEOS-5:
@@ -191,7 +191,7 @@ CONTAINS
 !
 !  22Jul2003 da Silva  First crack.
 !  03Sep2004 da Silva  Added stratospheric chemistry hooks.
-!   4Oct2004 Nielsen   Added stratospheric species' names.
+!   4Oct2004 Nielsen   Added stratospheric species names.
 !  19Oct2005 da Silva  Added CO2
 !
 !EOP
@@ -463,7 +463,7 @@ CONTAINS
 ! the long names, and the units.  Assume short name and the units are 
 ! one token each.
 
-!           n = len_trim(vname)  !When Arlindo gets back we'll fix this.
+!           n = len_trim(vname)  !When Arlindo gets back we will fix this.
 !           uvname(1:n) = ( .upper. vname ) 
 !           token='variable_table_'//TRIM(uvname(1:n))//'::'
 

@@ -104,7 +104,7 @@ contains
 
 ! Begin...
 
-! Get this instance's name and set-up traceback handle.
+! Get this instances name and set-up traceback handle.
 ! -----------------------------------------------------
 
     call ESMF_CplCompGet( CC, name=COMP_NAME, RC=STATUS )
@@ -172,7 +172,7 @@ contains
 
 ! Begin...
 
-! Get this instance's name and set-up traceback handle.
+! Get this instances name and set-up traceback handle.
 ! -----------------------------------------------------
 
     call ESMF_CplCompGet( CC, name=COMP_NAME, RC=STATUS )

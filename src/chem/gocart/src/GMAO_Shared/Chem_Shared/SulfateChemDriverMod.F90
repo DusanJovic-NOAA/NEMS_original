@@ -562,8 +562,8 @@ CONTAINS
 !     Update the SO2 concentration
 !     Originally this was solved like a simple exponential solution
 !     after Jacobson eq. 13.38, which is more accurate but not mass
-!     conserving.  We've already timesplit everything, so accuracy is
-!     out to lunch, and I'd prefer to conserve mass.
+!     conserving.  We have already timesplit everything, so accuracy is
+!     out to lunch, and I would prefer to conserve mass.
 
 !     initial SO2 concentration (kg kg-1) after adding source
       SO20 = qa(i,j,k) + pSO2_DMS(i,j,k)*cdt
@@ -699,8 +699,8 @@ CONTAINS
 !     Update the SO4 concentration
 !     Originally this was solved like a simple exponential solution
 !     after Jacobson eq. 13.38, which is more accurate but not mass
-!     conserving.  We've already timesplit everything, so accuracy is
-!     out to lunch, and I'd prefer to conserve mass.
+!     conserving.  We have already timesplit everything, so accuracy is
+!     out to lunch, and I would prefer to conserve mass.
 !     RK is the dry deposition frequency
       if(k .eq. km) then
        RK = drydepf(i,j)
@@ -800,8 +800,8 @@ CONTAINS
 !     Update the MSA concentration
 !     Originally this was solved like a simple exponential solution
 !     after Jacobson eq. 13.38, which is more accurate but not mass
-!     conserving.  We've already timesplit everything, so accuracy is
-!     out to lunch, and I'd prefer to conserve mass.
+!     conserving.  We have already timesplit everything, so accuracy is
+!     out to lunch, and I would prefer to conserve mass.
 !     RK is the dry deposition frequency
       if(k .eq. km) then
        RK = drydepf(i,j)

@@ -138,10 +138,10 @@
                       ! 0   all is well
                       ! -1 Time increment is 0
                       ! -2  allocate memory error
-                      ! -3  Num of int/char/real elements and Cnt don't match
+                      ! -3  Num of int/char/real elements and Cnt do not match
                       ! -12  error determining default precision
                       ! -18 incorrect time increment
-                      ! -30 can't open file
+                      ! -30 can not open file
                       ! -31 error from ncddef
                       ! -32 error from ncvdef (dimension variable)
                       ! -33 error from ncapt(c) (dimension attribute)
@@ -1082,7 +1082,7 @@
 !  so no data compression has taken place. The goal here is to reduce the
 !  entropy in the input array, thereby improving compression rates 
 !  by the lossless algorithms implemented internally by HDF-4/5 when writing 
-!  these data to a file. In fact, these GZIP'ed and pre-conditioned files 
+!  these data to a file. In fact, these GZIPed and pre-conditioned files 
 !  have sizes comparable to the equivalent GRIB file, while being a bonafide 
 !  self-describing HDF/NetCDF file.
 !

@@ -936,7 +936,7 @@ c                           timeUnits: string is built below
 
 ! Make NetCDF errors non-fatal, and DO NOT issue warning messages.
 
-      call ncpopt(2) ! Give error messages, but don't die
+      call ncpopt(2) ! Give error messages, but do not die
 
 ! Check length of vname string
 
@@ -948,7 +948,7 @@ c                           timeUnits: string is built below
       endif
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
-! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXNCNAM, but it can not be used in a character*MAXNCNAM statement.
 ! MAXCHR is a CPP define in the gfio.h file.
 
       if (MAXCHR .LT. MAXNCNAM) then
@@ -1443,7 +1443,7 @@ c                           timeUnits: string is built below
 ! Check FID here.
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
-! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
+! MAXNCNAM, but it can not be used in a character*MAXNCNAM statement.
 ! MAXCHR is a CPP define in the gfio.h file.
 
       if (MAXCHR .LT. MAXNCNAM) then

@@ -542,7 +542,7 @@ contains
     allocate(IntState%list(nlist), stat=status)
     VERIFY_(STATUS)
     do while (.not.tend)
-          call ESMF_ConfigGetAttribute ( config,value=tmpstring,default='',rc=STATUS) !ALT: we don't check return status!!!
+          call ESMF_ConfigGetAttribute ( config,value=tmpstring,default='',rc=STATUS) !ALT: we do not check return status!!!
           if (tmpstring /= '')  then
              nlist = nlist + 1
              allocate( list(nlist), stat=status )

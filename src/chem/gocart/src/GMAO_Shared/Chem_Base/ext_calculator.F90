@@ -77,7 +77,7 @@ CONTAINS
                                    __Iam__('ext_calculator')
 
 !   Initialize the ESMF. For performance reasons, it is important
-!    to turn OFF ESMF's automatic logging feature
+!    to turn OFF ESMFs automatic logging feature
 !   -------------------------------------------------------------
     call ESMF_Initialize (LogKindFlag=ESMF_LOGKIND_NONE, VM=VM, __RC__)
     call ESMF_CalendarSetDefault ( ESMF_CALKIND_GREGORIAN, __RC__ )

@@ -429,6 +429,11 @@ elif [ $machine = ZEUS ]; then
   export MPI_BUFS_PER_PROC=${MPI_BUFS_PER_PROC:-2048}
   export MPI_BUFS_PER_HOST=${MPI_BUFS_PER_HOST:-2048}
   export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
+elif [ $machine = theia ]; then
+  export MPICH_FAST_MEMCPY=${MPICH_FAST_MEMCPY:-"ENABLE"}
+  export MPI_BUFS_PER_PROC=${MPI_BUFS_PER_PROC:-2048}
+  export MPI_BUFS_PER_HOST=${MPI_BUFS_PER_HOST:-2048}
+  export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
 elif [ $machine = GAEA ]; then
   export MPICH_FAST_MEMCPY=${MPICH_FAST_MEMCPY:-"ENABLE"}
   export MPICH_MAX_SHORT_MSG_SIZE=${MPICH_MAX_SHORT_MSG_SIZE:-4096}
@@ -524,7 +529,8 @@ export NCP=${NCP:-"/bin/cp -p"}
 
 if [ $NEMSIO_IN = .true. ]; then
 # export SIGHDR=${SIGHDR:-$NWPROD/util/exec/nemsio_get}
- export SIGHDR=${SIGHDR:-$NWPROD/ngac.v1.0.0/exec/nemsio_get}
+# export SIGHDR=${SIGHDR:-$NWPROD/ngac.v1.0.0/exec/nemsio_get}
+ export SIGHDR=$nemsioget
  export JCAP=${JCAP:-$($SIGHDR ${GRDI}$FM jcap |grep -i "jcap" |awk -F"= " '{print $2}' |awk -F" " '{print $1}')}
  export LEVS=${LEVS:-$($SIGHDR ${GRDI}$FM levs|grep -i "levs" |awk -F"= " '{print $2}' |awk -F" " '{print $1}')}
  export LEVR=${LEVR:-$LEVS}

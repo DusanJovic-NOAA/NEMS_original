@@ -19,9 +19,9 @@ cd _RUND_
 
 echo "Model started:  " `date`
 
-module load intel
-module load mpt
-module load adaptive
+# module load intel
+# module load mpt
+# module load adaptive
 
 export TASKSIZE=_TASKS_
 

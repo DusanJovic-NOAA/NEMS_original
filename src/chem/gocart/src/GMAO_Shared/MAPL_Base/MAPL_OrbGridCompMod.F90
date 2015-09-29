@@ -458,7 +458,7 @@ CONTAINS
    VERIFY_(STATUS)
    ASSERT_(NORB==self%no)
 
-!  loop over each satellite and get it's mask
+!  loop over each satellite and get its mask
    do k=1,NORB
     call ESMFL_BundleGetPointerToData(BUNDLE,trim(self%instrument(k)),PTR_TMP,RC=STATUS)
     VERIFY_(STATUS)
@@ -1316,8 +1316,8 @@ CONTAINS
         u(j)=p1(j)-p0(j)
        enddo
        denom = v(1)*u(2)-v(2)*u(1)
-       ! if the ray and edge are parallel they probably don't cross, should really
-       ! check if they are on top of each other but probably won't happen
+       ! if the ray and edge are parallel they probably do not cross, should really
+       ! check if they are on top of each other but probably will not happen
        if (abs(denom).gt.tol) then
         s = (v(2)*w(1)-v(1)*w(2))/denom
         t = -(u(1)*w(2)-u(2)*w(1))/denom

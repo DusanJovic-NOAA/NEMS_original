@@ -269,7 +269,7 @@ subroutine restime_(time,h,m,s,d)
   h=    h/100 ! hhhh
 
     ! although it is possible that m or s may be output of their
-    ! valid range [-59:+59], I don't know what is the best way to
+    ! valid range [-59:+59], I do not know what is the best way to
     ! let the user to know.
 
   if(present(d)) then

@@ -260,17 +260,17 @@
        integer, intent(out), OPTIONAL :: rc 
                                     ! Error return code:
                                     ! 0   all is well
-                                    ! -1  can't allocate memory for grid(s)
-                                    ! -2  can't allocate memory: varObjs    
-                                    ! -3  can't allocate mem: attIntCnts   
-                                    ! -4  can't allocate mem: attIntNames  
-                                    ! -5  can't allocate memory: attInts    
-                                    ! -6  can't allocate mem: attRealCnts   
-                                    ! -7  can't allocate mem: attRealNames  
-                                    ! -8  can't allocate memory: attReals  
-                                    ! -9  can't allocate mem: attCharCnts  
-                                    ! -10  can't allocate mem: attCharNames  
-                                    ! -11  can't allocate memory: attChars  
+                                    ! -1  can not allocate memory for grid(s)
+                                    ! -2  can not allocate memory: varObjs    
+                                    ! -3  can not allocate mem: attIntCnts   
+                                    ! -4  can not allocate mem: attIntNames  
+                                    ! -5  can not allocate memory: attInts    
+                                    ! -6  can not allocate mem: attRealCnts   
+                                    ! -7  can not allocate mem: attRealNames  
+                                    ! -8  can not allocate memory: attReals  
+                                    ! -9  can not allocate mem: attCharCnts  
+                                    ! -10  can not allocate mem: attCharNames  
+                                    ! -11  can not allocate memory: attChars  
 ! !INPUT/OUTPUT PARAMETERS:
 !
        type(ESMF_CFIO), intent(inout) :: cfio    ! a CFIO object
@@ -561,18 +561,18 @@
 
        integer, intent(out), OPTIONAL :: rc      ! Error return code:
                          !  0   all is well
-                         ! -1  can't allocate memory for grid(s)
-                         ! -2  can't allocate memory: varObjs
-                         ! -3  can't allocate mem: attCharNames
-                         ! -4  can't allocate mem: attRealNames
-                         ! -5  can't allocate mem: attIntNames
-                         ! -6  can't allocate mem: attCharCnts
-                         ! -7  can't allocate mem: attRealCnts
-                         ! -8  can't allocate mem: attIntCnts
-                         ! -9  can't allocate mem: attChars
-                         ! -10  can't allocate mem: attReals
-                         ! -11  can't allocate mem: attInts
-                         ! -12  can't allocate mem: attInt
+                         ! -1  can not allocate memory for grid(s)
+                         ! -2  can not allocate memory: varObjs
+                         ! -3  can not allocate mem: attCharNames
+                         ! -4  can not allocate mem: attRealNames
+                         ! -5  can not allocate mem: attIntNames
+                         ! -6  can not allocate mem: attCharCnts
+                         ! -7  can not allocate mem: attRealCnts
+                         ! -8  can not allocate mem: attIntCnts
+                         ! -9  can not allocate mem: attChars
+                         ! -10  can not allocate mem: attReals
+                         ! -11  can not allocate mem: attInts
+                         ! -12  can not allocate mem: attInt
                          !  rc = -19  unable to identify coordinate variable
                          !  rc = -40  error from ncvid
                          !  rc = -41  error from ncdid or ncdinq (lat or lon)

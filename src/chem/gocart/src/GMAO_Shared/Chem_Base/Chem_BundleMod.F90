@@ -66,7 +66,7 @@
       integer       :: i1, i2, iml               ! local indices
       integer       :: ig                        ! ghosting
       integer       :: im                        ! global dimension
-      integer       :: iLeft                     ! i1's index on global grid
+      integer       :: iLeft                     ! i1s index on global grid
       real, pointer :: lon(:,:) => null()        ! longitudes (deg)
 
 !     Meridional grid

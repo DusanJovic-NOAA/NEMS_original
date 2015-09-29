@@ -67,8 +67,8 @@
 * machines, use the cft77 (cf77) option -dp to run this in 64
 * bit mode (not 128 bit double).
 * 
-* External documentation, "Lagged Fibonacci Random Number Generators
-* for the NEC SX-3," is to be published in the International
+* External documentation, Lagged Fibonacci Random Number Generators
+* for the NEC SX-3, is to be published in the International
 * Journal of High Speed Computing (1994). Otherwise, ask the
 * author: 
 * 
@@ -147,9 +147,9 @@ c   precision, converting it to 64-bit single. Likewise,
 c   comment out the 'second' function. On other machines,
 c   uncomment lines for appropriate version of 'second'.
 c------------------------------------------------------------
-c      zufallt = a uniform distribution of r.v.'s test
+c      zufallt = a uniform distribution of r.v.s test
 c
-c      normalt  = a gaussian distribution of r. v.'s test
+c      normalt  = a gaussian distribution of r. v.test
 c
 c      fischet  = poisson distribution of random numbers test
 c
@@ -935,7 +935,7 @@ c
       double precision u(1024),q(1024)
       double precision q0,pmu,mu
 c
-c Poisson generator for distribution function of p's:
+c Poisson generator for distribution function of p s:
 c
 c    q(mu,p) = exp(-mu) mu**p/p!
 c
@@ -959,7 +959,7 @@ c
             q(i)       = 1.0
 3        continue
 c
-c Begin iterative loop on segment of p's
+c Begin iterative loop on segment of p s
 c
 1        continue
 c

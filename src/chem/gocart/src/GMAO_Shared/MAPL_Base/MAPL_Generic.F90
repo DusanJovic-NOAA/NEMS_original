@@ -36,7 +36,7 @@ module MAPL_GenericMod
 !  components. A MAPL/ESMF gridded component built in this way will always have
 !  its own SetServices, which will call the subroutine MAPL\_GenericSetServices.
 !  When MAPL\_GenericSetServices is called it sets the
-!  component's IRF methods to the generic versions, MAPL\_GenericInitialize, MAPL\_GenericFinalize, and
+!  components IRF methods to the generic versions, MAPL\_GenericInitialize, MAPL\_GenericFinalize, and
 !  MAPL\_GenericRun.  Any (or all) of
 !  these may be used as default methods by a gridded component. (As we will see below, 
 !  using all three default IRF methods in this way need not be equivalent to instanciating
@@ -76,7 +76,7 @@ module MAPL_GenericMod
 !  In MAPL\_Generic, we distinguish between {\em simple (leaf)}
 !  gridded compnents and {\em composite} gridded components, which contain other
 !  ({\em child}) gridded components.  We also define three types of services,
-!  which can be registered by the component's SetServices routine.
+!  which can be registered by the components SetServices routine.
 
 !  \begin{itemize}
 !    \item {\bf Functional services}: 
@@ -84,11 +84,11 @@ module MAPL_GenericMod
 !         the component.
 !
 !    \item {\bf Data services:}
-!                   These are descriptions of the component's import, export,
+!                   These are descriptions of the components import, export,
 !         and internal states, which can be manipulated by MAPL\_Generic.
 !
 !    \item {\bf Child services:} 
-!                   These are the services of the component's children and 
+!                   These are the services of the components children and 
 !         their connectivity.
 !
 !    \item {\bf Profiling Services:}
@@ -432,24 +432,24 @@ recursive subroutine MAPL_GenericSetServices ( GC, RC )
 !\begin{itemize}
 !\item
 !  Allocate an instance of MAPL\_GenericState, wrap it, and set it as the
-!  GC's internal state.
+!  GCs internal state.
 !\item
 !  Exract the grid and configuration from the GC and save them in the 
 !  generic state.
 !\item
-!  Set GC's IRF methods to the generic versions
+!  Set GCs IRF methods to the generic versions
 !\item
 !  If there are children
 !\begin{itemize}
 !\item
 !   Allocate a gridded comoponent and an import and export state for each child
 !\item
-!   Create each child's GC using the natural grid and the inherited configuration.
+!   Create each childs GC using the natural grid and the inherited configuration.
 !\item
-!  Create each child's Import and Export states. These are named
+!  Create each childs Import and Export states. These are named
 !  {\tt GCNames(I)//"\_IMPORT"} and {\tt GCNames(I)//"\_EXPORT"}
 !\item
-!   Invoke each child's set services.
+!   Invoke each childs set services.
 !\item
 !   Add each item in each child's export state to GC's export state.
 !\item
@@ -460,7 +460,7 @@ recursive subroutine MAPL_GenericSetServices ( GC, RC )
 ! Since {\tt MAPL\_GenericSetServices} calls SetServices for the children,
 ! which may be generic themselves, the routine must be recursive.
 !
-! The optional arguments describe the component's children. There can be any 
+! The optional arguments describe the components children. There can be any 
 !  number of children but they must be of one of the types specified by the
 !  five SetServices entry points passed. If SSptr is not specified there can
 !  only be five children, one for each {\tt SSn}, and the names must be in
@@ -523,7 +523,7 @@ type(ESMF_GridComp)               :: rootGC
    MAPLOBJ%COMPNAME = COMP_NAME
 
 
-! Set the Component's Total timer
+! Set the Components Total timer
 ! -------------------------------
 
     call MAPL_GenericStateClockAdd(GC,    name="TOTAL"  ,RC=STATUS)
@@ -549,12 +549,12 @@ type(ESMF_GridComp)               :: rootGC
     end do
 
 
-! The child should've been already created by MAPL_AddChild
-! and set his services should've been called.
+! The child should have been already created by MAPL_AddChild
+! and set his services should have been called.
 ! -------------------------------------
 
 ! Create internal couplers and composite
-! component's Im/Ex specs.
+! components Im/Ex specs.
 !---------------------------------------
 
       call MAPL_WireComponent(GC, RC=STATUS)
@@ -937,7 +937,7 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
       end do
    end if
 
-! We keep these in the component's grid  for convenience
+! We keep these in the components grid  for convenience
 !-------------------------------------------------------
 
   call ESMF_GridGet(MYGRID%ESMFGRID, DistGrid=distgrid, dimCount=dimCount, RC=STATUS)
@@ -1179,7 +1179,7 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
       ringTime = ringTime - (INT((ringTime - currTime)/TIMEINT)+1)*TIMEINT
    end if
 
-   ringTime = ringTime-TSTEP ! we back off current time with clock's dt since
+   ringTime = ringTime-TSTEP ! we back off current time with clocks dt since
                              ! we advance the clock AFTER run method
 
 ! make sure that ringTime is not in the past
@@ -1385,7 +1385,7 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
          VERIFY_(STATUS)
       end if
    end if
-! Add this component's own RECORD
+! Add this components own RECORD
 
    call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_FREQUENCY:", RC=STATUS)
    if (STATUS==ESMF_SUCCESS) then
@@ -3294,15 +3294,15 @@ end subroutine MAPL_DateStampGet
 !   \item[LATS]
 !      Y coordinates of array locations. Currently latitude in radians.
 !   \item[INTERNAL\_ESMF\_STATE]
-!      The gridded component's INTERNAL state.
+!      The gridded components INTERNAL state.
 !   \item[GCNames]
 !      Names of the children.
 !   \item[GCS]
 !      The child gridded components.
 !   \item[GIM]
-!      The childrens' IMPORT states.
+!      The childrens IMPORT states.
 !   \item[GEX]
-!      The childrens' EXPORT states.
+!      The childrens EXPORT states.
 !   \item[CCS]
 !      Array of child-to-child couplers.
 !   \end{description}
@@ -3829,7 +3829,7 @@ end subroutine MAPL_DateStampGet
      VERIFY_(STATUS)
   end if
 
-! Create each child's import/export state
+! Create each childs import/export state
 ! ----------------------------------
 
   META%GIM(I) = ESMF_StateCreate (                         & 
@@ -5477,7 +5477,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
     integer,   optional                :: RC      ! return code
 
 ! !DESCRIPTION: This connects the child components, creates the couplers,
-!               and adds child info to GC's import and export specs.
+!               and adds child info to GCs import and export specs.
 
 
 !=============================================================================
@@ -5579,7 +5579,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
     END DO
 
 ! first check if we need to add Exports from children
-    do I=1,NC       !  Cycle thru children's imports
+    do I=1,NC       !  Cycle thru childrens imports
 
        call MAPL_GridCompGetVarSpecs(GCS(I), EXPORT=EX_SPECS, RC=STATUS)
        VERIFY_(STATUS)
@@ -5610,7 +5610,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
     end do
 
 ! try to satisfy imports internally
-    do I=1,NC       !  Cycle thru children's imports
+    do I=1,NC       !  Cycle thru childrens imports
 
 ! check "do not connect" list for 
        PARENTIMPORT = .true.
@@ -5685,7 +5685,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
              if (MAPL_VarIsConnected(CONNECT, &
                                      IMPORT_NAME=SHORT_NAME, EXPORT_NAME=ENAME, &
                                      IMPORT=I, EXPORT=J, RC=STATUS)) then
-! If a match is found, add it to that coupler's src and dst specs
+! If a match is found, add it to that couplers src and dst specs
 ! ?? Mark the import satisfied and the export needed.
 ! -----------------------------------------------------------------
                 VERIFY_(STATUS) 
@@ -5723,7 +5723,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
                 end if
 
              else
-! Imports that are not internally satisfied have their specs put in the GC's
+! Imports that are not internally satisfied have their specs put in the GCs
 ! import spec to be externally satisfied.  Their status is left unaltered. 
 ! --------------------------------------------------------------------------
                 if (.not. SATISFIED .and. PARENTIMPORT) then
@@ -5813,7 +5813,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
     enddo
 
 
-! Add my children's exports specs to mine
+! Add my childrens exports specs to mine
 ! ---------------------------------------
 
 ! currently disabled (they will be explicitly added to the EXPORT as nested)
@@ -8125,7 +8125,7 @@ subroutine MAPL_ReadForcingX(MPL,NAME,DATAFILE,CURRTIME,  &
                               calendar=cal, rc=status)
              VERIFY_(STATUS)
     
-! If the current time is beyond the item's final time, skip it.
+! If the current time is beyond the items final time, skip it.
 !--------------------------------------------------------------
 
              if (DATEN < CurrentTime) then
@@ -8194,7 +8194,7 @@ subroutine MAPL_ReadForcingX(MPL,NAME,DATAFILE,CURRTIME,  &
           VERIFY_(STATUS)
           HEADER = nint(REAL_HEADER)
 
-! Get NEXT's initial and final times
+! Get NEXTs initial and final times
 !-----------------------------------
 
           call ESMF_TimeSet(DATEN, &
@@ -8247,7 +8247,7 @@ subroutine MAPL_ReadForcingX(MPL,NAME,DATAFILE,CURRTIME,  &
           VERIFY_(STATUS)
           HEADER = nint(REAL_HEADER)
 
-! Get the item's initial and final times
+! Get the items initial and final times
 !---------------------------------------
 
           call ESMF_TimeSet(DATEN, &
@@ -8309,7 +8309,7 @@ subroutine MAPL_ReadForcingX(MPL,NAME,DATAFILE,CURRTIME,  &
        VERIFY_(STATUS)
        HEADER = nint(REAL_HEADER)
 
-! Get the item's initial and final time
+! Get the items initial and final time
 !--------------------------------------
  
        call ESMF_TimeSet(DATE1, &
@@ -9294,7 +9294,7 @@ end subroutine MAPL_READFORCINGX
     MYGRID%ESMFGRID = GRID
 
 
-! We keep these in the component's grid  for convenience
+! We keep these in the components grid  for convenience
 !-------------------------------------------------------
 
     call ESMF_GridGet(MYGRID%ESMFGRID, DistGrid=distgrid, dimCount=dimCount, RC=STATUS)

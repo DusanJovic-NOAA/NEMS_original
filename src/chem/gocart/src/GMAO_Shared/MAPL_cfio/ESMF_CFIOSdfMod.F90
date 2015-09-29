@@ -84,10 +84,10 @@
                       ! 0   all is well
                       ! -1 Time increment is 0
                       ! -2  allocate memory error
-                      ! -3  Num of int/char/real elements and Cnt don't match
+                      ! -3  Num of int/char/real elements and Cnt do not match
                       ! -12  error determining default precision
                       ! -18 incorrect time increment
-                      ! -30 can't open file
+                      ! -30 can not open file
                       ! -31 error from ncddef
                       ! -32 error from ncvdef (dimension variable)
                       ! -33 error from ncapt(c) (dimension attribute)
@@ -1912,7 +1912,7 @@
                              ! 0  All is well
                              ! -1 Time increment is 0
                              ! -18 incorrect time increment
-                             ! -30 can't open file
+                             ! -30 can not open file
                              ! -31 error from ncddef
                              ! -32 error from ncvdef (dimension variable)
                              ! -33 error from ncapt(c) (dimension attribute)

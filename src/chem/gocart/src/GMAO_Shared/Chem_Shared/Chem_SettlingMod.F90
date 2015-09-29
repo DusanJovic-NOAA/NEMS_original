@@ -280,7 +280,7 @@ CONTAINS
     do iit = 1, nSubSteps
 
 !    Update dust mixing ratio (backward Euler scheme)
-!    Note that you can't actually transport mixing ratio, so instead
+!    Note that you can not actually transport mixing ratio, so instead
 !    we scale by the ratio of air mass factors between 2 levels
 !    This approach should be "pretty" mass conservative: the flux
 !    into a layer from above is calculated from the saved q
@@ -407,12 +407,12 @@ CONTAINS
    real*8 rmfp                      ! Air molecule mean free path [m]
    real*8 bpm                       ! Cunningham slip correction factor
    real*8 rkn                       ! Knudsen number
-   real*8 re, x, y                  ! reynold's number and parameters
+   real*8 re, x, y                  ! reynolds number and parameters
    real, parameter :: kb = 1.3807e-23 ! Boltzmann constant [kg m2 s-1 K-1 mol-1]
    real, parameter :: m_air = 4.8096e-26 ! Mass of <avg> air molecule [kg]
    real, parameter :: pi = 3.141529265
 
-!  Dynamic viscosity from corrected Sutherland's Equation
+!  Dynamic viscosity from corrected Sutherland Equation
    rmu = 1.8325e-5*(416.16/(tmpu+120.))*(tmpu/296.16)**1.5
 
 !  Thermal velocity of air molecule
@@ -433,7 +433,7 @@ CONTAINS
 !  Fall speed (assumes Reynolds # < 0.01)
    vsettle = 2./9.*rhop*radius**2.*grav*bpm/rmu
 
-!  Check the Reynold's number to see if we need a drag correction
+!  Check the Reynold number to see if we need a drag correction
 !  First guess at Reynold's number using Stoke's calculation
    re = 2.*rhoa*radius*vsettle/rmu
 

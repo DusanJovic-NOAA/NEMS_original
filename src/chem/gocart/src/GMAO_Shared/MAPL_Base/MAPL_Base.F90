@@ -2127,7 +2127,7 @@ and so on.
    enddo
    
    
-!  Make sure we've got it right
+!  Make sure we have got it right
 !  ----------------------------
    call ESMF_GridValidate(Grid,rc=status)
    VERIFY_(STATUS)

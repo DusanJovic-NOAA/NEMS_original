@@ -7,7 +7,7 @@
 ! !DESCRIPTION:
 !
 !	This module is expected to be compiled as-is, without modifying
-!   the kind of a compiler's default REAL type.  Any selection of the
+!   the kind of a compilers default REAL type.  Any selection of the
 !   interface is expected to be done by the compiler.
 !
 ! !INTERFACE:

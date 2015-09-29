@@ -11,7 +11,7 @@ fi
 
  export MKL_NUM_THREADS=1
  export MKL_CBWR=AVX
- export MP_MPILIB=pempi
+ export MP_MPILIB=mpich2
 
  export CDATE=_CDATE_
  cyc=`echo $CDATE|cut -c9-10`

@@ -86,7 +86,7 @@ c --------------------------
       dpout =   pi/(jout-1)
 
 
-!     Larry's code expects longitudes in the range [-180,180],
+!     Larrys code expects longitudes in the range [-180,180],
 !     therefore redefine longitudes and flip fields if input
 !     has longitude in the range [0,360].
 !     -------------------------------------------------------

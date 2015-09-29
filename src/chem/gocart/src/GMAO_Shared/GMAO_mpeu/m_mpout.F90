@@ -91,7 +91,7 @@
 
   logical,save :: mpout_on=.false.
 		! mpout_on indicates if mpout is managed under this
-		! module, either by default or by user's requests
+		! module, either by default or by users requests
 		! through mpout_open(..).
 
   logical,save :: mpout_initialized=.false.

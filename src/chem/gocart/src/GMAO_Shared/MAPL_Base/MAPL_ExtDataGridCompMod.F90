@@ -1501,7 +1501,7 @@ CONTAINS
               call ESMF_TimeIntervalSet(item%frequency,m=1,__RC__)
            end select
         else
-           ! couldn't find any tokens so all the data must be on one file
+           ! could not find any tokens so all the data must be on one file
            call ESMF_TimeIntervalSet(item%frequency,__RC__)
         end if
      else
@@ -1657,7 +1657,7 @@ CONTAINS
         ! try to get bracketing time on file using current time
         call GetBracketTimeOnFile(file_processed,readTime,bSide,UniFileClim,interpTime,fileTime,rc=status)
         
-        ! if we didn't find the bracketing time look forwards or backwards depending on
+        ! if we did not find the bracketing time look forwards or backwards depending on
         ! whether it is the right or left time   
         if (status /= ESMF_SUCCESS) then
 

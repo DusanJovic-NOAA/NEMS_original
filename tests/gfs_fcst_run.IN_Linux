@@ -116,7 +116,11 @@ NST_SPINUP=${NST_SPINUP:-.false.}
  export RESTART=_RESTART_
  export RESTART=${RESTART:-.false.}
  if [ $RESTART = .true. ] ; then
+   if [ $machine = 'zeus' ]; then
     export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
+   elif [ $machine = 'theia' ]; then
+    export nemsioget=/home/Weiyu.Yang/bin/nemsio_get
+   fi
  fi
 #read one time step input data
 # export FHROT=_FHROT_
@@ -235,7 +239,11 @@ if [ $NEMSIO_IN = .true. ]; then
   if [ $SCHEDULER = 'moab' ]; then
     export nemsioget=${nemsioget}
   elif [ $SCHEDULER = 'pbs' ]; then
-    export nemsioget=${nemsioget:-/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
+   if [ $machine = 'zeus' ]; then
+    export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
+   elif [ $machine = 'theia' ]; then
+    export nemsioget=/home/Weiyu.Yang/bin/nemsio_get
+   fi
   elif [ $SCHEDULER = 'lsf' ] ; then
     export nemsioget=${nemsioget:-/nwprod/ngac.v1.0.0/exec/nemsio_get}
   fi
@@ -332,15 +340,22 @@ if [ $SCHEDULER = 'moab' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para/fix/fix_am}
    export FCST_LAUNCHER='aprun -n _TASKS_'
 elif [ $SCHEDULER = 'pbs' ]; then
+  if [ $MACHINE_ID = 'zeus' ]; then
 #  export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
-   export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am}
-
+    export FIXGLOBAL=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
+  elif [ $MACHINE_ID = 'theia' ]; then
+    export FIXGLOBAL=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
+  fi
    export OMP_NUM_THREADS=$NTHREADS
-   mpiexec=`which mpiexec_mpt`
+   if [ $machine = 'zeus' ]; then
+    mpiexec=`which mpiexec_mpt`
+   elif [ $machine = 'theia' ]; then
+    mpiexec=`which mpirun`
+   fi
    if [ $NTHREADS -eq 1 ] ; then
     export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -n $PE1"
    else
-    export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -np $PE1 omplace -nt $NTHREADS"
+    export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -np $PE1"
    fi
 elif [ $SCHEDULER = 'lsf' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am}

@@ -70,7 +70,7 @@ contains
 
 !EOPI
 
-! Handles to the CAP's Gridded Components GCs
+! Handles to the CAPs Gridded Components GCs
 ! -------------------------------------------
 
    integer                      :: ROOT
@@ -83,7 +83,7 @@ contains
 
    type(MAPL_MetaComp)          :: MAPLOBJ
 
-! The children's GCs and IM/Ex states
+! The childrens GCs and IM/Ex states
 !------------------------------------
 
    type(ESMF_GridComp), pointer :: GCS(:)
@@ -238,7 +238,7 @@ contains
          AmIRoot = AmIRoot_
       end if
 
-   !  Open the CAP's configuration from CAP.rc
+   !  Open the CAPs configuration from CAP.rc
    !------------------------------------------
 
       config = ESMF_ConfigCreate (                   rc=STATUS )
@@ -246,7 +246,7 @@ contains
       call ESMF_ConfigLoadFile   ( config, 'CAP.rc', rc=STATUS )
       VERIFY_(STATUS)
 
-   !  CAP's MAPL MetaComp
+   !  CAPs MAPL MetaComp
    !---------------------
 
       call MAPL_Set(MAPLOBJ, maplComm=mapl_Comm, rc=status)
@@ -353,7 +353,7 @@ contains
 
    !BOR
 
-   ! !RESOURCE_ITEM: string :: Name of ROOT's config file
+   ! !RESOURCE_ITEM: string :: Name of ROOTs config file
       call MAPL_GetResource(MAPLOBJ, ROOT_CF,      "ROOT_CF:", default="ROOT.rc",       RC=STATUS ) 
       VERIFY_(STATUS)
 
@@ -361,11 +361,11 @@ contains
       call MAPL_GetResource(MAPLOBJ, ROOT_NAME,    "ROOT_NAME:", default="ROOT",           RC=STATUS ) 
       VERIFY_(STATUS)
 
-   ! !RESOURCE_ITEM: string :: Name of HISTORY's config file 
+   ! !RESOURCE_ITEM: string :: Name of HISTORYs config file 
       call MAPL_GetResource(MAPLOBJ, HIST_CF,      "HIST_CF:", default="HIST.rc",        RC=STATUS ) 
       VERIFY_(STATUS)
 
-   ! !RESOURCE_ITEM: string :: Name of ExtData's config file
+   ! !RESOURCE_ITEM: string :: Name of ExtDatas config file
       call MAPL_GetResource(MAPLOBJ, EXTDATA_CF,   "EXTDATA_CF:", default='ExtData.rc',     RC=STATUS ) 
       VERIFY_(STATUS)
 
@@ -509,7 +509,7 @@ contains
                                 rc=STATUS )  
       VERIFY_(STATUS)
 
-   !  Query MAPL for the the children's for GCS, IMPORTS, EXPORTS
+   !  Query MAPL for the the childrens for GCS, IMPORTS, EXPORTS
    !-------------------------------------------------------------
 
       call MAPL_Get ( MAPLOBJ, GCS=GCS, GIM=IMPORTS, GEX=EXPORTS,      RC=STATUS )
@@ -1431,7 +1431,7 @@ contains
         newVal = trim(adjustl(newVal)) // EOL
         j = i + len_trim(newVal)
 
-        ! check to ensure len of newVal doesn't exceed LSZ
+        ! check to ensure len of newVal does not exceed LSZ
         if ( (j-i) .gt. LSZ) then
            write(logmsg, *) ", attribute label, value & EOL are ", j-i, &
                " characters long, only ", LSZ, " characters allowed per line"
@@ -1459,7 +1459,7 @@ contains
          lenThisLine = len_trim(curVal) - 1
          if ( nchar .gt. lenThisLine) then
 
-            ! check to ensure length of extended line doesn't exceed LSZ
+            ! check to ensure length of extended line does not exceed LSZ
             do m = i, 1, -1
               if (config%cptr%buffer(m:m) .eq. EOL) then
                 exit
@@ -1612,7 +1612,7 @@ contains
         newVal = trim(adjustl(newVal)) // EOL
         j = i + len_trim(newVal)
 
-        ! check to ensure len of newVal doesn't exceed LSZ
+        ! check to ensure len of newVal does not exceed LSZ
         if ( (j-i) .gt. LSZ) then
            write(logmsg, *) ", attribute label, value & EOL are ", j-i, &
                " characters long, only ", LSZ, " characters allowed per line"
@@ -1640,7 +1640,7 @@ contains
          lenThisLine = len_trim(curVal) - 1
          if ( nchar .gt. lenThisLine) then
 
-            ! check to ensure length of extended line doesn't exceed LSZ
+            ! check to ensure length of extended line does not exceed LSZ
             do m = i, 1, -1
               if (config%cptr%buffer(m:m) .eq. EOL) then
                 exit

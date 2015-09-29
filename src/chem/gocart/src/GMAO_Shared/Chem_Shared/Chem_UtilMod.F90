@@ -483,7 +483,7 @@ CONTAINS
     end if
 
 !
-!   For GFS, all PEs owns its own global array and do it's own scatter  ! Sarah Lu
+!   For GFS, all PEs owns its own global array and do it is own scatter  ! Sarah Lu
 !    if ( amRoot .or. MAPL_ShmInitialized) then                         ! Sarah Lu
 
 !      Allocate work space for scatter

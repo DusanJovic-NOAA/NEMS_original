@@ -88,9 +88,17 @@ elif [[ $1 = 6_gsm_zeus ]]; then
      echo "Use an ESMF 6.3.0r series library on zeus"
 elif [[ $1 = 6_nmm_theia ]]; then
      set -x
-     cp conf/configure.nems.Theia.intel conf/configure.nems
+     cp conf/configure.nems.Theia.intel_nmm conf/configure.nems
      touch conf/externals.nems
-     cp conf/modules.nems.Theia conf/modules.nems
+     cp conf/modules.nems.Theia_nmm conf/modules.nems
+     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 6.3.0rp1 series library on theia"
+elif [[ $1 = 6_gsm_theia ]]; then
+     set -x
+     cp conf/configure.nems.Theia.intel_gsm conf/configure.nems
+     touch conf/externals.nems
+     cp conf/modules.nems.Theia_gsm conf/modules.nems
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 6.3.0rp1 series library on theia"
@@ -190,6 +198,8 @@ else
      echo " 'configure 6_nmm_zeus'         : ESMF 6.3.0r series library on zeus for nmm"
      echo " 'configure 6_gsm_zeus'         : ESMF 6.3.0r series library on zeus for gsm"
      echo " 'configure 6_nmm_theia'        : ESMF 6.3.0r series library on theia for nmm"
+     echo " 'configure 6_nmm_theia'        : ESMF 6.3.0rp1 series library on theia nmm"
+     echo " 'configure 6_gsm_theia'        : ESMF 6.3.0rp1 series library on theia gsm"
      echo " 'configure 6_yellowstone'      : ESMF 6.3.0r series library on yellowstone"
      echo;
      echo " 'esmf_version nuopc_wcoss'     : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on wcoss"
