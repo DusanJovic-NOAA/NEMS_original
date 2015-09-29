@@ -50,7 +50,7 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: NMM_GRID_COMP
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP
       INTEGER            ,INTENT(OUT)   :: RC_REG
 !
 !---------------------
@@ -137,10 +137,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: NMM_GRID_COMP
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_NMM
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP
+      TYPE(ESMF_State)                  :: IMP_STATE
+      TYPE(ESMF_State)                  :: EXP_STATE
+      TYPE(ESMF_Clock)                  :: CLOCK_NMM
       INTEGER            ,INTENT(OUT)   :: RC_INIT
 !
 !-----------------------------------------------------------------------
@@ -173,10 +173,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: NMM_GRID_COMP
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_NMM
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP
+      TYPE(ESMF_State)                  :: IMP_STATE
+      TYPE(ESMF_State)                  :: EXP_STATE
+      TYPE(ESMF_Clock)                  :: CLOCK_NMM
       INTEGER            ,INTENT(OUT)   :: RC_RUN
 !
 !-----------------------------------------------------------------------
@@ -207,10 +207,10 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: NMM_GRID_COMP
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_NMM
+      TYPE(ESMF_GridComp)               :: NMM_GRID_COMP
+      TYPE(ESMF_State)                  :: IMP_STATE
+      TYPE(ESMF_State)                  :: EXP_STATE
+      TYPE(ESMF_Clock)                  :: CLOCK_NMM
       INTEGER            ,INTENT(OUT)   :: RC_FINALIZE
 !
 !-----------------------------------------------------------------------

@@ -130,7 +130,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: WRT_COMP                     ! The write component
+      TYPE(ESMF_GridComp)               :: WRT_COMP                     ! The write component
       INTEGER,INTENT(OUT)               :: RC_WRT                       ! Final return code
 !     
 !----------------------------------------------------------------------
@@ -258,11 +258,11 @@
 !
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE_WRITE  
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: WRT_COMP
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: EXP_STATE_WRITE  
+      TYPE(ESMF_State)                  :: IMP_STATE_WRITE  
+      TYPE(ESMF_GridComp)               :: WRT_COMP
+      TYPE(ESMF_State)                  :: EXP_STATE_WRITE  
 !
-      TYPE(ESMF_Clock)   ,INTENT(IN)    :: CLOCK
+      TYPE(ESMF_Clock)                  :: CLOCK
 !
       INTEGER,INTENT(OUT)               :: RC_INIT
 !
@@ -543,11 +543,11 @@
       USE ESMF_FieldGetMOD
       USE MODULE_IO_MPI_DEF, only: WRITE_GROUPS, WRITE_TASKS_PER_GROUP
 !
-      TYPE(ESMF_GridComp),INTENT(IN) :: WRT_COMP
-      TYPE(ESMF_Clock)   ,INTENT(IN) :: CLOCK
+      TYPE(ESMF_GridComp)            :: WRT_COMP
+      TYPE(ESMF_Clock)               :: CLOCK
 ! 
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE_WRITE  
-      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_WRITE                  !<-- The write component export state.
+      TYPE(ESMF_State)               :: IMP_STATE_WRITE  
+      TYPE(ESMF_State)               :: EXP_STATE_WRITE                  !<-- The write component export state.
                                                                          !    Although it is loaded up only as output from
                                                                          !    this subroutine, its INTENT needs to be INOUT
                                                                          !    to function properly.
@@ -1970,10 +1970,10 @@
 !
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT):: WRT_COMP
-      TYPE(ESMF_State)  ,INTENT(INOUT) :: IMP_STATE_WRITE  
-      TYPE(ESMF_State),  INTENT(INOUT) :: EXP_STATE_WRITE  
-      TYPE(ESMF_Clock)  ,INTENT(INOUT) :: CLOCK
+      TYPE(ESMF_GridComp)              :: WRT_COMP
+      TYPE(ESMF_State)                 :: IMP_STATE_WRITE  
+      TYPE(ESMF_State)                 :: EXP_STATE_WRITE  
+      TYPE(ESMF_Clock)                 :: CLOCK
 !
       INTEGER,INTENT(OUT)              :: RCFINAL
 !
