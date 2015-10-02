@@ -331,7 +331,7 @@
 !  ---  outputs: (none, to module variables)
 
 !  ---  locals:
-      integer :: RICWP
+      integer :: RICWP, icldflg_org
 
 !
 !===> ...  begin here
@@ -414,20 +414,18 @@
 
 !  --- ...  call cloud initialization routine
 
-      !==========================================================
-      ! The following can't use for NP3D=5 GFDL cloud
-      !==========================================================
-
-     ! if ( icldflg < 0 ) then
-     !    icldflg = 1
-     !  !  CICWP = icldflg
-     !    RICWP = 0
-     ! else
-     !  !  CICWP = icldflg 
-     !    RICWP = icldflg
-     ! endif
-
       call cld_init ( si, NLAY, me)
+
+
+!==========================================================
+! The following use for NP3D=5 GFDL cloud in radiation
+!==========================================================
+
+      if ( icmphys==5 ) then
+         ricwp = 0
+         icldflg_org = icldflg
+         icldflg = ricwp
+      endif
 
 !  --- ...  call lw radiation initialization routine
 
@@ -437,6 +435,17 @@
 
       call rswinit ( me )
 !
+
+!==========================================================
+! The following use for NP3D=5 GFDL cloud in radiation
+! return icldflg to initial setting
+!==========================================================
+
+      if ( icmphys==5 ) then
+         icldflg = icldflg_org
+      endif
+
+      
       return
 !...................................
       end subroutine radinit_nmmb
@@ -661,10 +670,12 @@
      &       dtswav,nrads,                                              &  ! extra input
      &       cv,cvt,cvb,fcice,frain,rrime,flgmin,                       &
      &       icsdsw,icsdlw, ntcw,ncld,ntoz, NTRAC,NFXR,                 &
+     &       CPATHFAC4LW,                                               &  ! enhance factor of cloud depth for LW
      &       dtlw,dtsw, lsswr,lslwr,lssav,                              &
      &       its,jts, IX, IM, LM, isday, me, lprnt, ipt, kdt,           &
 !  ---  additional inputs:                                                 ! GFDL type
      &       tauclouds,cldf,                                            &  ! GFDL type
+     &       cld_fraction,                                              &  ! Thompson cloud fraction
 !  ---  outputs:
      &       htrsw,topfsw,sfcfsw,sfalb,coszen,coszdg,                   &
      &       htrlw,topflw,sfcflw,tsflw,semis,cldcov,cldsa,              &
@@ -946,7 +957,7 @@
 !  ---  inputs: (for rank>1 arrays, horizontal dimensioned by IX)
       integer,  intent(in) :: IX,IM, LM, NTRAC, NFXR, me,               &
      &                        ntoz, ntcw, ncld, ipt, kdt,               &
-     &                        nrads
+     &                        nrads, cld_fraction
       integer,  intent(in) :: its,jts  
       logical,  intent(in) :: isday  ! true = day, false = night
       integer,  intent(in) :: icsdsw(IX), icsdlw(IX), jdate(8)
@@ -970,7 +981,7 @@
      & , dtswav, SALBEDO(IX), SM(IX) ! extra input
 
       real (kind=kind_phys), dimension(IX,LM), intent(in) :: tauclouds, & ! GFDL type
-     &       cldf                                                          ! GFDL type
+     &       cldf
 
 ! --- outputs: (horizontal dimensioned by IX)
       real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw,&
@@ -979,6 +990,8 @@
 
       real (kind=kind_phys), dimension(IX),   intent(out):: tsflw,      &
      &       sfalb, semis, coszen, coszdg
+
+      real, intent(in) :: CPATHFAC4LW
 
       type (topfsw_type), dimension(IX), intent(out) :: topfsw
       type (sfcfsw_type), dimension(IX), intent(out) :: sfcfsw
@@ -1004,7 +1017,8 @@
 
       real (kind=kind_phys), dimension(CHK,LM+LTP)  ::          &
      &       plyr, tlyr, qlyr,                                          &
-     &       olyr, rhly, qstl, vvel, clw, prslk1, tem2da, tem2db, tvly
+     &       olyr, rhly, qstl, vvel, clw, prslk1, tem2da, tem2db, tvly, &
+     &       cldfk1
 
       real (kind=kind_phys), dimension(CHK,LM+LTP)  ::          &
      &       qc2d, qi2d, qs2d, ni2d
@@ -1242,6 +1256,7 @@
 !         plyr(i,k1) = 0.01 * prsl(i,k)   ! Pa to mb
           tlyr(i,k1) = tgrs(i,k)
           prslk1(i,k1) = prslk(i,k)
+        ENDDO
 
 !  --- ...  compute relative humidity
 
@@ -1250,11 +1265,13 @@
           !   it can be done in es (**Saturation vapor pressure) for 0.001*fpvs
           !   or multiple every prsl by 1000
           !   (Hsin-mu Lin, 20110927)
-        ENDDO
+
 ! note this loop won't vectorize because of the call to fpvs
+
         DO i = 1, IM
           es(i) = min( prsl(i,k), 0.001 * fpvs( tgrs(i,k) ) ) ! fpvs in pa
         ENDDO
+
 !DEC$ SIMD
         DO i = 1, IM
           qs = max( QMIN,con_eps*es(i)/(prsl(i,k) + con_epsm1*es(i)) )
@@ -1306,6 +1323,31 @@
          enddo
 
       endif
+!
+!======================================================================
+
+!======================================================================
+!  --- ...  extra variables needed for using Thompson cloud fraction in
+!           progcld2 & progcld8 for rrtm. For non Thompson cloud fraction
+!           the value will be "0" as initialization in module_RA_RRTM
+!
+      do k = 1, LM
+        k1 = k + kd
+
+        do i = 1, IM
+           cldfk1(i,k1)= cldf(i,k)
+        enddo
+      enddo
+
+      !========================================
+      !  --- ...  values for extra top layer
+
+      if ( lextop ) then
+        do i = 1, IM
+           cldfk1(i,lyb) = cldf(i,lya)
+        enddo
+      endif
+
 !
 !======================================================================
 
@@ -1549,9 +1591,11 @@
      &     ( plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,clw,                    &
      &       xlat,xlon,slmsk, gcice,grain,grime,flgmin,                 &
      &       IM, LMK, LMP,                                              &
+     &       cldfk1, cld_fraction,                                      &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
+
         elseif (np3d == 5) then         ! nmmb ferrier+bmj  (GFDL type diagnostic)
 !
 ! ======================================================================
@@ -1624,8 +1668,8 @@
 
           call progcld8 (plyr,plvl, tlyr, qlyr, qc2d, qi2d, qs2d, ni2d, &
      &                   xlat, IM, LMK, LMP,                            &
+     &                   cldfk1, cld_fraction,                          &
      &                   clouds, cldsa, mtopa, mbota)
-
 
         endif                              ! end if_np3d
 !
@@ -1927,8 +1971,8 @@
 !     print *,' in grrad : calling lwrad'
 
 !==========================================================================
-!  Special for the "progcld2" lwrad to enhence the emissivity
-!  it is similar to *1.5 to the odcld in radlw   (Hsin-Mu Lin, 20140520)
+!  Special for lwrad to enhence the emissivity
+!  it is similar to *CPATHFAC4LW to odcld in radlw (Hsin-Mu Lin, 20140520)
 !==========================================================================
 
         if (np3d == 3) then          ! ferrier's microphysics
@@ -1936,8 +1980,8 @@
             do i = 1, IM
               dummys(i,k,2) = clouds(i,k,2)
               dummys(i,k,4) = clouds(i,k,4)
-              clouds(i,k,2) = dummys(i,k,2)*1.5  ! cloud liquid path 
-              clouds(i,k,4) = dummys(i,k,4)*1.5  ! cloud ice path
+              clouds(i,k,2) = dummys(i,k,2)*CPATHFAC4LW  ! cloud liquid path 
+              clouds(i,k,4) = dummys(i,k,4)*CPATHFAC4LW  ! cloud ice path
             enddo
           enddo
         endif
@@ -2098,6 +2142,17 @@
               tem0d = raddt * cldsa(i,j)
               itop  = mtopa(i,j) - kd
               ibtc  = mbota(i,j) - kd
+
+            !==========================================
+            !=== Zavisa mentioned on 01/15/2013
+            !    for our current run, there are no problem for np3d=3
+            !    without this modification, while np3d=5 need this
+
+              itop=min(max(itop,1),lm) !zj quick fix
+              ibtc=min(max(ibtc,1),lm) !zj quick fix
+ 
+            !==========================================
+
               fluxr(i, 8-j) = fluxr(i, 8-j) + tem0d
               fluxr(i,11-j) = fluxr(i,11-j) + prsi(i,itop+kt) * tem0d
               fluxr(i,14-j) = fluxr(i,14-j) + prsi(i,ibtc+kb) * tem0d

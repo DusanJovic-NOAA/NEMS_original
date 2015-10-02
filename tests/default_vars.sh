@@ -51,6 +51,7 @@ export FCSTL=48
 export PCPFLG=false      ; export WPREC=false
 export TS=false
 export RADTN=rrtm        ; export CONVC=bmj         ; export TURBL=myj
+export NP3D=3            ; export CLDFRACTION=default
 export SFC_LAYER=myj     ; export LAND_SURFACE=noah
 export MICRO=fer_hires   ; export gfsP=false        ; export SPEC_ADV=false
 }

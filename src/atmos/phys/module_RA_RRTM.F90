@@ -9,7 +9,7 @@
 !
       USE MODULE_INCLUDE
 !
-      use physparam,     only : icldflg, ioznflg, kind_phys
+      use physparam,     only : icldflg, ioznflg, kind_phys, icmphys
 
       USE MODULE_CONSTANTS, ONLY : R,CP,PI,EPSQ,STBOLT,EP_2
       USE MODULE_MP_FER_HIRES, ONLY : FPVS
@@ -84,7 +84,7 @@
 !
       REAL, PARAMETER :: QW_Cu=0.003E-3,QWmax=1.E-7,CUPPT_min=1.e-5   &
                         ,CU_DEEP_MIN=50.E2,CU_DEEP_MAX=200.E2
- 
+
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  THE RADIATION PACKAGE OPTIONS
@@ -106,6 +106,7 @@
      &                    ,QV,QC,QI,QS,QR,QG,NI                         &
      &                    ,F_QV,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI           &
      &                    ,NUM_WATER                                    &
+     &                    ,CLD_FRACTION                                 &
      &                    ,SM,CLDFRA                                    &
      &                    ,RLWTT,RSWTT                                  &
      &                    ,RLWIN,RSWIN                                  &
@@ -135,6 +136,7 @@
      &                     ,LM,MYPE                                     &
      &                     ,NTIMESTEP                                   &
      &                     ,NPHS,NRADL,NRADS                            &
+     &                     ,CLD_FRACTION                                &
      &                     ,NUM_WATER           !-- not used any more
 !
       INTEGER,INTENT(IN) :: JDAT(8)
@@ -174,7 +176,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QC,QS       &
      &                    ,QV,QI,QR,QG,NI 
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CLDFRA
 !
        REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: TSKIN,Z0,SICE      &
                                                     ,MXSNAL,STDH        
@@ -201,6 +203,13 @@
       LOGICAL :: LSLWR, LSSWR
 
       INTEGER,PARAMETER :: NFLUXR=39
+
+!==========================================================================
+!  Special for the lwrad to enhence the emissivity
+!  it is similar to *CPATHFAC4LW to odcld in radlw  (Hsin-Mu Lin, 20140520)
+!==========================================================================
+
+      real(kind=kind_phys), PARAMETER :: CPATHFAC4LW=1.5
 
 !
 !-- WARNING: NTRAC must be large enough to account for 
@@ -428,6 +437,13 @@
       ICWP = icldflg
       NTOZ = ioznflg
 
+!------------------------------
+! for np3d=5 (Lin, 20150601)
+!------------------------------
+
+      IF (ICMPHYS == 5 ) THEN
+         ICWP = -1
+      ENDIF
 !
 !=========================================================================
 !
@@ -475,11 +491,25 @@
       ENDDO
       ENDDO
 !
+! --- initialize for non Thompson cloud fraction (used only in gfdl type)
+!     for thompson cloud fraction, "CLDFRC" is direct INPUT
+!     
+      IF (CLD_FRACTION==0) THEN
+         DO K=1,LM
+         DO J=JTS,JTE
+         DO I=ITS,ITE
+            CLDFRA(I,J,K)=0.
+         ENDDO
+         ENDDO
+         ENDDO
+      ENDIF
+
+! ---- 
+
       DO K=1,LM
       DO J=JTS,JTE
       DO I=ITS,ITE
-        CLDFRA(I,J,K)=0.
-        TAUTOTAL(I,J,K)=0.
+         TAUTOTAL(I,J,K)=0.
       ENDDO
       ENDDO
       ENDDO
@@ -923,7 +953,7 @@
 !
         CLDCOV_V(1:im,L)=0.d0                     ! used for prognostic cloud
         TAUCLOUDS(1:im,L)=TAUTOTAL(IRANGE,J,L)    ! CLOUD OPTICAL DEPTH (ICWP==-1)
-        CLDF(1:im,L)=CLDFRA(IRANGE,J,L)           ! CLOUD FRACTION (ICWP==-1)
+        CLDF(1:im,L)=CLDFRA(IRANGE,J,L)           ! CLOUD FRACTION
 
         GR1(1:im,L,3)=CW(IRANGE,J,L)              ! total condensate
 !
@@ -1092,10 +1122,12 @@ IF(P1<1.E-2) WRITE(6,"(a,3i4,2g11.4)") 'I,J,L,PRSL,E_sat=',I,J,L,P1,ESAT   !dbg
              FHSWR ,NRADS,                                              &  ! extra input
              CV,CVT,CVB, F_ICEC, F_RAINC, R_RIME, FLGMIN_L,             &
              ICSDSW,ICSDLW,NTCW,NCLDX,NTOZ,NTRAC,NFXR,                  &  ! Use NTRAC instead of NUM_WATER
+             CPATHFAC4LW,                                               &  ! enhance factor of cloud depth for LW
              DTLW,DTSW,LSSWR,LSLWR,LSSAV,                               &
              IBEG,jts, LENIVEC, im, LM, dpd, MYPE, LPRNT, 0, 0,         &  ! jm dpd is true for day, false for night
 !  ---  additional inputs:                                                 ! GFDL type
              TAUCLOUDS,CLDF,                                            &  ! GFDL type
+             CLD_FRACTION,                                              &  ! Thompson cloud fraction
 !!  ---  outputs:
              SWH,TOPFSW,SFCFSW,SFALB,COSZEN_V,COSZDG_V,                 &
              HLW,TOPFLW,SFCFLW,TSFLW,SEMIS,CLDCOV_V,CLDSA_V,            &

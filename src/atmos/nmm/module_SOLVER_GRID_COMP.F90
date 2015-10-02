@@ -1771,6 +1771,7 @@
                                ,int_state%TURBULENCE                    &
                                ,int_state%LAND_SURFACE                  &
                                ,int_state%CO2TF                         &
+                               ,int_state%NP3D                          &
                                ,int_state%SBD                           &
                                ,int_state%WBD                           &
                                ,int_state%DPHD                          &
@@ -5165,6 +5166,8 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                         ,int_state%CUPPT,int_state%SNO                  &
                         ,int_state%HTOP,int_state%HBOT                  &
                         ,int_state%SHORTWAVE,int_state%LONGWAVE         &
+                        ,int_state%CLDFRACTION                          &
+                        ,int_state%DYH                                  &
 !---- RRTM part ---------------------------------------------------------
                         ,int_state%DT_INT,JDAT                          &
                         ,int_state%CW,int_state%O3                      &
@@ -9758,6 +9761,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                                    ,TURBULENCE                          &
                                    ,LAND_SURFACE                        &
                                    ,CO2TF                               &
+                                   ,NP3D                                &
                                    ,SBD,WBD                             &
                                    ,DPHD,DLMD                           &
                                    ,TPH0D,TLM0D                         &
@@ -9806,6 +9810,9 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                                        ,CAL_PRE,MOM4ICE,MSTRAT          &
                                        ,TRANS_TRAC,NST_FCST             &
                                        ,MOIST_ADJ
+
+      USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
+
 !
 !-----------------------------------------------------------------------
 !
@@ -9816,7 +9823,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
       INTEGER(kind=KINT),INTENT(IN) :: CO2TF                            &
                                       ,MPI_COMM_COMP                    &
                                       ,MY_DOMAIN_ID                     &
-                                      ,MYPE
+                                      ,MYPE, NP3D
 !
       INTEGER(kind=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE,LM               &
                                       ,IMS,IME,JMS,JME                  &
@@ -9844,7 +9851,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 !
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
 !
-      INTEGER :: IAER_MDL, NP3D, ISUBCSW, ISUBCLW, IFLIP,               &
+      INTEGER :: IAER_MDL, ISUBCSW, ISUBCLW, IFLIP,                     &
                  ICLIQ_SW, ICICE_SW, ICLIQ_LW, ICICE_LW
 !
       INTEGER,DIMENSION(3) :: IDAT
@@ -10494,7 +10501,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                        ! 1: varying value based on surface veg types
             NTCW=3     !  0: no cloud condensate calculated
                        ! >0: array index location for cloud condensate
-            NP3D=3     ! 3: ferrier's microphysics cloud scheme (only stratiform cloud)
+          ! NP3D=3     ! 3: ferrier's microphysics cloud scheme (only stratiform cloud)
                        !    (set iflagliq>0 in radsw_param.f and radlw_param.f)
                        ! 4: zhao/carr/sundqvist microphysics cloud (now available in the NMMB)
                        ! 5: NAM stratiform + convective cloud optical depth and fraction
@@ -10576,11 +10583,30 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 
             IF (TRIM(int_state%SHORTWAVE)=='rrtm' .AND.                 &
      &          TRIM(int_state%MICROPHYSICS)=='thompson' ) THEN
-              NP3D = 8
+
+              IF (NP3D /=8) THEN
+                 WRITE(0,*)' User selected np3d=',NP3D
+                 WRITE(0,*)' NP3D=8 for RRTM & THOMPSON MICROPHYSICS'
+                 CALL NMMB_FINALIZE
+              ENDIF
+
               ICICE_SW=4
               ICICE_LW=4
 
             ENDIF
+
+!==========================================================================
+!..For GFDL type diagnostic
+!==========================================================================
+
+            IF (NP3D == 5) THEN
+              ICLIQ_SW=0
+              ICLIQ_LW=0
+            ENDIF
+
+            WRITE(0,*)' Model Proces np3d=',NP3D
+
+!==========================================================================
 
             call rad_initialize_nmmb                                   &
 !        ---  inputs:

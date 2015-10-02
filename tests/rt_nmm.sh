@@ -23,6 +23,8 @@ cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g                  \
                                  | sed s:_RSTRT_:${RSTRT}:g                  \
                                  | sed s:_gfsP_:${gfsP}:g                    \
                                  | sed s:_RADTN_:${RADTN}:g                  \
+                                 | sed s:_NP3D_:${NP3D}:g                    \
+                                 | sed s:_CLDFRACTION_:${CLDFRACTION}:g      \
                                  | sed s:_CONVC_:${CONVC}:g                  \
                                  | sed s:_MICRO_:${MICRO}:g                  \
                                  | sed s:_SPEC_ADV_:${SPEC_ADV}:g            \
@@ -102,6 +104,7 @@ if [ ${GBRG} = nests ]; then
                                     | sed s:_SFC_LAYER_:${SFC_LAYER}:g          \
                                     | sed s:_LAND_SURFACE_:${LAND_SURFACE}:g    \
                                     | sed s:_RADTN_:${RADTN}:g                  \
+                                    | sed s:_NP3D_:${NP3D}:g                    \
                                     | sed s:_CONVC_:${CONVC}:g                  \
                                     | sed s:_TURBL_:${TURBL}:g > configure_file_02
 
@@ -110,6 +113,7 @@ if [ ${GBRG} = nests ]; then
                                     | sed s:_SFC_LAYER_:${SFC_LAYER}:g          \
                                     | sed s:_LAND_SURFACE_:${LAND_SURFACE}:g    \
                                     | sed s:_RADTN_:${RADTN}:g                  \
+                                    | sed s:_NP3D_:${NP3D}:g                    \
                                     | sed s:_CONVC_:${CONVC}:g                  \
                                     | sed s:_TURBL_:${TURBL}:g > configure_file_03
 
@@ -118,6 +122,7 @@ if [ ${GBRG} = nests ]; then
                                     | sed s:_SFC_LAYER_:${SFC_LAYER}:g          \
                                     | sed s:_LAND_SURFACE_:${LAND_SURFACE}:g    \
                                     | sed s:_RADTN_:${RADTN}:g                  \
+                                    | sed s:_NP3D_:${NP3D}:g                    \
                                     | sed s:_CONVC_:${CONVC}:g                  \
                                     | sed s:_TURBL_:${TURBL}:g > configure_file_04
 

@@ -19,5 +19,6 @@ export FCSTL=24
 export WLCLK=35
 export MICRO=thompson
 export SPEC_ADV=true
+export NP3D=8
 
 RUN_SCRIPT=rt_nmm.sh

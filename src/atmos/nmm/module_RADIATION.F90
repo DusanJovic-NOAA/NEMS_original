@@ -22,6 +22,8 @@
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 
+      USE module_mp_thompson, ONLY : cal_cldfra3
+
       use module_radiation_driver_nmmb,  only : radupdate_nmmb
       use machine, only : kind_phys
 
@@ -82,6 +84,8 @@
      &                    ,CUPPT,SNOW                                   &
      &                    ,HTOP,HBOT                                    &
      &                    ,SHORTWAVE,LONGWAVE                           &
+     &                    ,CLDFRACTION                                  &
+     &                    ,DYH                                          &
 !
      &                    ,DT_INT,JDAT                                  &
      &                    ,CW,O3                                        &
@@ -138,7 +142,7 @@
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: NCFRCV,NCFRST
 !
-      REAL,INTENT(IN) :: DT,JULIAN,PT,XTIME
+      REAL,INTENT(IN) :: DT,JULIAN,PT,XTIME,DYH
 !
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
@@ -177,7 +181,7 @@
 !
       LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI
 !
-      CHARACTER(99),INTENT(IN) :: LONGWAVE,SHORTWAVE
+      CHARACTER(99),INTENT(IN) :: LONGWAVE,SHORTWAVE,CLDFRACTION
 !
 !---------------------
 !***  Local Variables
@@ -195,13 +199,15 @@
       INTEGER :: I,II,J,IJ,JDAY,JMONTH                                  &
                 ,K,KMNTH,N,NRAD
 !
-      INTEGER :: LW_PHYSICS=0,SW_PHYSICS=0
+      INTEGER :: LW_PHYSICS=0,SW_PHYSICS=0,CLD_FRACTION
 !
       INTEGER,DIMENSION(3) :: IDAT
       INTEGER,DIMENSION(12) :: MONTH=(/31,28,31,30,31,30,31,31          &
      &                                ,30,31,30,31/)
 !
-      REAL :: DAYI,GMT,HOUR,PDSL,PLYR,RADT,TIMES,TDUM
+      REAL :: DAYI,GMT,HOUR,PDSL,PLYR,RADT,TIMES,TDUM,QIdum,QLdum
+!
+      real :: gridkm
 !
       real (kind=kind_phys) :: SLAG, SDEC, CDEC, SOLCON, DTSW, DTX
 !
@@ -216,7 +222,10 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: PI3D                      &
                                              ,THRATEN,THRATENLW         &
-                                             ,THRATENSW
+                                             ,THRATENSW                 &
+                                             ,PRL,RHO                   &
+                                             ,QCW,QCI,QSNOW,NCI         &
+                                             ,QTdum,FIdum,FRdum
 !
       LOGICAL :: GFDL_LW, GFDL_SW, LSSWR
 #ifdef THREAD_2D
@@ -226,7 +235,7 @@
       integer(4) :: ic1, crate1, cmax1
       integer(4) :: ic2, crate2, cmax2
 
-!     call system_clock(count=ic1, count_rate=crate1, count_max=cmax1)
+!      call system_clock(count=ic1, count_rate=crate1, count_max=cmax1)
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -267,11 +276,14 @@
           QL(K)=AMAX1(Q(I,J,K),EPSQ)
 !
           PHINT(I,J,K)=SG2(K)*PD(I,J)+PSG1(K)
-          PI3D(I,J,K)=(PLYR*1.E-5)**CAPPA
+          PI3D(I,J,K)=(PLYR*1.E-5)**CAPPA          ! Exner funtion
 !
           THRATEN(I,J,K)=0.
           THRATENLW(I,J,K)=0.
           THRATENSW(I,J,K)=0.
+
+          PRL(I,J,K)=PLYR                                     ! model layer pressure
+          RHO(I,J,K)=PLYR/(R_D*T(I,J,K)*(1.+P608*Q(I,J,K)))   ! Air density (kg/m**3)
         ENDDO
 !
         PHINT(I,J,LM+1)=SG2(LM+1)*PD(I,J)+PSG1(LM+1)
@@ -372,7 +384,6 @@
           CALL NMMB_FINALIZE
       END SELECT
 
-
 !==========================================================================
 ! Put "call radupdate_nmmb" here for threading safe
 !==========================================================================
@@ -440,7 +451,7 @@
      ENDDO
      ENDDO
      ENDDO
-!
+
 !-----------------------------------------------------------------------
 !
      lwrad_gfdl_select: SELECT CASE(lw_physics)
@@ -463,9 +474,9 @@
                           IDS,IDE, JDS,JDE, 1,LM+1,             &
                           IMS,IME, JMS,JME, 1,LM+1,             &
                           IQS,IQE, JQS,JQE, 1,LM  )
-!-----------------------------------------------------------------------
 
-     END SELECT lwrad_gfdl_select    
+     END SELECT lwrad_gfdl_select
+
 
 !-----------------------------------------------------------------------
 !
@@ -473,6 +484,85 @@
 !
 !-----------------------------------------------------------------------
         CASE (RRTMLWSCHEME)
+
+
+          !==== cloud fraction modification (HM Lin, 201503) ===========
+          !
+          !--- use Thompson cloud fraction
+
+           cfr3_select: SELECT CASE (TRIM(CLDFRACTION))
+
+              CASE ('thompson')        ! -- THOMPSON CLOUD FRACTION
+                write(6,*) 'DEBUG-GT: using thompson cloud fraction scheme'
+                CLD_FRACTION=88
+!
+!--- Use dummy arrays QCW, QCI, QSNOW, NCI for Thompson cloud fraction scheme
+!    These arrays are updated in cal_cldfra3, and the adjust cloud fields are
+!    provided as input to RRTM and used by the radiation, but they are **not
+!    used** to change (update) the model arrays QC, QI, QS, and NI (those 
+!    remain unchanged; BSF 4/13/2015).
+!
+                DO K=1,LM
+                  DO J=JMS,JME
+                    DO I=IMS,IME
+                      QCW(I,J,K)=QC(I,J,K)
+                      QCI(I,J,K)=0.
+                      QSNOW(I,J,K)=0.
+                      NCI(I,J,K)=0.
+                      IF (F_QI) QCI(I,J,K)=QI(I,J,K)
+                      IF (F_QS) QSNOW(I,J,K)=QS(I,J,K)
+                      IF (F_NI) NCI(I,J,K)=NI(I,J,K)
+                    ENDDO
+                  ENDDO
+                ENDDO
+!
+                gridkm = DYH/1000.          ! convert m to km
+
+                CALL cal_cldfra3(CLDFRA,                           &
+                                 QV,QCW,QCI,QSNOW,F_NI,NCI,        &
+                                 PRL,T,RHO,XLAND, gridkm,          & ! note:12.=gridkm is only for testing
+                                 IDS,IDE, JDS,JDE, 1,LM+1,         &
+                                 IMS,IME, JMS,JME, 1,LM+1,         &
+                                 IQS,IQE, JQS,JQE, 1,LM  )
+!
+                DO K=1,LM
+                  DO J=JMS,JME
+                    DO I=IMS,IME
+                      FIdum(I,J,K)=F_ICE(I,J,K)
+                      FRdum(I,J,K)=F_RAIN(I,J,K)
+                      QLdum=QCW(I,J,K)
+                      QIdum=QCI(I,J,K)+QSNOW(I,J,K)
+                      IF (F_QR) QLdum=QLdum+QR(I,J,K)
+                      IF (F_QG) QIdum=QIdum+QG(I,J,K)
+                      QTdum(I,J,K)=QLdum+QIdum
+                      IF (QTdum(I,J,K)>0.) FIdum(I,J,K)=QIdum/QTdum(I,J,K)
+                      IF (QLdum>0.) FRdum(I,J,K)=QR(I,J,K)/QLdum
+                    ENDDO
+                  ENDDO
+                ENDDO
+
+              CASE DEFAULT
+                WRITE(0,*)' Default cloud fraction in radiation scheme '
+                CLD_FRACTION=0
+
+                DO K=1,LM
+                  DO J=JMS,JME
+                    DO I=IMS,IME
+                      QTdum(I,J,K)=CW(I,J,K)
+                      FIdum(I,J,K)=F_ICE(I,J,K)
+                      FRdum(I,J,K)=F_RAIN(I,J,K)
+                      QCW(I,J,K)=QC(I,J,K)
+                      IF (F_QI) QCI(I,J,K)=QI(I,J,K)
+                      IF (F_QS) QSNOW(I,J,K)=QS(I,J,K)
+                      IF (F_NI) NCI(I,J,K)=NI(I,J,K)
+                    ENDDO
+                  ENDDO
+                ENDDO
+
+           END SELECT cfr3_select
+
+!-----------------------------------------------------------------------
+
 
 #ifdef THREAD_2D
 !
@@ -515,34 +605,35 @@
               J_E = JQE
 #endif
               IF ( I_S .LE. I_E ) THEN
-                CALL RRTM(ITIMESTEP,DT,JDAT                         &
-                   ,NPHS,GLAT,GLON                                  &
-                   ,NRADS,NRADL                                     &
-                   ,DSG2,SGML2,PDSG1,PSGML1                         &
-                   ,PT,PD                                           &
-                   ,T,Q,CW,O3                                       &
-                   ,ALBEDO                                          &
-                   ,F_ICE,F_RAIN                                    &
-                 ,QV,QC,QI,QS,QR,QG,NI                              &
-                 ,F_QV,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI                &
-                 ,NUM_WATER                                         &
-                   ,SM,CLDFRA                                       &
-                   ,RLWTT,RSWTT                                     &
-                   ,RLWIN,RSWIN                                     &
-                   ,RSWINC,RSWOUT                                   &
-                   ,RLWTOA,RSWTOA                                   &
-                   ,CZMEAN,SIGT4                                    &
-                   ,CFRACL,CFRACM,CFRACH                            &
-                   ,ACFRST,NCFRST                                   &
-                   ,ACFRCV,NCFRCV                                   &
-                   ,CUPPT,SNOWC,SI                                  & ! was SNOW
-                   ,HTOP,HBOT                                       &
-                   ,TSKIN,Z0,SICE,F_RIMEF,MXSNAL,SGM,STDH,OMGALF    &
-                   ,IMS,IME,JMS,JME                                 &
-                   ,I_S,I_E,J_S,J_E                                 &
-                   ,LM                                              &
-                   ,SOLCON                                          &
-                   ,MYPE )
+                CALL RRTM(ITIMESTEP,DT,JDAT                       &
+                 ,NPHS,GLAT,GLON                                  &
+                 ,NRADS,NRADL                                     &
+                 ,DSG2,SGML2,PDSG1,PSGML1                         &
+                 ,PT,PD                                           &
+                 ,T,Q,QTdum,O3                                    &  ! QTdum was CW
+                 ,ALBEDO                                          &
+                 ,FIdum,FRdum                                     &  ! FIdum,FRdum were F_ICE,F_RAIN
+                 ,QV,QCW,QCI,QSNOW,QR,QG,NCI                      &  ! QCW,QCI,QSNOW,NCI were QC,QI,QS,NI
+                 ,F_QV,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI              &
+                 ,NUM_WATER                                       &
+                 ,CLD_FRACTION                                    &
+                 ,SM,CLDFRA                                       &
+                 ,RLWTT,RSWTT                                     &
+                 ,RLWIN,RSWIN                                     &
+                 ,RSWINC,RSWOUT                                   &
+                 ,RLWTOA,RSWTOA                                   &
+                 ,CZMEAN,SIGT4                                    &
+                 ,CFRACL,CFRACM,CFRACH                            &
+                 ,ACFRST,NCFRST                                   &
+                 ,ACFRCV,NCFRCV                                   &
+                 ,CUPPT,SNOWC,SI                                  & ! was SNOW
+                 ,HTOP,HBOT                                       &
+                 ,TSKIN,Z0,SICE,F_RIMEF,MXSNAL,SGM,STDH,OMGALF    &
+                 ,IMS,IME,JMS,JME                                 &
+                 ,I_S,I_E,J_S,J_E                                 &
+                 ,LM                                              &
+                 ,SOLCON                                          &
+                 ,MYPE )
               ENDIF
 #ifdef THREAD_2D
             ENDIF j_in_range_rrtm
@@ -772,8 +863,8 @@
 !-----------------------------------------------------------------------
 !
         IF(TRIM(SHORTWAVE)=='rrtm')THEN
-!     call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
-!     write(0,*)'RADIATION: ',ic2-ic1
+!      call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
+!      write(0,*)'RADIATION: ',ic2-ic1
 !--- RRTM already calculated variables below
           RETURN
         ENDIF
@@ -904,8 +995,8 @@
 !
       ENDIF
 
-!     call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
-!     write(0,*)'RADIATION: ',ic2-ic1
+!      call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
+!      write(0,*)'RADIATION: ',ic2-ic1
 
 !
 !-----------------------------------------------------------------------

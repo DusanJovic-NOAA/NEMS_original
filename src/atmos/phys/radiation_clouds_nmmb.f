@@ -792,6 +792,7 @@
      &     ( plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,clw,                    &
      &       xlat,xlon,slmsk, f_ice,f_rain,r_rime,flgmin,               &
      &       IX, NLAY, NLP1,                                            &
+     &       cldfk1, cld_fraction,                                      &
 !  ---  outputs:
      &       clouds,clds,mtop,mbot                                      &
      &      )
@@ -886,10 +887,11 @@
      &                 re_30C=1250.0/9.208, re_20C=1250.0/9.387
 
 !  ---  inputs
-      integer,  intent(in) :: IX, NLAY, NLP1
+      integer,  intent(in) :: IX, NLAY, NLP1, cld_fraction
 
       real (kind=kind_phys), dimension(:,:), intent(in) :: plvl, plyr,  &
-     &       tlyr, tvly, qlyr, qstl, rhly, clw, f_ice, f_rain, r_rime
+     &       tlyr, tvly, qlyr, qstl, rhly, clw, f_ice, f_rain, r_rime,  &
+     &       cldfk1
 
       real (kind=kind_phys), dimension(:),   intent(in) :: xlat, xlon,  &
      &       slmsk
@@ -926,9 +928,7 @@
           enddo
         enddo
       enddo
-
-!     clouds(:,:,:) = 0.0
-
+!
       do k = 1, NLAY
         do i = 1, IX
           cldtot(i,k) = 0.0
@@ -1027,6 +1027,10 @@
       endif                            ! end_if_ivflip
 
 !  ---  layer cloud fraction
+
+!-----------------------------------------------------------------------
+      cldfracs:  if (cld_fraction==0) then   !** default non Thompson cloud fraction
+!-----------------------------------------------------------------------
 
       if ( ivflip == 0 ) then              ! input data from toa to sfc
 
@@ -1181,6 +1185,21 @@
 
       endif                                ! end_if_flip
 
+      !----------------------------------------
+      else         !  Thompson cloud fraction
+
+        do k = 1, NLAY
+          do i = 1, IX
+            cldtot(i,k) = cldfk1(i,k)
+          enddo
+        enddo
+      !----------------------------------------
+
+!-----------------------------------------------------------------------
+      endif cldfracs   !*** End of choice of cloud fraction ***
+!-----------------------------------------------------------------------
+
+!
       do k = 1, NLAY
         do i = 1, IX
           if (cldtot(i,k) < cclimit) then
@@ -1310,6 +1329,7 @@
 
       subroutine progcld8 (plyr, plvl, tlyr, qlyr, qc, qi, qs, ni,      &
      &                     xlat,IX, NLAY, NLP1,                         &
+     &                     cldfk1, cld_fraction,                        &
      &                     clouds,clds,mtop,mbot)
 
 
@@ -1377,10 +1397,10 @@
       real (kind=kind_phys), parameter :: EPSQ = 1.0e-12
 
 !  ---  inputs
-      integer,  intent(in) :: IX, NLAY, NLP1
+      integer,  intent(in) :: IX, NLAY, NLP1, cld_fraction
 
       real (kind=kind_phys), dimension(:,:), intent(in) :: plyr, plvl,  &
-     &       tlyr, qlyr, qc, qi, qs, ni
+     &       tlyr, qlyr, qc, qi, qs, ni, cldfk1
       real (kind=kind_phys), dimension(:),   intent(in) :: xlat
 
 !  ---  outputs
@@ -1419,10 +1439,27 @@
           mtop(i,k) = 0.0
         enddo
       enddo
+
+! --- choice of cloud fraction
+
+      if (cld_fraction==0) then   ! non Thompson cloud fraction (default)
+        do k = 1, NLAY
+          do i = 1, IX
+            cldtot(i,k) = 0.0          ! original
+          enddo
+        enddo
+      else                        ! Thompson cloud fraction
+        do k = 1, NLAY
+          do i = 1, IX
+            cldtot(i,k) = cldfk1(i,k)   ! for Thompson cloud fraction
+          enddo
+        enddo
+      endif
+
       do k = 1, NLAY
         do i = 1, IX
-          cldtot(i,k) = 0.0
           cldcnv(i,k) = 0.0
+            cldcnv(i,k) = 0.0
         enddo
       enddo
 

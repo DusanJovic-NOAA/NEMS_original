@@ -545,7 +545,8 @@
 !-----------------------------------------------------------------------
 !
         CHARACTER(99) :: SHORTWAVE                                      &
-                        ,LONGWAVE                                       &   
+                        ,LONGWAVE                                       &
+                        ,CLDFRACTION                                    &
                         ,LAND_SURFACE                                   &
                         ,SFC_LAYER                                      &
                         ,TURBULENCE                                     &
@@ -565,6 +566,8 @@
 !
         INTEGER(kind=KINT) :: INDX_WATER_START                          &  !<-- Start index of the water in tracers array
                              ,INDX_WATER_END                               !<-- End index of the water in tracers array
+
+        INTEGER(kind=KINT) :: NP3D                                         !<-- cloud properties for rrtm
 !
         LOGICAL(kind=KLOG) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
 !
