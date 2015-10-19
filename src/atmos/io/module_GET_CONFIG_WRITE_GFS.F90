@@ -214,7 +214,7 @@
                                   ,value =int_state%GOCART_AER2POST     &  !<-- Put extracted quantity here
                                   ,label ='gocart_aer2post:'            &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
-      print *,'gocart_aer2post=',int_state%GOCART_AER2POST
+!     print *,'gocart_aer2post=',int_state%GOCART_AER2POST
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)

@@ -58,6 +58,7 @@
 # 2013-11-13  Xingren Wu : add A2OI for Atm/Ocn/Ice coupling
 # 2014-06-27  S. Moorthi - Clean up, fix slg option, gaea specific  etc
 # 2014-10-11  S. Moorthi - Clean up, unify gloabl and ngac scripts remove scheduler etc
+# 2015-01-06  S. Moorthi - Added THEIA option
 #
 # Usage:  global_forecast.sh SIGI/GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -402,7 +403,7 @@
 #
 # Attributes:
 #   Language: POSIX shell
-#   Machine: IBM SP, WCOSS, ZEUS, GAEA
+#   Machine: IBM SP, WCOSS, ZEUS, GAEA, THEIA
 #
 ####
 ################################################################################

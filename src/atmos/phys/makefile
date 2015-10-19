@@ -61,9 +61,11 @@ MODULES_GFS =                                \
 		   physparam.o               \
 	           physcons.o                \
 	           funcphys.o                \
+		   cs_conv.o                 \
 	           module_nst_parameters.o   \
 	           module_nst_water_prop.o   \
 	           module_nst_model.o        \
+		   gcm_shoc.o                \
 	           calpreciptype.o
 
 MODULES_GFSF=                                \
@@ -106,6 +108,7 @@ MODULES_GFSF=                                \
 	           sfc_diff.o                \
 	           sfc_diag.o                \
 	           sflx.o                    \
+		   moninshoc.o               \
 	           moninp.o                  \
 	           moninp1.o                 \
 	           moninq.o                  \
@@ -127,6 +130,7 @@ MODULES_GFSF=                                \
 	           gscondp.o                 \
 	           precpd.o                  \
 	           precpdp.o                 \
+		   precpd_shoc.o             \
 	           mstadb.o                  \
 	           mstadbtn.o                \
 	           mstcnv.o                  \
@@ -154,7 +158,9 @@ MODULES_TRAC_stub= gocart_tracer_config_stub.o
 MODULES_ALL =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
 		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
 MODULES_GOCART =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
-			$(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
+			$(MODULES_GFSF) $(MODULES_TRAC) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
+
+#			$(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
 
 ifeq ($(GOCART_MODE),full)
 	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} \

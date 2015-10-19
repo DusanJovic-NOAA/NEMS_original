@@ -5,7 +5,8 @@
 #BSUB -J _JBNME_
 #BSUB -network type=sn_all:mode=US
 ###BSUB -q debug
-#BSUB -q "dev"
+#BSUB -q _CLASS_
+##BSUB -q "dev"
 #BSUB -P GFS-T2O
 #BSUB -n _TASKS_
 #BSUB -R span[ptile=_TPN_]

@@ -58,6 +58,8 @@
 # 2013-11-13  Xingren Wu : add A2OI for Atm/Ocn/Ice coupling
 # 2014-06-27  S. Moorthi - Clean up, fix slg option, gaea specific  etc
 # 2014-10-11  S. Moorthi - Clean up, unify gloabl and ngac scripts remove scheduler etc
+# 2015-01-06  S. Moorthi - Added THEIA option ; turned off ESMF Compliance check etc
+# 2015 02-26  S. Moorthi - added MICRO_PHY_DATA
 #
 # Usage:  global_forecast.sh SIGI/GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -142,10 +144,6 @@
 #                   defaults to ${FIXGLOBAL}/global_co2con.l${LEVS}.f77
 #     MTNVAR        Input mountain variance (horizontal resolution dependent)
 #                   defaults to ${FIXGLOBAL}/global_mtnvar.t${JCAP}.f77
-#     CLTUNE        Input cloud tuning file
-#                   defaults to ${FIXGLOBAL}/global_cldtune.f77
-#     DTBTHE        Input equivalent potential temperature file
-#                   defaults to ${FIXGLOBAL}/global_tbthe.f77
 #     O3FORC        Input ozone forcing (production/loss) climatology
 #                   defaults to ${FIXGLOBAL}/global_o3prdlos.f77
 #     O3CLIM        Input ozone climatology
@@ -187,7 +185,9 @@
 #                   defaults to ${FIXGLOBAL}/global_orography.t$JCAP.grb
 #     OROGRAPHY_UF  Input unfiltered orography GRIB file (resolution dependent)
 #                   defaults to ${FIXGLOBAL}/global_orography_uf.t$JCAP.grb
-#     LONSPERLAT    Input txt file containing reduced grid information
+#     LONSPERLAT    Input txt file containing reduced grid informationa for dynamics
+#                   defaults to ${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.txt}
+#     LONSPERLAR    Input txt file containing reduced grid information for physics
 #                   defaults to ${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.txt}
 #     FNMSKH        Input high resolution land mask GRIB file
 #                   defaults to ${FIXGLOBAL}/seaice_newland.grb
@@ -327,8 +327,6 @@
 #
 #     fixed data : $CO2CON
 #                  $MTNVAR
-#                  $CLTUNE
-#                  $DTBTHE
 #                  $O3FORC
 #                  $O3CLIM
 #                  $FNGLAC
@@ -351,6 +349,7 @@
 #                  $OROGRAPHY
 #                  $OROGRAPHY_U
 #                  $LONSPERLAT
+#                  $LONSPERLAR
 #
 #     output data: $3 or $SIGO
 #                  $4 or $FLXO
@@ -402,7 +401,7 @@
 #
 # Attributes:
 #   Language: POSIX shell
-#   Machine: IBM SP, WCOSS, ZEUS, GAEA
+#   Machine: IBM SP, WCOSS, ZEUS, GAEA, THEIA
 #
 ####
 ################################################################################
@@ -413,7 +412,9 @@ if [[ $VERBOSE = YES ]] ; then
    echo $(date) EXECUTING $0 $* >&2
    set -x
 fi
-#export ESMF_RUNTIME_COMPLIANCECHECK=ON:depth=4
+
+export COMPLIANCECHECK=${COMPLIANCECHECK:-OFF}
+export ESMF_RUNTIME_COMPLIANCECHECK=$COMPLIANCECHECK:depth=4
 #
 export machine=${machine:-WCOSS}
 export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
@@ -429,11 +430,14 @@ elif [ $machine = ZEUS ]; then
   export MPI_BUFS_PER_PROC=${MPI_BUFS_PER_PROC:-2048}
   export MPI_BUFS_PER_HOST=${MPI_BUFS_PER_HOST:-2048}
   export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
-elif [ $machine = theia ]; then
+elif [ $machine = THEIA ]; then
   export MPICH_FAST_MEMCPY=${MPICH_FAST_MEMCPY:-"ENABLE"}
   export MPI_BUFS_PER_PROC=${MPI_BUFS_PER_PROC:-2048}
   export MPI_BUFS_PER_HOST=${MPI_BUFS_PER_HOST:-2048}
   export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
+. /apps/lmod/5.8/init/ksh
+  module load intel/14.0.2
+  module load  impi/4.1.3.048
 elif [ $machine = GAEA ]; then
   export MPICH_FAST_MEMCPY=${MPICH_FAST_MEMCPY:-"ENABLE"}
   export MPICH_MAX_SHORT_MSG_SIZE=${MPICH_MAX_SHORT_MSG_SIZE:-4096}
@@ -444,13 +448,27 @@ elif [ $machine = GAEA ]; then
   export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
 elif [ $machine = WCOSS ] ; then
   if [ ${LOADICS:-YES} = YES ] ; then
-    . /usrx/local/Modules/3.2.9/init/ksh
+    . /usrx/local/Modules/3.2.10/init/ksh
     module unload ics
-    export ICS_VERSION=${ICS_VERSION:-14.0.1}
+    export ICS_VERSION=${ICS_VERSION:-15.0.1}
     module load ics/$ICS_VERSION
     export MKL_CBWR=${MKL_CBWR:-AVX}          # Needed for bit reproducibility with mkl
     export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
+    export SAVE_ALL_TASKS=${SAVE_ALL_TASKS:-no}
+    export PROFILE_BY_CALL_SITE=${PROFILE_BY_CALL_SITE:-no} 
+
+    if [ ${USEBULKXFER:-NO} = YES ] ; then
+      module unload ibmpe
+      module load ibmpe/1.3.0.8p
+      export MP_USE_BULK_XFER=yes
+#     export MP_EAGER_LIMIT=64K
+      export MP_BULK_MIN_MSG_SIZE=512K
+#     export MP_BULK_MIN_MSG_SIZE=64K
+      export MP_RC_USE_LMC=yes
+    fi
   fi
+  export MP_EAGER_LIMIT=${MP_EAGER_LIMIT:-64K}
+  export FORT_BUFFERED=${FORT_BUFFERED:-true}
   export MP_EUIDEVICE=${MP_EUIDEVICE:-min}
   export MP_EUILIB=${MP_EUILIB:-us}
 # export MP_TASK_AFFINITY=${MP_TASK_AFFINITY:-"cpu:$NTHREADS"}
@@ -458,11 +476,9 @@ elif [ $machine = WCOSS ] ; then
   export MP_SINGLE_THREAD=${MP_SINGLE_THREAD:-yes}
   export VPROF_PROFILE=${VPROF_PROFILE:-no}
   export MP_COREFILE_FORMAT=${MP_COREFILE_FORMAT:-"lite"}
+# export MP_USE_TOKEN_FLOW_ CONTROL=${MP_USE_TOKEN_FLOW_ CONTROL:-yes}
 # export MP_S_ENABLE_ERR_PRINT=yes
 fi
-
-export COMPLIANCECHECK=${COMPLIANCECHECK:-OFF}
-export ESMF_RUNTIME_COMPLIANCECHECK=$COMPLIANCECHECK:depth=4
 
 export model=${model:-global}
 #  Command line arguments.
@@ -496,7 +512,7 @@ export AERO=${14:-${AERO}}
 # DHOU 01/07/2008 Added two input for the GEFS_Cpl module
 # FHM_FST is the FHMAX for the integration before the first stop
 # FH_INC is the FHMAX_increase for the integration before next stop
-export FH_INC=${FH_INC:-6}
+export FH_INC=${FH_INC:-100000000}
 export ENS_SPS=${ENS_SPS:-.false.}
 export ADVANCECOUNT_SETUP=${ADVANCECOUNT_SETUP:-0}
 export HOUTASPS=${HOUTASPS:-10000}
@@ -511,7 +527,9 @@ if [ $ENS_SPS = .false. ] ; then export FH_INC=$FHMAX ; fi
 #  Directories.
 export HOMEDIR=${HOMEDIR:-/nwprod}
 export NWPROD=${NWPROD:-$HOMEDIR}
-export FIXGLOBAL=${FIXGLOBAL:-$NWPROD/${FIXSUBDA:-fix/fix_am}}
+#export gsm_ver=${gsm_ver:-"gsm.-v12.0.0/"}
+export gsm_ver=${gsm_ver:-""}
+export FIXGLOBAL=${FIXGLOBAL:-$NWPROD/${gsm_ver}${FIXSUBDA:-fix/fix_am}}
 export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
 export FIX_IDEA=${FIX_IDEA:-$FIXGLOBAL}
 export FIX_NGAC=${FIX_NGAC:-$NWPROD/fix/fix_ngac}
@@ -529,8 +547,7 @@ export NCP=${NCP:-"/bin/cp -p"}
 
 if [ $NEMSIO_IN = .true. ]; then
 # export SIGHDR=${SIGHDR:-$NWPROD/util/exec/nemsio_get}
-# export SIGHDR=${SIGHDR:-$NWPROD/ngac.v1.0.0/exec/nemsio_get}
- export SIGHDR=$nemsioget
+ export SIGHDR=${SIGHDR:-$NWPROD/ngac.v1.0.0/exec/nemsio_get}
  export JCAP=${JCAP:-$($SIGHDR ${GRDI}$FM jcap |grep -i "jcap" |awk -F"= " '{print $2}' |awk -F" " '{print $1}')}
  export LEVS=${LEVS:-$($SIGHDR ${GRDI}$FM levs|grep -i "levs" |awk -F"= " '{print $2}' |awk -F" " '{print $1}')}
  export LEVR=${LEVR:-$LEVS}
@@ -597,7 +614,7 @@ dp_import=${dp_import:-0}
 export EXPLICIT=${EXPLICIT:-.false.}
 export MASS_DP=${MASS_DP:-.false.}
 export PROCESS_SPLIT=${PROCESS_SPLIT:-.false.}
-export ICTM=${ICTM:-0}
+export ZFLXTVD=${ZFLXTVD:-.false.}
 export SEMI_IMPLICIT_TEMP_PROFILE=${SEMI_IMPLICIT_TEMP_PROFILE:-.false.}
 #
 export FCSTEXEC=${FCSTEXEC:-${EXECGLOBAL}/${model}_fcst$XC}
@@ -607,23 +624,24 @@ export CO2CON=${CO2CON:-${FIXGLOBAL}/global_co2con.l${LEVS}.f77}
 export MTNRSL=${MTNRSL:-$JCAP}
 export MTNRSLUF=${MTNRSLUF:-$MTNRSL}
 export MTNVAR=${MTNVAR:-${FIXGLOBAL}/global_mtnvar.t$MTNRSL.f77}
-export CLTUNE=${CLTUNE:-${FIXGLOBAL}/global_cldtune.f77}
-export DTBTHE=${DTBTHE:-${FIXGLOBAL}/global_tbthe.f77}
 export O3FORC=${O3FORC:-${FIXGLOBAL}/global_o3prdlos.f77}
 export O3CLIM=${O3CLIM:-${FIXGLOBAL}/global_o3clim.txt}
 export FNGLAC=${FNGLAC:-${FIXGLOBAL}/global_glacier.2x2.grb}
 export FNMXIC=${FNMXIC:-${FIXGLOBAL}/global_maxice.2x2.grb}
-export FNTSFC=${FNTSFC:-${FIXGLOBAL}/cfs_oi2sst1x1monclim19822001.grb}
+#export FNTSFC=${FNTSFC:-${FIXGLOBAL}/cfs_oi2sst1x1monclim19822001.grb}
+export FNTSFC=${FNTSFC:-${FIXGLOBAL}/RTGSST.1982.2012.monthly.clim.grb}
 export FNSNOC=${FNSNOC:-${FIXGLOBAL}/global_snoclim.1.875.grb}
 #export FNZORC=${FNZORC:-${FIXGLOBAL}/global_zorclim.1x1.grb}
 export FNZORC=${FNZORC:-sib}
 export FNALBC=${FNALBC:-${FIXGLOBAL}/global_albedo4.1x1.grb}
-export FNAISC=${FNAISC:-${FIXGLOBAL}/cfs_ice1x1monclim19822001.grb}
+#export FNAISC=${FNAISC:-${FIXGLOBAL}/cfs_ice1x1monclim19822001.grb}
+export FNAISC=${FNAISC:-${FIXGLOBAL}/CFSR.SEAICE.1982.2012.monthly.clim.grb}
 export FNTG3C=${FNTG3C:-${FIXGLOBAL}/global_tg3clim.2.6x1.5.grb}
 export FNVEGC=${FNVEGC:-${FIXGLOBAL}/global_vegfrac.0.144.decpercent.grb}
 export FNVETC=${FNVETC:-${FIXGLOBAL}/global_vegtype.1x1.grb}
 export FNSOTC=${FNSOTC:-${FIXGLOBAL}/global_soiltype.1x1.grb}
-export FNSMCC=${FNSMCC:-${FIXGLOBAL}/global_soilmcpc.1x1.grb}
+#export FNSMCC=${FNSMCC:-${FIXGLOBAL}/global_soilmcpc.1x1.grb}
+export FNSMCC=${FNSMCC:-${FIXGLOBAL}/global_soilmgldas.t${JCAP}.${LONR}.${LATR}.grb}
 export FNVMNC=${FNVMNC:-${FIXGLOBAL}/global_shdmin.0.144x0.144.grb}
 export FNVMXC=${FNVMXC:-${FIXGLOBAL}/global_shdmax.0.144x0.144.grb}
 export FNSLPC=${FNSLPC:-${FIXGLOBAL}/global_slope.1x1.grb}
@@ -660,6 +678,12 @@ export SIGR1=${SIGR1:-${COMENS}/sigr1}
 export SIGR2=${SIGR2:-${COMENS}/sigr2}
 export SFCR=${SFCR:-${COMENS}/sfcr}
 export NSTR=${NSTR:-${COMENS}/nstr}
+
+export SIGS1=${SIGS1:-${COMENS}/sigs1}
+export SIGS2=${SIGS2:-${COMENS}/sigs2}
+export SFCS=${SFCS:-${COMENS}/sfcs}
+export NSTS=${NSTS:-${COMENS}/nsts}
+
 ## History Files
 export SIGO=${SIGO:-${COMENS}/sigf'${FH}''${MN}'$SUFOUT}
 export SFCO=${SFCO:-${COMENS}/sfcf'${FH}''${MN}'$SUFOUT}
@@ -689,7 +713,7 @@ export FHDFI=${FHDFI:-1}
 export FHCYC=${FHCYC:-0}
 export nhours_dfini=${nhours_dfini:-$FHDFI}
 export GB=${GB:-0}
-export gfsio_in=${gfsio_in:-.true.}
+export gfsio_in=${gfsio_in:-.false.}
 if [ $gfsio_in = .true. ] ; then export GB=1 ; fi
 export IDEA=${IDEA:-.false.}
 
@@ -706,14 +730,16 @@ export POST_NCEPGRB2TBL=${POST_NCEPGRB2TBL:-$NWPROD/lib/sorc/g2tmpl/params_grib2
 ## copy/link post related files
 if [[ $WRITE_DOPOST = .true. ]] ; then
  if [[ $POST_GRIBVERSION = grib1 ]] ; then
-   ln -sf ${POSTCTLFILE} fort.14
+#  ln -sf ${POSTCTLFILE} fort.14
+   ${NCP} ${POSTCTLFILE} fort.14
  elif [[ $POST_GRIBVERSION = grib2 ]] ; then
    ${NCP} ${POST_PARM}        postcntrl.xml
    ${NCP} ${POST_AVBLFLDSXML} post_avblflds.xml
    ${NCP} ${POST_NCEPGRB2TBL} params_grib2_tbl_new
  fi
  ln -sf griddef.out fort.110
- ${NCP} ${POST_LUTDAT} ./eta_micro_lookup.dat
+ MICRO_PHYS_DATA=${MICRO_PHYS_DATA:-${POST_LUTDAT:-$NWPROD/$PARMSUBDA/nam_micro_lookup.dat}}
+ ${NCP} $MICRO_PHYS_DATA ./eta_micro_lookup.dat
 fi
 #
 # Total pe = WRT_GROUP*WRTPE_PER_GROUP + fcst pes
@@ -728,13 +754,16 @@ if [ $NEMSIO_OUT = .false. -a $WRITE_DOPOST = .false. ] ; then
   export LWRTGRDCMP=.false.
 fi
 # number of output files, default =3, for adiab num_file=1
+ioform_sig=${ioform_sig:-bin4}
+ioform_sfc=${ioform_sfc:-bin4}
+ioform_flx=${ioform_flx:-bin4}
 if [[ $ADIAB = .true. ]] ; then
   export NUM_FILE=1 ;
   export FILENAME_BASE="'SIG.F'"
-  export FILE_IO_FORM="'grib'"
+  export FILE_IO_FORM=${FILE_IO_FORM:-"'bin4'"}
 else
   export FILENAME_BASE="'SIG.F' 'SFC.F' 'FLX.F'"
-  export FILE_IO_FORM="'grib' 'bin4' 'grib'"
+  export FILE_IO_FORM=${FILE_IO_FORM:-"'bin4' 'bin4' 'bin4'"}
   export NUM_FILE=3
 
   if [ $NST_FCST -gt 0 ] ; then
@@ -747,7 +776,7 @@ else
   fi
   if [ $GOCART == 1 ] ; then
     export FILENAME_BASE=${FILENAME_BASE}" 'AER.F'"
-    export FILE_IO_FORM=${FILE_IO_FORM}" 'grib'"
+    export FILE_IO_FORM=${FILE_IO_FORM}" 'bin4'"
     export NUM_FILE=$((NUM_FILE+1))
   fi
   echo "NUM_FILE=$NUM_FILE,GOCART=$GOCART,NST_FCST=$NST_FCST,FILENAME_BASE=$FILENAME_BASE"
@@ -755,14 +784,11 @@ else
 NST_SPINUP=${NST_SPINUP:-.false.}
 #
 if [ $IDVC = 1 ] ; then
- export HYBRID=.false.
- export GEN_COORD_HYBRID=.false.
+ export HYBRID=.false.    ; export GEN_COORD_HYBRID=.false.
 elif [ $IDVC = 2 ] ; then
- export HYBRID=.true.
- export GEN_COORD_HYBRID=.false.
+ export HYBRID=.true.     ; export GEN_COORD_HYBRID=.false.
 elif [ $IDVC = 3 ] ; then
- export HYBRID=.false.
- export GEN_COORD_HYBRID=.true.
+ export HYBRID=.false.    ; export GEN_COORD_HYBRID=.true.
 fi
 export TFILTC=${TFILTC:-0.85}
 export DYNVARS=${DYNVARS:-""}
@@ -776,7 +802,7 @@ export FSICL=${FSICL:-99999}
 export CYCLVARS=${CYCLVARS}
 export POSTGPVARS=${POSTGPVARS}
 export NTHREADS=${NTHREADS:-1}
-export semilag=${semilag:-.false.}
+export semilag=${semilag:-${SEMILAG:-.true.}}
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-${NTHREADS:-1}}
 export SPECTRAL_LOOP=${SPECTRAL_LOOP:-2}
 export FILESTYLE=${FILESTYLE:-'L'}
@@ -798,6 +824,7 @@ else
   export REDOUT=${REDOUT:-'1>'}
   export REDERR=${REDERR:-'2>'}
 fi
+export print_esmf=${print_esmf:-.false.}
 
 ################################################################################
 #  Preprocessing
@@ -818,18 +845,17 @@ export PGM='$FCST_LAUNCHER $DATA/$(basename $FCSTEXEC)'
 export pgm=$PGM
 $LOGSCRIPT
 ${NCP} $FCSTEXEC $DATA
-
-# When testing the restart run, should not remove all, Weiyu.
 #------------------------------------------------------------
-if [ $RESTART=.false. ] ; then
+if [ $FHROT -gt 0 ] ; then export RESTART=.true. ; fi
+export RESTART=${RESTART:-.false.}
+if [ $RESTART = .false. ] ; then # when restarting should not remove - Weiyu
   rm -f NULL
 fi
-
 FH=$((10#$FHINI))
 [[ $FH -lt 10 ]]&&FH=0$FH
 if [[ $FHINI -gt 0 ]] ; then
-   if [ ${FHOUT_HF} -ne $FHOUT -a $FH -lt ${FHMAX_HF} ] ; then
-    FH=$((10#$FHINI+10#${FHOUT_HF}))
+   if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+    FH=$((10#$FHINI+10#$FHOUT_HF))
    else
     FH=$((10#$FHINI+10#$FHOUT))
    fi
@@ -842,20 +868,23 @@ while [[ 10#$FH -le $FHMAX ]] ; do
      FNSUB=""
    fi
 ## eval rm -f ${LOGO}${FNSUB}
-   if [ ${FHOUT_HF} -ne $FHOUT -a $FH -lt ${FHMAX_HF} ] ; then
-     ((FH=10#$FH+10#${FHOUT_HF}))
+   if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+     ((FH=10#$FH+10#$FHOUT_HF))
    else
      ((FH=10#$FH+10#$FHOUT))
    fi
    [[ $FH -lt 10 ]]&&FH=0$FH
 done
 if [[ $FILESTYLE = "L" ]] ; then
-   ln -fs $CO2CON fort.15
-   ln -fs $MTNVAR fort.24
-#  ln -fs $DTBTHE fort.27
-   ln -fs $O3FORC fort.28
-#  ln -fs $CLTUNE fort.43
-   ln -fs $O3CLIM fort.48
+#  ln -fs $CO2CON fort.15
+#  ln -fs $MTNVAR fort.24
+#  ln -fs $O3FORC fort.28
+#  ln -fs $O3CLIM fort.48
+
+   ${NCP} $CO2CON fort.15
+   ${NCP} $MTNVAR fort.24
+   ${NCP} $O3FORC fort.28
+   ${NCP} $O3CLIM fort.48
 else
   echo 'FILESTYLE' $FILESTYLE 'NOT SUPPORTED'
   exit 222
@@ -864,17 +893,26 @@ fi
 #do
 # ln -fs $AERODIR/global_aeropac3a.m$m.txt aeropac3a.m$m
 #done
+
 AEROSOL_FILE=${AEROSOL_FILE:-global_climaeropac_global.txt}
 EMMISSIVITY_FILE=${EMMISSIVITY_FILE:-global_sfc_emissivity_idx.txt}
-ln -fs $AERODIR/$AEROSOL_FILE     aerosol.dat
-ln -fs $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
-ln -fs $OROGRAPHY                 orography
-ln -fs $OROGRAPHY_UF              orography_uf
-ln -fs $LONSPERLAT                lonsperlat.dat
-ln -fs $LONSPERLAR                lonsperlar.dat
+
+#ln -fs $AERODIR/$AEROSOL_FILE     aerosol.dat
+#ln -fs $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
+#ln -fs $OROGRAPHY                 orography
+#ln -fs $OROGRAPHY_UF              orography_uf
+
+${NCP} $AERODIR/$AEROSOL_FILE     aerosol.dat
+${NCP} $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
+${NCP} $OROGRAPHY                 orography
+${NCP} $OROGRAPHY_UF              orography_uf
+
+${NCP} $LONSPERLAT                lonsperlat.dat
+${NCP} $LONSPERLAR                lonsperlar.dat
 if [ $IEMS -gt 0 ] ; then
  EMMISSIVITY_FILE=${EMMISSIVITY_FILE:-global_sfc_emissivity_idx.txt}
- ln -fs $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
+#ln -fs $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
+ ${NCP} $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
 fi
 if [ $ISOL -gt 0 ] ; then
  cd $SOLCDIR
@@ -909,12 +947,15 @@ secs=$((DELTIM-(DELTIM/60)*60))
 [[ $mins -lt 10 ]] &&mins=0$mins
 [[ $secs -lt 10 ]] &&secs=0$secs
 
+export FHINI=$((FHINI+0))
+export FHROT=$((FHROT+0))
+
 if [[ $ENS_NUM -le 1 ]] ; then
   FH=$((10#$FHINI))
   [[ $FH -lt 10 ]]&&FH=0$FH
   if [[ $FHINI -gt 0 ]] ; then
-    if [ ${FHOUT_HF} -ne $FHOUT -a $FH -lt ${FHMAX_HF} ] ; then
-     FH=$((10#$FHINI+10#${FHOUT_HF}))
+    if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+     FH=$((10#$FHINI+10#$FHOUT_HF))
     else
      FH=$((10#$FHINI+10#$FHOUT))
     fi
@@ -922,7 +963,7 @@ if [[ $ENS_NUM -le 1 ]] ; then
   fi
 #        For Initial Conditions
 #        ----------------------
-  if [ $((FHINI+0)) -eq  $((FHROT+0)) ]; then
+  if [ $FHINI -eq  $FHROT ]; then
     if [ $NEMSIO_IN = .true. ]; then
       ln -fs $GRDI  grid_ini
       ln -fs $GRDI  sig_ini
@@ -931,7 +972,11 @@ if [[ $ENS_NUM -le 1 ]] ; then
     fi
     ln -fs $SFCI  sfc_ini
     ln -fs $NSTI  nst_ini
-    export RESTART=.false.
+    if [ $FHROT -gt 0 ] ; then
+      export RESTART=.true.
+    else
+      export RESTART=.false.
+    fi
   else
     ln -fs $GRDI  grid_ini
     ln -fs $GRDI2 grid_ini2
@@ -963,8 +1008,8 @@ if [[ $ENS_NUM -le 1 ]] ; then
     eval ln -fs ${G3DO}$FNSUB G3D.F${FH}$SUF2
     eval ln -fs ${AERO}$FNSUB AER.F${FH}$SUF2
 
-    if [ ${FHOUT_HF} -ne $FHOUT -a $FH -lt ${FHMAX_HF} ] ; then
-     ((FH=10#$FH+10#${FHOUT_HF}))
+    if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+     ((FH=10#$FH+10#$FHOUT_HF))
     else
      ((FH=10#$FH+10#$FHOUT))
     fi
@@ -1005,10 +1050,14 @@ else
     eval ln -fs ${SFCI}${MN}  sfc_ini_${IMN}
     eval ln -fs ${NSTI}${MN}  nst_ini_${IMN}
 
-    if [ $((FHINI+0)) -eq  $((FHROT+0)) ]; then
-       export RESTART=.false.
+    if [ $FHINI -eq  $FHROT ]; then
+      if [ $FHROT -gt 0 ] ; then
+        export RESTART=.true.
+      else
+        export RESTART=.false.
+      fi
     else
-       export RESTART=.true.
+      export RESTART=.true.
     fi
 
 #        For output
@@ -1016,8 +1065,8 @@ else
     FH=$((10#$FHINI))
     [[ $FH -lt 10 ]]&&FH=0$FH
     if [[ $FHINI -gt 0 ]] ; then
-      if [ ${FHOUT_HF} -ne $FHOUT -a $FH -lt ${FHMAX_HF} ] ; then
-       FH=$((10#$FHINI+10#${FHOUT_HF}))
+      if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+       FH=$((10#$FHINI+10#$FHOUT_HF))
       else
        FH=$((10#$FHINI+10#$FHOUT))
       fi
@@ -1043,8 +1092,8 @@ else
       eval ln -fs ${G3DO}$FNSUB G3D.F${FH}${SUF2}_${IMN}
       eval ln -fs ${AERO}$FNSUB AER.F${FH}${SUF2}_${IMN}
 
-      if [ ${FHOUT_HF} -ne $FHOUT -a $FH -lt ${FHMAX_HF} ] ; then
-       ((FH=10#$FH+10#${FHOUT_HF}))
+      if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
+       ((FH=10#$FH+10#$FHOUT_HF))
       else
        ((FH=10#$FH+10#$FHOUT))
       fi
@@ -1093,16 +1142,27 @@ export wgrib=${wgrib:-$NWPROD/util/exec/wgrib}
 if [ $FHINI -eq 0 ]; then
   if [[ $ENS_NUM -le 1 ]] ; then
     if [ $NEMSIO_IN = .true. ]; then
+     if [ $ioform_sig = 'grib' ] ; then
       export CDATE=$($wgrib -4yr $GRDI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+     else
+      export CDATE=$($nemsioget $GRDI idate |grep -i "idate" |awk -F= '{print $2}')
+     fi
     else
       export CDATE=${CDATE:-$(echo idate|$SIGHDR ${SIGI})}
     fi
   else
     MN=c00
-    CDATE=$($wgrib -4yr ${GRDI}${MN} | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+    if [ $NEMSIO_IN = .true. ]; then
+     if [ $ioform_sig = 'grib' ] ; then
+      export CDATE=$($wgrib -4yr ${GRDI}${MN} | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+     else
+      export CDATE=$($nemsioget $GRDI idate |grep -i "idate" |awk -F= '{print $2}')
+     fi
+    else
+      export CDATE=${CDATE:-$(echo idate|$SIGHDR ${SIGI}i${MN})}
+    fi
   fi
-  if [ $NEMSIO_IN = .true. -a "$CDATE" = "" ]; then
-    export CDATE=$($nemsioget $GRDI idate |grep -i "idate" |awk -F= '{print $2}')
+  if [ $NEMSIO_IN = .true. ] ; then
     INI_YEAR=$(echo $CDATE | awk -F" " '{print $1}')
     echo "now"
     echo ${INI_YEAR}
@@ -1118,18 +1178,42 @@ if [ $FHINI -eq 0 ]; then
   fi
 else
   if [[ $ENS_NUM -le 1 ]] ; then
-    CDATE=$($nemsioget $GRDI idate | grep -i "idate" |awk -F= '{print $2}')
+    if [ $NEMSIO_IN = .true. ]; then
+     if [ $ioform_sig = 'grib' ] ; then
+      export CDATE=$($wgrib -4yr $GRDI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+     else
+      export CDATE=$($nemsioget $GRDI idate | grep -i "idate" |awk -F= '{print $2}')
+     fi
+    else
+      export CDATE=${CDATE:-$(echo idate|$SIGHDR ${SIGI})}
+    fi
   else
     MN=c00
-    CDATE=$($nemsioget ${GRDI}${MN} idate | grep -i "idate" |awk -F= '{print $2}')
+    if [ $NEMSIO_IN = .true. ]; then
+     if [ $ioform_sig = 'grib' ] ; then
+      export CDATE=$($wgrib -4yr ${GRDI}${MN} | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
+     else
+      export CDATE=$($nemsioget ${GRDI}${MN} idate | grep -i "idate" |awk -F= '{print $2}')
+     fi
+    else
+      export CDATE=${CDATE:-$(echo idate|$SIGHDR ${SIGI}${MN})}
+    fi
   fi
-  CDATE=$($nemsioget $GRDI idate | grep -i "idate" |awk -F= '{print $2}')
-  INI_YEAR=$(echo $CDATE | awk -F" " '{print $1}')
-  echo "now"
-  echo ${INI_YEAR}
-  INI_MONTH=$(echo $CDATE | awk -F" " '{print $2}')
-  INI_DAY=$(echo $CDATE | awk -F" " '{print $3}')
-  INI_HOUR=$(echo $CDATE | awk -F" " '{print $4}')
+  if [ $NEMSIO_IN = .true. ]; then
+#   export CDATE=$($nemsioget $GRDI idate | grep -i "idate" |awk -F= '{print $2}')
+    INI_YEAR=$(echo $CDATE | awk -F" " '{print $1}')
+    echo "now"
+    echo ${INI_YEAR}
+    INI_MONTH=$(echo $CDATE | awk -F" " '{print $2}')
+    INI_DAY=$(echo $CDATE | awk -F" " '{print $3}')
+    INI_HOUR=$(echo $CDATE | awk -F" " '{print $4}')
+  else
+    INI_YEAR=$(echo $CDATE | cut -c1-4)
+    echo "cdate=$CDATE, ini_year=${INI_YEAR}"
+    INI_MONTH=$(echo $CDATE | cut -c5-6)
+    INI_DAY=$(echo $CDATE | cut -c7-8)
+    INI_HOUR=$(echo $CDATE | cut -c9-10)
+  fi
 fi
 
 ## copy configure files needed for NEMS GFS
@@ -1152,21 +1236,17 @@ if [ $GOCART == 1 ] ; then
 
 fi
 
-ioform_sig=${ioform_sig:-grib}
-ioform_sfc=${ioform_sfc:-bin4}
-ioform_flx=${ioform_flx:-grib}
-
 #
 # jw: generate configure file
 #
 core=${core:-gfs}
-#cat << EOF > $DATA/atmos.configure
-#core: $core
-#EOF
+cat << EOF > $DATA/atmos.configure
+core: $core
+EOF
 
 cat << EOF > atm_namelist.rc
 core: $core
-print_esmf:     .true.
+print_esmf:     ${print_esmf}
 
 nhours_dfini=${nhours_dfini:-$FHDFI}
 
@@ -1232,7 +1312,7 @@ start_minute:            0
 start_second:            0
 nhours_fcst:             $FHMAX
 restart:                 $RESTART
-nhours_fcst1:            6
+nhours_fcst1:            $FHMAX
 im:                      $LONB
 jm:                      $LATB
 global:                  .true.
@@ -1426,38 +1506,37 @@ EOF
 #eval $PGM <<EOF $REDOUT$PGMOUT $REDERR$PGMERR
 #totalview poe -a $PGM <<EOF $REDOUT$PGMOUT $REDERR$PGMERR
 #
+# FHOUT_hf=$FHOUT_HF, FHMAX_hf=$FHMAX_HF,   # need to add when code is updated
+
 cat  > atm_namelist <<EOF
  &nam_dyn
-  FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, 
+  FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
+  FHOUT_hf=$FHOUT_HF, FHMAX_hf=$FHMAX_HF,
   FHRES=$FHRES, FHROT=$FHROT, FHDFI=$FHDFI, nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonf=$LONF, latg=$LATG,
   jcap=$JCAP,   levs=$LEVS,  levr=$LEVR,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
-  gen_coord_hybrid=$GEN_COORD_HYBRID, 
+  gen_coord_hybrid=$GEN_COORD_HYBRID, zflxtvd=$ZFLXTVD,
   spectral_loop=$SPECTRAL_LOOP, explicit=$EXPLICIT,
   ndslfv=$NDSLFV,mass_dp=$MASS_DP,process_split=$PROCESS_SPLIT,
   reduced_grid=$REDUCED_GRID,lsidea=$IDEA,
   semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   dfilevs=$DFILEVS,
-  herm_x=${herm_x},herm_y=${herm_y},herm_z=${herm_z},lin_xyz=.false.,wgt_cub_lin_xyz=.false.,wgt_cub_lin_xyz_trc=.false.,
-  quamon=.false.,liope=${liope},
   $DYNVARS /
  &nam_phy
-  FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, 
+  FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
+  FHOUT_hf=$FHOUT_HF, FHMAX_hf=$FHMAX_HF,
   FHRES=$FHRES, FHROT=$FHROT, FHCYC=$FHCYC, FHDFI=$FHDFI,
   FHZER=$FHZER, FHLWR=$FHLWR, FHSWR=$FHSWR,nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonr=$LONR, latr=$LATR,
-  liope=${liope},
   jcap=$JCAP, levs=$LEVS, levr=$LEVR, reduced_grid=$REDUCED_GRID,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
   lsoil=$LSOIL, nmtvr=$NMTVR, lsidea=$IDEA,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
-  FHOUT_HF=${FHOUT_HF}, FHMAX_HF=${FHMAX_HF},
-  NST_SPINUP=${NST_SPINUP},
   $PHYVARS /
  &TRACER_CONSTANT
   $TRACERVARS /

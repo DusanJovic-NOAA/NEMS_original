@@ -24,6 +24,16 @@ export SIGIOOUT=.false.
 export SFCIOOUT=.false.
 export CDATE=2010010100
 #export SIGHDR=$NEMSIOGET
+#export SIGHDR=$nemsioget
+if [ $NEMSIOIN = .true. ] ; then
+ export MACHINE_ID=${MACHINE_ID:-wcoss}
+ if [ $MACHINE_ID = wcoss ] ; then
+   export nemsioget=${nemsioget:-/nwprod/ngac.v1.0.0/exec/nemsio_get}
+ elif [ $MACHINE_ID = theia ] ; then
+   export nemsioget=${nemsioget:-/scratch3/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
+ fi
+ export SIGHDR=$nemsioget
+fi
 export WTPG=4
 
 RUN_SCRIPT=rt_gfs.sh

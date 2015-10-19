@@ -16,7 +16,8 @@ export_gsm
 export CDATE=2011092300
 export WLCLK=90
 export TASKS=32
-export PE1=32
+#export TASKS=48
+export PE1=$TASKS
 export THRD=1
 export QUILT=.false.
 export FDFI=3

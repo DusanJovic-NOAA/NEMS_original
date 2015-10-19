@@ -339,10 +339,10 @@ contains
          ,gamma=(/12.8,0.357,0.014/)
     !
     if(z>0) then
-       f_c=f*gamma(1-exp(-z/gamma))
-       df_sol_z=f_sol_0*(1.0-sum(f_c)/z)
+       f_c      = f*gamma(int(1-exp(-z/gamma)))
+       df_sol_z = f_sol_0*(1.0-sum(f_c)/z)
     else
-       df_sol_z=0.
+       df_sol_z = 0.
     endif
     !
   end subroutine sw_soloviev_3exp_v1

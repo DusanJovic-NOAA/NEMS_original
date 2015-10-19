@@ -634,7 +634,7 @@
      &       sinlat,coslat,solhr,jdate,solcon,                          &
      &       cv,cvt,cvb,fcice,frain,rrime,flgmin,                       &
      &       icsdsw,icsdlw, ntcw,ncld,ntoz, NTRAC,NFXR,                 &
-     &       dtlw,dtsw, lsswr,lslwr,lssav,                              &
+     &       dtlw,dtsw, lsswr,lslwr,lssav, shoc_cld,                    &
      &       IX, IM, LM, me, lprnt, ipt, kdt, deltaq,sup,cnvw,cnvc,     &
 !  ---  outputs:
      &       htrsw,topfsw,sfcfsw,dswcmp,uswcmp,sfalb,coszen,coszdg,     &
@@ -934,7 +934,7 @@
      &                        ntoz, ntcw, ncld, ipt, kdt
       integer,  intent(in) :: icsdsw(IM), icsdlw(IM), jdate(8)
 
-      logical,  intent(in) :: lsswr, lslwr, lssav, lprnt
+      logical,  intent(in) :: lsswr, lslwr, lssav, lprnt, shoc_cld
 
       real (kind=kind_phys), dimension(IX,LM+1), intent(in) ::  prsi
 
@@ -952,9 +952,11 @@
       real (kind=kind_phys), intent(in) :: solcon, dtlw, dtsw, solhr,   &
      &       tracer(IX,LM,NTRAC)
 
+      real (kind=kind_phys), dimension(IX,LM),intent(inout):: cldcov
+
 !  ---  outputs: (horizontal dimensioned by IX)
-      real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw,&
-     &       cldcov
+      real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw
+
       real (kind=kind_phys), dimension(IX,4), intent(out) :: dswcmp,    &
      &       uswcmp
 
@@ -1363,7 +1365,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,clw,                    &
      &       xlat,xlon,slmsk,                                           &
-     &       IM, LMK, LMP,                                              &
+     &       IM, LMK, LMP, shoc_cld, cldcov(1:im,1:lm),                 &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
@@ -1818,13 +1820,14 @@
           enddo
         endif
 
-        do k = 1, LM
-          k1 = k + kd
-
-          do i = 1, IM
-            cldcov(i,k) = clouds(i,k1,1)
+        if (.not. shoc_cld) then
+          do k = 1, LM
+            k1 = k + kd
+            do i = 1, IM
+              cldcov(i,k) = clouds(i,k1,1)
+            enddo
           enddo
-        enddo
+        endif
 
 !  ---  save optional vertically integrated aerosol optical depth at
 !       wavelenth of 550nm aerodp(:,1), and other optional aod for

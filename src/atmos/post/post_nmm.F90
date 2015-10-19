@@ -8,13 +8,13 @@
 
 !***  HISTORY
 !    28May2013     Lu: Specify iostatusD3D
-!
+!    09Oct2015  S Moorthi - adding imp_physics argument to MICROINIT
 !-----------------------------------------------------------------------
 !*** run post on quilt
 !-----------------------------------------------------------------------
 !
       use MODULE_WRITE_INTERNAL_STATE
-      use CTLBLK_mod, only : komax,ifhr,ifmin,MODELNAME
+      use CTLBLK_mod, only : komax,ifhr,ifmin,MODELNAME,imp_physics
 !
 !-----------------------------------------------------------------------
 !
@@ -108,7 +108,9 @@
       call set_postvars_nmm(wrt_int_state,mpicomp,JTS,JTE)
             write(0,*)'af set_postvars'
 !
-      call MICROINIT
+       if(imp_physics==5 .or. imp_physics==85 .or. imp_physics==95) then
+         call MICROINIT(imp_physics)
+       endif
 !
       IEOF=0
       do while( IEOF .eq. 0)

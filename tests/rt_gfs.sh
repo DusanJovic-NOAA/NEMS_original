@@ -1,5 +1,6 @@
 #!/bin/ksh
 #set -eu
+set -x
 
 export GEFS_ENSEMBLE=${GEFS_ENSEMBLE:-0}
 echo "GEFS_ENSEMBLE=" $GEFS_ENSEMBLE
@@ -26,6 +27,7 @@ export IAER=111
 export fcyc=0
 export FHOUT_HF=1
 export FHMAX_HF=0
+
 if [ $GEFS_ENSEMBLE = 0 ] ; then
 
 ################################################################################
@@ -38,13 +40,13 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
 ## determine GOCART and TRACER from gocart_aerosol and passive_tracer 
  export gocart_aerosol=${gocart_aerosol:-NO}
- export passive_tracer=${passive_tracer:-NO}
- if [ $gocart_aerosol = 'YES' ]; then
+ export passive_tracer=${passive_tracer:-YES}
+ if [ $gocart_aerosol = 'YES' ] ; then
   export GOCART=1 
  else
   export GOCART=0 
  fi
- if  [ $passive_tracer = 'YES' ]; then
+ if  [ $passive_tracer = 'YES' ] ; then
   export TRACER=.true.
  else
   export TRACER=.false.
@@ -65,15 +67,11 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_wrtdopost_:${WRITE_DOPOST}:g        \
                      | sed s:_postgrbvs_:${POST_GRIBVERSION}:g    \
                      | sed s:_aer2post_:${GOCART_AER2POST}:g      \
-                     | sed s:_WRTGP_:${WRTGP}:g                   \
                      | sed s:_THRDS_:${THRD}:g                    \
                      | sed s:_NSOUT_:${NSOUT}:g                   \
                      | sed s:_QUILT_:${QUILT}:g                   \
                      | sed s:_IAER_:${IAER}:g                     \
                      | sed s:_IALB_:${IALB}:g                     \
-                     | sed s:_fcyc_:${fcyc}:g                     \
-                     | sed s:_FHOUTHF_:${FHOUT_HF}:g              \
-                     | sed s:_FHMAXHF_:${FHMAX_HF}:g              \
                      | sed s:_wave_:${wave}:g                     \
                      | sed s:_lm_:${lm}:g                         \
                      | sed s:_lsoil_:${lsoil}:g                   \
@@ -86,6 +84,10 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_FHOUT_:${FHOUT}:g                   \
                      | sed s:_FHZER_:${FHZER}:g                   \
                      | sed s:_FHRES_:${FHRES}:g                   \
+                     | sed s:_FHROT_:${FHROT}:g                   \
+                     | sed s:_FHOUTHF_:${FHOUT_HF}:g              \
+                     | sed s:_FHMAXHF_:${FHMAX_HF}:g              \
+                     | sed s:_fcyc_:${fcyc}:g                     \
                      | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g       \
                      | sed s:_ADIAB_:${ADIAB}:g                   \
                      | sed s:_NSTFCST_:${NST_FCST}:g              \
@@ -108,7 +110,9 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
                      | sed s:_RTPWD_:${RTPWD}:g                   \
                      | sed s:_SCHEDULER_:${SCHEDULER}:g           \
-                     | sed s:_SLG_:${SLG}:g                        \
+                     | sed s:_SLG_:${SLG}:g                       \
+                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
+                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
                      | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
 
@@ -172,34 +176,26 @@ fi
  fi
 
  if [ "$NEMSIOIN" = ".true." ]; then
-  if [ $IDVC = 2 ] ; then
-    export IC_DIR=${IC_DIR:-${RTPWD}/GFS_DFI_POST}
-    cp $IC_DIR/gfsanl.$CDATE ${RUNDIR}/.
-    cp $IC_DIR/sfnanl.$CDATE ${RUNDIR}/.
+# if [ $IDVC = 2 ] ; then
+#   export IC_DIR=${IC_DIR:-${RTPWD}/GFS_DFI_POST}
 
-#   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.$CDATE ${RUNDIR}/.
-#   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.$CDATE ${RUNDIR}/.
-#to run gfs test
-#   if [ "$rungfstest" = ".true." ]; then
-#     cp /climate/save/wx20wa/esmf/nems/20120913/data/nemsio/gfsanl.$CDATE ${RUNDIR}/.
-#     cp /climate/save/wx20wa/esmf/nems/20120913/data/nemsio/sfcanl.$CDATE ${RUNDIR}/.
-#   fi
+# elif [ $IDVC = 3 ] ; then
+#   export IC_DIR=${IC_DIR:-${RTPWD}/GFS_NODFI}
 
-#  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62hyb/gfsanl.$CDATE ${RUNDIR}/.
-#  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62hyb/sfnanl.$CDATE ${RUNDIR}/sfcanl.$CDATE
-
-
-  elif [ $IDVC = 3 ] ; then
-    export IC_DIR=${IC_DIR:-${RTPWD}/GFS_NODFI}
-    cp $IC_DIR/gfsanl.$CDATE ${RUNDIR}/.
-    cp $IC_DIR/sfnanl.$CDATE ${RUNDIR}/.
-
-#   cp ${RTPWD}/GFS_NODFI/gfsanl.$CDATE ${RUNDIR}/.
-#   cp ${RTPWD}/GFS_NODFI/sfcanl.$CDATE ${RUNDIR}/.
-
-#  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62/gfsanl.$CDATE ${RUNDIR}/.
-#  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62/sfnanl.$CDATE ${RUNDIR}/sfcanl.$CDATE
+# fi
+# export IC_DIR=${IC_DIR:-${RTPWD}/$CNTL_DIR}
+ #export IC_DIR=${RTPWD}/$CNTL_DIR
+  if [ $MACHINE_ID = wcoss ] ; then
+     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
+     export nemsioget=${nemsioget:-/nwprod/ngac.v1.0.0/exec/nemsio_get}
+  elif [ $MACHINE_ID = zeus ] ; then
+     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
+  elif [ $MACHINE_ID = theia ] ; then
+     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
+     export nemsioget=${nemsioget:-/scratch3/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
   fi
+  cp $IC_DIR/gfsanl.$CDATE $RUNDIR
+  cp $IC_DIR/sfnanl.$CDATE $RUNDIR
 
 #                     NO NEMSIO INPUT
 #                     ---------------
@@ -217,6 +213,7 @@ fi
          IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
        fi
        cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.
+#??    cp $IC_DIR/siganl.$CDATE ${RUNDIR}/sig_ini2
        cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
      fi
    fi
@@ -269,7 +266,7 @@ if [ $SCHEDULER = 'moab' ]; then
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
- export TPN=$((12/THRD))
+ export TPN=$((24/THRD))
  export QUEUE=${QUEUE:-batch}
  cat gfs_qsub.IN     | sed s:_JBNME_:${JBNME}:g   \
                      | sed s:_ACCNR_:${ACCNR}:g   \
@@ -282,7 +279,14 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
- export TPN=${TPN:-$((16/THRD))}
+ export pex=${pex:-1}
+ if [ $pex -eq 2 ] ; then
+   export TPN=${TPN:-$((24/THRD))}
+   export CLASS=${CLASS:-dev$pex}
+ else
+   export TPN=${TPN:-$((16/THRD))}
+ fi
+ export CLASS=${CLASS:-dev}
  cat gfs_bsub.IN     | sed s:_JBNME_:${JBNME}:g   \
                      | sed s:_CLASS_:${CLASS}:g   \
                      | sed s:_WLCLK_:${WLCLK}:g   \
@@ -294,9 +298,9 @@ elif [ $SCHEDULER = 'lsf' ]; then
                      | sed s:_SCHED_:${SCHEDULER}:g   >  gfs_bsub
 fi
 
-cp exglobal_fcst.sh.sms_nems ${RUNDIR}
+cp exglobal_fcst.sh.sms_nems $RUNDIR
 
-export RUNDIR=${RUNDIR}
+export RUNDIR=$RUNDIR
 
 cd $PATHRT
 
@@ -318,6 +322,7 @@ echo ${TEST_DESCR}
 
 # wait for the job to enter the queue
 job_running=0
+echo ' CLASS= ' $CLASS
 until [ $job_running -eq 1 ] ; do
  echo "TEST is waiting to enter the queue"
  if [ $SCHEDULER = 'moab' ]; then
@@ -325,7 +330,7 @@ until [ $job_running -eq 1 ] ; do
  elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
  elif [ $SCHEDULER = 'lsf' ]; then
-  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`;sleep 5
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${CLASS} | wc -l`;sleep 5
  fi
 done
 
@@ -454,10 +459,12 @@ else
 # --- create baselines
 #
 
+ sleep 60
  echo;echo;echo "Moving set ${TEST_NR} files ...."
 
  for i in ${LIST_FILES} ; do
   printf %s " Moving " $i "....."
+  ls -ltr ${RUNDIR}/${i}
   if [ -f ${RUNDIR}/$i ] ; then
     cp ${RUNDIR}/${i} /${STMP}/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else

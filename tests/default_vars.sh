@@ -59,7 +59,11 @@ export MICRO=fer_hires   ; export gfsP=false        ; export SPEC_ADV=false
 export_gsm ()
 {
 export_common
-export TASKS=32  ; export PE1=32       ; export NSOUT=0       ; export QUILT=.false.
+if [ ${pex:-1} -eq 2 ] ; then
+ export TASKS=48  ; export PE1=48       ; export NSOUT=0       ; export QUILT=.false.
+else
+ export TASKS=32  ; export PE1=32       ; export NSOUT=0       ; export QUILT=.false.
+fi
 #export TASKS=8  ; export PE1=8        ; export NSOUT=0       ; export QUILT=.false.
 export NDAYS=2   ; export CP2=.false.  ; export IAER=0        ; export FHRES=180
 export WRTGP=1   ; export FDFI=0       ; export ADIAB=.false. ; export REDUCEDGRID=.true.

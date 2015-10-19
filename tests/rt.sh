@@ -27,11 +27,18 @@ export dprefix=""
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 if [ $MACHINE_ID = wcoss ]; then
   source /usrx/local/Modules/default/init/sh
-  export CLASS=dev
-  export ACCNR=dev
   export DISKNM=/meso
-  export STMP=/stmpp1
-  export PTMP=/ptmpp1
+  export pex=1           # for wcoss phase1
+  export pex=${pex:-2}   # default - phase2
+  export CLASS=dev
+   export ACCNR=dev
+  if [ $pex -eq 2 ] ; then
+   export CLASS=dev$pex 
+   export ACCNR=dev$pex
+  fi
+# export STMP=/stmp$pex
+  export STMP=/ptmpp$pex
+  export PTMP=/ptmpp$pex
   export SCHEDULER=lsf
 elif [ $MACHINE_ID = gaea ]; then
   export DISKNM=/lustre/f1/unswept/ncep/Ratko.Vasic
@@ -40,8 +47,11 @@ elif [ $MACHINE_ID = gaea ]; then
   export SCHEDULER=moab
 elif [ $MACHINE_ID = zeus ]; then
   source /usr/share/Modules/init/sh
-  export ACCNR
+  export ACCNR=cmp
   export QUEUE=batch
+#  export QUEUE=debug
+  export QUEUE=batch
+# export QUEUE=debug
   export dprefix=/scratch2/portfolios/NCEPDEV
   export DISKNM=$dprefix/meso
   export STMP=$dprefix/stmp
@@ -63,6 +73,7 @@ elif [ $MACHINE_ID = theia ]; then
 else
   die "Unknown machine ID, please edit detect_machine.sh file"
 fi
+export pex=${pex:-""}
 
 if [ $MACHINE_ID = wcoss ]; then
  cp gfs_fcst_run.IN_IBM gfs_fcst_run.IN
@@ -73,7 +84,7 @@ fi
 ############################################################
 # RTPWD - Path to previously stored regression test answers
 ############################################################
-export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+#export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #export RTPWD=/scratch4/NCEPDEV/nems/noscrub/Weiyu.Yang/REGRESSION_TEST
 
 export CREATE_BASELINE=false
@@ -113,6 +124,8 @@ while getopts ":c:fsl:mh" opt; do
       ;;
   esac
 done
+
+export RTPWD=${RTPWD:-${DISKNM}/noscrub/wx20rv/REGRESSION_TEST}
 
 shift $((OPTIND-1))
 [[ $# -gt 0 ]] && usage

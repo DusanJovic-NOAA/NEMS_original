@@ -50,9 +50,10 @@ export SFCPRESS_ID=1
 export THERMODYN_ID=1
 export IDVC=2  # the vertical coord - 2 means hybrid
 export NDSLFV=.false.
-export SPECTRALLOOP=3
+export SPECTRALLOOP=2
 export IEMS=0
 export ISOL=1
 export ICO2=1
 
-RUN_SCRIPT=rt_gfs.sh_slg
+#RUN_SCRIPT=rt_gfs.sh_slg   ! Moorthi
+RUN_SCRIPT=rt_gfs.sh

@@ -42,7 +42,7 @@ fi
  export NGRID_A2OI=${NGRID_A2OI:-47}
  export A2OI_OUT=_A2OI_OUT_
  export A2OI_OUT=${A2OI_OUT:-.false.}
- export CPLFLX=.true.
+#export CPLFLX=.true.
  export CPLFLX=${CPLFLX:-.false.}
 
  export CLIMATE=${CLIMATE:-.false.}
@@ -320,7 +320,7 @@ grid_aldata=_CP2_
 #     Forecaset script and executable name
 #
 srcdir=_PATHTR_
-export FCSTSCRIPT=$srcdir/tests/exglobal_fcst.sh.sms_nems
+export FCSTSCRIPT=$srcdir/tests/exglobal_fcst_nems.sh
 export FCSTEXEC=$srcdir/exe/NEMS.x
 
 export CONFIG=${GSM_CONFIG:-$srcdir/tests/gsm_config}

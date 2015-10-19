@@ -58,12 +58,7 @@ fi
    export MPI_GROUP_MAX=128
    export HOUTASPS=12
    export IGEN=82
-   export FNGLAC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_glacier.2x2.grb"
-   export FNMXIC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_maxice.2x2.grb"
-   export FNTSFC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/RTGSST.1982.2012.monthly.clim.grb"
-   export FNSNOC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_snoclim.1.875.grb"
-   export FNZORC="sib"
-   export FNALBC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_albedo4.1x1.grb"
+   export FNTSFC=$FIXGLOBAL/RTGSST.1982.2012.monthly.clim.grb
    export FNAISC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/CFSR.SEAICE.1982.2012.monthly.clim.grb"
    export FNTG3C="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_tg3clim.2.6x1.5.grb"
    export FNVEGC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegfrac.0.144.decpercent.grb"
@@ -352,8 +347,9 @@ grid_aldata=_CP2_
 #   Control for post and time averaging  If "YES" then run
 #   -- Defaults to "NO" 
 #
-export gfsio_in=.true.
+#export gfsio_in=.true.
 # export gfsio_out=.true.,
+export LDFIFLTO=.true.
 if [ $SLG = .true. ] ; then
    export gfsio_out=.false.
    export out_virttemp=.false.
@@ -372,7 +368,7 @@ fi
 #     Forecaset script and executable name
 #
 srcdir=_PATHTR_
-export FCSTSCRIPT=$srcdir/tests/exglobal_fcst.sh.sms_nems
+export FCSTSCRIPT=$srcdir/tests/exglobal_fcst_nems.sh
 export FCSTEXEC=$srcdir/exe/NEMS.x
 
 export CONFIG=${GSM_CONFIG:-$srcdir/tests/gsm_config}
@@ -388,11 +384,10 @@ cd $RUNDIR
  export COMOUT=$RUNDIR
 #
 if [ $SCHEDULER = 'moab' ]; then
-   export FIXGLOBAL=${FIXGLOBAL:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para/fix/fix_am}
+   export FIXGLOBAL=${FIXGLOBAL:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para_branch/para_new/fix/fix_am}
    export FCST_LAUNCHER='aprun -n _TASKS_'
 elif [ $SCHEDULER = 'pbs' ]; then
-#  export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
-   export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am}
+   export FIXGLOBAL=${FIXGLOBAL:-/scratch4/NCEPDEV/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am}
 
    export OMP_NUM_THREADS=$NTHREADS
    mpiexec=`which mpiexec_mpt`
@@ -403,10 +398,6 @@ elif [ $SCHEDULER = 'pbs' ]; then
    fi
 elif [ $SCHEDULER = 'lsf' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am}
-   if [ $SLG = .true. ] ; then
-      export FIXGLOBAL=/global/save/Michael.A.Young/data.for.eddy/fix_am
-echo FIXGLOBAL= $FIXGLOBAL
-   fi
    export FCST_LAUNCHER=mpirun.lsf
 fi
 #export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
@@ -419,11 +410,9 @@ fi
  export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
  export POSTGPEXEC=$POSTGPDIR/global_postgp
  export POSTGPSH=/nwprod/ush/global_postgp.sh
-if [ $SLG = .true. ] ; then
-# Weiyu, ???????????
- export OROGRAPHY=$FIXGLOBAL/global_orography_uf.t62.192.94.grb
- export OROGRAPHY_UF=$FIXGLOBAL/global_orography_uf.t62.192.94.grb  orography
-fi
+#
+ export OROGRAPHY=$FIXGLOBAL/global_orography.t62.grb
+ export OROGRAPHY_UF=$FIXGLOBAL/global_orography_uf.t62.grb
 #
 #
 # ------------------------ initial condition ----------------

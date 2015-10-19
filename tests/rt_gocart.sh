@@ -51,8 +51,14 @@ cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
-export TPN=$((16/THRD))
-export QUEUE=${QUEUE:-dev}
+  export pex=${pex:-1}
+  if [ $pex -eq 2 ] ; then
+   export TPN=${TPN:-$((24/THRD))}
+   export QUEUE=${QUEUE:-dev$pex}
+  else
+   export TPN=${TPN:-$((16/THRD))}
+  fi
+  export QUEUE=${QUEUE:-dev}
 cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
@@ -150,7 +156,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
-  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | awk '{print $3}'` ; status=${status:--}
+  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep $CLASS | awk '{print $3}'` ; status=${status:--}
 #  if [ $status != '-' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $9 }'` ; fi
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $9 }'` ; fi
   FnshHrs=${FnshHrs:-0}
@@ -223,6 +229,7 @@ done
 # --- create baselines
 #
 
+ sleep 60
  echo;echo;echo "Moving set ${TEST_NR} files ...."
 
 for i in ${LIST_FILES}

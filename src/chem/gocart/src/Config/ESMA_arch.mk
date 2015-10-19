@@ -53,6 +53,7 @@
 # 10Nov2014  Wang      added full path f2py for zues
 # 12Nov2014  Wang      Updated netcdf lib and esmf lib for zeus
 # 02Jan2015  Wang      Updated netcdf lib and esmf lib for wcoss,f2py on wcoss
+# 09RJan015  Moorthi   Add theia and gaea interface
 #
 #--------------------------------------------------------------------------
 
@@ -60,6 +61,7 @@
 # TO DO: Remove default for BASEDIR, FC from here; user must set BASEDIR
 # -----  and ESMA_FC to control these parameters.
 #
+  BASEDIR = /usr/local
   ifndef BASEDIR
      $(warning BASEDIR is undefined --- this will cause an error in the next release!)
   endif
@@ -91,10 +93,12 @@ ifeq ($(ARCH),Linux)
 
 # Determine which site we are at
 # ------------------------------
+# SITE = wcoss
   SITE := $(patsubst fe%,zeus,$(SITE))
-  SITE := $(patsubst tf%,theia,$(SITE))
   SITE := $(patsubst t1%,wcoss,$(SITE))
   SITE := $(patsubst g1%,wcoss,$(SITE))
+  SITE := $(patsubst ga%,gaea,$(SITE))
+  SITE := $(patsubst tf%,theia,$(SITE))
 echo SITE= ${SITE}
 
 #
@@ -671,12 +675,51 @@ echo SITE= ${SITE}
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)
      INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/modO/Linux.intel.64.intelmpi.default
-     LIB_ESMF =  $(ESMF_ROOT)/lib/libO/Linux.intel.64.intelmpi.default/libesmf.a
+      LIB_ESMF =  $(ESMF_ROOT)/lib/libO/Linux.intel.64.intelmpi.default/libesmf.a
      INC_MPI =  ${MPI_ROOT}/include
 
      EXTENDED_SOURCE = -extend_source
      FC := mpiifort
      F2PY = /usr/bin/f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
+##   FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
+     FOPT := -O -g -traceback
+     FPE := -fp-model source
+     BIG_ENDIAN =-convert big_endian
+     BYTERECLEN =-assume byterecl
+     FREAL8 = -r8
+     ESMA_REAL=$(FREAL8)
+     FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
+     FREE_SOURCE = -free
+     FIXED_SOURCE = -fixed
+     ACG_FLAGS += -P # enforce native precision in specs
+  endif
+  ifeq (${SITE},gaea)
+     ESMF_ROOT = /ncrc/home2/Gerhard.Theurich/ESMF-INSTALLS/630rp1/Intel12
+#    include $(ESMF_ROOT)/lib/libO/Linux.intel.64.mpi.default/esmf.mk
+     include $(ESMF_ROOT)/lib/esmf.mk
+     DIR_NETCDF = /opt/cray/netcdf/4.2.0/intel/120
+##   DIR_NETCDF = /apps/netcdf/3.6.3/intel
+     DIR_ESMF   = ${ESMF_DIR}
+     BASEDIR = /usr/local
+     DEF_SDF =
+     ESMA_SDF = netcdf
+     INC_NETCDF = $(DIR_NETCDF)/include
+#jw  LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
+     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /opt/cray/hdf5/1.8.8/intel/120/lib/libhdf5_hl.a /opt/cray/hdf5/1.8.8/intel/120/lib/libhdf5.a /lustre/f1/unswept/ncep/Shrinivas.Moorthi/nceplibs/nwprod/lib/libz.a
+     INC_SDF = $(INC_NETCDF)
+     LIB_SDF = $(LIB_NETCDF)
+#    INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/modO/Linux.intel.64.mpi.default
+#    LIB_ESMF =  $(ESMF_ROOT)/lib/libO/Linux.intel.64.mpi.default/libesmf.a
+#    INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/Linux.intel.64.mpi.default
+     INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod
+#    LIB_ESMF =  $(ESMF_ROOT)/lib/Linux.intel.64.mpi.default/libesmf.a
+     LIB_ESMF =  $(ESMF_ROOT)/lib/libesmf.a
+     INC_MPI =  ${MPI_ROOT}/include
+
+     EXTENDED_SOURCE = -extend_source
+     FC := ftn
+     F2PY = /usr/bin/f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
+##   FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
      FOPT := -O -g -traceback
      FPE := -fp-model source
      BIG_ENDIAN =-convert big_endian

@@ -13,6 +13,7 @@
 !                              with nceppost upgrade
 !     28May2013   Sarah Lu     Specify iostatusD3D
 !     07Nov2014   S. Moorthi   Threading, optimization, bug-fix
+!     09Oct2015   S. Moorthi - adding imp_physics argument to MICROINIT
 !
 !-----------------------------------------------------------------------
 !*** run post on quilt
@@ -20,7 +21,7 @@
 !
       use MODULE_WRITE_INTERNAL_STATE_GFS
       use CTLBLK_mod, only : komax,ifhr,ifmin,MODELNAME,datapd,fld_info, &
-                             npset,grib,gocart_on
+                             npset,grib,gocart_on,imp_physics
       use grib2_module, only : gribit2,num_pset,nrecout,first_grbtbl
 !
 !-----------------------------------------------------------------------
@@ -56,7 +57,7 @@
       logical        :: Log_runpost
       character(255) :: post_fname*255
 
-      integer,save :: iostatusD3D=-1
+      integer,save   :: iostatusD3D=-1
 !
 !      print *,'in post_run start'
 !-----------------------------------------------------------------------
@@ -143,7 +144,9 @@
 !
       if(Log_runpost) then
 !  
-        call MICROINIT
+        if(imp_physics==5 .or. imp_physics==85 .or. imp_physics==95) then
+          call MICROINIT(imp_physics)
+        endif
 !
         if(grib=="grib2" .and. first_grbtbl) then
           call READ_xml()

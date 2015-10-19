@@ -26,7 +26,8 @@ NEMSIO_INC  = -I/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad/incmod
 NEMSIO_LIB  = -L/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad -lnemsio
 
 W3_LIB      = -L/nwprod/lib -lw3nco_d -lw3emc_d
-BACIO_LIB   = -L/nwprod/lib -lbacio_4
+#BACIO_LIB   = -L/nwprod/lib -lbacio_4
+BACIO_LIB   = -L/usrx/local/nceplibs -lbacio_v2.0.1p_4
 SP_LIB      = -L/nwprod/lib -lsp_d
 SYS_LIB     =
 
@@ -76,13 +77,13 @@ R8          = -r8
 FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check
-#TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
+ TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 
 OPTS_NMM    = -O2
-#OPTS_GFS    = -O0 -traceback
-OPTS_GFS    = -O3
+OPTS_GFS    = -O0 -traceback
+#OPTS_GFS    = -O3
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2
 

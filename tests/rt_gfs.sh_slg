@@ -1,5 +1,6 @@
 #!/bin/ksh
-set -aeu
+#set -aeu
+set -x
 
 export GEFS_ENSEMBLE=${GEFS_ENSEMBLE:-0}
 echo "GEFS_ENSEMBLE=" $GEFS_ENSEMBLE
@@ -14,8 +15,19 @@ export SIGIOOUT=${SIGIOOUT:-.true.}
 #export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 export SCHEDULER=${SCHEDULER:-lsf}
-export NTHREADS=1
+export SHOWQ=${SHOWQ:-/opt/moab/default/bin/showq}
+export MSUB=${MSUB:-/opt/moab/default/bin/msub}
+
 export IALB=0
+export IEMS=0
+export ISOL=1
+export ICO2=2
+export IAER=111
+export fcyc=0
+export FHOUT_HF=1
+export FHMAX_HF=0
+
+export NTHREADS=1
 
 if [ $GEFS_ENSEMBLE = 0 ] ; then
 
@@ -29,7 +41,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
 ## determine GOCART and TRACER from gocart_aerosol and passive_tracer 
  export gocart_aerosol=${gocart_aerosol:-NO}
- export passive_tracer=${passive_tracer:-NO}
+ export passive_tracer=${passive_tracer:-YES}
  if [ $gocart_aerosol = 'YES' ]; then
   export GOCART=1 
  else
@@ -53,31 +65,31 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_SIGIOIN_:${SIGIOIN}:g               \
                      | sed s:_SIGIOOUT_:${SIGIOOUT}:g             \
                      | sed s:_SFCIOOUT_:${SFCIOOUT}:g             \
+                     | sed s:_WTPG_:${WTPG}:g                     \
+                     | sed s:_WRTGP_:${WRTGP}:g                   \
                      | sed s:_wrtdopost_:${WRITE_DOPOST}:g        \
                      | sed s:_postgrbvs_:${POST_GRIBVERSION}:g    \
                      | sed s:_aer2post_:${GOCART_AER2POST}:g      \
                      | sed s:_THRDS_:${THRD}:g                    \
                      | sed s:_NSOUT_:${NSOUT}:g                   \
                      | sed s:_QUILT_:${QUILT}:g                   \
-                     | sed s:_WTPG_:${WTPG}:g                   \
-                     | sed s:_WRTGP_:${WRTGP}:g                   \
                      | sed s:_IAER_:${IAER}:g                     \
                      | sed s:_IALB_:${IALB}:g                     \
                      | sed s:_wave_:${wave}:g                     \
                      | sed s:_lm_:${lm}:g                         \
                      | sed s:_lsoil_:${lsoil}:g                   \
                      | sed s:_MEMBER_NAMES_:${MEMBER_NAMES}:g     \
-                     | sed s:_RESTART_:${RESTART}:g               \
                      | sed s:_CP2_:${CP2}:g                       \
                      | sed s:_RUNDIR_:${RUNDIR}:g                 \
+                     | sed s:_RESTART_:${RESTART}:g               \
                      | sed s:_PATHTR_:${PATHTR}:g                 \
                      | sed s:_FDFI_:${FDFI}:g                     \
-                     | sed s:_FHRES_:${FHRES}:g                   \
                      | sed s:_FHOUT_:${FHOUT}:g                   \
-                     | sed s:_FHROT_:${FHROT}:g                   \
                      | sed s:_FHZER_:${FHZER}:g                   \
-                     | sed s:_FHOUTHF_:${FHOUT_HF}:g                   \
-                     | sed s:_FHMAXHF_:${FHMAX_HF}:g                   \
+                     | sed s:_FHRES_:${FHRES}:g                   \
+                     | sed s:_FHROT_:${FHROT}:g                   \
+                     | sed s:_FHOUTHF_:${FHOUT_HF}:g              \
+                     | sed s:_FHMAXHF_:${FHMAX_HF}:g              \
                      | sed s:_fcyc_:${fcyc}:g                     \
                      | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g       \
                      | sed s:_ADIAB_:${ADIAB}:g                   \
@@ -92,18 +104,18 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_IDEA_:${IDEA}:g                     \
                      | sed s:_CDATE_:${CDATE}:g                   \
                      | sed s:_IEMS_:${IEMS}:g                     \
-                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
-                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
                      | sed s:_ISOL_:${ISOL}:g                     \
                      | sed s:_ICO2_:${ICO2}:g                     \
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
                      | sed s:_RTPWD_:${RTPWD_slg}:g               \
-                     | sed s:_SLG_:${SLG}:g                       \
                      | sed s:_LONB_:${LONB}:g                     \
                      | sed s:_LATB_:${LATB}:g                     \
                      | sed s:_LONR_:${LONR}:g                     \
                      | sed s:_LATR_:${LATR}:g                     \
                      | sed s:_SCHEDULER_:${SCHEDULER}:g           \
+                     | sed s:_SLG_:${SLG}:g                       \
+                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
+                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
                      | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
  chmod 755 gfs_fcst_run
@@ -227,11 +239,19 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
- if [ $SLG = .true. ]; then
-   export TPN=$((16/THRD))
- else
-   export TPN=8
- fi
+  export pex=${pex:-1}
+  if [ $pex -eq 2 ] ; then
+   export TPN=${TPN:-$((24/THRD))}
+   export CLASS=${CLASS:-dev$pex}
+  else
+   export TPN=${TPN:-$((16/THRD))}
+  fi
+  export CLASS=${CLASS:-dev}
+# if [ $SLG = .true. ]; then
+#   export TPN=$((16/THRD))
+# else
+#   export TPN=8
+# fi
 
  cat gfs_bsub.IN     | sed s:_JBNME_:${JBNME}:g   \
                      | sed s:_CLASS_:${CLASS}:g   \
@@ -332,7 +352,7 @@ until [ $job_running -eq 0 ] ; do
  elif [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
  elif [ $SCHEDULER = 'lsf' ] ; then
-  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${CLASS} | wc -l`
  fi
   (( n=n+1 ))
 done
@@ -394,6 +414,7 @@ else
 #
 # --- create baselines
 #
+ sleep 60
 
  echo;echo;echo "Moving set ${TEST_NR} files ...."
 

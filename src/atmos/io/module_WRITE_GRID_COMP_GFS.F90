@@ -519,10 +519,10 @@
 !----------------------------------------------------------------------- 
 !
       SUBROUTINE WRT_RUN_GFS(WRT_COMP                                   &
-                        ,IMP_STATE_WRITE                                &
-                        ,EXP_STATE_WRITE                                &
-                        ,CLOCK                                          &
-                        ,RC_RUN)
+                            ,IMP_STATE_WRITE                            &
+                            ,EXP_STATE_WRITE                            &
+                            ,CLOCK                                      &
+                            ,RC_RUN)
 !
 !----------------------------------------------------------------------- 
 !***  THE RUN STEP FOR THE WRITE GRIDDED COMPONENT.  
@@ -1031,25 +1031,25 @@
 !***  THIS INCLUDES ALL INDIVIDUAL 2D HISTORY QUANTITIES AS WELL AS
 !***  ALL MODEL LEVELS OF THE 3D REAL HISTORY ARRAYS.
 !-----------------------------------------------------------------------
-        NN_INTEGER=0
-        NN_REAL   =0
+        NN_INTEGER = 0
+        NN_REAL    = 0
 !
-        ipt_lats_node_a=wrt_int_state%ipt_lats_node_a
-        lats_node_a=wrt_int_state%lats_node_a
+        ipt_lats_node_a = wrt_int_state%ipt_lats_node_a
+        lats_node_a     = wrt_int_state%lats_node_a
 !
 !-----------------------------------------------------------------------
 !***  BE SURE THE INTEGER AND REAL BUFFERS ARE AVAILABLE FOR ISENDs
 !-----------------------------------------------------------------------
 !
-        btim=timef()
+        btim = timef()
         CALL MPI_WAIT(IH_INT(NBDL),JSTAT,IERR) 
-        wait_time=timef()-btim
-        if(wait_time>1.e3)write(0,*)' Long integer buffer WAIT =',wait_time*1.e-3
+        wait_time = timef()-btim
+        if(wait_time > 1.e3) write(0,*)' Long integer buffer WAIT =',wait_time*1.e-3
 !
-        btim=timef()
+        btim = timef()
         CALL MPI_WAIT(IH_REAL(NBDL),JSTAT,IERR) 
-        wait_time=timef()-btim
-        if(wait_time>1.e3)write(0,*)' Long real buffer WAIT =',wait_time*1.e-3
+        wait_time = timef()-btim
+        if(wait_time > 1.e3) write(0,*)' Long real buffer WAIT =',wait_time*1.e-3
 !
 !-----------------------------------------------------------------------
 !
@@ -1095,7 +1095,7 @@
 !                      -- INTEGER FIELDS --
 !--------------------------------------------------------------------
 !
-          IF(DATATYPE==ESMF_TYPEKIND_I4)THEN                               !<-- Extract integer gridded data from each ESMF Field
+          IF(DATATYPE == ESMF_TYPEKIND_I4) THEN                               !<-- Extract integer gridded data from each ESMF Field
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Extract Pointer from 2-D Integer Field"
@@ -1112,10 +1112,10 @@
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            ISTART=LBOUND(WORK_ARRAY_I2D,1)
-            IEND  =UBOUND(WORK_ARRAY_I2D,1)
-            JSTART=LBOUND(WORK_ARRAY_I2D,2)
-            JEND  =UBOUND(WORK_ARRAY_I2D,2)
+            ISTART = LBOUND(WORK_ARRAY_I2D,1)
+            IEND   = UBOUND(WORK_ARRAY_I2D,1)
+            JSTART = LBOUND(WORK_ARRAY_I2D,2)
+            JEND   = UBOUND(WORK_ARRAY_I2D,2)
 !*** allow buff_mult has larger subdomain
             if(JEND>wrt_int_state%lats_node_a)JEND=wrt_int_state%lats_node_a
 !
@@ -1132,11 +1132,11 @@
 !* data to write task data(im*nrecord*lats(mytask)
 !-----------------------------------------------------------------------
 !
-            if(NTASKS>1) then
+            if(NTASKS > 1) then
               NNEXT=(IEND-ISTART+1)*KOUNT_I2D
               DO J=JSTART,JEND
-                JMAP=wrt_int_state%nwrttask_on_fcst(J)
-                N1=(J-JSTART)*NNEXT
+                JMAP = wrt_int_state%nwrttask_on_fcst(J)
+                N1   = (J-JSTART)*NNEXT
                 wrt_int_state%ALL_DATA_I2D(NN_INTEGER+1+N1:              &
                   NN_INTEGER+IEND-ISTART+1+N1,NBDL)=                          &
                   WORK_ARRAY_I2D(ISTART:IEND,JMAP)     !<-- String together this task's 2D real data
@@ -1154,7 +1154,7 @@
 !                        -- REAL FIELDS --
 !--------------------------------------------------------------------
 !
-          ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN                           !<-- Extract real gridded data from each ESMF Field
+          ELSEIF(DATATYPE == ESMF_TYPEKIND_R4) THEN                        !<-- Extract real gridded data from each ESMF Field
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Extract Pointer from 2-D Real Field"
@@ -1171,12 +1171,12 @@
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            ISTART=LBOUND(WORK_ARRAY_R2D,1)
-            IEND  =UBOUND(WORK_ARRAY_R2D,1)
-            JSTART=LBOUND(WORK_ARRAY_R2D,2)
-            JEND  =UBOUND(WORK_ARRAY_R2D,2)
+            ISTART = LBOUND(WORK_ARRAY_R2D,1)
+            IEND   = UBOUND(WORK_ARRAY_R2D,1)
+            JSTART = LBOUND(WORK_ARRAY_R2D,2)
+            JEND   = UBOUND(WORK_ARRAY_R2D,2)
 !jw allow buff_mult has larger subdomain
-            if(JEND>wrt_int_state%lats_node_a)JEND=wrt_int_state%lats_node_a
+            if(JEND>wrt_int_state%lats_node_a) JEND = wrt_int_state%lats_node_a
 
             IF(NN_REAL+IEND*JEND>MAXSIZE_R2D)THEN
               WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
@@ -1187,11 +1187,11 @@
 !
 !*** regroup to send to write processes
 !
-            if(NTASKS>1) then
-            NNEXT=(IEND-ISTART+1)*KOUNT_R2D
+            if(NTASKS > 1) then
+            NNEXT = (IEND-ISTART+1)*KOUNT_R2D
             DO J=JSTART,JEND
-              JMAP=wrt_int_state%nwrttask_on_fcst(J)
-              N1=(J-JSTART)*NNEXT
+              JMAP = wrt_int_state%nwrttask_on_fcst(J)
+              N1   = (J-JSTART)*NNEXT
 !              if(N==1)write(0,*)'fcst,J=',J,'JSTART=',JSTART,'JEND=',JEND,'JMAP=', &
 !                JMAP,'N1=',N1,'ISTART=',ISTART,'IEND=',IEND,'NN_REAL=',NN_REAL, &
 !                'NNEXT=',NNEXT,'KOUNT=',KOUNT_R2D
@@ -1229,18 +1229,20 @@
 !***  FIRST THE 2-D INTEGER DATA.
 !-----------------------------------------------------------------------
 !
-            N1=mod(n-nfcst_tasks,nwtpg)+1
+!            write(0,*)' in module_WRITE_GRID_COMP_GFS N=',N,' nwtpg=',&
+!           nwtpg,lead_write_task,last_write_task,nfcst_tasks
+            N1 = mod(n-nfcst_tasks,nwtpg) + 1
             if(wrt_int_state%quilting) then
-              target_wrttask=N1-1
-              mpi_commun=MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))
+              target_wrttask = N1-1
+              mpi_commun = MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))
             else
-              target_wrttask=lead_write_task
-              mpi_commun=MPI_COMM_COMP
+              target_wrttask = lead_write_task
+              mpi_commun     = MPI_COMM_COMP
             endif
 !
-            NLAT_I2D=wrt_int_state%NLAT_TO_WRITE_TASK(N1)*IM*KOUNT_I2D
-            NSTART_I2D=(wrt_int_state%NSTART_TO_WRITE_TASK(N1)-1)*IM*KOUNT_I2D+1
-            IF(NLAT_I2D>0)THEN
+            NLAT_I2D   = wrt_int_state%NLAT_TO_WRITE_TASK(N1)*IM*KOUNT_I2D
+            NSTART_I2D = (wrt_int_state%NSTART_TO_WRITE_TASK(N1)-1)*IM*KOUNT_I2D+1
+            IF(NLAT_I2D > 0)THEN
 !
               CALL MPI_ISEND(wrt_int_state%ALL_DATA_I2D(NSTART_I2D,NBDL)&  !<-- Fcst tasks' string of 2D integer history data
                             ,NLAT_I2D                                   &  !<-- #of words in the data string
@@ -1251,16 +1253,16 @@
                             ,IH_INT(NBDL)                               &  !<-- MPI communication request handle
                             ,IERR )
 !
-              IF(IERR/=0)WRITE(0,*)' ISend of integer data by fcst task 0 has failed.  IERR=',IERR
+              IF(IERR /= 0) WRITE(0,*)' ISend of integer data by fcst task 0 has failed.  IERR=',IERR
             ENDIF
 !
 !-----------------------------------------------------------------------
 !***  THEN THE 2-D REAL DATA.
 !-----------------------------------------------------------------------
 !
-            NLAT_R2D=wrt_int_state%NLAT_TO_WRITE_TASK(N1)*IM*KOUNT_R2D
-            NSTART_R2D=(wrt_int_state%NSTART_TO_WRITE_TASK(N1)-1)*IM*KOUNT_R2D+1
-            IF(NLAT_R2D>0)THEN
+            NLAT_R2D   = wrt_int_state%NLAT_TO_WRITE_TASK(N1)*IM*KOUNT_R2D
+            NSTART_R2D = (wrt_int_state%NSTART_TO_WRITE_TASK(N1)-1)*IM*KOUNT_R2D+1
+            IF(NLAT_R2D > 0) THEN
               CALL MPI_ISEND(wrt_int_state%ALL_DATA_R2D(NSTART_R2D,NBDL)  &  !<-- Fcst tasks' string of 2D real history data
                             ,NLAT_R2D                                     &  !<-- #of words in the data string
                             ,MPI_REAL                                     &  !<-- The datatype
@@ -1576,7 +1578,7 @@
 !***  Call post processors to compute post variables
 !----------------------------------------------------------------------
 !
-      write(0,*)'before init_do post,',wrt_int_state%write_dopost
+!     write(0,*)'before init_do post,',wrt_int_state%write_dopost
 !-----------------------------------------------------------------------
       hst_dopost: IF(wrt_int_state%WRITE_DOPOST)THEN                    !<-- do post
 !-----------------------------------------------------------------------
@@ -1594,16 +1596,18 @@
 !
           IF(LOGFILEINPOST) THEN
 !
-            POST_GRIDTYPE='A'
-            POST_MAPTYPE=255
-            NSOIL=4
+            POST_GRIDTYPE = 'A'
+            POST_MAPTYPE = 255
+            NSOIL        = 4
 !
-            write(0,*)'bf post_run_gfs,nbdl=',nbdl,'NF_HOURS=',NF_HOURS, &
-             'NF_MINUTES=',NF_MINUTES,'NF_SECONDS=',NF_SECONDS,'NBDL=',NBDL
+!           write(0,*)'bf post_run_gfs,nbdl=',nbdl,'NF_HOURS=',NF_HOURS, &
+!            'NF_MINUTES=',NF_MINUTES,'NF_SECONDS=',NF_SECONDS,'NBDL=',NBDL
+
             CALL POST_RUN_GFS(wrt_int_state,MYPE,MPI_COMM_COMP,           &
                         LEAD_WRITE_TASK,post_gridtype,   &
                         post_maptype,NSOIL,NBDL,NF_HOURS,NF_MINUTES)
-            write(0,*)'af post_run_gfs'
+
+!           write(0,*)'af post_run_gfs'
 !
           ENDIF
 !
@@ -1734,12 +1738,12 @@
 !
            IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
 !
-            IF(FIELDSIZE/=IM*JM)THEN
+            IF(FIELDSIZE /= IM*JM) THEN
               WRITE(0,*)'WRONG: input data dimension ',IM*JM,           &
                ' does not match data size in NEMSIO file ',FIELDSIZE
             ENDIF
 !
-            TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_I2D(1:IM,1:JM),(/FIELDSIZE/))
+            TMP = RESHAPE(wrt_int_state%OUTPUT_ARRAY_I2D(1:IM,1:JM),(/FIELDSIZE/))
 !
             call w3kind(w3realkind,w3ikind)
             if(w3realkind==8) then
@@ -1747,9 +1751,8 @@
             else
               CALL NEMSIO_WRITERECW34(NEMSIOFILE,NFIELD,TMP,IRET=IERR)        !<-- Lead write task writes out the 2D int data!
              endif
-             if(ierr/=0) print *,'rec num=',NFIELD,' write ',trim(NAME), &
-               'into file,ierr=',ierr,'NF_hours=',NF_HOURS,'nf_minutes=',&
-               NF_MINUTES
+             if(ierr /= 0) print *,'rec num=',NFIELD,' write ',trim(NAME),            &
+                 'into file,ierr=',ierr,'NF_hours=',NF_HOURS,'nf_minutes=', NF_MINUTES
 !
           ENDIF
 !-----------------------------------------------------------------------
@@ -1770,20 +1773,20 @@
 !
         IF(LAST_WRITE_TASK>LEAD_WRITE_TASK)THEN
 !
-          NN=0
+          NN = 0
 !
           DO J=JSTA_WRITE,JEND_WRITE
-          DO I=1,IM
-            NN=NN+1
-            wrt_int_state%BUFF_REAL(NN)=wrt_int_state%WRITE_SUBSET_R(I,J,NFIELD)
-          ENDDO
+            DO I=1,IM
+              NN = NN + 1
+              wrt_int_state%BUFF_REAL(NN)=wrt_int_state%WRITE_SUBSET_R(I,J,NFIELD)
+            ENDDO
           ENDDO
 !
           allocate(idisp(nwtpg),ircnt(nwtpg))
-          IDISP(1)=0
+          IDISP(1) = 0
           Do I=1,NWTPG
-            IRCNT(I)=IM*(wrt_int_state%JEND_WRITE(I)-wrt_int_state%JSTART_WRITE(I)+1)
-            if(I>1) IDISP(I)=IDISP(I-1)+IRCNT(I-1)
+            IRCNT(I) = IM*(wrt_int_state%JEND_WRITE(I)-wrt_int_state%JSTART_WRITE(I)+1)
+            if(I > 1) IDISP(I) = IDISP(I-1)+IRCNT(I-1)
           ENDDO
 !
           CALL MPI_GATHERV(wrt_int_state%BUFF_REAL                         &
@@ -1799,24 +1802,24 @@
 
             deallocate(idisp,ircnt)
 !
-            IF(MYPE_LOCAL==0)THEN                                  !<-- The lead write task
+            IF(MYPE_LOCAL == 0)THEN                                  !<-- The lead write task
 !
-              NN=0
+              NN = 0
               DO J=1,JM
-              DO I=1,IM
-                NN=NN+1
-                wrt_int_state%OUTPUT_ARRAY_R2D(I,J)=wrt_int_state%BUFF_REAL_TMP(NN) !<-- Lead write task fills its part of full domain
-              ENDDO
+                DO I=1,IM
+                  NN = NN+1
+                  wrt_int_state%OUTPUT_ARRAY_R2D(I,J)=wrt_int_state%BUFF_REAL_TMP(NN) !<-- Lead write task fills its part of full domain
+                ENDDO
               ENDDO
             ENDIF
 !
         ELSE                                                    !<-- for 1pe
-          IF(NTASKS>1) then
+          IF(NTASKS > 1) then
             DO J=1,JM
-            DO I=1,IM
-              wrt_int_state%OUTPUT_ARRAY_R2D(I,J)=                         &
+              DO I=1,IM
+                wrt_int_state%OUTPUT_ARRAY_R2D(I,J) =                         &
                 wrt_int_state%WRITE_SUBSET_R(I,J,NFIELD)                   !<-- Lead write task fills its part of full domain
-            ENDDO
+              ENDDO
             ENDDO
           ELSE
             NN=(NFIELD-1)*(IM*JM)
@@ -1849,22 +1852,22 @@
             ENDIF
 !
 !check time average
-           itr=-99
+           itr = -99
            if(INDEX(NAME,"_ave") >0) then
-               itr=3
+               itr = 3
             elseif(INDEX(NAME,"_acc") >0) then
-               itr=4
+               itr = 4
             elseif(INDEX(NAME,"_win") >0) then
-               itr=2
+               itr = 2
             endif
 !
-            N=NFIELD+wrt_int_state%KOUNT_I2D(1)
-            TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
+            N   = NFIELD + wrt_int_state%KOUNT_I2D(1)
+            TMP = RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
 !
-               write(0,*)'nfhours=',nf_hours,'after write N=',N,' var=',trim(NAME),'value=',&
-                maxval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), &
-                minval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), 'itr=',itr
-!
+!              write(0,*)'nfhours=',nf_hours,'after write N=',N,' var=',trim(NAME),'value=',&
+!               maxval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), &
+!               minval(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)), 'itr=',itr
+ 
             call w3kind(w3realkind,w3ikind)
             if(itr==-99) then
              if(w3realkind==8) then
@@ -1930,7 +1933,7 @@
          CALL MPI_BARRIER(MPI_COMM_COMP,ierr)
       endif
 !
-      IF(RC_RUN==ESMF_SUCCESS)THEN
+      IF(RC_RUN == ESMF_SUCCESS) THEN
         WRITE(0,*)"PASS: WRITE_RUN"
       ELSE
         WRITE(0,*)"FAIL: WRITE_RUN"

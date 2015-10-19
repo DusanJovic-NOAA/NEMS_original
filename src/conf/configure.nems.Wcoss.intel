@@ -73,12 +73,13 @@ TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check
 #TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
-FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model source -xAVX -align array32byte
+FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model source -xAVX -align
+#FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model source -xAVX -align array32byte
 #FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model source -align array32byte
 
 OPTS_NMM    = -O2
-#OPTS_GFS    = -O0 -g -traceback
-OPTS_GFS    = -O3
+#OPTS_GFS    = -O0  -traceback
+ OPTS_GFS    = -O3
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2
 

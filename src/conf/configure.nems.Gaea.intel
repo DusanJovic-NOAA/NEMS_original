@@ -76,8 +76,8 @@ FFLAGS      = $(TRAPS) $(FINCS) -fp-model source
 #FFLAGS      = $(TRAPS) $(FINCS) -fp-model source -g -O0 -traceback
 
 OPTS_NMM    = -O3
+#OPTS_GFS    = -O0 -g -traceback
  OPTS_GFS    = -O3 -g -traceback
- OPTS_GFS    = -O3
 OPTS_GEN    = -O3
 OPTS_FIM    = -O3
 
