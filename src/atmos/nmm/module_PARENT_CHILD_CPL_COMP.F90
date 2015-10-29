@@ -261,10 +261,12 @@
         INTEGER(kind=KINT) :: COMM_TO_MY_PARENT
         INTEGER(kind=KINT) :: HANDLE_MOVE_FLAG
         INTEGER(kind=KINT) :: HANDLE_SEND_2WAY_SIGNAL
+        INTEGER(kind=KINT) :: I_CENTER_CURRENT
         INTEGER(kind=KINT) :: I_SHIFT_CHILD
         INTEGER(kind=KINT) :: J_SHIFT_CHILD
         INTEGER(kind=KINT) :: I_SW_PARENT_CURRENT
         INTEGER(kind=KINT) :: I_SW_PARENT_NEW
+        INTEGER(kind=KINT) :: J_CENTER_CURRENT
         INTEGER(kind=KINT) :: J_SW_PARENT_CURRENT
         INTEGER(kind=KINT) :: J_SW_PARENT_NEW
         INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE,LM
@@ -289,8 +291,9 @@
         INTEGER(kind=KINT) :: NTIMESTEP_FINAL
         INTEGER(kind=KINT) :: NTIMESTEP_WAIT_PARENT
         INTEGER(kind=KINT) :: NTIMESTEP_WAIT_FORCED_PARENT
-        INTEGER(kind=KINT) :: NTOT_SFC
         INTEGER(kind=KINT) :: NTIMESTEPS_RESTART
+        INTEGER(kind=KINT) :: NTOT_SFC
+        INTEGER(kind=KINT) :: NTRACK
         INTEGER(kind=KINT) :: NUM_CHILDREN
         INTEGER(kind=KINT) :: NUM_2WAY_CHILDREN
         INTEGER(kind=KINT) :: NUM_MOVING_CHILDREN
@@ -309,6 +312,7 @@
         INTEGER(kind=KINT) :: TIME_RATIO_MY_PARENT
 !
         INTEGER(kind=KINT),DIMENSION(1:2) :: MY_FORCED_SHIFT
+        INTEGER(kind=KINT),DIMENSION(1:2) :: STORM_CENTER   
         INTEGER(kind=KINT),DIMENSION(1:3) :: PARENT_SHIFT
         INTEGER(kind=KINT),DIMENSION(1:4) :: MY_DOMAIN_LIMITS
         INTEGER(kind=KINT),DIMENSION(1:4) :: PARENT_DOMAIN_LIMITS
@@ -411,6 +415,8 @@
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: GLON
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PD
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SM
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: U10
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: V10
 !
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PDB_S
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PDB_N
@@ -423,6 +429,7 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: T
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: U
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: V
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: Z
 !
         REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS
 !
@@ -647,10 +654,12 @@
       INTEGER(kind=KINT),POINTER :: COMM_TO_MY_PARENT                   &
                                    ,HANDLE_MOVE_FLAG                    &
                                    ,HANDLE_SEND_2WAY_SIGNAL             &
+                                   ,I_CENTER_CURRENT                    &
                                    ,I_SHIFT_CHILD                       &
                                    ,J_SHIFT_CHILD                       &
                                    ,I_SW_PARENT_CURRENT                 &
                                    ,I_SW_PARENT_NEW                     &
+                                   ,J_CENTER_CURRENT                    &
                                    ,J_SW_PARENT_CURRENT                 &
                                    ,J_SW_PARENT_NEW                     &
                                    ,ITS,ITE,JTS,JTE,LM                  &
@@ -677,6 +686,7 @@
                                    ,NTIMESTEP_WAIT_FORCED_PARENT        &
                                    ,NTIMESTEPS_RESTART                  &
                                    ,NTOT_SFC                            &
+                                   ,NTRACK                              &
                                    ,NUM_CHILDREN                        &
                                    ,NUM_2WAY_CHILDREN                   &
                                    ,NUM_MOVING_CHILDREN                 &
@@ -700,7 +710,8 @@
                                                 ,MY_FORCED_SHIFT        &
                                                 ,MY_NEB                 &
                                                 ,PARENT_DOMAIN_LIMITS   &
-                                                ,PARENT_SHIFT
+                                                ,PARENT_SHIFT           & 
+                                                ,STORM_CENTER
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER :: PARENT_CHILD_SPACE_RATIO    &
                                                 ,TIME_RATIO_MY_CHILDREN      &
@@ -798,7 +809,9 @@
                                                ,GLAT                    &
                                                ,GLON                    &
                                                ,PD                      &
-                                               ,SM
+                                               ,SM                      &
+                                               ,U10                     &
+                                               ,V10
 !
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PDB_S                   &
                                                ,PDB_N                   &
@@ -810,7 +823,8 @@
                                                  ,Q                     &
                                                  ,T                     &
                                                  ,U                     &
-                                                 ,V
+                                                 ,V                     &
+                                                 ,Z
 !
       REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS
 !
@@ -2531,6 +2545,108 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       cc%V=>V
+!
+!----------------
+!***  Modlayer Z
+!----------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Midlayer Z Field from P-C Coupler Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- The parent-child coupler import state
+                        ,itemName='Z'                                   &  !<-- Extract midlayer Z
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Midlayer Z from ESMF Field in Parent-Child Coupler"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                        ,localDe  =0                                    &
+                        ,farrayPtr=Z                                    &  !<-- Put the pointer here
+                        ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      cc%Z=>Z
+!
+!----------------------------------
+!***  10-m U component of the wind
+!----------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract 10-m U Field from Parent-Child Coupler Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- The parent-child coupler import state
+                        ,itemName='U10'                                 &  !<-- Extract 10-m U wind component
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract 10-m U from ESMF Field in Parent-Child Coupler"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                        ,localDe  =0                                    &
+                        ,farrayPtr=U10                                  &  !<-- Put the pointer here
+                        ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      cc%U10=>U10
+!
+!----------------------------------
+!***  10-m V component of the wind
+!----------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract 10-m V Field from Parent-Child Coupler Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =IMP_STATE                             &  !<-- The parent-child coupler import state
+                        ,itemName='V10'                                 &  !<-- Extract 10-m V wind component
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract 10-m V from ESMF Field in Parent-Child Coupler"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
+                        ,localDe  =0                                    &
+                        ,farrayPtr=V10                                  &  !<-- Put the pointer here
+                        ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      cc%V10=>V10
 !
 !-------------
 !***  Tracers
@@ -6265,6 +6381,20 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="P-C Init2: Extract NTRACK flag from P-C Cpl import state."                         
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=IMP_STATE                        &  !<-- The Parent-Child coupler import state.
+                                ,name ='NTRACK'                         &  !<-- Name of the attribute to extract
+                                ,value=NTRACK                           &  !<-- Total # of levels in all Real 2-way exch variables
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="P-C Init2: Nest Reads NROWS_P_UPD_W"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6380,6 +6510,9 @@
           ALLOCATE(cc%J_PG(1:4))
 !
           ALLOCATE(cc%I_HOLD_PG_POINT(1:4))
+!
+          I_CENTER_CURRENT=IDS+INT(0.5*(IDE-IDS)+EPS)
+          J_CENTER_CURRENT=JDS+INT(0.5*(JDE-JDS)+EPS)
 !
 !-----------------------------------------------------------------------
 !
@@ -6918,7 +7051,7 @@
 !-----------------------------------------------------------------------
 !
         IF(I_AM_LEAD_FCST_TASK)THEN
-          ALLCLEAR_SIGNAL_TAG=2115+1000*MY_DOMAIN_ID+10*NTIMESTEP          !<-- Use the domain ID,timestep to get a unique tag
+          ALLCLEAR_SIGNAL_TAG=20000+1000*MY_DOMAIN_ID+10*NTIMESTEP         !<-- Use the domain ID,timestep to get a unique tag
 !
           CALL MPI_IPROBE(0                                             &  !<-- Parent task 0 sends the signal
                          ,ALLCLEAR_SIGNAL_TAG                           &  !<-- The message's tag
@@ -7141,6 +7274,7 @@
                            ,BC_UPDATE_FLAG,CHILDTASK_0                  &
                            ,COMM_FCST_TASKS                             &
                            ,ID_GRANDPARENT                              &
+                           ,I_DIFF,J_DIFF                               &
                            ,MY_DOMAIN_ID,MYPE_LOCAL                     &
                            ,N,NN,NTIMESTEP,NTAG0
 !
@@ -7149,13 +7283,15 @@
 !
       INTEGER(kind=KINT) :: IERR,IRTN,RC,RC_CPL_RUN
 !
+!xxx  INTEGER(kind=KINT),DIMENSION(2) :: STORM_CENTER
+!
       INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
       REAL(kind=KFPT) :: CHILD_DOMAIN_EW,CHILD_DOMAIN_NS                &
                         ,DIFF_I,DIFF_J                                  &
-                        ,DT_GRANDPARENT,SHIFT_LAT
+                        ,DT_GRANDPARENT,PARENT_DIFF,SHIFT_LAT
 !
       REAL(kind=KFPT) :: CENTER_I_INNER,CENTER_I_OUTER                  &
                         ,CENTER_J_INNER,CENTER_J_OUTER
@@ -7400,6 +7536,15 @@
 !-----------------------------------------------------------------------
 !
           MOVE_NOW=.TRUE.                                                  !<-- Yes, the child moves at beginning of this timestep
+!
+!         IF(NTRACK>0)THEN
+!           I_CENTER_CURRENT=STORM_CENTER(1)                            &
+!                            -(I_SW_PARENT_NEW-I_SW_PARENT_CURRENT)     &
+!                             *SPACE_RATIO_MY_PARENT
+!           J_CENTER_CURRENT=STORM_CENTER(2)                            &
+!                            -(J_SW_PARENT_NEW-J_SW_PARENT_CURRENT)     &
+!                             *SPACE_RATIO_MY_PARENT
+!         ENDIF
 !
           I_WANT_TO_MOVE=.FALSE.                                           !<-- Reset the 'move' flag
           MOVE_FLAG_SENT=.FALSE.                                           !<-- Reset the flag for ISending the move flag
@@ -7652,24 +7797,20 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  A moving nest will now invoke the storm location routine to 
-!***  determine if it should shift.  However there are several factors
-!***  that will force the nest to skip calling the routine:
-!***   (1) In telescoping moving nests only the innermost calls the
-!***       storm location routine.  This prevents different generations
-!***       of moving nests over the same storm from deciding to move
-!***       in different ways.
-!***   (2) If the nest has already called the routine and is waiting
-!***       to execute the shift then it does not call the routine 
-!***       again until its shift is carried out.
-!***   (3) If the nest is forcing its parent to shift to avoid a 
-!***       collision then it will not call the routine until it knows
-!***       the parent has completed its evasive shift.
-!***   (4) If a nest's or its parent's poleward boundary has moved
-!***       beyond the user-specified latitude limit then the nest
-!***       is permanently immobilized.
+!***   In telescoping moving nests only the innermost utilizes the
+!***   storm center location from the storm tracker.  This prevents
+!***   different generations of moving nests over the same storm
+!***   from deciding to move in different ways.
 !
-!***  If the nest calls the storm location routine and decides it 
+!***   If the nest is forcing its parent to shift to avoid a 
+!***   collision then it will not call the routine until it knows
+!***   the parent has completed its evasive shift.
+!
+!***   If a nest's or its parent's poleward boundary has moved
+!***   beyond the user-specified latitude limit then the nest
+!***   is permanently immobilized.
+!
+!***  After taking the storm center location if the nest decides it 
 !***  wants to move then the shift will be executed LAG_STEPS parent
 !***  timesteps later in this routine immediately above.  By that
 !***  time its parent will have learned that the nest wants to move
@@ -7695,30 +7836,100 @@
 !
             IF (TRIM(MOVE_TYPE) == 'storm') THEN
 !
-              CALL COMPUTE_STORM_MOTION(NTIMESTEP                       &
-                                       ,LAST_STEP_MOVED                 &
-                                       ,DT_DOMAIN(MY_DOMAIN_ID)         &
-                                       ,NUM_PES_FCST                    &
-                                       ,COMM_FCST_TASKS                 &
-                                       ,FIS                             &
-                                       ,PD                              &
-                                       ,PINT                            &
-                                       ,T                               &
-                                       ,Q                               &
-                                       ,CW                              &
-                                       ,U                               &
-                                       ,V                               &
-                                       ,DSG2                            &
-                                       ,PDSG1                           &
-                                       ,DXH                             &
-                                       ,DYH                             &
-                                       ,SM                              &
-                                       ,I_SW_PARENT_CURRENT             &
-                                       ,J_SW_PARENT_CURRENT             &
-                                       ,I_WANT_TO_MOVE                  &
-                                       ,I_SW_PARENT_NEW                 &
-                                       ,J_SW_PARENT_NEW                 &
-                                       ,MY_DOMAIN_ID )
+!-----------------------------------------------------------------------
+!***  The storm tracker determines the storm center on this domain's
+!***  grid every NPHS*NTRACK timesteps.  If this is an appropriate
+!***  timestep then extract the latest center location.
+!-----------------------------------------------------------------------
+!
+            new_center:                                                 &
+!
+            IF(NTRACK>0                                                 &
+                 .AND.                                                  &
+               NTIMESTEP>0                                              &
+                 .AND.                                                  &
+               MOD(NTIMESTEP,NTRACK*NPHS)==0)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract storm center from P-C Cpl import state."
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_AttributeGet(state    =IMP_STATE                &
+                                    ,name     ='Storm Center'           &  !<-- Name of the attribute to extract
+                                    ,valueList=STORM_CENTER             &  !<-- I,J of the storm center on this grid.
+                                    ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              I_DIFF=STORM_CENTER(1)-I_CENTER_CURRENT                      !<-- Distance in I,J from current to
+              J_DIFF=STORM_CENTER(2)-J_CENTER_CURRENT                      !    new storm center.
+!
+!-----------------------------------------------------------------------
+!***  If the child moves then its SW corner must shift from one parent
+!***  H point to another which means the I and J shifts must be in
+!***  integer multiples of SPACE_RATIO_MY_PARENT.  Adjust I_DIFF and
+!***  J_DIFF given this constraint.
+!-----------------------------------------------------------------------
+!
+              IF(MOD(I_DIFF,SPACE_RATIO_MY_PARENT)/=0)THEN
+                PARENT_DIFF=REAL(I_DIFF)/REAL(SPACE_RATIO_MY_PARENT)
+                IF(ABS(FRACTION(PARENT_DIFF))>0.5)THEN
+                  I_DIFF=NINT(PARENT_DIFF)*SPACE_RATIO_MY_PARENT
+                ELSE
+                  I_DIFF=INT(PARENT_DIFF)*SPACE_RATIO_MY_PARENT
+                ENDIF
+              ENDIF
+!
+              IF(MOD(J_DIFF,SPACE_RATIO_MY_PARENT)/=0)THEN
+                PARENT_DIFF=REAL(J_DIFF)/REAL(SPACE_RATIO_MY_PARENT)
+                IF(ABS(FRACTION(PARENT_DIFF))>0.5)THEN
+                  J_DIFF=NINT(PARENT_DIFF)*SPACE_RATIO_MY_PARENT
+                ELSE
+                  J_DIFF=INT(PARENT_DIFF)*SPACE_RATIO_MY_PARENT
+                ENDIF
+              ENDIF
+!
+              I_SW_PARENT_NEW=I_SW_PARENT_CURRENT+I_DIFF/SPACE_RATIO_MY_PARENT
+              J_SW_PARENT_NEW=J_SW_PARENT_CURRENT+J_DIFF/SPACE_RATIO_MY_PARENT
+!
+              I_WANT_TO_MOVE=.TRUE.
+!
+              IF(ABS(I_DIFF)==0.AND.ABS(J_DIFF)==0)THEN
+                I_WANT_TO_MOVE=.FALSE.
+                IF(I_AM_LEAD_FCST_TASK)THEN
+                  WRITE(0,*)' NO MOTION: Less than one parent grid increment.'                                
+                ENDIF
+              ENDIF
+!
+            ENDIF new_center
+!
+!             CALL COMPUTE_STORM_MOTION(NTIMESTEP                       &
+!                                      ,LAST_STEP_MOVED                 &
+!                                      ,DT_DOMAIN(MY_DOMAIN_ID)         &
+!                                      ,NUM_PES_FCST                    &
+!                                      ,COMM_FCST_TASKS                 &
+!                                      ,FIS                             &
+!                                      ,PD                              &
+!                                      ,PINT                            &
+!                                      ,T                               &
+!                                      ,Q                               &
+!                                      ,CW                              &
+!                                      ,U                               &
+!                                      ,V                               &
+!                                      ,DSG2                            &
+!                                      ,PDSG1                           &
+!                                      ,DXH                             &
+!                                      ,DYH                             &
+!                                      ,SM                              &
+!                                      ,I_SW_PARENT_CURRENT             &
+!                                      ,J_SW_PARENT_CURRENT             &
+!                                      ,I_WANT_TO_MOVE                  &
+!                                      ,I_SW_PARENT_NEW                 &
+!                                      ,J_SW_PARENT_NEW                 &
+!                                      ,MY_DOMAIN_ID )
 !
             ELSE IF (TRIM(MOVE_TYPE) == 'prescribed') THEN
 
@@ -11294,7 +11505,7 @@
 !
         DO N=1,NUM_CHILDREN
 !
-          ALLCLEAR_SIGNAL_TAG=2115+1000*MY_CHILDREN_ID(N)               &  !<-- Use child's domain ID, timestep to create a unique tag
+          ALLCLEAR_SIGNAL_TAG=20000+1000*MY_CHILDREN_ID(N)              &  !<-- Use child's domain ID, timestep to create a unique tag
                               +10*NTIMESTEP*TIME_RATIO_MY_CHILDREN(N)
           CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(0)        !<-- Local rank of child's lead task in p-c communicator
 !
@@ -13208,6 +13419,34 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="P-C Cpl Setup: Extract NTRACK storm flag from Domain exp state."                     
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &   !<-- The DOMAIN export state 
+                              ,name ='NTRACK'                           &   !<-- The name of the Attribute
+                              ,value=cc%NTRACK                          &   !<-- The Attribute to be retrieved 
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="P-C Cpl Setup: Insert NTRACK storm flag into P-C Cpl imp state."                 
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                              ,name ='NTRACK'                           &  !<-- The name of the Attribute 
+                              ,value=cc%NTRACK                          &  !<-- The Attribute to be inserted 
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
       ENDIF nests_only
 !
 !---------------------------
@@ -13748,6 +13987,37 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-------------------------
+!***  Transfer Midlayer Z
+!-------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Midlyaer Z Field from Parent DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
+                        ,itemName='Z'                                   &  !<-- Extract midlayer Z Field
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Midlayer Z into Parent-Child Coupler Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
+                        ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !----------------------------
 !***  Transfer TRACERS Field
 !----------------------------
@@ -13869,6 +14139,68 @@
                             ,name ='INDX_CW'                            &  !<-- The name of the Attribute to insert
                             ,value=INDX_CW                              &  !<-- The Attribute to be inserted
                             ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!------------------------------------
+!***  Transfer 10-m U wind component
+!------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract U10 Field from Parent DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
+                        ,itemName='U10'                                 &  !<-- Extract U10 Field
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert U10 into Parent-Child Coupler Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
+                        ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!------------------------------------
+!***  Transfer 10-m V wind component
+!------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract V10 Field from Parent DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
+                        ,itemName='V10'                                 &  !<-- Extract V10 Field
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert V10 into Parent-Child Coupler Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
+                        ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
@@ -14374,10 +14706,12 @@
       I_AM_A_FCST_TASK=>cc%I_AM_A_FCST_TASK
 !
       COMM_TO_MY_PARENT    =>cc%COMM_TO_MY_PARENT
+      I_CENTER_CURRENT     =>cc%I_CENTER_CURRENT
       I_SHIFT_CHILD        =>cc%I_SHIFT_CHILD
       J_SHIFT_CHILD        =>cc%J_SHIFT_CHILD
       I_SW_PARENT_CURRENT  =>cc%I_SW_PARENT_CURRENT
       I_SW_PARENT_NEW      =>cc%I_SW_PARENT_NEW
+      J_CENTER_CURRENT     =>cc%J_CENTER_CURRENT
       J_SW_PARENT_CURRENT  =>cc%J_SW_PARENT_CURRENT
       J_SW_PARENT_NEW      =>cc%J_SW_PARENT_NEW
       ITS                  =>cc%ITS
@@ -14419,6 +14753,7 @@
       NTIMESTEP_FINAL      =>cc%NTIMESTEP_FINAL
       NTOT_SFC             =>cc%NTOT_SFC
       NTIMESTEPS_RESTART   =>cc%NTIMESTEPS_RESTART
+      NTRACK               =>cc%NTRACK
       NUM_CHILDREN         =>cc%NUM_CHILDREN
       NUM_2WAY_CHILDREN    =>cc%NUM_2WAY_CHILDREN
       NUM_MOVING_CHILDREN  =>cc%NUM_MOVING_CHILDREN
@@ -14453,6 +14788,7 @@
       MY_NEB              =>cc%MY_NEB
       PARENT_DOMAIN_LIMITS=>cc%PARENT_DOMAIN_LIMITS
       PARENT_SHIFT        =>cc%PARENT_SHIFT
+      STORM_CENTER        =>cc%STORM_CENTER 
 !
       PARENT_CHILD_SPACE_RATIO   =>cc%PARENT_CHILD_SPACE_RATIO
       TIME_RATIO_MY_CHILDREN     =>cc%TIME_RATIO_MY_CHILDREN
@@ -14548,6 +14884,8 @@
       GLON               =>cc%GLON
       PD                 =>cc%PD
       SM                 =>cc%PD
+      U10                =>cc%U10
+      V10                =>cc%V10
 !
       PDB_S=>cc%PDB_S
       PDB_N=>cc%PDB_N
@@ -14560,6 +14898,7 @@
       T   =>cc%T
       U   =>cc%U
       V   =>cc%V
+      Z   =>cc%Z
 !
       TRACERS=>cc%TRACERS
 !

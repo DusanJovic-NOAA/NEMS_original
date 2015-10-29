@@ -25,7 +25,9 @@
 !
       TYPE NMM_INTERNAL_STATE
 !
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: NUM_2WAY_CHILDREN   !<-- # of 2-way children in each domain
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: NPHS             &  !<-- Physics timestep
+                                                      ,NTRACK           &  !<-- Storm locator flag
+                                                      ,NUM_2WAY_CHILDREN   !<-- # of 2-way children in each domain
 !
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: COMM_MY_DOMAIN       &  !<-- MPI intracommunicator for all tasks on each domain
                                                   ,NPE_PRINT            &  !<-- Clocktime diagnostics from this MPI task

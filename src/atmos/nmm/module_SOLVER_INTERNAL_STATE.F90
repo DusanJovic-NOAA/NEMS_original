@@ -33,13 +33,15 @@
 !
       PUBLIC :: SOLVER_INTERNAL_STATE                                   &
                ,SET_INTERNAL_STATE_SOLVER                               &
-               ,WRAP_SOLVER_INT_STATE 
+               ,WRAP_SOLVER_INT_STATE                                   &
+               ,TRACK_MAX_OLD
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       INTEGER, PARAMETER :: MAX_VARS = 300
+      INTEGER, PARAMETER :: TRACK_MAX_OLD = 100 ! max # of old track fixes to store
 !
       TYPE SOLVER_INTERNAL_STATE
 !
@@ -311,6 +313,87 @@
         REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS_PREV => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS      => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: MPRATES      => NULL()
+
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !! Tracker variables
+
+        ! These variables are for the inline vortex tracker.  They're
+        ! in a separate section since there are so many of them.
+        ! We're hoping, in a future release, to allocate them only if
+        ! the tracker is in use.
+
+        ! Trigger variable:
+        INTEGER(kind=KINT) :: NTRACK_trigger
+
+        ! Scalar integer:
+        !INTEGER(kind=KINT), POINTER :: VORTEX_TRACKER              => NULL()
+        INTEGER(kind=KINT), POINTER :: TRACK_HAVE_GUESS            => NULL()
+        INTEGER(kind=KINT), POINTER :: TRACK_N_OLD                 => NULL()
+        INTEGER(kind=KINT), POINTER :: TRACKER_HAVEFIX             => NULL()
+        INTEGER(kind=KINT), POINTER :: TRACKER_GAVE_UP             => NULL()
+        INTEGER(kind=KINT), POINTER :: NTRACK                      => NULL()
+        INTEGER(kind=KINT), POINTER :: TRACKER_IFIX                => NULL()
+        INTEGER(kind=KINT), POINTER :: TRACKER_JFIX                => NULL()
+
+        ! Scalar real:
+        REAL(kind=KINT), POINTER :: TRACK_LAST_HOUR                => NULL()
+        REAL(kind=KINT), POINTER :: TRACK_GUESS_LAT                => NULL()
+        REAL(kind=KINT), POINTER :: TRACK_GUESS_LON                => NULL()
+        REAL(kind=KINT), POINTER :: TRACK_EDGE_DIST                => NULL()
+        !REAL(kind=KINT), POINTER :: TRACK_ANGLE                    => NULL()
+        REAL(kind=KINT), POINTER :: TRACK_STDERR_M1                => NULL()
+        REAL(kind=KINT), POINTER :: TRACK_STDERR_M2                => NULL()
+        REAL(kind=KINT), POINTER :: TRACK_STDERR_M3                => NULL()
+        REAL(kind=KINT), POINTER :: TRACKER_FIXLAT                 => NULL()
+        REAL(kind=KINT), POINTER :: TRACKER_FIXLON                 => NULL()
+        REAL(kind=KINT), POINTER :: TRACKER_RMW                    => NULL()
+        REAL(kind=KINT), POINTER :: TRACKER_PMIN                   => NULL()
+        REAL(kind=KINT), POINTER :: TRACKER_VMAX                   => NULL()
+
+        ! 1D integer:
+        INTEGER(kind=KINT),DIMENSION(:), POINTER :: TRACK_OLD_NTSD => NULL()
+
+        ! 1D Real:
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: TRACK_OLD_LAT      => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: TRACK_OLD_LON      => NULL()
+
+        ! 2D integer:
+        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: TRACKER_FIXES => NULL()
+        !INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: GROUND_LEVEL  => NULL()
+
+        ! 2D real:
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: MEMBRANE_MSLP    => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P850RV           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P700RV           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P850WIND         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P700WIND         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P500U            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P500V            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P700U            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P700V            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P850U            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P850V            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P850Z            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P700Z            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: M10WIND          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: M10RV            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SP850RV          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SP700RV          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SP850WIND        => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SP700WIND        => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SP850Z           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SP700Z           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SM10WIND         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SM10RV           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SMSLP            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TRACKER_DISTSQ   => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TRACKER_ANGLE    => NULL()
+
+        CHARACTER(255) :: HIFREQ_file,PATCF_file
+        integer :: HIFREQ_unit, PATCF_unit
+        !! End of tracker variables
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 !-----------------------------------------------------------------------
 !***  End of 'generic' variables declaration. The remaining internal 
@@ -930,7 +1013,7 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'AVGMAXLEN'  ,int_state%AVGMAXLEN  )
       CALL SET_VAR_PTR(int_state%VARS,NV,'IVEGSRC'    ,int_state%IVEGSRC    )
       CALL SET_VAR_PTR(int_state%VARS,NV,'CU_PHYSICS' ,int_state%CU_PHYSICS )
-
+      
       CALL SET_VAR_PTR(int_state%VARS,NV,'DT'        ,int_state%DT        )
       CALL SET_VAR_PTR(int_state%VARS,NV,'DYH'       ,int_state%DYH       )
       CALL SET_VAR_PTR(int_state%VARS,NV,'PDTOP'     ,int_state%PDTOP     )
@@ -1146,6 +1229,7 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'AVRAIN'     ,int_state%AVRAIN   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'AVCNVC'     ,int_state%AVCNVC   ,(/ IMS,JMS /),(/ IME,JME /) )
 
+      ! 3D Reals:
       CALL SET_VAR_PTR(int_state%VARS,NV,'RLWTT'      ,int_state%RLWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'RSWTT'      ,int_state%RSWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'EXCH_H'     ,int_state%EXCH_H   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
@@ -1168,6 +1252,89 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'TRACERS'     ,int_state%TRACERS      ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'TRACERS_PREV',int_state%TRACERS_PREV ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'MPRATES'     ,int_state%MPRATES      ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%D_SS /) )
+
+      !-----------------------------------------------------------------------
+      ! TRACKER VARIABLES ----------------------------------------------------
+
+      ! These variables are for the inline vortex tracker.  They're in
+      ! a separate section since there are so many of them.  We're
+      ! hoping, in a future release, to allocate them only if the
+      ! tracker is in use (ntrack>0).  However, the framework does not
+      ! support this yet.
+
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NTRACK'     ,int_state%NTRACK )
+      int_state%NTRACK = int_state%NTRACK_trigger
+
+      !if_tracker: if(int_state%NTRACK > 0) then
+      !   write(0,*) 'Allocate tracker variables.'
+      ! Tracker integer scalars:
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_HAVE_GUESS',int_state%TRACK_HAVE_GUESS )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_N_OLD',int_state%TRACK_N_OLD )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_HAVEFIX',int_state%TRACKER_HAVEFIX )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_GAVE_UP',int_state%TRACKER_GAVE_UP )
+      !CALL SET_VAR_PTR(int_state%VARS,NV,'VORTEX_TRACKER',int_state%VORTEX_TRACKER )
+      
+      ! Tracker real scalars:
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_LAST_HOUR',int_state%TRACK_LAST_HOUR )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_GUESS_LAT',int_state%TRACK_GUESS_LAT )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_GUESS_LON',int_state%TRACK_GUESS_LON )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_EDGE_DIST',int_state%TRACK_EDGE_DIST )
+      !CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_ANGLE',int_state%TRACK_ANGLE )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_STDERR_M1',int_state%TRACK_STDERR_M1 )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_STDERR_M2',int_state%TRACK_STDERR_M2 )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_STDERR_M3',int_state%TRACK_STDERR_M3 )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_FIXLAT',int_state%TRACKER_FIXLAT )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_FIXLON',int_state%TRACKER_FIXLON )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_IFIX',int_state%TRACKER_IFIX )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_JFIX',int_state%TRACKER_JFIX )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_RMW',int_state%TRACKER_RMW )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_PMIN',int_state%TRACKER_PMIN )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_VMAX',int_state%TRACKER_VMAX )
+
+      ! Tracker 1D integers:
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_OLD_NTSD',int_state%TRACK_OLD_NTSD, 1, TRACK_MAX_OLD )
+
+      ! Tracker 1D reals:
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_OLD_LAT',int_state%TRACK_OLD_LAT,1, TRACK_MAX_OLD)
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACK_OLD_LON',int_state%TRACK_OLD_LON,1, TRACK_MAX_OLD)
+
+      ! Tracker 2D integers:
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_FIXES',int_state%TRACKER_FIXES, (/ IMS,JMS /),(/ IME,JME /) )
+      !CALL SET_VAR_PTR(int_state%VARS,NV,'GROUND_LEVEL', int_state%GROUND_LEVEL, (/ IMS,JMS /),(/ IME,JME /) )
+
+      ! Tracker 2D reals:
+      CALL SET_VAR_PTR(int_state%VARS,NV,'MEMBRANE_MSLP',int_state%MEMBRANE_MSLP,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P850RV'     ,int_state%P850RV   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P700RV'     ,int_state%P700RV   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P850WIND'   ,int_state%P850WIND ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P700WIND'   ,int_state%P700WIND ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P500U'      ,int_state%P500U    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P500V'      ,int_state%P500V    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P700U'      ,int_state%P700U    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P700V'      ,int_state%P700V    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P850U'      ,int_state%P850U    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P850V'      ,int_state%P850V    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P850Z'      ,int_state%P850Z    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'P700Z'      ,int_state%P700Z    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'M10WIND'    ,int_state%M10WIND  ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'M10RV'      ,int_state%M10RV    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SP850RV'    ,int_state%SP850RV  ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SP700RV'    ,int_state%SP700RV  ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SP850WIND'  ,int_state%SP850WIND,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SP700WIND'  ,int_state%SP700WIND,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SP850Z'     ,int_state%SP850Z   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SP700Z'     ,int_state%SP700Z   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SM10WIND'   ,int_state%SM10WIND ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SM10RV'     ,int_state%SM10RV   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SMSLP'      ,int_state%SMSLP    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_DISTSQ', int_state%TRACKER_DISTSQ ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'TRACKER_ANGLE', int_state%TRACKER_ANGLE ,(/ IMS,JMS /),(/ IME,JME /) )
+      !else
+      !   write(0,*) 'Do not allocate tracker variables.'
+      !endif if_tracker
+         
+      ! END OF TRACKER VARIABLES ---------------------------------------------
+      !-----------------------------------------------------------------------
 
       DO N=1,NV
         IF (int_state%VARS(N)%TKR==0) THEN

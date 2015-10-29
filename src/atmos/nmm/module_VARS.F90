@@ -478,7 +478,7 @@
 !***  Find the location (index) within the VARS array with which
 !***  the internal state variable called VBL_NAME is associated.
 !----------------------------------------------------------------
-
+      USE MPI
       IMPLICIT NONE
 
       CHARACTER(LEN=*), INTENT(IN)        :: VBL_NAME
@@ -486,7 +486,7 @@
       INTEGER, INTENT(IN)                 :: NUM_VARS
       INTEGER, INTENT(OUT)                :: INDX
 
-      INTEGER :: I
+      INTEGER :: I,IERR
 
       INDX = 0
       DO I=1,NUM_VARS
@@ -496,8 +496,10 @@
         END IF
       END DO
       IF (INDX == 0) THEN
-       write(0,*)' can not find |', TRIM(VBL_NAME),'|'
-       stop 1
+138    format(' can not find |',A,'| in solver state text file.')
+       write(0,138) trim(VBL_NAME)
+       call MPI_Abort(MPI_COMM_WORLD,2,ierr)
+       stop 2
       END IF
 
       END SUBROUTINE FIND_VAR_INDX

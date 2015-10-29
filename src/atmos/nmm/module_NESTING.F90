@@ -4964,7 +4964,7 @@
 !
       LOGICAL(kind=KLOG) :: RESTART
 !
-      CHARACTER(len=8), DIMENSION(7) :: EXP_FIELD
+      CHARACTER(len=8), DIMENSION(10) :: EXP_FIELD
 !
 !-----------------------------------------------------------------------
 !***  TEMPORARY FOR PRE-PROCESSING MULTIPLE ESMF VERSIONS BEFORE COMPILE
@@ -5011,8 +5011,11 @@
                     ,'T       '                                         &
                     ,'U       '                                         &
                     ,'V       '                                         &
+                    ,'Z       '                                         &
                     ,'TRACERS '                                         &
                     ,'SM      '                                         &
+                    ,'U10     '                                         &
+                    ,'V10     '                                         &
                                /)
 !
 !-----------------------------------------------------------------------

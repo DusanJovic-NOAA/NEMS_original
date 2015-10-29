@@ -142,6 +142,8 @@
       INTEGER(kind=KINT) :: COMM_MY_DOMAIN                              &  !<-- Each domain's local intracommunicator
                            ,FULL_GEN                                    &  !<-- The 1st generation of domains that uses all fcst tasks
                            ,MY_DOMAIN_ID                                &  !<-- The ID of each domain
+                           ,NPHS                                        &  !<-- The physics timestep 
+                           ,NTRACK                                      &  !<-- The storm locator flag
                            ,NUM_DOMAINS_MINE                               !<-- The # of domains on which each task resides
 !
       INTEGER(kind=KINT),POINTER :: NUM_CHILDREN                        &  !<-- # of children on a domain
@@ -1596,6 +1598,8 @@
       ALLOCATE(nmm_int_state%COMM_MY_DOMAIN(1:NUM_DOMAINS_TOTAL))
       ALLOCATE(nmm_int_state%P_C_TIME_RATIO(1:NUM_DOMAINS_TOTAL))
       ALLOCATE(nmm_int_state%MY_DOMAIN_MOVES(1:NUM_DOMAINS_TOTAL))
+      ALLOCATE(nmm_int_state%NPHS           (1:NUM_DOMAINS_TOTAL))
+      ALLOCATE(nmm_int_state%NTRACK         (1:NUM_DOMAINS_TOTAL))
 !
       ALLOCATE(I_AM_A_FCST_TASK)
       ALLOCATE(nmm_int_state%I_AM_A_FCST_TASK(1:NUM_DOMAINS_TOTAL))
@@ -1610,6 +1614,8 @@
 !
         nmm_int_state%P_C_TIME_RATIO(N)=0.
         nmm_int_state%MY_DOMAIN_MOVES(N)=.FALSE.
+        nmm_int_state%NPHS(N)=0
+        nmm_int_state%NTRACK(N)=0
       ENDDO
 !
 !-----------------------------------------------------------------------
@@ -1707,7 +1713,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Move Flag From the Configure file"
+        MESSAGE_CHECK="NMM Init: Extract Move Flag From the Configure file"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1721,6 +1727,42 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)=MY_DOMAIN_MOVES
+!
+!-----------------------------------------------------------------------
+!***  For hurricane runs we need to know if the storm locator is on
+!***  as well as the physics timestep.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM Init: Extract the storm locator flag."
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            & 
+                                    ,value =NTRACK                      &
+                                    ,label ='ntrack:'                   &
+                                    ,rc    =rc)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM Init: Extract the physics timestep."
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            & 
+                                    ,value =NPHS                        & 
+                                    ,label ='nphs:'                     & 
+                                    ,rc    =rc)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        nmm_int_state%NTRACK(MY_DOMAIN_ID)=NTRACK
+        nmm_int_state%NPHS  (MY_DOMAIN_ID)=NPHS
 !
 !-----------------------------------------------------------------------
 !***  Check the configure flag indicating whether or not to run
@@ -3436,6 +3478,8 @@
             MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
             NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
             NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
+            NTRACK=nmm_int_state%NTRACK(MY_DOMAIN_ID)                           !<-- Storm locator flag
+            NPHS=nmm_int_state%NPHS(MY_DOMAIN_ID)                               !<-- Physics timestep
 !
             gentimer1(my_domain_id)=gentimer1(my_domain_id)+(timef()-btim)
 !
@@ -3474,6 +3518,8 @@
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST        &
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO   &
                               ,my_domain_moves    =MY_DOMAIN_MOVES           &
+                              ,ntrack             =NTRACK                    &
+                              ,nphs               =NPHS                      &
                               ,last_generation    =LAST_GENERATION           &
                               ,mype               =MYPE_LOCAL                &
                               ,comm_global        =COMM_GLOBAL               &
@@ -3860,6 +3906,8 @@
             MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
             NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
             NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
+            NTRACK=nmm_int_state%NTRACK(MY_DOMAIN_ID)                           !<-- Storm locator flag
+            NPHS=nmm_int_state%NPHS(MY_DOMAIN_ID)                               !<-- Physics timestep
 !
 !-----------------------------------------------------------------------
 !***  Obtain current information from the filter clock.
@@ -3914,6 +3962,8 @@
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST          &
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO     &
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
+                              ,ntrack             =NTRACK                      &
+                              ,nphs               =NPHS                        &
                               ,last_generation    =LAST_GENERATION             &
                               ,mype               =MYPE_LOCAL                  &
                               ,comm_global        =COMM_GLOBAL               &
@@ -4272,6 +4322,8 @@
             MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
             NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
             NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
+            NTRACK=nmm_int_state%NTRACK(MY_DOMAIN_ID)                           !<-- Storm locator flag
+            NPHS=nmm_int_state%NPHS(MY_DOMAIN_ID)                               !<-- Physics timestep
 !
 !-----------------------------------------------------------------------
 !***  Obtain current information from the filter clock.
@@ -4325,6 +4377,8 @@
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST         &
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO    &
                               ,my_domain_moves    =MY_DOMAIN_MOVES            &
+                              ,ntrack             =NTRACK                     &
+                              ,nphs               =NPHS                       &
                               ,last_generation    =LAST_GENERATION            &
                               ,mype               =MYPE_LOCAL                 &
                               ,comm_global        =COMM_GLOBAL               &
@@ -4586,6 +4640,8 @@
             MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
             NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
             NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
+            NTRACK=nmm_int_state%NTRACK(MY_DOMAIN_ID)                           !<-- Storm locator flag
+            NPHS=nmm_int_state%NPHS(MY_DOMAIN_ID)                               !<-- Physics timestep
 !
 !-----------------------------------------------------------------------
 !
@@ -4619,6 +4675,8 @@
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST          &
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO     &
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
+                              ,ntrack             =NTRACK                      & 
+                              ,nphs               =NPHS                        & 
                               ,last_generation    =LAST_GENERATION             &
                               ,mype               =MYPE_LOCAL                  &
                               ,comm_global        =COMM_GLOBAL               &
@@ -4899,6 +4957,8 @@
             MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
             NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
             NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
+            NTRACK=nmm_int_state%NTRACK(MY_DOMAIN_ID)                       !<-- Storm locator flag
+            NPHS=nmm_int_state%NPHS(MY_DOMAIN_ID)                           !<-- Physics timestep
 !
 !-----------------------------------------------------------------------
 !***  Obtain current information from the filter clock.
@@ -4952,6 +5012,8 @@
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST          &
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO     &
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
+                              ,ntrack             =NTRACK                      &  
+                              ,nphs               =NPHS                        &
                               ,last_generation    =LAST_GENERATION             &
                               ,mype               =MYPE_LOCAL                  &
                               ,comm_global        =COMM_GLOBAL               &
@@ -5231,6 +5293,8 @@
             MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
             NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
             NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
+            NTRACK=nmm_int_state%NTRACK(MY_DOMAIN_ID)                           !<-- Storm locator flag
+            NPHS=nmm_int_state%NPHS(MY_DOMAIN_ID)                               !<-- Physics timestep
 !
 !-----------------------------------------------------------------------
 !
@@ -5264,6 +5328,8 @@
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST          &
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO     &
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
+                              ,ntrack             =NTRACK                      &      
+                              ,nphs               =NPHS                        &
                               ,last_generation    =LAST_GENERATION             &
                               ,mype               =MYPE_LOCAL                  &
                               ,comm_global        =COMM_GLOBAL               &

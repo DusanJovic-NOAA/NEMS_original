@@ -154,6 +154,8 @@ set +e
     cp ${RTPWD}/GFS_NODFI/*                ${RTPWD_U}/GFS_NODFI/.
     cp ${RTPWD}/GFS_SLG_adiab/*            ${RTPWD_U}/GFS_SLG_adiab/.
     cp ${RTPWD}/GFS_SLG_adiab_DFI/*        ${RTPWD_U}/GFS_SLG_adiab_DFI/.
+    cp ${RTPWD}/GFS_SLG_NEMSIO_READ/*      ${RTPWD_U}/GFS_SLG_NEMSIO_READ/.
+    cp ${RTPWD}/GFS_SLG_NEMSIO/*           ${RTPWD_U}/GFS_SLG_NEMSIO/.
     cp ${RTPWD}/GFS_NODFI_ESMF_6.3.0rAPI/* ${RTPWD_U}/GFS_NODFI_ESMF_6.3.0rAPI/.
     cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
     cp ${RTPWD}/WAM_gh_l150_NDSL/*         ${RTPWD_U}/WAM_gh_l150_NDSL/.

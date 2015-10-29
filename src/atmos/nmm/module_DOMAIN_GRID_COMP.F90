@@ -419,7 +419,7 @@
                            ,NVARS_BC_2D_H,NVARS_BC_3D_H,NVARS_BC_4D_H   &
                            ,NVARS_BC_2D_V,NVARS_BC_3D_V                 &
                            ,NVARS_NESTBC_H,NVARS_NESTBC_V               &
-                           ,SFC_FILE_RATIO,UB,UBOUND_VARS
+                           ,SFC_FILE_RATIO,UB,UBOUND_VARS,NTRACK
 !
       INTEGER(kind=KINT) :: IYEAR_FCST                                  &  !<-- Current year from restart file
                            ,IMONTH_FCST                                 &  !<-- Current month from restart file
@@ -803,8 +803,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert NPHS into the Domain export state"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -817,6 +815,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 !-----------------------------------------------------------------------
 !***  Extract the domain boundary blending width.
@@ -935,6 +935,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        domain_int_state%MY_DOMAIN_MOVES=MY_DOMAIN_MOVES
 !
 !-----------------------------------------------------------------------
 !
@@ -2381,6 +2383,26 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert NTRACK flag into the Domain Export State."
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(ASSOCIATED(solver_int_state%NTRACK))THEN
+          NTRACK=solver_int_state%NTRACK
+        ELSE
+          NTRACK=-99
+        ENDIF
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain export state
+                              ,name ='NTRACK'                           &  !<-- Name of the attribute to extract
+                              ,value=NTRACK                             &  !<-- Put the Attribute here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Insert Next Move Timestep into Domain Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3467,6 +3489,8 @@
                            ,LAST_STEP_MOVED,RC,NC,YY,MM,DD,H,M,S        &
                            ,USE_RADAR
 !
+      INTEGER(kind=KINT),DIMENSION(2) :: STORM_CENTER
+!
       INTEGER(kind=KINT),DIMENSION(1:NUM_DOMAINS_MAX) :: NTIMESTEPCHILD_MOVES
 !
       REAL(kind=KFPT) :: DLM,DPH,GLATX,GLONX,TLATX,TLONX,X,Y,Z
@@ -3750,7 +3774,7 @@
 !
 !-----------------------------------------------------------------------
 !
-          IF(MY_DOMAIN_MOVES)THEN                                          !<-- Select the moving nests
+          IF(domain_int_state%MY_DOMAIN_MOVES)THEN                         !<-- Select the moving nests
 !
 !-----------------------------------------------------------------------
 !***  If a nest is moving in its next timestep then update the
@@ -4184,6 +4208,45 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+!-----------------------------------------------------------------------
+!***  For moving nests the hurricane storm tracker determines the
+!***  center of the storm on this domain's grid every NPHS*NTRACK 
+!***  timesteps to see if the domain should shift.  If this is an
+!***  appropriate timestep then load the storm center location into
+!***  the Domain component's export state so it can be transferred
+!***  to the Parent-Child coupler in NMM_INTEGRATE.
+!-----------------------------------------------------------------------
+!
+        IF(domain_int_state%MY_DOMAIN_MOVES)THEN                           !<-- Select the moving nests
+!
+          IF(solver_int_state%NTRACK>0                                  &
+                  .AND.                                                 &
+             (NTIMESTEP==0                                              &
+                  .OR.                                                  &
+              MOD(NTIMESTEP+1,solver_int_state%NTRACK*solver_int_state%NPHS)==0))THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="DOMAIN_RUN: Set the storm center location."
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            STORM_CENTER(1)=solver_int_state%TRACKER_IFIX
+            STORM_CENTER(2)=solver_int_state%TRACKER_JFIX
+!
+            CALL ESMF_AttributeSet(state    =EXP_STATE                  &  !<-- Domain component's export state
+                                  ,name     ='Storm Center'             &  !<-- Set Attribute with this name
+                                  ,itemCount=2                          &  !<-- Two words in the Attribute
+                                  ,valueList=STORM_CENTER               &  !<-- Load these Attribute values
+                                  ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          ENDIF
+!
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !

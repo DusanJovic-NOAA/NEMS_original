@@ -110,6 +110,8 @@
                               ,EXP_STATE_CPL_NEST                       &
                               ,PAR_CHI_TIME_RATIO                       &
                               ,MY_DOMAIN_MOVES                          &
+                              ,NTRACK                                   &
+                              ,NPHS                                     &
                               ,LAST_GENERATION                          &
                               ,MYPE                                     &
                               ,COMM_GLOBAL                              &
@@ -137,6 +139,8 @@
                                       ,FILTER_METHOD                    &  !<-- The type of digital filtering desired
                                       ,MYPE                             &  !<-- Local task rank on this domain
                                       ,NPE_PRINT                        &  !<-- Task to print clocktimes
+                                      ,NPHS                             &  !<-- Physics timestep
+                                      ,NTRACK                           &  !<-- Storm locator flag
                                       ,NUM_2WAY_CHILDREN                   !<-- How many 2-way children on this domain?
 
       INTEGER(kind=KINT),INTENT(INOUT) :: NUM_CHILDREN                     !<-- # of children on this domain
@@ -215,6 +219,8 @@
       INTEGER(kind=KINT) :: IERR,RC,RC_INTEG
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep (ESMF_INT)
+!
+      INTEGER(kind=KINT),DIMENSION(2) :: STORM_CENTER
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LOC_PAR_CHILD_TIME_RATIO
 !
@@ -890,6 +896,50 @@
 !
         phase1_tim = (timef()-btim0)
         td%domain_run_1=td%domain_run_1+phase1_tim
+!
+!-----------------------------------------------------------------------
+!***  If this domain moves then transfer the storm center location
+!***  to the P-C coupler import state.
+!-----------------------------------------------------------------------
+!
+        IF(I_AM_A_FCST_TASK.AND.MY_DOMAIN_MOVES.AND.NTRACK>0)THEN
+!
+          IF(NTIMESTEP==0.                                              &
+                 .OR.                                                   &
+             MOD(NTIMESTEP+1,NTRACK*NPHS)==0)THEN
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_INTEGRATE: Get storm center location."
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN           &  !<-- The Domain component export state
+                                  ,name     ='Storm Center'             &  !<-- Name of the attribute to extract
+                                  ,valueList=STORM_CENTER               &  !<-- I,J of storm center
+                                  ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_Integrate: Transfer storm center location."
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST         &  !<-- The parent-child coupler import state
+                                  ,name     ='Storm Center'             &  !<-- I,J of storm center
+                                  ,itemCount=2                          &  !<-- There are 2 words
+                                  ,valueList=STORM_CENTER               &  !<-- The data is here.
+                                  ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          ENDIF
+!
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Now that this domain has integrated a timestep, if it is a 

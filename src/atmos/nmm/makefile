@@ -36,6 +36,10 @@ MODULES  = \
            module_PARENT_CHILD_CPL_COMP.o \
            module_PRECIP_ADJUST.o \
            module_RADIATION.o \
+           module_RELAX4E.o \
+           module_REDUCTION.o \
+           module_QUASIPOST.o \
+           module_TRACKER.o \
            module_SOLVER_GRID_COMP.o \
            module_SOLVER_INTERNAL_STATE.o \
            module_TIMESERIES.o \
@@ -87,3 +91,8 @@ MKDEPENDS = ../../../exe/mkDepends.pl
 include ../../conf/make.rules
 
 include depend
+
+module_QUASIPOST.o \
+module_TRACKER.o:
+	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
+	$(FC) $(FFLAGS_NMM) -g -O0 -traceback -check all -ftrapuv -unroll0 -u $*.f90 -c -o $*.o

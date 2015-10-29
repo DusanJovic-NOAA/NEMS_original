@@ -194,11 +194,11 @@
 'TWBS'             H       R       O      -      -   T  'Instantaneous sensible heat flux (W m-2)'
 'UPHLMAX'          H       -       O      -      -   T  'hourly maximum Updraft Helicity (m^2 s-2)'
 'UPVVELMAX'        H       -       O      -      -   T  'hourly maximum upward vertical motion 400 hPa to sfc  (m s-1)'
-'U10'              H       R       O      -      -   T  'U at 10-m  (m s-1)'
+'U10'              H       R       O      -      X   T  'U at 10-m  (m s-1)'
 'U10MAX'           H       -       O      -      -   T  'hourly maximum U at 10-m  (m s-1)'
 'USTAR'            H       R       O      -      -   T  'Friction velocity  (m s-1)'
 'UZ0'              H       R       O      -      -   T  'U component at top of viscous sublayer  (m s-1) (H points)'
-'V10'              H       R       O      -      -   T  'V at 10-m  (m s-1)'
+'V10'              H       R       O      -      X   T  'V at 10-m  (m s-1)'
 'V10MAX'           H       -       O      -      -   T  'Hourly maximum V at 10-m  (m s-1)'
 'VEGFRC'           H       R       O      -      -   T  'Vegetation fraction'
 'VZ0'              H       R       O      -      -   T  'V component at top of viscous sublayer  (m s-1) (H points)'
@@ -242,7 +242,7 @@
 'UP'               -       R       O      -      -   -  'U wind component, previous step  (m s-1)'
 'VP'               -       R       O      -      -   -  'V wind component, previous step  (m s-1)'
 'PSGDT'            -       R       O      -      -   -  'Specific volume  (m3 kg-1)'
-'Z'                -       R       O      -      -   -  'Height at midlayers  (m)'
+'Z'                -       R       O      -      X   -  'Height at midlayers  (m)'
 'Told'             -       R       O      -      -   -  'Old temperature before convection, microphysics (K)'
 'Tadj'             -       R       O      -      -   -  'Temperature adjustments by convection, microphysics (K)'
 'CLDFRA'           H       R       O      -      -   T  'Cloud fraction'
@@ -285,4 +285,74 @@
 'TRACERS_PREV'     -       R       -      -      -   -  'Previous step tracers'
 'TRACERS'          -       R       -      -      X   -  'All tracer variables'
 'MPRATES'          H       -       O      -      -   -  'MICROPHYSICS SOURCE AND SINK TERMS'
+
+######################################## TRACKER VARIABLES
+
+# These variables are for the inline vortex tracker.  They're
+# in a separate section since there are so many of them.
+# We're hoping, in a future release, to allocate them only if
+# the tracker is in use.
+
+###    Tracker scalar integer
+'NTRACK'           H       R       O      -      -   -  'Number of physics timesteps per tracker timestep'
+'TRACK_HAVE_GUESS' H       R       O      -      -   -  'Does the tracker have a guess location?'
+'TRACK_N_OLD'      H       R       O      -      -   -  'Number of old tracker fix locations'
+'TRACKER_HAVEFIX'  H       R       O      -      -   -  'Does the tracker have a fix location?'
+'TRACKER_GAVE_UP'  H       R       O      -      -   -  'Did the tracker give up on searching for a storm?'
+
+###    Tracker scalar real
+'TRACK_LAST_HOUR'  H       R       O      -      -   -  'Previous tracker forecast hour'
+'TRACK_GUESS_LAT'  H       R       O      -      -   -  'Storm first guess center latitude (deg)'
+'TRACK_GUESS_LON'  H       R       O      -      -   -  'Storm first guess center longitude (deg)'
+'TRACK_EDGE_DIST'  H       R       O      -      -   -  'Distance from storm center to domain edge (km)'
+'TRACK_STDERR_M1'  H       R       O      -      -   -  'Standard deviation of tracker centers one hour ago (km)'
+'TRACK_STDERR_M2'  H       R       O      -      -   -  'Standard deviation of tracker centers two hours ago (km)'
+'TRACK_STDERR_M3'  H       R       O      -      -   -  'Standard deviation of tracker centers three hours ago (km)'
+'TRACKER_FIXLAT'   H       R       O      -      -   -  'Storm fix latitude according to inline tracker (degrees)'
+'TRACKER_FIXLON'   H       R       O      -      -   -  'Storm fix longitude according to inline tracker (degrees)'
+'TRACKER_IFIX'     H       R       O      -      -   -  'Storm fix i location (H grid)'
+'TRACKER_JFIX'     H       R       O      -      -   -  'Storm fix j location (H grid)'
+'TRACKER_RMW'      H       R       O      -      -   -  'Storm RMW according to inline tracker (km)'
+'TRACKER_PMIN'     H       R       O      -      -   -  'Storm min MSLP according to inline tracker (Pa)'
+'TRACKER_VMAX'     H       R       O      -      -   -  'Storm max 10m wind according to inline tracker (m/s)'
+
+###    Tracker 1D integer
+'TRACK_OLD_NTSD'   H       R       O      -      -   -  'Old tracker times (timesteps)'
+
+###    Tracker 1D real
+'TRACK_OLD_LAT'    H       R       O      -      -   -  'Old tracker latitudes (degrees)'
+'TRACK_OLD_LON'    H       R       O      -      -   -  'Old tracker longitudes (degrees)'
+
+###    Tracker 2D integer
+'TRACKER_FIXES'    H       R       O      -      -   -  'Tracker fix information for debugging (pc/fur)'
+
+###    Tracker 2D real
+'MEMBRANE_MSLP'    H       R       O      -      -   -  'Membrane Mean Sea Level Pressure (Pa)'
+'P850RV'           H       R       O      -      -   -  'Relative vorticity at 850mbar mass points (1/s)'
+'P700RV'           H       R       O      -      -   -  'Relative vorticity at 700mbar mass points (1/s)'
+'P850WIND'         H       R       O      -      -   -  'Wind magnitude at 850mbar mass points (m/s)'
+'P700WIND'         H       R       O      -      -   -  'Wind magnitude at 700mbar mass points (m/s)'
+'P500U'            H       R       O      -      -   -  'Grid +X wind at 500 mbar mass points (m/s)'
+'P500V'            H       R       O      -      -   -  'Grid +Y wind at 500 mbar mass points (m/s)'
+'P700U'            H       R       O      -      -   -  'Grid +X wind at 700 mbar mass points (m/s)'
+'P700V'            H       R       O      -      -   -  'Grid +Y wind at 700 mbar mass points (m/s)'
+'P850U'            H       R       O      -      -   -  'Grid +X wind at 850 mbar mass points (m/s)'
+'P850V'            H       R       O      -      -   -  'Grid +Y wind at 850 mbar mass points (m/s)'
+'P850Z'            H       R       O      -      -   -  'Height at 850mbar mass points (m)'
+'P700Z'            H       R       O      -      -   -  'Height at 700mbar mass points (m)'
+'M10WIND'          H       R       O      -      -   -  'Wind magnitude at 10m mass points (m/s)'
+'M10RV'            H       R       O      -      -   -  'Relative vorticity at 10m mass points (m/s)'
+'SP850RV'          H       R       O      -      -   -  'Smoothed relative vorticity at 850mbar mass points (1/s)'
+'SP700RV'          H       R       O      -      -   -  'Smoothed relative vorticity at 700mbar mass points (1/s)'
+'SP850WIND'        H       R       O      -      -   -  'Smoothed wind magnitude at 850mbar mass points (m/s)'
+'SP700WIND'        H       R       O      -      -   -  'Smoothed wind magnitude at 700mbar mass points (m/s)'
+'SP850Z'           H       R       O      -      -   -  'Smoothed height at 850mbar mass points (m)'
+'SP700Z'           H       R       O      -      -   -  'Smoothed height at 700mbar mass points (m)'
+'SM10WIND'         H       R       O      -      -   -  'Smoothed wind magnitude at 10m mass points (m/s)'
+'SM10RV'           H       R       O      -      -   -  'Smoothed relative vorticity at 10m mass points (m/s)'
+'SMSLP'            H       R       O      -      -   -  'Smoothed Membrane Mean Sea Level Pressure (Pa)'
+'TRACKER_ANGLE'    H       R       O      -      -   -  'Angle to storm center (radians, 0=E, pi/2=N)'
+'TRACKER_DISTSQ'   H       R       O      -      -   -  'Square of distance from storm center (m*m)'
+
+
 #EOF

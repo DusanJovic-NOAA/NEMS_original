@@ -321,6 +321,7 @@ num_domains_total: -         # The total number of domains in this run (only nee
 
 my_domain_moves: true        # Does this domain move?
 move_type: storm             # Type of this domain move (storm, prescribed)
+ntrack: 10                   # the number of nphys steps between tracker calls
 centers_distance: 6.0        # Grid increments on this nest between its and its inner nest's centers before this nest shifts
 latitude_limit: 60.0         # Nests will not move poleward of this latitude (degrees)
 

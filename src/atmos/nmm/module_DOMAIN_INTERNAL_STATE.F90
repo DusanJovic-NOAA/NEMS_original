@@ -49,16 +49,17 @@
         TYPE(ESMF_State) :: EXP_STATE_SOLVER                                   !<-- The export state of the Solver component
         TYPE(ESMF_State) :: EXP_STATE_WRITE                                    !<-- The export state of the write components
 !
-        LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_PARENT                          &  !<-- Child can proceed after parent is free
-                             ,I_AM_A_NEST                                   &  !<-- Am I in a nested domain?
-                             ,I_AM_A_PARENT                                 &  !<-- Am I in a parent domain?
-                             ,RECV_ALL_CHILD_DATA                              !<-- Parent is free after all 2-way data recvd
-!
         TYPE(ESMF_Alarm) :: ALARM_HISTORY                                   &  !<-- The ESMF Alarm for history output
                            ,ALARM_RESTART                                   &  !<-- The ESMF Alarm for restart output
                            ,ALARM_CLOCKTIME                                    !<-- The ESMF Alarm for clocktime prints
 !
         REAL(ESMF_KIND_R8) :: TIMESTEP_FINAL                                   !<-- The forecast's final timestep
+!
+        LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_PARENT                          &  !<-- Child can proceed after parent is free
+                             ,I_AM_A_NEST                                   &  !<-- Am I in a nested domain?
+                             ,I_AM_A_PARENT                                 &  !<-- Am I in a parent domain?
+                             ,MY_DOMAIN_MOVES                               &  !<-- Does this domain move?
+                             ,RECV_ALL_CHILD_DATA                              !<-- Parent is free after all 2-way data recvd
 !
         LOGICAL(kind=KLOG) :: FIRST_PASS                                    &  !<-- Note 1st time into NMM_INTEGRATE
                              ,RESTARTED_RUN                                 &  !<-- Is this a restarted forecast?

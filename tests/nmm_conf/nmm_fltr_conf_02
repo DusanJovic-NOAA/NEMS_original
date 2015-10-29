@@ -311,6 +311,7 @@ j_parent_start:   27
 parent_child_space_ratio:  3
 
 my_domain_moves:  false
+ntrack: 00                    # the number of nphys steps between tracker calls
 
 input_ready:  .FALSE.
 

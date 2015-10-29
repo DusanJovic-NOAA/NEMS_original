@@ -667,6 +667,14 @@ integer(kind=kint):: &
         read(nfcst) ! nrdsw
         read(nfcst) ! nsrfc
 !
+        read(nfcst) int_state%NTRACK
+        read(nfcst) int_state%TRACK_HAVE_GUESS
+        read(nfcst) int_state%TRACK_N_OLD
+        read(nfcst) int_state%TRACKER_HAVEFIX
+        read(nfcst) int_state%TRACKER_GAVE_UP
+        read(nfcst) int_state%TRACKER_IFIX
+        read(nfcst) int_state%TRACKER_JFIX
+!
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer 1D arrays
 !-----------------------------------------------------------------------
@@ -688,6 +696,8 @@ integer(kind=kint):: &
           write(0,*)'*************************************'
         endif
 !
+        read(nfcst) int_state%TRACK_OLD_NTSD
+!
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer scalars
 !-----------------------------------------------------------------------
@@ -707,6 +717,19 @@ integer(kind=kint):: &
         read(nfcst) int_state%DLMD
         read(nfcst) int_state%SBD
         read(nfcst) int_state%WBD
+!
+        read(nfcst) int_state%TRACK_LAST_HOUR
+        read(nfcst) int_state%TRACK_GUESS_LAT
+        read(nfcst) int_state%TRACK_GUESS_LON
+        read(nfcst) int_state%TRACK_EDGE_DIST
+        read(nfcst) int_state%TRACK_STDERR_M1
+        read(nfcst) int_state%TRACK_STDERR_M2
+        read(nfcst) int_state%TRACK_STDERR_M3
+        read(nfcst) int_state%TRACKER_FIXLAT
+        read(nfcst) int_state%TRACKER_FIXLON
+        read(nfcst) int_state%TRACKER_RMW
+        read(nfcst) int_state%TRACKER_PMIN
+        read(nfcst) int_state%TRACKER_VMAX
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 1D arrays
 !-----------------------------------------------------------------------
@@ -722,6 +745,9 @@ integer(kind=kint):: &
         read(nfcst) int_state%MP_RESTART_STATE
         read(nfcst) int_state%TBPVS_STATE
         read(nfcst) int_state%TBPVS0_STATE
+!
+        read(nfcst) int_state%TRACK_OLD_LAT
+        read(nfcst) int_state%TRACK_OLD_LON
 !
         DO L=1,LM
           int_state%PDSG1(L)=int_state%DSG1(L)*int_state%PDTOP
@@ -1154,6 +1180,11 @@ integer(kind=kint):: &
         READ(NFCST) ITEMP
       ENDIF
       CALL IDSTRB(ITEMP,int_state%NCFRST,MYPE,MPI_COMM_COMP)
+!
+      IF(MYPE==0)THEN
+        READ(NFCST) ITEMP
+      ENDIF
+      CALL IDSTRB(ITEMP,int_state%TRACKER_FIXES,MYPE,MPI_COMM_COMP)
 !
       DEALLOCATE(ITEMP)
 !
@@ -1679,6 +1710,27 @@ integer(kind=kint):: &
       ENDIF
       CALL DSTRB(TEMP1,int_state%HTOPS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
+!***  M10RV
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%M10RV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  M10WIND
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%M10WIND,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  MEMBRANE_MSLP
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%MEMBRANE_MSLP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
 !***  MXSNAL (SNOW ALBEDO)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
@@ -1705,6 +1757,90 @@ integer(kind=kint):: &
         CALL DSTRB(TEMP1,int_state%OMGALF,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
       ENDDO
       CALL HALO_EXCH(int_state%OMGALF,LM,2,2)
+!-----------------------------------------------------------------------
+!***  P500U
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P500U,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P500V
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P500V,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P700RV
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P700RV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P700U
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P700U,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P700V
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P700V,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P700WIND
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P700WIND,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P700Z
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P700Z,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P850RV
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P850RV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P850U
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P850U,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P850V
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P850V,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P850WIND
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P850WIND,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  P850Z
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%P850Z,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  PBLH
 !-----------------------------------------------------------------------
@@ -2010,6 +2146,20 @@ integer(kind=kint):: &
       ENDDO
       CALL DSTRB(TEMP1,int_state%SM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
+!***  SM10RV
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SM10RV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SM10WIND
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SM10WIND,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
 !***  SMC
 !-----------------------------------------------------------------------
       DO K=1,int_state%NSOIL
@@ -2019,6 +2169,13 @@ integer(kind=kint):: &
         CALL DSTRB(TEMP1,int_state%SMC,1,1,1,int_state%NSOIL,K        &
                   ,MYPE,MPI_COMM_COMP)
       ENDDO
+!-----------------------------------------------------------------------
+!***  SMSLP
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SMSLP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SMSTAV
 !-----------------------------------------------------------------------
@@ -2061,6 +2218,48 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SOILTB,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SP700RV
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SP700RV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SP700WIND
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SP700WIND,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SP700Z
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SP700Z,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SP850RV
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SP850RV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SP850WIND
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SP850WIND,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SP850Z
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SP850Z,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SR
 !-----------------------------------------------------------------------
@@ -2233,6 +2432,20 @@ integer(kind=kint):: &
         ENDDO
       ENDDO
       CALL HALO_EXCH(int_state%TRACERS_PREV,LM,int_state%NUM_TRACERS_TOTAL,1,2,2)
+!-----------------------------------------------------------------------
+!***  TRACKER_ANGLE
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TRACKER_ANGLE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  TRACKER_DISTSQ
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TRACKER_DISTSQ,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  TRAIN
 !-----------------------------------------------------------------------

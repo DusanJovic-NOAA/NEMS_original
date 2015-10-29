@@ -273,6 +273,7 @@
       USE MODULE_INIT_READ_NEMSIO,ONLY : READ_NEMSIO
 !
       USE MODULE_FLTBNDS,ONLY : PREFFT, PRESMUD
+      USE MODULE_TRACKER
 
 !------------------------
 !***  Argument variables
@@ -542,6 +543,10 @@
       IHALO=int_state%IHALO
       JHALO=int_state%JHALO
 !
+      ! Disable the tracker by default.  This may be overridden below
+      ! when reading the configure file.
+      int_state%NTRACK_trigger=0
+!
       IF(IHALO==JHALO)THEN
         int_state%NHALO=IHALO
       ELSE
@@ -614,6 +619,35 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! Is the tracker enabled?  Triggers allocations later on.  (Or, rather,
+! it would do that if such a thing was supported by the current
+! framework.)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =int_state%NTRACK_TRIGGER      &  !<-- Put extracted quantity here
+                                  ,label ='ntrack:'                     &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+      if(RC/=0) then
+         print '(A)','Disabling tracker and tracker vars for domain.'
+         int_state%NTRACK_TRIGGER=0
+      endif
+
+      int_state%HIFREQ_file=' '
+      int_state%PATCF_file=' '
+      if(int_state%NTRACK_TRIGGER /= 0) then ! Check for additional tracker options.
+         ! Per-timestep output.
+         call ESMF_ConfigGetAttribute(config=CF,value=int_state%HIFREQ_file,label='hifreq:',rc=RC)
+         if(RC/=0) then
+            print '(A)','Disabling per-timestep output because "hifreq:" was not specified.'
+            int_state%HIFREQ_file=' '
+         endif
+         ! Per-tracker-step output.
+         call ESMF_ConfigGetAttribute(config=CF,value=int_state%PATCF_file,label='patcf:',rc=RC)
+         if(RC/=0) then
+            print '(A)','Disabling tracker output because "patcf:" was not specified.'
+            int_state%PATCF_file=' '
+         endif
+      endif
 !
 !-----------------------------------------------------------------------
 !***  Retrieve the VM to obtain the task ID and total number of tasks
@@ -1789,6 +1823,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! Initialize the tracker if needed
+! FIXME: NEED A CHECK ON WHETHER THIS IS NEEDED
+        if(int_state%ntrack>0 .and. int_state%MYPE<int_state%NUM_PES) then
+           CALL TRACKER_INIT(int_state)
+        endif
 
 !-----------------------------------------------------------------------
 !***  Retrieve the ESMF Grid then create the ESMF Fields on that Grid
@@ -2512,7 +2551,8 @@
       USE OZNE_DEF,                   ONLY : LEVOZP,PL_COEFF,PL_PRES
       USE MODULE_RADSW_PARAMETERS_nmmb,    ONLY : TOPFSW_TYPE, SFCFSW_TYPE
       USE MODULE_RADLW_PARAMETERS_nmmb,    ONLY : TOPFLW_TYPE, SFCFLW_TYPE
-
+      USE MODULE_TRACKER
+      USE MODULE_QUASIPOST
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -3092,6 +3132,11 @@
                        ,IMS,IME,JMS,JME                                 &
                        ,ITS,ITE,JTS,JTE,LM)
         ENDIF
+!
+        if(int_state%ntrack>0 .and. int_state%mype<int_state%num_pes) then
+           call update_tracker_post_move(int_state)
+        endif
+
 !
 !-----------------------------------------------------------------------
 !
@@ -6958,6 +7003,17 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
       ENDIF
 !
       ENDIF  physics
+!
+!-----------------------------------------------------------------------
+!***  Run the tracker
+!-----------------------------------------------------------------------
+!
+      if(int_state%ntrack>0 .and. int_state%MYPE<int_state%NUM_PES .and. &
+           (int_state%ntsd==0 .or. &
+           mod(int_state%ntsd+1,int_state%ntrack*int_state%nphs)==0)) then
+         call quasipost(int_state)
+         call tracker_center(int_state)
+      endif
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------

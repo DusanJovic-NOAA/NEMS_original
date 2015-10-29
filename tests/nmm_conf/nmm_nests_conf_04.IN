@@ -323,6 +323,7 @@ my_parent_id: 2               # The ID number of this domain's parent
 n_children:  0                # How many child domains does this domain have?
 
 my_domain_moves:  false       # Does this domain move?
+ntrack: 00                    # the number of nphys steps between tracker calls
 
 nest_mode:  1-way             # If there is nesting, select '1-way' or '2-way' interaction between parents/children
 generation:  1                # For 2-way only, in which generation is this domain?
