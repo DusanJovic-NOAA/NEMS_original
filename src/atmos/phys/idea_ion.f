@@ -1,12 +1,14 @@
 ! Apr 06 2012 Henry Juang, initial implement for nems
 ! Dec    2012    Jun Wang, move init out of column physics
+! Doc 21 2015 Weiyu yang, add f10.7 and kp inputted data.
 !========================================================
 !=                    GetIonParams                      =
 !========================================================
       subroutine idea_ion(solhr,cospass,zg,o_n,o2_n,n2_n,cp,            &
      &adu,adv,adt,dudt,dvdt,dtdt,rho,rlat,rlon,ix,im,levs,              &
      &dayno,utsec,sda,maglon,maglat,btot,dipang,essa) 
-      use idea_composition, f107 =>f107_idea, kp =>kp_idea
+      use wam_f107_kp_mod, only: f107, kp, kdt_3h
+      use idea_composition
       use physcons, pi => con_pi
 !     use date_def
       implicit none
@@ -44,6 +46,7 @@
       REAL, INTENT(out)     :: dudt(ix,levs)  ! zonal wind change (m/s2)
       REAL, INTENT(out)     :: dvdt(ix,levs)  ! meridional change wind (m/s2)
 ! local
+      REAL :: f107_local, kp_local
       real rlt(im),sza(im),jh(ix,levs)                                  &
      &,rinc(5)
       INTEGER   i,k
@@ -52,7 +55,9 @@
 ! get local time in rad
       rlt=(rlon/(15.*pi/180.)+solhr)/24.*2.*pi
 ! get ion_drag
-      call GetIonParams(dayno,utsec,f107(1),kp(1),sda,sza,rlat,zg,      &
+      f107_local = f107(kdt_3h)
+      kp_local   = kp(kdt_3h)
+      call GetIonParams(dayno,utsec,f107_local,kp_local,sda,sza,rlat,zg,&
      &   o_n, o2_n, n2_n,adu,adv,adt,rho,rlt,rlon,ix,im,levs,k91,       &
      &   btot,dipang,maglon,maglat,essa,                                &
      &   dudt,dvdt,jh) 

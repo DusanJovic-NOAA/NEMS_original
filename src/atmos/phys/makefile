@@ -58,6 +58,7 @@ MODULE_FGFS =                                \
 
 MODULES_GFS =                                \
 	           machine.o                 \
+	           wam_f107_kp_mod.o         \
 		   physparam.o               \
 	           physcons.o                \
 	           funcphys.o                \

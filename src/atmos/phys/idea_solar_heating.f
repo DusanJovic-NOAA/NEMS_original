@@ -2,8 +2,10 @@
 !---------------------------------------------------------------------------
 ! hold effuv,effeuv ro (density (kg/m3)),nps (start pressure levels index)
 ! Apr 06 2012   Henry Juang, initial implement for nems
+! Oct 20 2015   Weiyu Yang - add the f107 and kp inputted data.
 !---------------------------------------------------------------------------
       use machine, only : kind_phys
+      use wam_f107_kp_mod, only: f107, kp, kdt_3h
       implicit none
 !hmhj save
       real (kind=kind_phys), allocatable :: effuv(:), effeuv(:)
@@ -23,8 +25,9 @@
 ! define some constants
       integer, intent(in)  :: levs           !number of pressure level
 !c    real effeuv17(17),effuv17(17),p17(17),z17(17),dz,noh(17),z(levs), &
-!c   &nol(17),no17(17),f107
-      real effeuv17(17),effuv17(17),p17(17),z17(17),dz,z(levs),f107
+!c   &nol(17),no17(17),f107_local
+      real effeuv17(17),effuv17(17),p17(17),z17(17),dz,z(levs),         &
+     &     f107_local
       integer k,i,kref
 !
       allocate (effeuv(levs))
@@ -47,8 +50,8 @@
       enddo
    10 continue
 ! get 17 levels no at f107
-      f107=f107_idea(1)
-!c    dz=(f107-67.)/(243.-67.)
+      f107_local=f107(kdt_3h)
+!c    dz=(f107_local-67.)/(243.-67.)
 !c    do k=1,17
 !c      no17(k)=dz*noh(k)+(1.-dz)*nol(k)
 !c    enddo
@@ -127,11 +130,12 @@
       real, intent(out)    :: dt(ix,levs) ! (K/s)temp change due to solar heating
       integer  i,k
       real t(levs),n2(levs),no(levs),o(levs),o2(levs),ho(levs),         &
-     &ho2(levs),hn2(levs),sheat(levs),qno(levs),f107,no_new(levs),      &
+     &ho2(levs),hn2(levs),sheat(levs),qno(levs),f107_local,no_new(levs),&
      &amm(levs),prr(levs),alt(levs),nn(levs),sh1(levs),sh2(levs)
 !c        no=no_n*1.e6            
 !     rtime1=3600.*6.
-      f107=f107_idea(1)
+      f107_local=f107(kdt_3h)
+!      print*, 'in idea_sheat, kdt_3h, f107_local=',kdt_3h, f107_local
       do i=1,im
         do k=1,levs
           o(k)=o_n(i,k)*1.e6      !/m3
@@ -148,11 +152,11 @@
 !       call gettimdata(pr,n2,no,o,o2,ho,ho2,hn2,t,ro1)
 !       call gettimdata17(n2,no,o,o2,ho,ho2,hn2,t,ro1)
 !       call solar_heat(17,1,o,o2,n2,ho,ho2,hn2,effeuv17,effuv17,       &
-!    &   f107,cospass,sheat)
+!    &   f107_local,cospass,sheat)
 !       call COOLNO1(17,1,t,o,no,qno)                   
 ! get heating
         call solar_heat(levs,nps,o,o2,n2,ho,ho2,hn2,effeuv,effuv,       &
-     &   f107,cospass(i),sheat,sh1,sh2)
+     &   f107_local,cospass(i),sheat,sh1,sh2)
         do k=1,levs
 !         alt(k)=phil(i,k)/g*1.e-3  !km
           alt(k)=zg(i,k)*1.e-3  !km
@@ -207,7 +211,7 @@
       end
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       SUBROUTINE solar_heat(np,nps,O,O2,N2,HO,HO2,HN2,effeuv,effuv,     &
-     &F107,COSPASS,sheat,sh1,sh2)
+     &F107_local,COSPASS,sheat,sh1,sh2)
 !-------------------------------------------------------------------------
 ! calculate solar heating from Tim Fuller-Rowell
 !-------------------------------------------------------------------------
@@ -233,7 +237,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       real, intent(in)    :: o(np),o2(np),n2(np) ! number density/m3
       real, intent(in)    :: ho(np),ho2(np),hn2(np) ! scale height(m)
       real, intent(in)    :: effeuv(np),effuv(np) !heating efficiency 
-      real, intent(in)    :: f107    !f10.7cm 
+      real, intent(in)    :: f107_local    !f10.7cm 
       real, intent(in)    :: cospass !cos zenith angle
       real, intent(out)   :: sheat(np),sh1(np),sh2(np)   !J/m3 heating rate
       real SO(np),SO2(np),SN2(np),                                      &
@@ -321,11 +325,12 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
         rnight=1.e-6
       end if
       do j=1,57
-        SF(j)=1.e9*((SFH(j)-SFL(j))*F107/172.-0.413*SFH(j)+1.413*SFL(j))
+        SF(j)=1.e9*((SFH(j)-SFL(j))*F107_local/172.-0.413               &
+     &        *SFH(j)+1.413*SFL(j))
         if(sf(j).lt.0.0)sf(j)=0.0
       enddo
       do  j=1,8
-        SFUV(j)=A(j)*1.E9*(0.00086*F107+0.94)
+        SFUV(j)=A(j)*1.E9*(0.00086*F107_local+0.94)
       enddo
       do i=nps,np
 !c  **
@@ -669,7 +674,8 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       RETURN
       END
       subroutine getno(im,ix,levs,mlat,doy,alt,pr,n,am,no)
-      use idea_composition 
+      use idea_composition
+      use wam_f107_kp_mod, only: f107, kp, kdt_3h
       implicit none
 !Argument 
       integer, intent(in)  :: im           !number of Mag latitude 
@@ -683,7 +689,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       real,    intent(in)  :: n(ix,levs)   !/m3 number density
       real,    intent(out)  :: no(ix,levs) ! number density of NO (/m3) 
 ! local
-      real eof(33,16,3),nom(33,16),z16(16),dx(levs),kp,f107,            &
+      real eof(33,16,3),nom(33,16),z16(16),dx(levs),kp_local,f107_local, &
      &lat33(33),dz(levs),dl(im),m1,m2,m3,theta0,dec,zm(16)
       integer iref(im),kref(levs),i,k,il,k1,k2
 c
@@ -1133,10 +1139,12 @@ c
      &130.0003,126.667,123.3337,120.0003,116.667,113.3337,110.0003,     &
      &106.667,103.3337,100.0003/
 !
-      kp=kp_idea(1)
-      f107=f107_idea(1)
-      if(kp.lt.0.7) kp=0.7
-      if(f107.lt.70.) f107=70.
+      kp_local=kp(kdt_3h)
+      f107_local=f107(kdt_3h)
+      if(kp_local.lt.0.7) kp_local=0.7
+      if(f107_local.lt.70.) f107_local=70.
+!      print*, 'in getno, kdt_3h, f107_local=',kdt_3h, f107_local,       &
+!     &  kp_local
 ! d logp using for extent up
       do k=2,levs
         dx(k)=log(pr(k-1))-log(pr(k))
@@ -1153,7 +1161,7 @@ c
       enddo
 !     print*,zm
 !... eof1 - kp
-      m1 =  kp * 0.689254 - 1.53366
+      m1 =  kp_local * 0.689254 - 1.53366
 !... eof2 - declination
       theta0 = 360.*float(doy - 1)/365.*3.1415926/180.
       dec = 0.006918                                                    &
@@ -1166,7 +1174,7 @@ c
      &   + dec**2 * 0.00048979                                          &
      &   - dec**3 * 0.00010360
 !... eof3 - f107
-      m3 =  alog10(f107) * 6.35777 - 13.8163
+      m3 =  alog10(f107_local) * 6.35777 - 13.8163
 !... zonal mean distrib. is sum of mean and eofs
       do il=1,im
         do k=1,16

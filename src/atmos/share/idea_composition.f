@@ -1,18 +1,16 @@
       module idea_composition
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------
 ! hold composition of O O2 N2
 ! Apr 06 2012   Henry Juang, initial implement  into NEMS
 ! Mar 08 2012   Jun Wang,    add fields for restart
-!-----------------------------------------------------------------------
+! Oct 20 2015   Weiyu Yang,  move f107 and kp to atmos/phys/wam_f107_kp_mod.
+!-------------------------------------------------------------------------
       implicit none
 !hmhj save
       real , parameter:: amo =15.9994   ! molecular wght of O ! (g/mol) 
       real , parameter:: amn2=28.013    ! molecular wght of N2 
       real , parameter:: amno=30.0061    ! molecular wght of N0 
       real , parameter:: bz=1.3806505e-23! Boltzmann constant 
-      real :: f107a_idea=70.
-      real, dimension(1:4) :: f107_idea=(/70.,70.,70.,240./) 
-      real, dimension(1:4) :: kp_idea=(/3.,3.,0.,9./) 
       real  prlog150(150),h2ora150(80),o3ra150(80)              
       real  amgm(150),amgms(150)        ! global mean wght of mix (g/mol)
       real, allocatable::  pr_idea(:), prlog(:), ef(:)

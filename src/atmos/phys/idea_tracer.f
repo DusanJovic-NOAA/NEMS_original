@@ -1,7 +1,8 @@
       module idea_tracer_mod
 !-----------------------------------------------------------------------
 ! hold jprofile
-! Apr 06 2012    Henry Juang, initial implement for nems
+! Apr 06 2012   Henry Juang, initial implement for nems
+! Oct 20 2015   Weiyu Yang,  add f10.7 inputted data.
 !-----------------------------------------------------------------------
       implicit none
 !hmhj save
@@ -354,7 +355,7 @@ c
 !-------------------------------------------------------------------------
       SUBROUTINE jprofile(levs,J)
 ! get photo dissociation rate
-      use idea_composition, only : f107 => f107_idea
+      use wam_f107_kp_mod, only: f107, kdt_3h
       implicit none
       integer, parameter :: np=17  !number of pressure levels of orig
       integer, intent(in) :: levs  !number of pressure levels of output 
@@ -370,7 +371,7 @@ c
       DATA FHT/8*1.2,1.85,2.50,3.150,6*3.8/
 ! calculate photo dissociation rate (/s) in Tims 17 pressure grid
       do k=1,17                                                   
-        J17(k)=JI(k)*((FHT(k)-1.0)*f107(1)/176.+C(k))
+        J17(k)=JI(k)*((FHT(k)-1.0)*f107(kdt_3h)/176.+C(k))
       enddo
 ! interplate to GFS pressure grid
       call z17toz(levs,J17,J,0.)
