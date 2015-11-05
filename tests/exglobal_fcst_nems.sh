@@ -60,6 +60,9 @@
 # 2014-10-11  S. Moorthi - Clean up, unify gloabl and ngac scripts remove scheduler etc
 # 2015-01-06  S. Moorthi - Added THEIA option ; turned off ESMF Compliance check etc
 # 2015 02-26  S. Moorthi - added MICRO_PHY_DATA
+# 2015-10-19 Weiyu Yang  - add the f107_kp_size, f107_kp_interval.
+#                          number of inputted f10.7 and kp data and the time
+#                          interval of them.
 #
 # Usage:  global_forecast.sh SIGI/GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -837,7 +840,9 @@ else
    mkdata=YES
 fi
 cd $DATA||exit 99
-if [ $IDEA = .true. ] ; then ${NCP} $FIX_IDEA/global_idea* . ; fi
+if [ $IDEA = .true. ] ; then 
+   ${NCP} $FIX_IDEA/global_idea* . 
+ fi
 [[ -d $COMOUT ]]||mkdir -p $COMOUT
 ################################################################################
 #  Make forecast
@@ -1533,7 +1538,9 @@ cat  > atm_namelist <<EOF
   nxpt=1, nypt=2, jintmx=2, lonr=$LONR, latr=$LATR,
   jcap=$JCAP, levs=$LEVS, levr=$LEVR, reduced_grid=$REDUCED_GRID,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
-  lsoil=$LSOIL, nmtvr=$NMTVR, lsidea=$IDEA,
+  lsoil=$LSOIL, nmtvr=$NMTVR, lsidea=$IDEA, 
+  f107_kp_size=$F107_KP_SIZE, 
+  f107_kp_interval=$F107_KP_INTERVAL,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,

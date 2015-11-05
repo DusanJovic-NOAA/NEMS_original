@@ -27,5 +27,7 @@ export IDVC=3
 export THERMODYN_ID=3
 export SFCPRESS_ID=2
 export SPECTRALLOOP=2
+export F107_KP_SIZE=56
+export F107_KP_INTERVAL=10800
 
 RUN_SCRIPT=rt_gfs.sh

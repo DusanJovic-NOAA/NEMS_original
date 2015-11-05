@@ -39,6 +39,8 @@ fi
  export ICO2=_ICO2_
  export ISOL=_ISOL_
  export SLG=_SLG_
+ export F107_KP_SIZE=_F107_KP_SIZE_
+ export F107_KP_INTERVAL=_F107_KP_INTERVAL_
 
  if [[ $SLG = .true. ]] ; then
    module load ibmpe
@@ -323,6 +325,9 @@ if [ $IDEA = .true. ]; then
   export lm=150;
   export levr=90
   export DELTIM=180
+# Use the sample f10.7 and kp data for the wam regression tests, Weiyu.
+#----------------------------------------------------------------------
+  cp /nems/save/Weiyu.Yang/xml_read/wam_input_f107_kp.txt .
 fi
 export lsoil=${lsoil:-4}
 #

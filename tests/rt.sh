@@ -86,6 +86,7 @@ fi
 ############################################################
 #export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #export RTPWD=/scratch4/NCEPDEV/nems/noscrub/Weiyu.Yang/REGRESSION_TEST
+#export RTPWD=/nems/noscrub/Weiyu.Yang/REGRESSION_TEST
 
 export CREATE_BASELINE=false
 CB_arg=''

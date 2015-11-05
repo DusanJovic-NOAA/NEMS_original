@@ -113,6 +113,8 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_SLG_:${SLG}:g                       \
                      | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
                      | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
+                     | sed s:_F107_KP_SIZE_:${F107_KP_SIZE}:g         \
+                     | sed s:_F107_KP_INTERVAL_:${F107_KP_INTERVAL}:g \
                      | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
 
