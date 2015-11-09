@@ -118,9 +118,7 @@ NST_SPINUP=${NST_SPINUP:-.false.}
  export RESTART=_RESTART_
  export RESTART=${RESTART:-.false.}
  if [ $RESTART = .true. ] ; then
-   if [ $machine = 'zeus' ]; then
-    export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
-   elif [ $machine = 'theia' ]; then
+   if [ $machine = 'theia' ]; then
     export nemsioget=/home/Weiyu.Yang/bin/nemsio_get
    fi
  fi
@@ -241,9 +239,7 @@ if [ $NEMSIO_IN = .true. ]; then
   if [ $SCHEDULER = 'moab' ]; then
     export nemsioget=${nemsioget}
   elif [ $SCHEDULER = 'pbs' ]; then
-   if [ $machine = 'zeus' ]; then
-    export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
-   elif [ $machine = 'theia' ]; then
+   if [ $machine = 'theia' ]; then
     export nemsioget=/home/Weiyu.Yang/bin/nemsio_get
    fi
   elif [ $SCHEDULER = 'lsf' ] ; then
@@ -345,16 +341,11 @@ if [ $SCHEDULER = 'moab' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para/fix/fix_am}
    export FCST_LAUNCHER='aprun -n _TASKS_'
 elif [ $SCHEDULER = 'pbs' ]; then
-  if [ $MACHINE_ID = 'zeus' ]; then
-#  export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
-    export FIXGLOBAL=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
-  elif [ $MACHINE_ID = 'theia' ]; then
+  if [ $MACHINE_ID = 'theia' ]; then
     export FIXGLOBAL=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
   fi
    export OMP_NUM_THREADS=$NTHREADS
-   if [ $machine = 'zeus' ]; then
-    mpiexec=`which mpiexec_mpt`
-   elif [ $machine = 'theia' ]; then
+   if [ $machine = 'theia' ]; then
     mpiexec=`which mpirun`
    fi
    if [ $NTHREADS -eq 1 ] ; then

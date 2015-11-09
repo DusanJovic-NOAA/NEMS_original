@@ -15,5 +15,6 @@ export_nmm
 export GBRG=reg
 export NEMSI=true
 export RSTRT=true
+export WLCLK=5
 
 RUN_SCRIPT=rt_nmm.sh

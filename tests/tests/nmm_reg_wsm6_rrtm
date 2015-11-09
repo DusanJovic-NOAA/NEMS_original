@@ -18,5 +18,6 @@ export GBRG=reg
 export FCSTL=24
 export MICRO=wsm6
 export RADTN=rrtm
+export WLCLK=8
 
 RUN_SCRIPT=rt_nmm.sh

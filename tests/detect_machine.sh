@@ -40,15 +40,6 @@ case `$HOSTNAME` in
   gaea9.ncrc.gov)                    MACHINE_ID=gaea ;; ### gaea9
   gaea10.ncrc.gov)                   MACHINE_ID=gaea ;; ### gaea10
 
-  fe1.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus1
-  fe2.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus2
-  fe3.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus3
-  fe4.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus4
-  fe5.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus5
-  fe6.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus6
-  fe7.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus7
-  fe8.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;; ### zeus8
-
   tfe01) MACHINE_ID=theia ;; ### theia01
   tfe02) MACHINE_ID=theia ;; ### theia02
   tfe03) MACHINE_ID=theia ;; ### theia03
@@ -66,10 +57,10 @@ echo "Machine: " $MACHINE_ID "    Account: " $ACCNR
 
 #return 2>/dev/null || exit 1
 
-# --- for Zeus, find available account ID
+# --- for Theia, find available account ID
 if [[ $1"" != "machineonly" ]] ; then
   AP=account_params          # Account info
-if [ ${MACHINE_ID} = zeus  ]; then
+if [ ${MACHINE_ID} = theia ]; then
 if [ ${ACCNR:-null} = null ]; then
 
   ac=`$AP 2>&1 | grep '^\s*Allocation: [0-9]' | awk '$4>100{print $3}'| head -1`

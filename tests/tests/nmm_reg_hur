@@ -23,6 +23,7 @@ export MICRO=fer
 export RADTN=gfdl
 export SFC_LAYER=gfdl
 export LAND_SURFACE=gfdlslab 
+export WLCLK=8
 
 
 RUN_SCRIPT=rt_nmm.sh

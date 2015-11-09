@@ -8,9 +8,8 @@
 #BSUB -R span[ptile=_TPN_]
 #BSUB -R affinity[core(1):distribute=balance]
 #BSUB -W 00:_WLCLK_
-#BSUB -q _ACCNR_
+#BSUB -q _QUEUE_
 #BSUB -P GFS-T2O
-##BSUB -P dev
 #BSUB -a poe
 
 source _SRCD_/src/conf/modules.nems

@@ -22,11 +22,11 @@ export FCSTL=24
 export NCHILD=02
 export AFFN=cpu
 export NODE=3
-export WLCLK=40
 export TASKS=$TASKS_nest
 export TPN=$TPN_nest
 export INPES=$INPES_nest
 export JNPES=$JNPES_nest
 export WTPG=$WTPG_nest
+export WLCLK=15
 
 RUN_SCRIPT=rt_nmm.sh

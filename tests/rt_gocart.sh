@@ -31,7 +31,6 @@ cat ngac_msub.IN    | sed s:_JBNME_:${JBNME}:g   \
 elif [ $SCHEDULER = 'pbs' ]; then
 
 export TPN=$((12/THRD))
-export QUEUE=${QUEUE:-batch}
 cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
@@ -54,11 +53,11 @@ elif [ $SCHEDULER = 'lsf' ]; then
   export pex=${pex:-1}
   if [ $pex -eq 2 ] ; then
    export TPN=${TPN:-$((24/THRD))}
-   export QUEUE=${QUEUE:-dev$pex}
+   export CLASS=${CLASS:-dev$pex}
   else
    export TPN=${TPN:-$((16/THRD))}
   fi
-  export QUEUE=${QUEUE:-dev}
+  export CLASS=${CLASS:-dev}
 cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
@@ -67,8 +66,7 @@ cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
                     | sed s:_NEMSIOIN_:${NEMSIOIN}:g   \
                     | sed s:_NEMSIOOUT_:${NEMSIOOUT}:g   \
-                    | sed s:_ACCNR_:${ACCNR}:g   \
-                    | sed s:_QUEUE_:${QUEUE}:g   \
+                    | sed s:_CLASS_:${CLASS}:g   \
                     | sed s:_WLCLK_:${WLCLK}:g   \
                     | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_THRDS_:${THRD}:g    \
@@ -110,7 +108,7 @@ if [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
 elif [ $SCHEDULER = 'lsf' ]; then
-  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`;sleep 5
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep $CLASS | wc -l`;sleep 5
 fi
 done
 
@@ -176,6 +174,8 @@ done
 # Check results
 ####################################################################################################
 
+test_status='PASS'
+
 (echo;echo;echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
  echo;echo;echo "Checking test ${TEST_NR} results ...."
 
@@ -185,45 +185,43 @@ done
 # --- regression test comparison ----
 #
 
-for i in ${LIST_FILES}
+  for i in ${LIST_FILES} ; do
+    printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
+    printf %s " Comparing " $i "....."
 
-do
-printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
-printf %s " Comparing " $i "....."
+    if [ ! -f ${RUNDIR}/$i ] ; then
 
-if [ -f ${RUNDIR}/$i -a ${RTPWD}/${CNTL_DIR}/$i ] ; then
+     echo ".......MISSING file" >> ${REGRESSIONTEST_LOG}
+     echo ".......MISSING file"
+     test_status='FAIL'
 
-  d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
+    elif [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
 
-  if [[ $? -ne 0 || $d -ne 0 ]] ; then
-   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
-    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
-  fi
+     echo ".......MISSING baseline" >> ${REGRESSIONTEST_LOG}
+     echo ".......MISSING baseline"
+     test_status='FAIL'
 
-  echo "....OK" >> ${REGRESSIONTEST_LOG}
-  echo "....OK"
+    else
 
-else
+     d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
-  if [ ! -f ${RUNDIR}/$i ] ; then
-    echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
-    echo "Missing " ${RUNDIR}/$i " output file"
-  fi
+     if [[ $d -ne 0 ]] ; then
+       echo ".......NOT OK" >> ${REGRESSIONTEST_LOG}
+       echo ".......NOT OK"
+       test_status='FAIL'
 
-  if [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
-    echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file" >> ${REGRESSIONTEST_LOG}
-    echo "Missing " ${RTPWD}/${CNTL_DIR}/$i " baseline file"
-  fi
+     else
 
- (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
-  echo;echo " Test ${TEST_NR} failed "
-  exit 2
+       echo "....OK" >> ${REGRESSIONTEST_LOG}
+       echo "....OK"
+     fi
 
-fi
+    fi
 
-done
+  done
 
-#
+if [ $test_status = 'FAIL' ]; then echo $TEST_NAME >> fail_test ; fi
+
      else
 #
 # --- create baselines
@@ -248,8 +246,10 @@ done
      fi
 # ---
 
-echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
-echo " Test ${TEST_NR} passed "
+echo "Test ${TEST_NR} ${test_status} " >> ${REGRESSIONTEST_LOG}
+(echo;echo;echo)                       >> ${REGRESSIONTEST_LOG}
+echo "Test ${TEST_NR} ${test_status} "
+(echo;echo;echo)
 
 sleep 4
 echo;echo

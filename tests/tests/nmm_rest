@@ -14,5 +14,6 @@ export_nems
 export_nmm
 export GBRG=glob
 export RSTRT=true
+export WLCLK=5
 
 RUN_SCRIPT=rt_nmm.sh

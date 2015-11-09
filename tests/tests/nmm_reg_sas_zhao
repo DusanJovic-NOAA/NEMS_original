@@ -18,5 +18,6 @@ export GBRG=reg
 export FCSTL=24
 export CONVC=sas
 export MICRO=gfs
+export WLCLK=6
 
 RUN_SCRIPT=rt_nmm.sh

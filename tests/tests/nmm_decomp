@@ -17,5 +17,6 @@ export GBRG=glob
 export FCSTL=24
 export INPES=$JNPES_dflt
 export JNPES=$INPES_dflt
+export WLCLK=5
 
 RUN_SCRIPT=rt_nmm.sh

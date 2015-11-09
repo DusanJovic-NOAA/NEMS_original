@@ -28,12 +28,12 @@ export GBRG=mnests
 export FCSTL=24
 export NCHILD=02
 export NEMSI=true
-export WLCLK=12
 export NODE=3
 export TASKS=$TASKS_mvg1
 export TPN=$TPN_mvg1
 export INPES=$INPES_mvg1
 export JNPES=$JNPES_mvg1
 export WTPG=$WTPG_mvg1
+export WLCLK=12
 
 RUN_SCRIPT=rt_nmm.sh

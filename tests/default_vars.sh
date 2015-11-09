@@ -16,7 +16,7 @@ if [ $MACHINE_ID = wcoss ]; then
   TASKS_mvg1=96  ; TPN_mvg1=16 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=96  ; TPN_mvg2=16 ; INPES_mvg2=05 ; JNPES_mvg2=18 ; WTPG_mvg2=2
 
-elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus -o $MACHINE_ID = theia ]; then
+elif [ $MACHINE_ID = gaea -o $MACHINE_ID = theia ]; then
 
   TASKS_dflt=48  ; TPN_dflt=   ; INPES_dflt=05 ; JNPES_dflt=09 ; WTPG_dflt=3
   TASKS_thrd=48  ; TPN_thrd=   ; INPES_thrd=05 ; JNPES_thrd=09 ; WTPG_thrd=3
@@ -36,7 +36,7 @@ export GEFS_ENSEMBLE=0
 export GEN_ENSEMBLE=0
 export WRITE_DOPOST=.false.
 export POST_GRIBVERSION='"grib1"'
-#check_executable
+export QUEUE=debug
 }
 
 export_nmm ()
@@ -64,11 +64,9 @@ if [ ${pex:-1} -eq 2 ] ; then
 else
  export TASKS=32  ; export PE1=32       ; export NSOUT=0       ; export QUILT=.false.
 fi
-#export TASKS=8  ; export PE1=8        ; export NSOUT=0       ; export QUILT=.false.
 export NDAYS=2   ; export CP2=.false.  ; export IAER=0        ; export FHRES=180
 export WRTGP=1   ; export FDFI=0       ; export ADIAB=.false. ; export REDUCEDGRID=.true.
 export FHZER=6
-#export wave=62  ; export THRD=4
 export wave=62   ; export THRD=1
 export lm=64     ; export lsoil=4         ; export MEMBER_NAMES=c00
 export IDVC=2    ; export THERMODYN_ID=1  ; export SFCPRESS_ID=1 ; export SPECTRALLOOP=2
@@ -76,9 +74,7 @@ export NEMSIOIN=.false.  ; export NEMSIOOUT=.false. ; export rungfstest=.true.
 export SIGIOIN=.true.    ; export SIGIOOUT=.true.   ; export SFCIOOUT=.true.
 export FHSWR=3600        ;  export FHLWR=3600       ; LDFI_SPECT=.true.
 export CDATE=2012010100
-#export CDATE=2010010100
 export GOCART_AER2POST=.false.
-#export GOCART_AER2POST=.false.
 export NST_FCST=0  ; export NDSLFV=.false.  ; export IDEA=.false.
 export SLG=.false.
 export A2OI_OUT=.false. ; export NGRID_A2OI=47 

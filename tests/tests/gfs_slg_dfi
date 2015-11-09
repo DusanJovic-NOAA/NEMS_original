@@ -23,7 +23,7 @@ export THRD=1
 export ADIAB=.true.
 export IAER=111
 export LD_PRELOAD=/nems/save/Weiyu.Yang/libmpitrace.so
-export WLCLK=55
+export WLCLK=30
 export SLG=.true.
 export PE1=96
 export NEMSIOIN=.false.
@@ -55,5 +55,4 @@ export IEMS=0
 export ISOL=1
 export ICO2=1
 
-#RUN_SCRIPT=rt_gfs.sh_slg   ! Moorthi
 RUN_SCRIPT=rt_gfs.sh

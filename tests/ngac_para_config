@@ -63,10 +63,7 @@ set -x
 if [ $SCHEDULER = 'loadleveler' ]; then
   export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
 elif [ $SCHEDULER = 'pbs' ]; then
-   if [ $machine = 'zeus' ]; then
-    export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
-    export PARM_NGAC=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/NGAC/v2.0.0/parm
-   elif [ $machine = 'theia' ]; then
+   if [ $machine = 'theia' ]; then
     export nemsioget=/scratch4/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
     export PARM_NGAC=/scratch4/NCEPDEV/nems/save/Jun.Wang/NGAC/v2.0.0/parm
    fi
@@ -77,10 +74,7 @@ fi
 
 ### specify utilscript and utilexec
 if [ $SCHEDULER = 'pbs' ]; then
-   if [ $machine = 'zeus' ]; then
-     export utilscript=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/ush
-     export utilexec=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/exec
-   elif [ $machine = 'theia' ]; then
+   if [ $machine = 'theia' ]; then
      export utilscript=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/ush
      export utilexec=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/util/exec
    fi

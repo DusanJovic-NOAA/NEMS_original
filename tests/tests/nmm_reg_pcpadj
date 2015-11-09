@@ -17,5 +17,6 @@ export_nmm
 export GBRG=reg
 export FCSTL=12
 export PCPFLG=true
+export WLCLK=5
 
 RUN_SCRIPT=rt_nmm.sh

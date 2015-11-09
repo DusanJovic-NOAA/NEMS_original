@@ -12,7 +12,7 @@ export MPI_GROUP_MAX=96
 
 export SCHEDULER=_SCHED_
 if [ ${SCHEDULER} = pbs ]; then
-  export MACHINE_ID=zeus
+  export MACHINE_ID=theia
 fi
 
 cd _RUND_

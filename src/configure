@@ -28,14 +28,6 @@ if [[ $1 = 3_wcoss ]]; then
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 3.1.0rp2 library on wcoss"
-elif [[ $1 = 3_zeus ]]; then
-     set -x
-     cp conf/configure.nems.Zeus.intel_12 conf/configure.nems
-     touch conf/externals.nems
-     cp conf/modules.nems.Zeus_ESMF_310rAPI conf/modules.nems
-     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
-     set +x
-     echo "Use an ESMF 3.1.0r series library on zeus"
 elif [[ $1 = 3_gaea ]]; then
      set -x
      cp conf/configure.nems.Gaea.intel conf/configure.nems
@@ -77,29 +69,6 @@ elif [[ $1 = 6.3r_gocart_wcoss ]]; then
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 6.3.0r and netcdf 4.2 library"
-elif [[ $1 = 6_nmm_zeus ]]; then
-     set -x
-     cp conf/configure.nems.Zeus.intel_12 conf/configure.nems
-     touch conf/externals.nems
-     cp conf/modules.nems.Zeus_ESMF_630rAPI_nmm conf/modules.nems
-     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
-     set +x
-     echo "Use an ESMF 6.3.0r series library on zeus"
-elif [[ $1 = 6_gsm_zeus ]]; then
-     set -x
-     cp conf/configure.nems.Zeus.intel_13 conf/configure.nems
-     touch conf/externals.nems
-     cp conf/modules.nems.Zeus_ESMF_630rAPI_gsm conf/modules.nems
-     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
-     set +x
-     echo "Use an ESMF 6.3.0r series library on zeus"
-elif [[ $1 = 6_gocart_zeus ]]; then
-     set -x
-     cp conf/configure.nems.Zeus.intel_13 conf/configure.nems
-     cp conf/modules.nems.Zeus_ESMF_630rAPI_gocart conf/modules.nems
-     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
-     set +x
-     echo "Use an ESMF 6.3.0r series library on zeus"
 elif [[ $1 = 6_nmm_theia ]]; then
      set -x
      cp conf/configure.nems.Theia.intel_nmm conf/configure.nems
@@ -146,12 +115,6 @@ elif [[ $1 = nuopc_wcoss ]]; then
      copy_diff_files conf/configure.nems.Wcoss.intel_ESMF conf/configure.nems
      copy_diff_files conf/externals.nems.Wcoss conf/externals.nems
      copy_diff_files conf/modules.nems.Wcoss_ESMF_NUOPC conf/modules.nems
-     copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
-     echo "Use an ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot)"
-elif [[ $1 = nuopc_zeus ]]; then
-     copy_diff_files conf/configure.nems.Zeus.intel_12 conf/configure.nems
-     copy_diff_files conf/externals.nems.Zeus conf/externals.nems
-     copy_diff_files conf/modules.nems.Zeus_ESMF_NUOPC conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      echo "Use an ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot)"
 elif [[ $1 = nuopc_gaea ]]; then
@@ -210,21 +173,17 @@ else
      echo;echo "     Run ./configure with one argument:"
      echo;
      echo " 'configure 3_wcoss'            : ESMF 3.1.0rp2 library on wcoss"
-     echo " 'configure 3_zeus'             : ESMF 3.1.0r series library (i.e. ESMF 3.1.0rp2, 3.1.0rp5) on zeus"
      echo " 'configure 3_gaea'             : ESMF 3.1.0rp2 library on gaea"
      echo " 'configure 3_yellowstone'      : ESMF 3.1.0rp2 library on yellowstone"
      echo;
      echo " 'configure 6.3r_nmm_wcoss'     : ESMF 6.3.0r library on wcoss for nmm"
      echo " 'configure 6.3r_gsm_wcoss'     : ESMF 6.3.0r library on wcoss for gsm"
-     echo " 'configure 6_nmm_zeus'         : ESMF 6.3.0r series library on zeus for nmm"
-     echo " 'configure 6_gsm_zeus'         : ESMF 6.3.0r series library on zeus for gsm"
      echo " 'configure 6_nmm_theia'        : ESMF 6.3.0r series library on theia for nmm"
      echo " 'configure 6_nmm_theia'        : ESMF 6.3.0rp1 series library on theia nmm"
      echo " 'configure 6_gsm_theia'        : ESMF 6.3.0rp1 series library on theia gsm"
      echo " 'configure 6_yellowstone'      : ESMF 6.3.0r series library on yellowstone"
      echo;
      echo " 'esmf_version nuopc_wcoss'     : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on wcoss"
-     echo " 'configure nuopc_zeus'         : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on zeus"
      echo " 'configure nuopc_gaea'         : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on gaea"
      echo " 'configure nuopc_theia'        : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on theia"
      echo;

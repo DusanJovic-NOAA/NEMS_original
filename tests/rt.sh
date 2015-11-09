@@ -30,7 +30,7 @@ if [ $MACHINE_ID = wcoss ]; then
   export DISKNM=/meso
   export pex=1           # for wcoss phase1
   export pex=${pex:-2}   # default - phase2
-  export CLASS=dev
+  export CLASS=debug # dev
    export ACCNR=dev
   if [ $pex -eq 2 ] ; then
    export CLASS=dev$pex 
@@ -45,24 +45,9 @@ elif [ $MACHINE_ID = gaea ]; then
   export STMP=/lustre/f1/ncep
   export PTMP=/lustre/f1/ncep
   export SCHEDULER=moab
-elif [ $MACHINE_ID = zeus ]; then
-  source /usr/share/Modules/init/sh
-  export ACCNR=cmp
-  export QUEUE=batch
-#  export QUEUE=debug
-  export QUEUE=batch
-# export QUEUE=debug
-  export dprefix=/scratch2/portfolios/NCEPDEV
-  export DISKNM=$dprefix/meso
-  export STMP=$dprefix/stmp
-  export PTMP=$dprefix/ptmp
-  export SCHEDULER=pbs
-  export SIGHDR=$dprefix/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
-  export SLG=.false.
 elif [ $MACHINE_ID = theia ]; then
   source /apps/lmod/lmod/init/sh
   export ACCNR
-  export QUEUE=batch
   export dprefix=/scratch4/NCEPDEV
   export DISKNM=$dprefix/meso
   export STMP=$dprefix/stmp4
@@ -221,6 +206,8 @@ mkdir -p ${RUNDIR_ROOT}
 source default_vars.sh
 
 export TEST_NR=0
+rm -f fail_test
+export TEST_NAME
 cat $TESTS_FILE | while read line; do
 
   line="${line#"${line%%[![:space:]]*}"}"
@@ -274,14 +261,27 @@ cat $TESTS_FILE | while read line; do
   
 done
 
+if [ -e fail_test ]; then
+  echo "FAILED TESTS: "
+  echo "FAILED TESTS: " >> ${REGRESSIONTEST_LOG}
+  for failed_test_name in `cat fail_test`
+  do
+    echo "Test " ${failed_test_name} " failed "
+    echo "Test " ${failed_test_name} " failed " >> ${REGRESSIONTEST_LOG}
+  done
+  echo ; echo REGRESSION TEST FAILED
+  (echo ; echo REGRESSION TEST FAILED) >> ${REGRESSIONTEST_LOG}
+else
+  echo ; echo REGRESSION TEST WAS SUCCESSFUL
+  (echo ; echo REGRESSION TEST WAS SUCCESSFUL) >> ${REGRESSIONTEST_LOG}
+fi
+
 # Finalize, Clenaup
 rm -f err out nmm_msub nmm_bsub nmm_qsub nmm_run gfs_fcst_run \
 nems.configure gfs_qsub gfs_fcst_run.IN ngac_qsub ngac_bsub gfs_bsub \
-configure_file_01 configure_file_02 configure_file_03 configure_file_04
+configure_file_01 configure_file_02 configure_file_03 configure_file_04 \
+atmos.configure fail_test
 
-#rm -rf ${RUNDIR_ROOT}
-echo REGRESSION TEST WAS SUCCESSFUL
-echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
 date >> ${REGRESSIONTEST_LOG}
 
 exit

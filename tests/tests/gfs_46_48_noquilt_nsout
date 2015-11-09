@@ -25,6 +25,6 @@ export WTPG=1
 export WRTGP=1
 export NSOUT=1
 export QUILT=.false.
-export WLCLK=40
+export WLCLK=30
 
 RUN_SCRIPT=rt_gfs.sh

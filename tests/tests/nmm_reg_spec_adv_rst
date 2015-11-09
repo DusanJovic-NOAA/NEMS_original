@@ -16,5 +16,6 @@ export GBRG=reg
 export SPEC_ADV=true
 export FCSTL=24
 export RSTRT=true
+export WLCLK=5
 
 RUN_SCRIPT=rt_nmm.sh

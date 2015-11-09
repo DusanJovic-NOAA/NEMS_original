@@ -19,5 +19,6 @@ export_nems
 export_nmm
 export GBRG=reg
 export WPREC=true
+export WLCLK=8
 
 RUN_SCRIPT=rt_nmm.sh

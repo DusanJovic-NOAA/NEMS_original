@@ -403,7 +403,7 @@
 #
 # Attributes:
 #   Language: POSIX shell
-#   Machine: IBM SP, WCOSS, ZEUS, GAEA, THEIA
+#   Machine: IBM SP, WCOSS, GAEA, THEIA
 #
 ####
 ################################################################################
@@ -425,11 +425,6 @@ if [ $machine = IBMP6 ]; then
   export MP_SYNC_QP=${MP_SYNC_QP:-yes}
   export MP_SHARED_MEMORY=${MP_SHARED_MEMORY:-"NO"}
   export MP_COREFILE_FORMAT=${MP_COREFILE_FORMAT:-"lite"}
-elif [ $machine = ZEUS ]; then
-  export MPICH_FAST_MEMCPY=${MPICH_FAST_MEMCPY:-"ENABLE"}
-  export MPI_BUFS_PER_PROC=${MPI_BUFS_PER_PROC:-2048}
-  export MPI_BUFS_PER_HOST=${MPI_BUFS_PER_HOST:-2048}
-  export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
 elif [ $machine = THEIA ]; then
   export MPICH_FAST_MEMCPY=${MPICH_FAST_MEMCPY:-"ENABLE"}
   export MPI_BUFS_PER_PROC=${MPI_BUFS_PER_PROC:-2048}

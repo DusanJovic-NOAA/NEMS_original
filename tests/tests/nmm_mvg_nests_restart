@@ -24,7 +24,6 @@ export GBRG=mnests
 export FCSTL=24
 export NCHILD=02
 export NEMSI=true
-export WLCLK=20
 export NODE=3
 export TASKS=$TASKS_mvg1
 export TPN=$TPN_mvg1

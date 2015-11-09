@@ -20,7 +20,7 @@ export LIST_FILES="sigf03 sigf06 sigf12 sigf24 sigf48 \
 export_gsm
 export TASKS=48
 export PE1=46
-export WLCLK=80
+export WLCLK=30
 export NDAYS=2
 export FHRES=12
 export zflxtvd=.false.

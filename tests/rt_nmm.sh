@@ -78,7 +78,7 @@ cat nmm_conf/nmm_msub.IN         | sed s:_JBNME_:${JBNME}:g   \
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
-cat nmm_conf/nmm_${MACHINE_ID}_qsub.IN   | sed s:_JBNME_:${JBNME}:g   \
+cat nmm_conf/nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
                                  | sed s:_ACCNR_:${ACCNR}:g   \
                                  | sed s:_QUEUE_:${QUEUE}:g   \
                                  | sed s:_SRCD_:${PATHTR}:g   \
@@ -89,7 +89,7 @@ cat nmm_conf/nmm_${MACHINE_ID}_qsub.IN   | sed s:_JBNME_:${JBNME}:g   \
 elif [ $SCHEDULER = 'lsf' ]; then
 
 cat nmm_conf/nmm_bsub.IN         | sed s:_JBNME_:${JBNME}:g   \
-                                 | sed s:_ACCNR_:${ACCNR}:g   \
+                                 | sed s:_QUEUE_:${QUEUE}:g   \
                                  | sed s:_SRCD_:${PATHTR}:g   \
                                  | sed s:_WLCLK_:${WLCLK}:g   \
                                  | sed s:_TPN_:${TPN}:g       \
@@ -173,7 +173,7 @@ if [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
 elif [ $SCHEDULER = 'lsf' ]; then
-  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`;sleep 5
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${QUEUE} | wc -l`;sleep 5
 fi
 done
 
@@ -219,7 +219,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
-  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep $CLASS | awk '{print $3}'` ; status=${status:--}
+  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep $QUEUE | awk '{print $3}'` ; status=${status:--}
 #  if [ $status != '-' -a $status != 'PEND' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $10 }'` ; fi
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
   FnshHrs=${FnshHrs:-0}
@@ -237,11 +237,17 @@ done
 # Check results
 ####################################################################################################
 
+test_status='PASS'
+
 # Give one minute for data to show up on file system
 sleep 60
 
-(echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}";echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
- echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}";echo "Checking test ${TEST_NR} results ...."
+(echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}")  >> ${REGRESSIONTEST_LOG}
+           echo "working dir  = ${RUNDIR}"              >> ${REGRESSIONTEST_LOG}
+           echo "Checking test ${TEST_NR} results ...." >> ${REGRESSIONTEST_LOG}
+(echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}")
+           echo "working dir  = ${RUNDIR}"
+           echo "Checking test ${TEST_NR} results ...."
 
 #
      if [ ${CREATE_BASELINE} = false ]; then
@@ -258,26 +264,22 @@ if [ ! -f ${RUNDIR}/$i ] ; then
   
   echo ".......MISSING file" >> ${REGRESSIONTEST_LOG} 
   echo ".......MISSING file" 
+  test_status='FAIL' 
 
 elif [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then 
 
   echo ".......MISSING baseline" >> ${REGRESSIONTEST_LOG} 
   echo ".......MISSING baseline" 
+  test_status='FAIL' 
    
 else 
    
   d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
-#   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
-#    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
     echo ".......NOT OK" >> ${REGRESSIONTEST_LOG} 
     echo ".......NOT OK" 
     test_status='FAIL' 
-    if [ ${BAIL_CONDITION}"x" = FILE"x" ]; then 
-      echo "BAIL_CONDITION=FILE, Abort testing on failure" 
-      exit 2 
-    fi
      
   else
 
@@ -288,6 +290,8 @@ else
 fi
 
 done
+
+if [ $test_status = 'FAIL' ]; then echo $TEST_NAME >> fail_test ; fi
 
 #
      else
@@ -313,16 +317,10 @@ done
      fi
 # ---
 
-echo " Test ${TEST_NR} ${test_status} " >> ${REGRESSIONTEST_LOG}
-(echo;echo;echo)                >> ${REGRESSIONTEST_LOG}
-echo " Test ${TEST_NR} ${test_status} "
-
-if [ ${BAIL_CONDITION}"x" = TEST"x" ]; then 
-  if [ ${test_status}"x" = FAIL"x" ]; then 
-    echo "BAIL_CONDITION=TEST, Abort testing on failure" 
-    exit 2 
-  fi 
-fi 
+echo "Test ${TEST_NR} ${test_status} " >> ${REGRESSIONTEST_LOG}
+(echo;echo;echo)                       >> ${REGRESSIONTEST_LOG}
+echo "Test ${TEST_NR} ${test_status} "
+(echo;echo;echo)
 
 sleep 4
 echo;echo

@@ -15,7 +15,7 @@ export LIST_FILES="sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
 
 export_gsm
 export CDATE=2011092300
-export WLCLK=90
+export WLCLK=30
 export NDSLFV=.true.
 export TASKS=32
 export PE1=32

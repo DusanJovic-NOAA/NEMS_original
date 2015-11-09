@@ -74,5 +74,4 @@ export ISOL=2
 export ICO2=2
 export RESTART=.false.
 
-#RUN_SCRIPT=rt_gfs.sh_slg   ! Moorthi
 RUN_SCRIPT=rt_gfs.sh
