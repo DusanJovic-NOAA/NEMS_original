@@ -542,7 +542,7 @@
                 ENDDO
 
               CASE DEFAULT
-                WRITE(0,*)' Default cloud fraction in radiation scheme '
+                if(mype==0.and.ITIMESTEP==0) WRITE(0,*)' Default cloud fraction in radiation scheme '
                 CLD_FRACTION=0
 
                 DO K=1,LM
