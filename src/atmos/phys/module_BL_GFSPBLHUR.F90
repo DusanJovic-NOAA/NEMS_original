@@ -988,7 +988,7 @@ real(kind=kind_phys) RO(IM),xland1(IM)
 
 
             WSPM(i,3) = WSPM(i,1)/xDKU  ! ratio of cap to Km at k-level, store in WSPM(i,3)
-            WSPM(i,4) = amin1(WSPM(I,3),1.0) ! this is new column alpha. cap at 1. ! should never be needed
+            WSPM(i,4) = MIN(WSPM(I,3),1.0) ! this is new column alpha. cap at 1. ! should never be needed
 
 !    if(i.eq.25) print *,' I25 kLOC ',kLOC,' xDKU ',xDKU,' WSPM1 ',WSPM(i,1),' WSPM3 ',WSPM(i,3),' WSPM4 ',WSPM(i,4)
 

@@ -95,7 +95,7 @@ contains
        ! Finally, handle corner points:
        ! SOUTHWEST:
        if(its<=ids .and. jts<=jds) then
-          if(mask(ids,jds)) &
+          if(mask(ids,jds)/=0) &
              next(ids,jds) = r1 * work(ids,jds) + r * &
                   (work(ids+1,jds) + work(ids,jds+1))/2
        endif

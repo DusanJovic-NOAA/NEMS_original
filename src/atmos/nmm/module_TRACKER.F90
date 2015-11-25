@@ -494,7 +494,7 @@ contains
          IPS,IPE,JPS,JPE,KPS,KPE)
 
     ! Store the first guess:
-    grid%track_have_guess=.true.
+    grid%track_have_guess=1
     grid%track_guess_lat=latguess
     grid%track_guess_lon=longuess
 3011 format('First guess: lon=',F0.3,' lat=',F0.3)
@@ -950,6 +950,7 @@ contains
     integer :: count,i,j,ierr
     real :: distsq, dist
     double precision :: e,n, inreduce(3),outreduce(3)
+    double precision, parameter :: zero=0
     character(len=255) :: message
 
     e=0 ; n=0 ; count=0 ! east sum, north sum, count
@@ -975,7 +976,7 @@ contains
        enddo
     enddo
 
-    inreduce=(/ e,n,0 /)
+    inreduce=(/ e,n,zero /)
     inreduce(3)=count
     call MPI_Allreduce(inreduce,outreduce,3,MPI_DOUBLE_PRECISION,MPI_SUM,&
                        grid%MPI_COMM_COMP,ierr)

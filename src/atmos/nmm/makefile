@@ -91,8 +91,3 @@ MKDEPENDS = ../../../exe/mkDepends.pl
 include ../../conf/make.rules
 
 include depend
-
-module_QUASIPOST.o \
-module_TRACKER.o:
-	$(CPP) $(CPPFLAGS) $*.F90 > $*.f90
-	$(FC) $(FFLAGS_NMM) -g -O0 -traceback -check all -ftrapuv -unroll0 -u $*.f90 -c -o $*.o
