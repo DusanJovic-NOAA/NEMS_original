@@ -4475,7 +4475,7 @@
         OPEN(unit  =IO_HST_UNIT                                         &
             ,file  =trim(FILENAME)                                      &
             ,form  ='formatted'                                         &
-            ,status='new')
+            ,status='REPLACE')
 !
         WRITE(IO_HST_UNIT,'(A4)')'DONE'
         CLOSE(IO_HST_UNIT)
@@ -5343,7 +5343,7 @@
         OPEN(unit  =IO_RST_UNIT                                         &
             ,file  =trim(FILENAME)                                      &
             ,form  ='formatted'                                         &
-            ,status='new')
+            ,status='REPLACE')
 !
         WRITE(IO_RST_UNIT,'(A4)')'DONE'
         CLOSE(IO_RST_UNIT)

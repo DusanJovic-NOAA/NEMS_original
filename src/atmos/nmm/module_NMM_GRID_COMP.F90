@@ -345,7 +345,8 @@
                            ,NSECONDS_FCST                               &  !<-- Length of forecast in seconds
                            ,TIMESTEP_FINAL                                 !<-- # of timesteps in entire forecast
 !
-      INTEGER(kind=KINT) :: GEN_X,INPES,JNPES,LEAD_TASK,LENGTH          &
+      INTEGER(kind=KINT) :: GEN_X,INPES,JNPES,LEAD_TASK                 &
+                           ,LENGTH,LENGTH_FCST,LENGTH_FCST_1            &
                            ,MAX_GEN,MYPE_LOCAL,MYPE_X                   &
                            ,N_GEN,N_TASKS,NUM_CHILD_TASKS               &
                            ,NUM_DOMAINS_X,NUM_FCST_TASKS                &
@@ -372,7 +373,6 @@
       CHARACTER(2) :: INT_TO_CHAR
       CHARACTER(6) :: FMT='(I2.2)'
       CHARACTER(7) :: MODE
-      CHARACTER(10) :: LABEL
       CHARACTER(NUM_DOMAINS_MAX) :: CONFIG_FILE_NAME
 !
       CHARACTER(ESMF_MAXSTR) :: DOMAIN_COMP_BASE='DOMAIN Gridded Component ' &
@@ -644,14 +644,47 @@
       nesting_block_1: IF(NESTING_NMM)THEN                                 !<-- Special communicators are needed for nesting
 !
 !-----------------------------------------------------------------------
+!***  There is no need to proceed if the specified forecast lengths
+!***  of all domains are not the same.  Currently the upper parent
+!***  cannot integrate longer than its children and some nests cannot
+!***  integrate longer than other nests.
+!-----------------------------------------------------------------------
+!
+        DO N=1,NUM_DOMAINS_TOTAL
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM_INIT: Check forecast lengths of domains."
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigGetAttribute(config=CF(N)                     &  !<-- The config object of domain N
+                                      ,value =LENGTH_FCST               &  !<-- Forecast length of domain N
+                                      ,label ='nhours_fcst:'            &  !<-- Configure label for forecast length
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          IF(N==1)THEN
+            LENGTH_FCST_1=LENGTH_FCST
+          ELSE
+            IF(LENGTH_FCST/=LENGTH_FCST_1)THEN
+              WRITE(0,*)' Domain forecast lengths differ!'
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
+            ENDIF
+          ENDIF
+!
+        ENDDO
+!
+!-----------------------------------------------------------------------
 !***  Task 0 checks all the configure files to see if 2-way exchange
 !***  appears in any of them.  If it does then the mode for this run's
 !***  task assignments is generational and not unique to each domain.
 !-----------------------------------------------------------------------
 !
         IF(MYPE==0)THEN
-!
-          LABEL='nest_mode:'
 !
           search: DO N=1,NUM_DOMAINS_TOTAL
 !
@@ -661,7 +694,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_ConfigFindLabel(config=CF(N)                      &  !<-- The config object of domain N
-                                     ,label =LABEL                      &  !<-- Domain N's nesting mode ('1-way' or '2-way')
+                                     ,label ='nest_mode:'               &  !<-- Domain N's nesting mode ('1-way' or '2-way')
                                      ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

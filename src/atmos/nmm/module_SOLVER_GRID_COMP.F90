@@ -1583,111 +1583,6 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  If the domain does move and this is a restarted run then the
-!***  SW corner of the domain needs to be recomputed to account for
-!***  motion that occurred since the beginning of the original forecast.
-!***  Anchor the computation to the SW corner of the uppermost parent
-!***  so that answers will be bit-identical for all circumstances.
-!-----------------------------------------------------------------------
-!
-          IF(int_state%MY_DOMAIN_MOVES.AND.int_state%RESTART)THEN
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Solver Init: Extract SW Corner of Domain #1"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Solver import state
-                                  ,name ='SBD_1'                        &  !<-- Attribute's name
-                                  ,value=SBD_1                          &  !<-- Transformed lat (degrees) of domain #1's south bndry
-                                  ,rc   =RC)
-!
-            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Solver import state
-                                  ,name ='WBD_1'                        &  !<-- Attribute's name
-                                  ,value=WBD_1                          &  !<-- Transformed lon (degrees) of domain #1's west bndry
-                                  ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Solver Init: Extract Central Lat/Lon of Domain #1"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Solver import state
-                                  ,name ='TPH0D_1'                      &  !<-- Attribute's name
-                                  ,value=TPH0D_1                        &  !<-- Geographic lat (degrees) of domain #1's center
-                                  ,rc   =RC)
-!
-            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Solver import state
-                                  ,name ='TLM0D_1'                      &  !<-- Attribute's name
-                                  ,value=TLM0D_1                        &  !<-- Geographic lon (degrees) of domain #1's center
-                                  ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  The SW corner of the moving nest domain lies within local task 0
-!***  therefore only that task can perform the computation.
-!-----------------------------------------------------------------------
-!
-            IF(MYPE==0)THEN
-!
-              D_ONE=1.
-              D_180=180.
-              PI=DACOS(-D_ONE)
-              D2R=PI/D_180
-!
-              TPH0_1=TPH0D_1*D2R                                           !<-- The central lat/lon of domain #1 is the center
-              TLM0_1=TLM0D_1*D2R                                           !    for all grid-associated nests
-!
-              GLATX=int_state%GLAT(ITS,JTS)                                !<-- Geographic lat (radians) of nest's SW corner
-              GLONX=int_state%GLON(ITS,JTS)                                !<-- Geographic lon (radians) of nest's SW corner
-!
-              X=COS(TPH0_1)*COS(GLATX)*COS(GLONX-TLM0_1)+SIN(TPH0_1)*SIN(GLATX)
-              Y=COS(GLATX)*SIN(GLONX-TLM0_1)
-              Z=-SIN(TPH0_1)*COS(GLATX)*COS(GLONX-TLM0_1)+COS(TPH0_1)*SIN(GLATX)
-!
-              TLATX=ATAN(Z/SQRT(X*X+Y*Y))                                  !<-- Transformed lat (radians) of nest domain's SW corner
-              TLONX=ATAN(Y/X)                                              !<-- Transformed lon (radians) of nest domain's SW corner
-              IF(X<0)TLONX=TLONX+PI
-!
-              SB_1=SBD_1*D2R                                               !<-- Transformed lat (radians) of domain #1's S bndry
-              WB_1=WBD_1*D2R                                               !<-- Transformed lon (radians) of domain #1's W bndry
-!
-              DPH=int_state%DPHD*D2R                                       !<-- Nest's angular grid increment in J (radians)
-              DLM=int_state%DLMD*D2R                                       !<-- Nest's angular grid increment in I (radians)
-!
-              I_INC=NINT((TLONX-WB_1)/DLM)                                 !<-- Nest grid increments (integer) between west/south
-              J_INC=NINT((TLATX-SB_1)/DPH)                                 !    boundaries of the nest and domain #1.
-!
-              SW_X(1)=(SB_1+J_INC*DPH)/D2R                                 !<-- Transformed lat (degrees) of nest domain's S bndry
-              SW_X(2)=(WB_1+I_INC*DLM)/D2R                                 !<-- Transformed lon (degrees) of nest domain's S bndry
-!
-            ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Local task 0 shares the transformed lat/lon of the nest domain's
-!***  south and west boundaries with all other fcst tasks.
-!-----------------------------------------------------------------------
-!
-            CALL MPI_BCAST(SW_X                                         &
-                          ,2                                            &
-                          ,MPI_REAL                                     &
-                          ,0                                            &
-                          ,MPI_COMM_COMP                                &
-                          ,IERR )
-!
-            int_state%SBD=SW_X(1)
-            int_state%WBD=SW_X(2)
-!
-          ENDIF
-!
-!-----------------------------------------------------------------------
 !
         ENDIF
 !
@@ -1823,12 +1718,19 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-! Initialize the tracker if needed
-! FIXME: NEED A CHECK ON WHETHER THIS IS NEEDED
-        if(int_state%ntrack>0 .and. int_state%MYPE<int_state%NUM_PES) then
+!
+!-----------------------------------------------------------------------
+! Initialize the storm tracker if needed.
+!-----------------------------------------------------------------------
+!
+        IF(int_state%MYPE<int_state%NUM_PES                             &
+                  .AND.                                                 &
+           .NOT.int_state%RESTART)THEN
+!
            CALL TRACKER_INIT(int_state)
-        endif
-
+!
+        ENDIF
+!
 !-----------------------------------------------------------------------
 !***  Retrieve the ESMF Grid then create the ESMF Fields on that Grid
 !***  for the Solver import/export states.
@@ -3133,10 +3035,9 @@
                        ,ITS,ITE,JTS,JTE,LM)
         ENDIF
 !
-        if(int_state%ntrack>0 .and. int_state%mype<int_state%num_pes) then
-           call update_tracker_post_move(int_state)
-        endif
-
+        IF(int_state%NTRACK>0 .AND. int_state%MYPE<int_state%NUM_PES) THEN
+           CALL UPDATE_TRACKER_POST_MOVE(INT_STATE)
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -7008,19 +6909,17 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 !***  Run the tracker
 !-----------------------------------------------------------------------
 !
-      if(int_state%ntrack>0 .and. int_state%MYPE<int_state%NUM_PES .and. &
-           (int_state%ntsd==0 .or. &
-           mod(int_state%ntsd+1,int_state%ntrack*int_state%nphs)==0)) then
-         call quasipost(int_state)
-         call tracker_center(int_state)
-      endif
+      IF(int_state%NTRACK>0 .AND. int_state%MYPE<int_state%NUM_PES .and. &
+           (int_state%NTSD==0 .or. &
+           MOD(int_state%NTSD+1,int_state%NTRACK*int_state%NPHS)==0)) THEN
+         CALL QUASIPOST(INT_STATE)
+         CALL TRACKER_CENTER(INT_STATE)
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !---- PHY_RUN END ------------------------------------------------------
 !-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
 !-----------------------------------------------------------------------
 !
       RC=0
@@ -7275,7 +7174,10 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 !-----------------------------------------------------------------------
 !
         READ(UNIT=10,FMT='(A)',iostat=IOS)STRING                           !<-- Read in the next specification line
-        IF(IOS/=0)EXIT                                                     !<-- Finished reading the specification lines
+        IF(IOS/=0)THEN                                                     !<-- Finished reading the specification lines
+          CLOSE(10)
+          EXIT
+        ENDIF
 !
         IF(STRING(1:1)=='#'.OR.TRIM(STRING)=='')THEN
           CYCLE                                                            !<-- Read past comments and blanks.
@@ -8014,10 +7916,6 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 !-----------------------------------------------------------------------
 !
       ENDDO bc_fields
-!
-!-----------------------------------------------------------------------
-!
-      CLOSE(10)
 !
 !-----------------------------------------------------------------------
 !
@@ -10660,7 +10558,9 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
               ICLIQ_LW=0
             ENDIF
 
-            WRITE(0,*)' Model Proces np3d=',NP3D
+            IF(MYPE==0)THEN
+              WRITE(0,*)' Model Proces np3d=',NP3D
+            ENDIF
 
 !==========================================================================
 

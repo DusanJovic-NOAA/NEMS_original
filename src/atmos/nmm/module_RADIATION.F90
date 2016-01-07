@@ -493,7 +493,9 @@
            cfr3_select: SELECT CASE (TRIM(CLDFRACTION))
 
               CASE ('thompson')        ! -- THOMPSON CLOUD FRACTION
-                write(6,*) 'DEBUG-GT: using thompson cloud fraction scheme'
+                IF(MYPE==0)THEN
+                  write(6,*) 'DEBUG-GT: using thompson cloud fraction scheme'
+                ENDIF
                 CLD_FRACTION=88
 !
 !--- Use dummy arrays QCW, QCI, QSNOW, NCI for Thompson cloud fraction scheme

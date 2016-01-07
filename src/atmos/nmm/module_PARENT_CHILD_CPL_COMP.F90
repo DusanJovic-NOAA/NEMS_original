@@ -621,7 +621,7 @@
         LOGICAL(kind=KLOG) :: FIRST_STEP_2WAY
         LOGICAL(kind=KLOG) :: I_HOLD_CENTER_POINT
 !
-        LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: IN_WINDOW
+        LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: IN_WINDOW=>NULL()
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: I_HOLD_PG_POINT
 !
 !***  The following are for prescribed moves
@@ -1037,7 +1037,7 @@
 !
       INTEGER(kind=KINT),SAVE :: MOVE_TAG=1111                          &  !<-- Arbitrary tag used for child's move
                                 ,MOVING_BC_TAG=1112                     &  !<-- Arbitrary tag used for moving nests' BC updates
-                                ,PARENT_SHIFT_TAG=1e8                      !<-- Arbitrary tag used for parent's move.
+                                ,PARENT_SHIFT_TAG=1E6                      !<-- Arbitrary tag used for parent's move.
 !
       INTEGER(kind=KINT),SAVE :: MAX_FORCED_SHIFT                          !<-- # parent points a child forces its parent to shift
 !
@@ -3923,6 +3923,8 @@
             cc%HANDLE_SEND_2WAY_SFC(N) =MPI_REQUEST_NULL
 !
           ENDDO
+!
+          cc%NTASKS_UPDATE_PARENT=0
 !
           cc%NTIMESTEP_WAIT_PARENT=0
           cc%NTIMESTEP_WAIT_FORCED_PARENT=0
@@ -7592,7 +7594,7 @@
             WRITE(0,12341)MY_DOMAIN_ID,NTIMESTEP
             WRITE(0,12342)I_SHIFT_CHILD,J_SHIFT_CHILD                   &
                          ,I_SW_PARENT_NEW,J_SW_PARENT_NEW
-12341       FORMAT(' Nest shifts now  my_domain_id=',I2,' ntimestep=',I5) 
+12341       FORMAT(' Nest shifts now  my_domain_id=',I2,' ntimestep=',I6) 
 12342       FORMAT(' i_shift_child=',I4,' j_shift_child=',I4            &
                   ,' i_sw_parent_new=',I4,' j_sw_parent_new=',I4)
           ENDIF
@@ -11878,17 +11880,19 @@
 !***  Clear the buffers from this child task's previous sends.
 !-----------------------------------------------------------------------
 !
-      DO NT=1,NTASKS_UPDATE_PARENT                                         !<-- Loop through parent task subdomains updated last time.
+      IF(NTASKS_UPDATE_PARENT>0)THEN
+        DO NT=1,NTASKS_UPDATE_PARENT                                       !<-- Loop through parent task subdomains updated last time.
 !
-        CALL MPI_WAIT(HANDLE_SEND_2WAY_DATA(NT)                         &  !<-- Request handle for ISend of update to parent task NT
-                     ,JSTAT                                             &  !<-- MPI status
-                     ,IERR )
+          CALL MPI_WAIT(HANDLE_SEND_2WAY_DATA(NT)                       &  !<-- Request handle for ISend of update to parent task NT
+                       ,JSTAT                                           &  !<-- MPI status
+                       ,IERR )
 !
-        CALL MPI_WAIT(HANDLE_SEND_2WAY_SFC(NT)                          &  !<-- Request handle for ISend of FIS,PD to parent task NT
-                     ,JSTAT                                             &  !<-- MPI status
-                     ,IERR )
+          CALL MPI_WAIT(HANDLE_SEND_2WAY_SFC(NT)                        &  !<-- Request handle for ISend of FIS,PD to parent task NT
+                       ,JSTAT                                           &  !<-- MPI status
+                       ,IERR )
 !
-      ENDDO
+        ENDDO
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Each child task determines the parent tasks to which it must
@@ -12553,6 +12557,8 @@
                            ,NKOUNT,NN,NPHS,NTAG,NX
 !
       INTEGER(kind=KINT) :: ISTAT,RC,RC_NESTSET
+!
+      INTEGER(kind=KINT),DIMENSION(2) :: STORM_CENTER
 !
       INTEGER(kind=KINT),DIMENSION(4) :: LIMITS
 !
@@ -13350,6 +13356,39 @@
                               ,name ='J_PAR_STA'                        &  !<-- The name of the Attribute
                               ,value=J_PAR_STA                          &  !<-- The Attribute to be inserted
                               ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------
+!***  Transfer the domain's storm center.
+!-----------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Storm Center of Nest from DOMAIN Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN               &  !<-- The DOMAIN export state
+                              ,name     ='Storm Center'                 &  !<-- The name of the Attribute
+                              ,valueList=STORM_CENTER                   &  !<-- The Attribute to be retrieved
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Add Storm Center of Nest to the Parent-Child Cpl Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Parent-Child Coupler's import state
+                              ,name     ='Storm Center'                 &  !<-- The name of the Attribute
+                              ,itemCount=2                              &  !<-- The # of words in the Attribute
+                              ,valueList=STORM_CENTER                   &  !<-- The Attribute to be inserted
+                              ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
@@ -21811,10 +21850,12 @@
 !
             I_END_H  =I_HI_SOUTH_H(NTX)                                    !<-- I index of last Sbndry H point east of last Sbndry V point
 !
-            IF(NTX==1.AND.NUM_TASKS_SEND>1                              &
-                     .AND.I_START_V==I_LO_SOUTH_H(NTX+1)+INC_FIX_N      &
-                     .AND.I_END_V>=I_END_H)THEN
-              NTX_ADD(N_SIDE)=1
+            IF(NTX==1.AND.NUM_TASKS_SEND>1)THEN
+              IF(I_START_V==I_LO_SOUTH_H(NTX+1)+INC_FIX_N              &
+                       .AND.                                           &
+                 I_END_V>=I_END_H)THEN
+                NTX_ADD(N_SIDE)=1
+              ENDIF
             ENDIF
 !
             NTX_H=NTX+NTX_ADD(N_SIDE)                                      !<-- Reference parent task for PDB on nest H points
@@ -21835,11 +21876,14 @@
 !
             I_END_H  =I_HI_NORTH_H(NTX)                                    !<-- I index of last Nbndry H point east of last Nbndry V point
 !
-            IF(NTX==1.AND.NUM_TASKS_SEND>1                              &
-                     .AND.I_START_V==I_LO_NORTH_H(NTX+1)+INC_FIX_N      &
-                     .AND.I_END_V>=I_END_H)THEN
-              NTX_ADD(N_SIDE)=1
+            IF(NTX==1.AND.NUM_TASKS_SEND>1)THEN                                                                                     
+              IF(I_START_V==I_LO_NORTH_H(NTX+1)+INC_FIX_N               &                                                           
+                       .AND.                                            &                                                           
+                 I_END_V>=I_END_H)THEN
+                NTX_ADD(N_SIDE)=1
+              ENDIF
             ENDIF
+!
             NTX_H=NTX+NTX_ADD(N_SIDE)                                      !<-- Reference parent task for PDB on nest H points
             DIFF_START=I_START_V-I_LO_NORTH_H(NTX_H)
             I_HI_H=I_HI_NORTH_H(NTX_H)
@@ -21858,10 +21902,12 @@
 !
             J_END_H  =J_HI_WEST_H(NTX)                                     !<-- J index of last Wbndry H point east of last Wbndry V point
 !
-            IF(NTX==1.AND.NUM_TASKS_SEND>1                              &
-                     .AND.J_START_V==J_LO_WEST_H(NTX+1)+INC_FIX_N       &
-                     .AND.J_END_V>=J_END_H)THEN
-              NTX_ADD(N_SIDE)=1
+            IF(NTX==1.AND.NUM_TASKS_SEND>1)THEN
+              IF(J_START_V==J_LO_WEST_H(NTX+1)+INC_FIX_N                &                  
+                       .AND.                                            &                  
+                 J_END_V>=J_END_H)THEN
+                NTX_ADD(N_SIDE)=1
+              ENDIF
             ENDIF
 !
             NTX_H=NTX+NTX_ADD(N_SIDE)                                      !<-- Reference parent task for PDB on nest H points
@@ -21881,10 +21927,12 @@
 !
             J_END_H  =J_HI_EAST_H(NTX)                                     !<-- J index of last Ebndry H point east of last Ebndry V point
 !
-            IF(NTX==1.AND.NUM_TASKS_SEND>1                              &
-                     .AND.J_START_V==J_LO_EAST_H(NTX+1)+INC_FIX_N       &
-                     .AND.J_END_V>=J_END_H)THEN
-              NTX_ADD(N_SIDE)=1
+            IF(NTX==1.AND.NUM_TASKS_SEND>1)THEN
+              IF(J_START_V==J_LO_EAST_H(NTX+1)+INC_FIX_N                &         
+                       .AND.                                            &         
+                 J_END_V>=J_END_H)THEN
+                NTX_ADD(N_SIDE)=1
+              ENDIF
             ENDIF
 !
             NTX_H=NTX+NTX_ADD(N_SIDE)                                      !<-- Reference parent task for PDB on nest H points

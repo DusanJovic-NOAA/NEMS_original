@@ -100,37 +100,78 @@ contains
     ! Initialize tracker variables in the grid structure.
 
     implicit none
-    integer :: ifile,iunit
+    integer :: i,ifile,iunit,j
     type(solver_internal_state), intent(inout) :: grid
 
+    integer :: IMS,IME,JMS,JME
+
+    ims=grid%ims ; jms=grid%jms
+    ime=grid%ime ; jme=grid%jme
+
+    if(.not.grid%restart)then
     !grid%ntrack=1 ! 1=move every nphys, 2=every other nphys, etc.
-    grid%track_last_hour=0
-    grid%track_edge_dist=0
+      grid%track_last_hour=0
+      grid%track_edge_dist=0
 
-    grid%track_stderr_m1=-99.9
-    grid%track_stderr_m2=-99.9
-    grid%track_stderr_m3=-99.9
-    grid%track_n_old=0
-    grid%track_old_lon=0
-    grid%track_old_lat=0
-    grid%track_old_ntsd=0
+      grid%track_stderr_m1=-99.9
+      grid%track_stderr_m2=-99.9
+      grid%track_stderr_m3=-99.9
+      grid%track_n_old=0
+      grid%track_old_lon=0
+      grid%track_old_lat=0
+      grid%track_old_ntsd=0
 
-    grid%tracker_angle=0
-    grid%tracker_fixlon=-999.0
-    grid%tracker_fixlat=-999.0
-    grid%tracker_ifix=-99
-    grid%tracker_jfix=-99
-    grid%tracker_havefix=0
-    grid%tracker_gave_up=0
-    grid%tracker_pmin=-99999.
-    grid%tracker_vmax=-99.
-    grid%tracker_rmw=-99.
+      grid%tracker_angle=0
+      grid%tracker_distsq=0
+      grid%tracker_fixlon=-999.0
+      grid%tracker_fixlat=-999.0
+      grid%tracker_ifix=-99
+      grid%tracker_jfix=-99
+      grid%tracker_havefix=0
+      grid%tracker_gave_up=0
+      grid%tracker_pmin=-99999.
+      grid%tracker_vmax=-99.
+      grid%tracker_rmw=-99.
 
-    grid%track_have_guess=0
-    grid%track_guess_lat=-999.0
-    grid%track_guess_lon=-999.0
+      grid%track_have_guess=0
+      grid%track_guess_lat=-999.0
+      grid%track_guess_lon=-999.0
 
-!    grid%vortex_tracker=7   ! Do not change.
+!     grid%vortex_tracker=7   ! Do not change.
+
+      do j=jms,jme
+      do i=ims,ime
+        grid%m10rv(i,j)=0.
+        grid%m10wind(i,j)=0.
+!
+        grid%sm10rv(i,j)=0.
+        grid%sm10wind(i,j)=0.
+        grid%smslp(i,j)=0.
+        grid%membrane_mslp(i,j)=0.
+!
+        grid%sp700rv(i,j)=0.
+        grid%sp700wind(i,j)=0.
+        grid%sp700z(i,j)=0.
+        grid%sp850rv(i,j)=0.
+        grid%sp850wind(i,j)=0.
+        grid%sp850z(i,j)=0.
+!
+        grid%p500u(i,j)=0.
+        grid%p500v(i,j)=0.
+        grid%p700u(i,j)=0.
+        grid%p700v(i,j)=0.
+        grid%p700rv(i,j)=0.
+        grid%p700wind(i,j)=0.
+        grid%p700z(i,j)=0.
+        grid%p850u(i,j)=0.
+        grid%p850v(i,j)=0.
+        grid%p850rv(i,j)=0.
+        grid%p850wind(i,j)=0.
+        grid%p850z(i,j)=0.
+      enddo
+      enddo
+
+    endif
 
     call tracker_open_append(grid%hifreq_file,grid%hifreq_unit)
     if(grid%hifreq_unit==0) then
@@ -198,7 +239,7 @@ contains
        tracker_debug_level=-1 ! -1=no messages
     endif
     tracker_diagnostics=.true.
-
+   
     call ntc_impl(grid,                &
          ids, ide, jds, jde, kds, kde,    &
          ims, ime, jms, jme, kms, kme,    &
@@ -1394,7 +1435,8 @@ contains
     integer, intent(in) :: IPS,IPE,JPS,JPE,KPS,KPE
 
     integer :: icen,jcen, i,j, istart,istop, jstart,jstop, ierr
-    integer :: imid,jmid,j2,distsq
+    integer :: imid,jmid
+    real :: j2,distsq
     real :: rcen, srsq
     character*255 :: message
     ! Restrict the search area.  By default, we search everywhere except the boundary:
@@ -1510,7 +1552,8 @@ contains
     integer, intent(in) :: IPS,IPE,JPS,JPE,KPS,KPE
     integer :: relaxmask(ims:ime,jms:jme)
     real :: relaxwork(ims:ime,jms:jme)
-    integer :: icen,jcen,i,j,ismooth,ierr,j2,distsq,imid,jmid
+    integer :: icen,jcen,i,j,ismooth,ierr,imid,jmid
+    real :: j2,distsq
     real :: rcen, here, sum, mean, cendist, heredist
 
     integer :: istart,istop, jstart,jstop,itemp

@@ -873,6 +873,14 @@ integer,allocatable       :: reclev(:)
         call nemsio_getheadvar(gfile,'J_PAR_STA',int_state%J_PAR_STA,ierr)
         call nemsio_getheadvar(gfile,'LAST_STEP_MOVED',int_state%LAST_STEP_MOVED,ierr)
         call nemsio_getheadvar(gfile,'NMTS',int_state%NMTS,ierr)
+!
+        call nemsio_getheadvar(gfile,'TRACK_N_OLD',int_state%TRACK_N_OLD,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_IFIX',int_state%TRACKER_IFIX,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_JFIX',int_state%TRACKER_JFIX,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_GAVE_UP',int_state%TRACKER_GAVE_UP,ierr)
+        call nemsio_getheadvar(gfile,'TRACK_HAVE_GUESS',int_state%TRACK_HAVE_GUESS,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_HAVEFIX',int_state%TRACKER_HAVEFIX,ierr)
+!
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer 1D arrays
 !-----------------------------------------------------------------------
@@ -905,6 +913,20 @@ integer,allocatable       :: reclev(:)
         call nemsio_getheadvar(gfile,'DLMD',int_state%dlmd,ierr)
         call nemsio_getheadvar(gfile,'SBD',int_state%sbd,ierr)
         call nemsio_getheadvar(gfile,'WBD',int_state%wbd,ierr)
+!
+        call nemsio_getheadvar(gfile,'TRACK_LAST_HOUR',int_state%TRACK_LAST_HOUR,ierr)
+        call nemsio_getheadvar(gfile,'TRACK_GUESS_LAT',int_state%TRACK_GUESS_LAT,ierr)
+        call nemsio_getheadvar(gfile,'TRACK_GUESS_LON',int_state%TRACK_GUESS_LON,ierr)
+        call nemsio_getheadvar(gfile,'TRACK_EDGE_DIST',int_state%TRACK_EDGE_DIST,ierr)
+        call nemsio_getheadvar(gfile,'TRACK_STDERR_M1',int_state%TRACK_STDERR_M1,ierr)
+        call nemsio_getheadvar(gfile,'TRACK_STDERR_M2',int_state%TRACK_STDERR_M2,ierr)
+        call nemsio_getheadvar(gfile,'TRACK_STDERR_M3',int_state%TRACK_STDERR_M3,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_FIXLAT',int_state%TRACKER_FIXLAT,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_FIXLON',int_state%TRACKER_FIXLON,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_RMW',int_state%TRACKER_RMW,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_PMIN',int_state%TRACKER_PMIN,ierr)
+        call nemsio_getheadvar(gfile,'TRACKER_VMAX',int_state%TRACKER_VMAX,ierr)
+!
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 1D arrays
 !-----------------------------------------------------------------------
@@ -928,6 +950,10 @@ integer,allocatable       :: reclev(:)
         DO L=1,LM+1
           int_state%PSG1(L)=int_state%SG1(L)*int_state%PDTOP+int_state%PT
         ENDDO
+!
+        CALL NEMSIO_GETHEADVAR(gfile,'TRACK_OLD_NTSD',int_state%TRACK_OLD_NTSD,iret=irtn)
+        CALL NEMSIO_GETHEADVAR(gfile,'TRACK_OLD_LAT',int_state%TRACK_OLD_LAT,iret=irtn)
+        CALL NEMSIO_GETHEADVAR(gfile,'TRACK_OLD_LON',int_state%TRACK_OLD_LON,iret=irtn)
 !
 !-----------------------------------------------------------------------
 !***  Read in the full-domain 1-D string of boundary data.
@@ -1395,6 +1421,18 @@ integer,allocatable       :: reclev(:)
           js=(j-jts)*(ite-its+1)
           do i=its,ite
             int_state%NCFRST(i,j)=NINT(tmp(i-its+1+js+fldst))
+          enddo
+        enddo
+      endif
+!
+      call getrecn(recname,reclevtyp,reclev,nrec,'tracker_fixes','sfc',1,recn)
+      int_state%TRACKER_FIXES=0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%TRACKER_FIXES(i,j)=NINT(tmp(i-its+1+js+fldst))
           enddo
         enddo
       endif
@@ -2940,6 +2978,344 @@ integer,allocatable       :: reclev(:)
           js=(j-jts)*(ite-its+1)
           do i=its,ite
             int_state%AVCNVC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  M10RV
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'m10rv','10 m above gnd',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%M10RV(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  M10WIND
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'m10wind','10 m above gnd',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%M10WIND(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  MEMBRANE_MSLP
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'membrane_mslp','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%MEMBRANE_MSLP(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P500U
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p500u','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P500U(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P500V
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p500v','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P500V(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P700RV
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p700rv','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P700RV(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P700U
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p700u','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P700U(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P700V
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p700v','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P700V(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P700WIND
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p700wind','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P700WIND(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P700Z
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p700z','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P700Z(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P850RV
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p850rv','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P850RV(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P850U
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p850u','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P850U(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P850V
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p850v','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P850V(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P850WIND
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p850wind','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P850WIND(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  P850Z
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'p850z','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%P850Z(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SM10RV
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'sm10rv','10 m above gnd',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SM10RV(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SM10WIND
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'sm10wind','10 m above gnd',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SM10WIND(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SMSLP
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'smslp','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SMSLP(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SP700RV
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'sp700rv','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SP700RV(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SP700WIND
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'sp700wind','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SP700WIND(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SP700Z
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'sp700z','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SP700Z(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SP850RV
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'sp850rv','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SP850RV(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SP850WIND
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'sp850wind','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SP850WIND(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  SP850Z
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'sp850z','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SP850Z(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  TRACKER_ANGLE
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'tracker_angle','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%tracker_angle(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!-----------------------------------------------------------------------
+!***  TRACKER_DISTSQ
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'tracker_distsq','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%tracker_distsq(i,j)=tmp(i-its+1+js+fldst)
           enddo
         enddo
       endif

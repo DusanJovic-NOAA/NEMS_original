@@ -1187,7 +1187,7 @@
 !
         IF(I_AM_LEAD_FCST_TASK.AND.FILTER_METHOD==0)THEN
           WRITE(0,25)NTIMESTEP-1,MY_DOMAIN_ID,NTIMESTEP*DT/3600.,phase1_tim
-   25     FORMAT(' Finished Timestep ',i5,' for domain ',i3,' ending at ' &
+   25     FORMAT(' Finished Timestep ',i6,' for domain ',i3,' ending at ' &
                  ,f7.3,' hours: elapsed integration time ',f9.5)
         ENDIF
 !

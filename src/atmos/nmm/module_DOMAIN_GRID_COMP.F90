@@ -236,7 +236,7 @@
 !***  For determining clocktimes.
 !---------------------------------
 !
-      REAL(kind=KDBL) :: domain_tim,btim,btim0
+      REAL(kind=KDBL) :: btim,btim0
 !
 !-----------------------------------------------------------------------
 !
@@ -437,11 +437,14 @@
       INTEGER(kind=KINT) :: IHI,ILO,JHI,JLO
 !
       INTEGER(kind=KINT) :: I_PAR_STA, J_PAR_STA                        &
-                           ,LAST_STEP_MOVED,NEXT_MOVE_TIMESTEP
+                           ,LAST_STEP_MOVED,NEXT_MOVE_TIMESTEP          &
+                           ,TRACKER_IFIX,TRACKER_JFIX
 !
       INTEGER(kind=KINT) :: IERR,IRTN,RC          
 !
       INTEGER(ESMF_KIND_I8) :: NTSD_START                                  !<-- Timestep count (>0 for restarted runs)
+!
+      INTEGER(kind=KINT),DIMENSION(2) :: STORM_CENTER
 !
       INTEGER(kind=KINT),DIMENSION(7) :: FCSTDATE
 !
@@ -2346,6 +2349,11 @@
           J_PAR_STA=solver_int_state%J_PAR_STA
           NEXT_MOVE_TIMESTEP=solver_int_state%NMTS
 !
+          TRACKER_IFIX=solver_int_state%TRACKER_IFIX
+          TRACKER_JFIX=solver_int_state%TRACKER_JFIX
+          STORM_CENTER(1)=solver_int_state%TRACKER_IFIX
+          STORM_CENTER(2)=solver_int_state%TRACKER_JFIX
+!
           IF(INPUT_READY.AND..NOT.RESTARTED_RUN)THEN
             solver_int_state%LAST_STEP_MOVED=0
 !
@@ -2424,6 +2432,21 @@
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain export state
                               ,name ='LAST_STEP_MOVED'                  &  !<-- Name of the attribute to extract
                               ,value=LAST_STEP_MOVED                    &  !<-- Put the Attribute here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert Storm Center into Domain Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain export state
+                              ,name ='Storm Center'                     &  !<-- Name of the attribute to extract
+                              ,itemCount=2                              &  !<-- Number of items in the array
+                              ,valueList=STORM_CENTER                   &  !<-- Put the Attribute here
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3852,13 +3875,18 @@
                                   ,name ='J_SW_PARENT_NEW'              &  !<-- Get Attribute with this name
                                   ,value=J_SW_PARENT_NEW                &  !<-- Motion of the nest in J on its grid
                                   ,rc   =RC )
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            solver_int_state%I_PAR_STA=I_SW_PARENT_NEW
+            IF(I_SW_PARENT_NEW>-999999)THEN
 !
-            solver_int_state%J_PAR_STA=J_SW_PARENT_NEW
+              solver_int_state%I_PAR_STA=I_SW_PARENT_NEW
+!
+              solver_int_state%J_PAR_STA=J_SW_PARENT_NEW
+!
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -4253,8 +4281,6 @@
       ENDIF fcst_pes
 !
 !-----------------------------------------------------------------------
-!
-      domain_tim=domain_tim+(timef()-btim0)
 !
       timers(my_domain_id)%total_integ_tim=timers(my_domain_id)%total_integ_tim+(timef()-btim0)
 !

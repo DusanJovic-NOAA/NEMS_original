@@ -393,7 +393,7 @@
 !-----------------------------------------------------------------------
 !
 
- !       write(0,*)'select PBL=',TURBULENCE
+!     write(0,*)'select PBL=',TURBULENCE
       SELECT CASE (TRIM(TURBULENCE))
         CASE ('myj')
           PBL_PHYSICS=MYJPBLSCHEME
