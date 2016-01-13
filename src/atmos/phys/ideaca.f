@@ -14,11 +14,15 @@
 ! Jan    2013   Jun Wang, fix the neutral layer index k when mdoel top 
 !                         layer has instability and affects adjacent
 !                         layers underneath
+! Dec 2015 Rashid Akmaev:
+!     1. Fixed the indexing bug found by Jun in 2013
+!     2. Reset the offset pressure from .1 (apparently cb?) to 100. (Pa)
+!     3. Reset the critical lapse rate to 9.5 K/km typical at ~100 km
 !
 ! Contains
 !      module ideaca_mod
 !      subroutine ideaca_init(p,nl)
-!      subroutine ideaca_up(p,t,nlev)
+!      subroutine ideaca_up(p,t,ix,im,nlev)
 !     
 !***********************************************************************
 
@@ -35,22 +39,20 @@
 ! - R/g
 ! - R/Cp
 
-      real,parameter:: gamma=9.7,rdg=.2871/9.7,rdcp=rdg*gamma
+      real,parameter:: gamma=9.5,rdg=.287/9.5,rdcp=rdg*gamma
 
-! - starting pressure level (***in Pascals***) above which CA is 
-!     applied, set roughly to the stratopause level
+! - starting pressure level above which dry CA is applied, set
+!     currently to the stratopause level (***should be in Pascals if
+!     ideaca_init is called from gloopb***)
 
-!     real,parameter:: p0=100.
-      real,parameter:: p0=.1
-! This was for testing (07/30/08)
+      real,parameter:: p0=100.
+! This was for testing (07/30/08, 12/02/15)
 !      real,parameter:: p0=100001.
 
 ! Variables
-! - initialization switch
 ! - model index offset for temperature (i.e., pressure layer number
 !     above which CA is applied) and work array dimension
-! - CA procedure weigths (dimensioned by the number of model layers
-!     above starting pressure p0 in subrotine ideaca_init)
+! - CA procedure weigths 
 
       integer loff,nlay
       real,dimension(:),allocatable:: r,q
@@ -137,6 +139,9 @@
 ! Subroutine arguments
 ! - input array dimensions, number of interface levels
 ! - interface pressures
+!***  RA: Note pressure is no longer used, it's a leftover for
+!***  compatibility with previous version where ideaca_init was
+!***  called from inside this subroutine
 ! - layer temperatures
 
       integer,intent(in):: ix,im,nlev
@@ -168,7 +173,6 @@
 
 ! Initialize next layer with current model layer
 
-            k=i
             nml(k+1)=1
             teta(k+1)=t(n,loff+l)*r(l)
             pdp(k+1)=q(l)
@@ -189,7 +193,6 @@
 !     point), go to next model layer
 
                   i=j+1
-                  k=i
                   exit
                else
 
@@ -204,20 +207,22 @@
                   i=j
                endif
             enddo
+            k=i
          enddo
 
 ! Retrieve temperature from potential temperature of (combined) layers,
 !     set starting model layer index
 
          l=1
+         i=l
          do j=1,k
 
 ! Scan all model layer within each neutral layer, reset starting index
 
-            i=l
             do l=i,i+nml(j)-1
                t(n,loff+l)=teta(j)/r(l)
             enddo
+            i=l
          enddo
       enddo
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

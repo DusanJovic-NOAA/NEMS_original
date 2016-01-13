@@ -16,7 +16,8 @@ export_gsm
 module purge
 module load EnvVars/1.0.0 ibmpe lsf ics/14.0.1 NetCDF/4.2/serial ESMF/630rp1
 
-export CDATE=2012010100
+export CDATE=2012102400
+#export CDATE=2012010100
 export LDFI_SPECT=.true.
 export NDAYS=1
 export wave=62

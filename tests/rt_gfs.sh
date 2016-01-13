@@ -194,8 +194,14 @@ fi
      IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
      export nemsioget=${nemsioget:-/scratch3/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
   fi
-  cp $IC_DIR/gfsanl.$CDATE $RUNDIR
-  cp $IC_DIR/sfnanl.$CDATE $RUNDIR
+
+# These gfsanl and sfnanl data were copy from Moorthi's directory at
+# /global/noscrub/Shrinivas.Moorthi/data on Surge machine. Weiyu.
+#-------------------------------------------------------------------
+  cp ${RTPWD}/GFS_SLG_NEMSIO_READ/gfsanl.$CDATE $RUNDIR
+  cp ${RTPWD}/GFS_SLG_NEMSIO_READ/sfnanl.$CDATE $RUNDIR
+#  cp $IC_DIR/gfsanl.$CDATE $RUNDIR
+#  cp $IC_DIR/sfnanl.$CDATE $RUNDIR
 
 #                     NO NEMSIO INPUT
 #                     ---------------
