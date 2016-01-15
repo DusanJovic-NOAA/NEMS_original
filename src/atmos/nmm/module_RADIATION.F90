@@ -106,14 +106,14 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
-!                .      .    .     
+!                .      .    .
 ! SUBPROGRAM:    RADIATION   RADIATION OUTER DRIVER
-!   PRGRMMR: BLACK           ORG: W/NP22     DATE: 2002-06-04       
-!     
+!   PRGRMMR: BLACK           ORG: W/NP22     DATE: 2002-06-04
+!
 ! ABSTRACT:
 !     RADIATION SERVES AS THE INTERFACE BETWEEN THE NMMB PHYSICS COMPONENT
 !     AND THE WRF RADIATION DRIVER.
-!     
+!
 ! PROGRAM HISTORY LOG:
 !   02-06-04  BLACK      - ORIGINATOR
 !   02-09-09  WOLFE      - CONVERTING TO GLOBAL INDEXING
@@ -121,13 +121,13 @@
 !   06-07-20  BLACK      - INCORPORATED INTO NMMB PHYSICS COMPONENT
 !   08-08     JANJIC     - Synchronize WATER array and Q.
 !   08-11-23  janjic     - general hybrid coordinate
-!     
+!
 ! USAGE: CALL RADIATION FROM PHY_RUN
 !
 ! ATTRIBUTES:
 !   LANGUAGE: FORTRAN 90
-!   MACHINE : IBM 
-!$$$  
+!   MACHINE : IBM
+!$$$
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -228,9 +228,8 @@
                                              ,QTdum,FIdum,FRdum
 !
       LOGICAL :: GFDL_LW, GFDL_SW, LSSWR
-#ifdef THREAD_2D
+
       INTEGER :: jj, ip  ! used for 2D threading around RRTM
-#endif
 
       integer(4) :: ic1, crate1, cmax1
       integer(4) :: ic2, crate2, cmax2
@@ -251,7 +250,7 @@
 !
 !-----------------------------------------------------------------------
 !***  NOTE:  THE NMMB HAS IJK STORAGE WITH LAYER 1 AT THE TOP.
-!***         THE WRF PHYSICS DRIVERS HAVE IKJ STORAGE WITH LAYER 1 
+!***         THE WRF PHYSICS DRIVERS HAVE IKJ STORAGE WITH LAYER 1
 !***         AT THE BOTTOM.
 !-----------------------------------------------------------------------
 !
@@ -295,7 +294,7 @@
       ENDDO
       ENDDO
 !.......................................................................
-!$omp end parallel do 
+!$omp end parallel do
 !.......................................................................
 !
       GMT=REAL(IHRST)
@@ -331,7 +330,7 @@
         ENDDO
       ENDDO
 !.......................................................................
-!$omp end parallel do 
+!$omp end parallel do
 !.......................................................................
 !
 !-----------------------------------------------------------------------
@@ -460,7 +459,7 @@
 
         CASE (GFDLLWSCHEME)
 
-!-- Do nothing, since cloud fractions (with partial cloudiness effects) 
+!-- Do nothing, since cloud fractions (with partial cloudiness effects)
 !-- are defined in GFDL LW/SW schemes and do not need to be initialized.
 
         CASE (RRTMLWSCHEME)
@@ -501,7 +500,7 @@
 !--- Use dummy arrays QCW, QCI, QSNOW, NCI for Thompson cloud fraction scheme
 !    These arrays are updated in cal_cldfra3, and the adjust cloud fields are
 !    provided as input to RRTM and used by the radiation, but they are **not
-!    used** to change (update) the model arrays QC, QI, QS, and NI (those 
+!    used** to change (update) the model arrays QC, QI, QS, and NI (those
 !    remain unchanged; BSF 4/13/2015).
 !
                 DO K=1,LM
@@ -564,21 +563,18 @@
            END SELECT cfr3_select
 
 !-----------------------------------------------------------------------
-
-
-#ifdef THREAD_2D
 !
 ! The purpose of this logic is to divide the domain into tiles that
 ! are CHNK_RRTM elements in I and 1 element in J, giving potentially
 ! many more (greater concurrency) and smaller sized (better cache
 ! locality) tiles that may also be the width of the vector unit
 ! depending on the value of CHNK_RRTM (defined via CPP).  Dynamic
-! thread scheduling is specified to help with load imbalance in 
+! thread scheduling is specified to help with load imbalance in
 ! RRTM radiation.  The outer loop, chunk_loop_rrtm, is over the
 ! total number of tiles in the 2D subdomain. For each tile, ip,
-! the J index (jj) by dividing the tile index by the number of tiles 
+! the J index (jj) by dividing the tile index by the number of tiles
 ! in a row. That index is checked to make sure it falls within the
-! extent of the subdomain in J, then the starting I index (ii) 
+! extent of the subdomain in J, then the starting I index (ii)
 ! of the tile is computed by taking the integer modulus of the tile
 ! index and the number of tiles in a row.  Finally, to avoid having
 ! more than one J-row at the start or end of the J-extent (which can
@@ -600,12 +596,7 @@
               I_E = MIN(MIN(ii+CHNK_RRTM-1,ITE),IDE)
               J_S = jj
               J_E = jj
-#else           
-              I_S = ITS
-              I_E = ITE
-              J_S = JQS
-              J_E = JQE
-#endif
+
               IF ( I_S .LE. I_E ) THEN
                 CALL RRTM(ITIMESTEP,DT,JDAT                       &
                  ,NPHS,GLAT,GLON                                  &
@@ -637,12 +628,10 @@
                  ,SOLCON                                          &
                  ,MYPE )
               ENDIF
-#ifdef THREAD_2D
+
             ENDIF j_in_range_rrtm
           ENDDO chunk_loop_rrtm
 !$OMP END DO
-#endif
-
 
         CASE (GFDLLWSCHEME)
 
@@ -670,19 +659,19 @@
                  ,RSWTOA=rswtoa,RLWTOA=rlwtoa,CZMEAN=czmean         &
                  ,THRATEN=thraten,THRATENLW=thratenlw               &
                  ,THRATENSW=thratensw                               &
-                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &     
+                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=lm+1  &
                  ,ITS=iqs,ITE=iqe, JTS=jqs,JTE=jqe, KTS=1,KTE=lm    &
                                                                     )
 
         CASE DEFAULT
-  
+
              WRITE(0,*)'The longwave option does not exist: lw_physics = ', lw_physics
              CALL NMMB_FINALIZE
 
 !-----------------------------------------------------------------------
-           
-     END SELECT lwrad_select    
+
+     END SELECT lwrad_select
 
 !-----------------------------------------------------------------------
 !
@@ -739,7 +728,7 @@
 
 !-----------------------------------------------------------------------
 
-     END SELECT swrad_select    
+     END SELECT swrad_select
 
 !-----------------------------------------------------------------------
 !
@@ -932,7 +921,7 @@
           DO J=JTS_B1,JTE_B1
           DO I=ITS_B1,ITE_B1
 !
-            SWDOWN(I,J)=GSW(I,J)/(1.-ALBEDO(I,J))  
+            SWDOWN(I,J)=GSW(I,J)/(1.-ALBEDO(I,J))
 !--- No value currently available for clear-sky solar fluxes from
 !    non GFDL schemes, though it's needed for air quality forecasts.
 !    For the time being, set to the total downward solar fluxes.
@@ -1023,19 +1012,19 @@
    REAL                     ::       DPD=360./365.
 !
 ! !DESCRIPTION:
-! Compute terms used in radiation physics 
+! Compute terms used in radiation physics
 ! for short wave radiation
 
    DECLIN=0.
    SOLCON=0.
 
 !-----OBECL : OBLIQUITY = 23.5 DEGREE.
-        
+
    OBECL=23.5*DEGRAD
    SINOB=SIN(OBECL)
-        
+
 !-----CALCULATE LONGITUDE OF THE SUN FROM VERNAL EQUINOX:
-        
+
    IF(JULIAN.GE.80.)SXLONG=DPD*(JULIAN-80.)
    IF(JULIAN.LT.80.)SXLONG=DPD*(JULIAN+285.)
 
@@ -1049,7 +1038,7 @@
    ECCFAC=1.000110+0.034221*COS(RJUL)+0.001280*SIN(RJUL)+0.000719*  &
           COS(2*RJUL)+0.000077*SIN(2*RJUL)
    SOLCON=1370.*ECCFAC
-   
+
    END SUBROUTINE radconst
 
 !---------------------------------------------------------------------
@@ -1083,7 +1072,7 @@
 ! Whether QI or QC is active or not is determined from the logical
 ! switches f_qi and f_qc. They are passed in to the routine
 ! to enable testing to see if QI and QC represent active fields.
-! 
+!
 !---------------------------------------------------------------------
      thresh=1.0e-6
 
@@ -1125,7 +1114,7 @@
 !$omp end parallel do
 !.......................................................................
 !
-     ELSE 
+     ELSE
 !
 !.......................................................................
 !$omp parallel do private(k,j,i)

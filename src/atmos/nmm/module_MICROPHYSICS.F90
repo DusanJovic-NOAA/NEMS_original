@@ -237,6 +237,7 @@
 !.. But, the fact is, the total accum variables are local, never saved
 !.. nor written so they go nowhere at the moment.
 !
+        RAINNC (I,J)=0. ! NOT YET USED BY NMM
         RAINNCv(I,J)=0.
         SNOWNCv(I,J)=0.
         graupelncv(i,j) = 0.0

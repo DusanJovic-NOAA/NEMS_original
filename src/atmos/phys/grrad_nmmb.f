@@ -1721,8 +1721,8 @@
 !==========================================================================
       IF (ialbflg == 2) THEN
 
-         SMX = SM
-         SFCALBEDO = SALBEDO
+         SMX(1:IX) = SM
+         SFCALBEDO(1:IX) = SALBEDO
 
          do i = 1, IM
 

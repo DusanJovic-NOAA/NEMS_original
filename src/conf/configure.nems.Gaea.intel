@@ -89,7 +89,7 @@ FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 FPP         = -fpp
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    = -DCHNK_RRTM=8 -DENABLE_SMP -DTHREAD_2D
+CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8
 
 AR          = ar
 ARFLAGS     = -r

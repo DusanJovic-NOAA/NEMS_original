@@ -859,6 +859,16 @@
       int_state%has_reqi=0
       int_state%has_reqs=0
 
+      int_state%NUM_WATER=0
+      int_state%P_QV=-1
+      int_state%P_QC=-1
+      int_state%P_QI=-1
+      int_state%P_QR=-1
+      int_state%P_QS=-1
+      int_state%P_QG=-1
+      int_state%P_NI=-1
+      int_state%P_NR=-1
+
       IF(TRIM(int_state%MICROPHYSICS)=='fer'.OR. &
          TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
         int_state%NUM_WATER=1+5 ! aligo
@@ -947,6 +957,9 @@
         int_state%F_QS=.FALSE.
         int_state%F_QI=.TRUE.
         int_state%F_QG=.FALSE.
+      ELSE
+        write(0,*) 'Unknown microphysics : ',TRIM(int_state%MICROPHYSICS)
+        stop
       ENDIF
 !
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array
@@ -1053,13 +1066,11 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'TBPVS0_STA' ,int_state%TBPVS0_STATE      ,1 ,MICRO_RESTART    ) 
 
       CALL SET_VAR_PTR(int_state%VARS,NV,'BARO'      ,int_state%BARO    ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'FIS'       ,int_state%FIS     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'F'         ,int_state%F       ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'GLAT'      ,int_state%GLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'GLON'      ,int_state%GLON    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'HDACX'     ,int_state%HDACX   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'HDACY'     ,int_state%HDACY   ,(/ IMS,JMS /),(/ IME,JME /) )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'PD'        ,int_state%PD      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'VLAT'      ,int_state%VLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'VLON'      ,int_state%VLON    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'HDACVX'    ,int_state%HDACVX  ,(/ IMS,JMS /),(/ IME,JME /) )

@@ -2320,7 +2320,7 @@
       SHOWSHAPE(__LINE__,ssaae)
       SHOWSHAPE(__LINE__,asyae)
 #endif
-#if 0
+#if 1
       if ( nday < CHK ) then
 !jm      write(0,*)__LINE__,'nday+1:CHK ',nday+1,CHK
         cosz  (nday+1:CHK)    = cosz (nday)

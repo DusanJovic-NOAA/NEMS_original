@@ -27,7 +27,7 @@ EXTLIBS     = $(NEMSIO_LIB) \
               $(NETCDF_LIB) \
               $(SYS_LIB)
 
-FC          = mpif90
+FC          = mpif90 -fc=ifort
 FPP         = -fpp
 FREE        = -free
 FIXED       = -fixed
@@ -38,7 +38,7 @@ TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check
 #TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
-FFLAGS      = $(TRAPS) $(FINCS) -openmp -convert big_endian -assume byterecl -fp-model precise
+FFLAGS      = $(TRAPS) $(FINCS) -openmp -convert big_endian -assume byterecl -fp-model precise -diag-disable 8290,8291
 
 OPTS_NMM    = -O3
 OPTS_GFS    = -O3
@@ -52,7 +52,7 @@ FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    = -DCHNK_RRTM=8
+CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8
 
 AR          = ar
 ARFLAGS     = -r

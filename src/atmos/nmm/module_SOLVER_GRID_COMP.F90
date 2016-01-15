@@ -10883,7 +10883,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                                                            ,F_RIMEF     &
                                                            ,T
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QC,QR,QS,QI,QG
+      REAL,DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: QC,QR,QS,QI,QG
 !
 !--------------------
 !--  Local Variables

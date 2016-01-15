@@ -108,8 +108,7 @@ use module_my_domain_specs
 !***  Local variables
 !-----------------------------------------------------------------------
 !
-      integer(kind=kint) :: i,ibeg,ic,iend,ierr,irecv,isend,j,jbeg,jend &
-                           ,jj
+      integer(kind=kint) :: i,ibeg,ic,iend,ierr,irecv,isend,j,jbeg,jend
 !
       integer(kind=kint),dimension(mpi_status_size) :: istat
 !
@@ -174,7 +173,6 @@ use module_my_domain_specs
       if(my_neb(1)>=0)then
         ic=0
         do j=0,jhalo-1
-        jj=jte-j
         do i=ibeg,iend
           ic=ic+1
           buf2(ic)=arr1(i,jte-j)

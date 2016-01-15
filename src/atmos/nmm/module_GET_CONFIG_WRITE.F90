@@ -1,5 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_GET_CONFIG_WRITE

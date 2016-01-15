@@ -1,4 +1,3 @@
-#include "../../ESMFVersionDefine.h"
 !-----------------------------------------------------------------------
 !
       MODULE module_DIGITAL_FILTER_NMM

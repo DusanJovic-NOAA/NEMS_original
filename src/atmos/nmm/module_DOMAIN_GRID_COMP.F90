@@ -2198,7 +2198,7 @@
         CALL WRITE_INIT(DOMAIN_GRID_COMP                                &
                        ,DOMAIN_INT_STATE                                &
                        ,IMP_STATE                                       &
-                       ,CLOCK_DOMAIN)
+                       ,CLOCK_DOMAIN,MYPE)
 !
         IF(MYPE>=domain_int_state%NUM_PES_FCST)THEN
 !

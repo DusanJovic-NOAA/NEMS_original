@@ -27,14 +27,14 @@ EXTLIBS     = $(NEMSIO_LIB) \
               $(NETCDF_LIB) \
               $(SYS_LIB)
 
-FC          = mpif90
+FC          = mpif90 -fc=gfortran
 FPP         = -cpp
 FREE        = -ffree-form
 FIXED       = -ffixed-form
 R8          = -fdefault-real-8 -fdefault-double-8
 
 FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
-TRAPS       =
+#TRAPS       = -fcheck=bounds,do,mem,pointer,recursion -finit-real=snan -finit-integer=-100000 -ffpe-trap=overflow,zero,invalid -fbacktrace -gdwarf-2 -g
 
 FFLAGS      = $(TRAPS) $(FINCS) -fopenmp -fconvert=big-endian -fno-range-check -ffree-line-length-256
 
@@ -50,7 +50,7 @@ FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    = -DCHNK_RRTM=8
+CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8
 
 AR          = ar
 ARFLAGS     = -r

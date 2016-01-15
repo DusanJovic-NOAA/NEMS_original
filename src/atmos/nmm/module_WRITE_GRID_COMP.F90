@@ -5411,6 +5411,8 @@
 !***  Local Variables
 !---------------------
 !
+      TYPE(WRITE_WRAP) :: WRAP
+!
       INTEGER :: RC
 !
 !-----------------------------------------------------------------------
@@ -5419,6 +5421,21 @@
 !
       RC     =ESMF_SUCCESS
       RCFINAL=ESMF_SUCCESS
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Retrieve Write Component's Internal State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGetInternalState(WRITE_COMP                     &  !<-- The write component
+                                        ,WRAP                           &  !<-- Pointer to internal state
+                                        ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RCFINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      DEALLOCATE(WRAP%WRITE_INT_STATE)
 !
 !-----------------------------------------------------------------------
 !

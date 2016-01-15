@@ -50,7 +50,7 @@
                        /)                                               &
                       ,(/max_fulllevel_vars/)                           &
                       ,(/'********'/)                                   &
-                     )                  
+                     )
 !-----------------------------------------------------------------------
 
       contains
@@ -99,7 +99,7 @@
 
       if (.not.nml_exist) then
         if (mype == 0) then
-          write(0,*) ' ts_locations.nml does not exist. will skip timeseries ouput'
+          write(0,*) ' ts_locations.nml does not exist. will skip timeseries output'
         end if
         return
       end if

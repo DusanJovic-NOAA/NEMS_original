@@ -1210,7 +1210,7 @@ IF(P1<1.E-2) WRITE(6,"(a,3i4,2g11.4)") 'I,J,L,PRSL,E_sat=',I,J,L,P1,ESAT   !dbg
             ACFRST(IRANGE,J)=ACFRST(IRANGE,J) + CLDSA_V(1:im,4)
             NCFRST(IRANGE,J)=NCFRST(IRANGE,J) + 1
 !-- Added a time-averaged convective cloud fraction calculation
-            WHERE (CU_cloud) ACFRCV(IRANGE,J)=ACFRCV(IRANGE,J)+CLDSA_V(1:im,4)
+            WHERE (CU_cloud(1:im)) ACFRCV(IRANGE,J)=ACFRCV(IRANGE,J)+CLDSA_V(1:im,4)
             NCFRCV(IRANGE,J)=NCFRCV(IRANGE,J)+1
          ELSE
             PRINT *, '*** CLDFRA=0, need to set LSSAV=TRUE'

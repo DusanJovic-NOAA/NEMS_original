@@ -82,8 +82,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT),SAVE :: MYPE                                      !<-- My MPI task ID
-!
       LOGICAL,PUBLIC,SAVE :: TIME_FOR_HISTORY = .FALSE.                 &
                             ,TIME_FOR_RESTART = .FALSE.
 !
@@ -2714,7 +2712,8 @@
       SUBROUTINE WRITE_INIT(DOMAIN_GRID_COMP                            &
                            ,DOMAIN_INT_STATE                            &
                            ,DOMAIN_IMP_STATE                            &
-                           ,CLOCK_DOMAIN)
+                           ,CLOCK_DOMAIN                                &
+                           ,MYPE)
 ! 
 !-----------------------------------------------------------------------
 !***  Execute the Initialize step of the Write components.
@@ -2731,6 +2730,8 @@
       TYPE(ESMF_State),INTENT(INOUT)            :: DOMAIN_IMP_STATE        !<-- The DOMAIN import state
 !
       TYPE(ESMF_Clock),INTENT(INOUT)            :: CLOCK_DOMAIN            !<-- The DOMAIN Component's ESMF Clock
+!
+      INTEGER,INTENT(IN)                        :: MYPE
 !
 !---------------------
 !***  Local Variables

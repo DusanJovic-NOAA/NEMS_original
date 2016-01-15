@@ -287,6 +287,9 @@ INTEGER, PARAMETER :: MAX_ITERATIONS=10
 !
 !.......................................................................
 !$omp end parallel do
+!
+      PRECtot = 0.0
+      PRECmax = 0.0
 !.......................................................................
 !$omp parallel do                                                       &
 !$omp private (j,i,k,lsfc,dpcol,l,p_col,thick_col,t_col,tc,q_col,       &
