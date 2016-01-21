@@ -20,6 +20,8 @@
 !           vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         !
 !           sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                    !
 !           sfcnirbmu,sfcnirdfu,sfcvisbmu,sfcvisdfu,                    !
+!           slimskin_cpl,ulwsfcin_cpl,                                  !
+!           dusfcin_cpl,dvsfcin_cpl,dtsfcin_cpl,dqsfcin_cpl,            !
 !           sfcdlw,tsflw,sfcemis,sfalb,swh,swhc,hlw,hlwc,hlwd,lsidea,   !
 !           ras,pre_rad,ldiag3d,lgocart,lssav,lssav_cpl                 !
 !           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          !
@@ -41,7 +43,7 @@
 !           dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 !
 !           dlwsfc_cpl,dswsfc_cpl,dnirbm_cpl,dnirdf_cpl,                !
 !           dvisbm_cpl,dvisdf_cpl,rain_cpl,  nlwsfc_cpl,nswsfc_cpl,     !
-!           nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,                !
+!           nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,snow_cpl,       !
 !           xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,       !
 !           phy_fctd,                                                   !
 !       outputs:                                                        !
@@ -55,7 +57,7 @@
 !           nlwsfci_cpl,nswsfci_cpl,                                    !
 !           nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            !
 !           t2mi_cpl,q2mi_cpl,                                          !
-!           u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,slmsk_cpl, !
+!           u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,                   !
 !           tref, z_c, c_0, c_d, w_0, w_d, rqtk,                        !
 !           hlwd,lsidea                         )                       !
 !                                                                       !
@@ -136,6 +138,10 @@
 !                               as an option in opr GFS.                !
 !      Apr  2015    S. Moorthi  Added CS scheme to NEMS/GSM             !
 !      Jun  2015    S. Moorthi  Added SHOC  to NEMS/GSM                 !
+!      Sep  2015  - Xingren Wu  remove oro_cpl & slmsk_cpl              !
+!      Sep  2015  - Xingren Wu  add sfc_cice                            !
+!      Sep  2015  - Xingren Wu  connect CICE output to sfc_cice         !
+!      Jan 2016     P. Tripp    NUOPC/GSM merge                         !
 !  ====================  definition of variables  ====================  !
 !                                                                       !
 !  inputs:                                                       size   !
@@ -240,6 +246,12 @@
 !     sfcnirdfd- real, sfc nir-diff sw downward flux (w/m2)        im   !
 !     sfcvisbmd- real, sfc uv+vis-beam sw downward flux (w/m2)     im   !
 !     sfcvisdfd- real, sfc uv+vis-diff sw downward flux (w/m2)     im   !
+!     slimskin_cpl - real,                                         im   !
+!     ulwsfcin_cpl - real,                                         im   !
+!     dusfcin_cpl  - real,                                         im   !
+!     dvsfcin_cpl  - real,                                         im   !
+!     dtsfcin_cpl  - real,                                         im   !
+!     dqsfcin_cpl  - real,                                         im   !
 !     swh      - real, total sky sw heating rates ( k/s )       ix,levs !
 !     swhc     - real, clear sky sw heating rates ( k/s )       ix,levs !
 !     hlw      - real, total sky lw heating rates ( k/s )       ix,levs !
@@ -378,7 +390,8 @@
 !     nnirdf_cpl- real, net nir diff dnwd sw rad flux (w/m**2)       im !
 !     nvisbm_cpl- real, net uv+vis beam dnwd sw rad flux (w/m**2)    im !
 !     nvisdf_cpl- real, net uv+vis diff dnwd sw rad flux (w/m**2)    im !
-!     rain_cpl  - real, total precipitation       for A/O/I coupling im !
+!     rain_cpl  - real, total precipitation  rain for A/O/I coupling im !
+!     snow_cpl  - real, total precipitation  snow for A/O/I coupling im !
 !
 !     xt        - real, heat content in DTL                         im  !
 !     xs        - real, salinity  content in DTL                    im  !
@@ -450,8 +463,6 @@
 !     v10mi_cpl   - real, V10m at time step AOI cpl                 im  !
 !     tseai_cpl   - real, sfc temp at time step AOI cpl             im  !
 !     psurfi_cpl  - real, sfc pressure at time step AOI cpl         im  !
-!     oro_cpl     - real, orography AOI cpl                         im  !
-!     slmsk_cpl   - real, Land/Sea/Ice AOI cpl                      im  !
 
 !     tref        - real, Reference Temperature                     im  !
 !     z_c         - real, Sub-layer cooling thickness               im  !
@@ -479,6 +490,8 @@
 
      &      sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                    &
      &      sfcnirbmu,sfcnirdfu,sfcvisbmu,sfcvisdfu,                    &
+     &      slimskin_cpl,ulwsfcin_cpl,                                  &
+     &      dusfcin_cpl,dvsfcin_cpl,dtsfcin_cpl,dqsfcin_cpl,            &
      &      sfcdlw,tsflw,sfcemis,sfalb,swh,swhc,hlw,hlwc,hlwd,lsidea,   &
      &      ras,pre_rad,ldiag3d,lgocart,lssav,lssav_cpl,                &
 
@@ -503,7 +516,7 @@
      &      dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 &
      &      dlwsfc_cpl,dswsfc_cpl,dnirbm_cpl,dnirdf_cpl,                & 
      &      dvisbm_cpl,dvisdf_cpl,rain_cpl,  nlwsfc_cpl,nswsfc_cpl,     &
-     &      nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,                &
+     &      nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,snow_cpl,       &
 
      &      xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,       &
      &      phy_fctd,                                                   &
@@ -524,7 +537,6 @@
      &      nnirbmi_cpl, nnirdfi_cpl, nvisbmi_cpl, nvisdfi_cpl,         &
      &      t2mi_cpl,    q2mi_cpl,    u10mi_cpl,   v10mi_cpl,           &
      &      tseai_cpl,   psurfi_cpl,                                    &
-!    &      tseai_cpl,   psurfi_cpl,  oro_cpl,     slmsk_cpl,           &
 
      &      tref, z_c, c_0, c_d, w_0, w_d                               &
      &      )
@@ -578,6 +590,8 @@
      &      vtype,  stype,  uustar, oro,    coszen, sfcnsw, sfcdsw,     &
      &      sfcnirbmu,      sfcnirdfu,      sfcvisbmu,      sfcvisdfu,  &
      &      sfcnirbmd,      sfcnirdfd,      sfcvisbmd,      sfcvisdfd,  &
+     &      slimskin_cpl,   dusfcin_cpl,    dvsfcin_cpl,                &
+     &      dtsfcin_cpl,    dqsfcin_cpl,    ulwsfcin_cpl,               &
      &      sfcdlw, tsflw,  sfalb,  sfcemis, oro_uf
 
       real(kind=kind_phys), dimension(ix,levs),       intent(in) ::     &
@@ -612,7 +626,7 @@
       real(kind=kind_phys), dimension(im), optional,  intent(inout) ::  &
 ! for A/O/I coupling
      &      dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 &
-     &      dlwsfc_cpl,dswsfc_cpl,rain_cpl,                             &
+     &      dlwsfc_cpl,dswsfc_cpl,rain_cpl,snow_cpl,                    &
      &      dnirbm_cpl,dnirdf_cpl,dvisbm_cpl,dvisdf_cpl,                &
      &      nlwsfc_cpl,nswsfc_cpl,                                      &
      &      nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,                &
@@ -653,7 +667,6 @@
      &      nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            &
      &      t2mi_cpl,q2mi_cpl,                                          &
      &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,                   &
-!    &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,slmsk_cpl, &
 
      &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk
 
@@ -724,6 +737,13 @@
      &,          nshocm, nshoc, ntk
 
       logical, dimension(im) :: flag_iter, flag_guess, invrsn
+
+      real(kind=kind_phys), dimension(im)          :: dtsfc_cice,       &
+     &    dqsfc_cice, dusfc_cice, dvsfc_cice, ulwsfc_cice, tisfc_cice,  &
+     &    tsea_cice, hice_cice, fice_cice
+
+      integer, dimension(im) :: islmsk_cice
+      logical, dimension(im) :: flag_cice
 
       logical :: lprnt
 
@@ -925,7 +945,22 @@
         zice(i) = hice(i)
         cice(i) = fice(i)
         tice(i) = tisfc(i)
-!
+
+        if (lssav_cpl) then
+          islmsk_cice(i)   = nint(slimskin_cpl(i))
+          flag_cice(i) = (islmsk_cice(i) == 4)
+
+          ulwsfc_cice(i) = ulwsfcin_cpl(i)
+          dusfc_cice(i) = dusfcin_cpl(i)
+          dvsfc_cice(i) = dvsfcin_cpl(i)
+          dtsfc_cice(i) = dtsfcin_cpl(i)
+          dqsfc_cice(i) = dqsfcin_cpl(i)
+          tisfc_cice(i) = tisfc(i)
+          tsea_cice(i) = tsea(i)
+          fice_cice(i) = fice(i)
+          hice_cice(i) = hice(i)
+        endif
+
         work1(i)   = (log(coslat(i) / (nlons(i)*latr)) - dxmin) * dxinv
         work1(i)   = max(0.0, min(1.0,work1(i)))
         work2(i)   = 1.0 - work1(i)
@@ -1093,6 +1128,9 @@
 
         do i = 1, im
           dlwsfc(i) = dlwsfc(i) + adjsfcdlw(i)*dtf
+          if (lssav_cpl) then
+            if (flag_cice(i)) adjsfculw(i)=ulwsfc_cice(i)
+          endif
           ulwsfc(i) = ulwsfc(i) + adjsfculw(i)*dtf
           psmean(i) = psmean(i) + pgr(i)*dtf        ! mean surface pressure
         enddo
@@ -1223,7 +1261,7 @@
      &                tsea,zorl,cd,cdq,rb,                              &
      &                prsl(1,1),work3,islmsk,                           &
      &                stress,ffmm,ffhh,                                 &
-     +                uustar,wind,phy_f2d(1,num_p2d),fm10,fh2,          &
+     &                uustar,wind,phy_f2d(1,num_p2d),fm10,fh2,          &
      &                sigmaf,vegtype,shdmax,                            &
      &                tsurf, flag_iter, redrag)
 
@@ -1368,6 +1406,14 @@
 
 !  --- ...  surface energy balance over seaice
 
+        if (lssav_cpl) then
+          do i = 1, im
+            if (flag_cice(i)) then
+               islmsk (i) =islmsk_cice(i)
+            endif
+          enddo
+        endif
+
         call sfc_sice                                                   &
 !  ---  inputs:
      &     ( im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,dtf,                      &
@@ -1380,6 +1426,23 @@
 !  ---  outputs:
      &       snwdph,qss,snowmt,gflx,cmm,chh,evap,hflx                   &
      &     )
+
+        if (lssav_cpl) then
+          do i = 1, im
+            if (flag_cice(i)) then
+               islmsk(i) = nint(slmsk(i))
+            endif
+          enddo
+
+          call sfc_cice                                                 &
+!  ---     inputs:
+     &     ( im,ugrs,vgrs,tgrs,qgrs,cd,cdq,prsl(1,1),work3,             &
+     &       islmsk_cice,phy_f2d(1,num_p2d),flag_iter,                  &
+     &       dqsfc_cice,dtsfc_cice,                                     &
+!  ---     outputs:
+     &       qss,cmm,chh,evap,hflx                                      &
+     &     )
+        endif
 
 !  --- ...  lu: update flag_iter and flag_guess
 
@@ -1431,26 +1494,24 @@
         do i = 1, im
           dlwsfci_cpl(i)   = adjsfcdlw(i)
           dswsfci_cpl(i)   = adjsfcdsw(i)
-          dlwsfc_cpl(i)    = dlwsfc_cpl(i) + adjsfcdlw(i)
-          dswsfc_cpl(i)    = dswsfc_cpl(i) + adjsfcdsw(i)
+          dlwsfc_cpl(i)    = dlwsfc_cpl(i) + adjsfcdlw(i)*dtf
+          dswsfc_cpl(i)    = dswsfc_cpl(i) + adjsfcdsw(i)*dtf
           dnirbmi_cpl(i)   = adjnirbmd(i)
           dnirdfi_cpl(i)   = adjnirdfd(i)
           dvisbmi_cpl(i)   = adjvisbmd(i)
           dvisdfi_cpl(i)   = adjvisdfd(i)
-          dnirbm_cpl(i)    = dnirbm_cpl(i) + adjnirbmd(i)
-          dnirdf_cpl(i)    = dnirdf_cpl(i) + adjnirdfd(i)
-          dvisbm_cpl(i)    = dvisbm_cpl(i) + adjvisbmd(i)
-          dvisdf_cpl(i)    = dvisdf_cpl(i) + adjvisdfd(i)
+          dnirbm_cpl(i)    = dnirbm_cpl(i) + adjnirbmd(i)*dtf
+          dnirdf_cpl(i)    = dnirdf_cpl(i) + adjnirdfd(i)*dtf
+          dvisbm_cpl(i)    = dvisbm_cpl(i) + adjvisbmd(i)*dtf
+          dvisdf_cpl(i)    = dvisdf_cpl(i) + adjvisdfd(i)*dtf
           nlwsfci_cpl(i)   = adjsfcdlw(i)  - adjsfculw(i)
-          nlwsfc_cpl(i)    = nlwsfc_cpl(i) + nlwsfci_cpl(i)
+          nlwsfc_cpl(i)    = nlwsfc_cpl(i) + nlwsfci_cpl(i)*dtf
           t2mi_cpl(i)      = t2m(i)
           q2mi_cpl(i)      = q2m(i)
           u10mi_cpl(i)     = u10m(i)
           v10mi_cpl(i)     = v10m(i)
           tseai_cpl(i)     = tsea(i)
           psurfi_cpl(i)    = pgr(i)
-!         oro_cpl(i)       = oro(i)
-!         slmsk_cpl(i)     = slmsk(i)
         enddo
 
 !  ---  estimate mean albedo for ocean point without ice cover and apply
@@ -1480,11 +1541,11 @@
           endif
           nswsfci_cpl(i) = nnirbmi_cpl(i) + nnirdfi_cpl(i)              &
      &                   + nvisbmi_cpl(i) + nvisdfi_cpl(i)
-          nswsfc_cpl(i)  = nswsfc_cpl(i)  + nswsfci_cpl(i)
-          nnirbm_cpl(i)  = nnirbm_cpl(i)  + nnirbmi_cpl(i)
-          nnirdf_cpl(i)  = nnirdf_cpl(i)  + nnirdfi_cpl(i)
-          nvisbm_cpl(i)  = nvisbm_cpl(i)  + nvisbmi_cpl(i)
-          nvisdf_cpl(i)  = nvisdf_cpl(i)  + nvisdfi_cpl(i)
+          nswsfc_cpl(i)  = nswsfc_cpl(i)  + nswsfci_cpl(i)*dtf
+          nnirbm_cpl(i)  = nnirbm_cpl(i)  + nnirbmi_cpl(i)*dtf
+          nnirdf_cpl(i)  = nnirdf_cpl(i)  + nnirdfi_cpl(i)*dtf
+          nvisbm_cpl(i)  = nvisbm_cpl(i)  + nvisbmi_cpl(i)*dtf
+          nvisdf_cpl(i)  = nvisdf_cpl(i)  + nvisdfi_cpl(i)*dtf
         enddo
       endif
 
@@ -1586,6 +1647,18 @@
         endif   ! end if_hybedmf
       endif   ! end if_do_shoc
 
+      if (lssav_cpl) then
+        do i = 1, im
+          if (flag_cice(i)) then
+             cice(i)=fice_cice(i)
+             tsea(i)=tsea_cice(i)
+             dusfc1(i)=dusfc_cice(i)
+             dvsfc1(i)=dvsfc_cice(i)
+             dqsfc1(i)=dqsfc_cice(i)
+             dtsfc1(i)=dtsfc_cice(i)
+          endif
+        enddo
+      endif
 
 !     if (lprnt) then
 !       write(0,*) ' dusfc1=',dusfc1(ipr),' kdt=',kdt,' lat=',lat
@@ -1599,10 +1672,10 @@
 
       if (lssav_cpl) then
         do i=1, im
-          dusfc_cpl(i)  = dusfc_cpl(i) + dusfc1(i)
-          dvsfc_cpl(i)  = dvsfc_cpl(i) + dvsfc1(i)
-          dtsfc_cpl(i)  = dtsfc_cpl(i) + dtsfc1(i)
-          dqsfc_cpl(i)  = dqsfc_cpl(i) + dqsfc1(i)
+          dusfc_cpl(i)  = dusfc_cpl(i) + dusfc1(i)*dtf
+          dvsfc_cpl(i)  = dvsfc_cpl(i) + dvsfc1(i)*dtf
+          dtsfc_cpl(i)  = dtsfc_cpl(i) + dtsfc1(i)*dtf
+          dqsfc_cpl(i)  = dqsfc_cpl(i) + dqsfc1(i)*dtf
           dusfci_cpl(i) = dusfc1(i)
           dvsfci_cpl(i) = dvsfc1(i)
           dtsfci_cpl(i) = dtsfc1(i)
@@ -2877,16 +2950,6 @@
         rain(i)  = rainc(i) + rainl(i)
       enddo
 
-!  --- ...  coupling insertion
-
-      if (lssav_cpl) then
-        do i = 1, im
-          rain_cpl(i) = rain_cpl(i) + rain(i)
-        enddo
-      endif
-
-!  --- ...  end coupling insertion
-
       if (cal_pre) then       ! hchuang: add dominant precipitation type algorithm
 
         call calpreciptype(kdt,nrcm,im,ix,levs,levs+1,rann,
@@ -2962,6 +3025,20 @@
           endif
         enddo
       endif
+
+!  --- ...  coupling insertion
+
+      if (lssav_cpl) then
+        do i = 1, im
+          if (t850(i) > 273.16) then
+             rain_cpl(i) = rain_cpl(i) + rain(i)
+          else
+             snow_cpl(i) = snow_cpl(i) + rain(i)
+          endif
+        enddo
+      endif
+
+!  --- ...  end coupling insertion
 
       if (lsm == 0) then   ! for OSU land model
 

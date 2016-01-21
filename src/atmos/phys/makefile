@@ -104,6 +104,7 @@ MODULES_GFSF=                                \
 	           sfc_land.o                \
 	           progt2.o                  \
 	           sfc_sice.o                \
+	           sfc_cice.o                \
 	           sfc_ocean.o               \
 	           sfc_nst.o                 \
 	           sfc_diff.o                \

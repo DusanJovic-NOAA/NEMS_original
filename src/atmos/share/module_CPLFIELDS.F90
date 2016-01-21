@@ -1,5 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
+! !REVISION HISTORY:
+!
+!  Jan 2016      Patrick Tripp - NUOPC/GSM merge: export/importFieldsList used always
+
 module module_CPLFIELDS
 
   !-----------------------------------------------------------------------------
@@ -8,85 +12,102 @@ module module_CPLFIELDS
   !-----------------------------------------------------------------------------
 
 #ifdef WITH_NUOPC
-  use ESMF
   use NUOPC
 #endif
+
+  use ESMF
   
   implicit none
   
   private
-  
+ 
+  integer, public, parameter :: NimportFields = 14
+  integer, public, parameter :: NexportFields = 48
+ 
 #ifdef WITH_NUOPC
-
   real(kind=ESMF_KIND_R8),parameter :: Rearth=6376000.  ! copied from atmos/share/module_CONSTANTS.F90
 
   ! Regular (non-reduced) Gaussian Grid ---------------
   public            :: gauss2d
   type(ESMF_Grid)   :: gauss2d
+#endif 
+
+! PT: these are needed in non NUOPC 
+! #ifdef WITH_NUOPC
 
   ! Export Fields ----------------------------------------
-  type(ESMF_Field), public  ::                      &
-                       mean_zonal_moment_flx,       & !  1
-                       mean_merid_moment_flx,       & !  2
-                       mean_sensi_heat_flx,         & !  3
-                       mean_laten_heat_flx,         & !  4
-                       mean_down_lw_flx,            & !  5
-                       mean_down_sw_flx,            & !  6
-                       mean_prec_rate,              & !  7
-                       inst_zonal_moment_flx,       & !  8
-                       inst_merid_moment_flx,       & !  9
-                       inst_sensi_heat_flx,         & ! 10
-                       inst_laten_heat_flx,         & ! 11
-                       inst_down_lw_flx,            & ! 12
-                       inst_down_sw_flx,            & ! 13
-                       inst_temp_height2m,          & ! 14
-                       inst_spec_humid_height2m,    & ! 15
-                       inst_zonal_wind_height10m,   & ! 16
-                       inst_merid_wind_height10m,   & ! 17
-                       inst_temp_height_surface,    & ! 18
-                       inst_pres_height_surface,    & ! 19
-                       inst_surface_height,         & ! 20
-                       mean_net_lw_flx,             & ! 21
-                       mean_net_sw_flx,             & ! 22
-                       inst_net_lw_flx,             & ! 23
-                       inst_net_sw_flx,             & ! 24
-                       mean_down_sw_ir_dir_flx,     & ! 25
-                       mean_down_sw_ir_dif_flx,     & ! 26
-                       mean_down_sw_vis_dir_flx,    & ! 27
-                       mean_down_sw_vis_dif_flx,    & ! 28
-                       inst_down_sw_ir_dir_flx,     & ! 29
-                       inst_down_sw_ir_dif_flx,     & ! 30
-                       inst_down_sw_vis_dir_flx,    & ! 31
-                       inst_down_sw_vis_dif_flx,    & ! 32
-                       mean_net_sw_ir_dir_flx,      & ! 33
-                       mean_net_sw_ir_dif_flx,      & ! 34
-                       mean_net_sw_vis_dir_flx,     & ! 35
-                       mean_net_sw_vis_dif_flx,     & ! 36
-                       inst_net_sw_ir_dir_flx,      & ! 37
-                       inst_net_sw_ir_dif_flx,      & ! 38
-                       inst_net_sw_vis_dir_flx,     & ! 39
-                       inst_net_sw_vis_dif_flx,     & ! 40
-                       inst_ir_dir_albedo,          & ! 41
-                       inst_ir_dif_albedo,          & ! 42
-                       inst_vis_dir_albedo,         & ! 43
-                       inst_vis_dif_albedo,         & ! 44
-                       inst_land_sea_mask             ! 45
+  type(ESMF_Field), public   :: exportFields(NexportFields)
+  character(len=40), public, parameter :: exportFieldsList(NexportFields) = (/ &
+      "mean_zonal_moment_flx                  ", &
+      "mean_merid_moment_flx                  ", &
+      "mean_sensi_heat_flx                    ", &
+      "mean_laten_heat_flx                    ", &
+      "mean_down_lw_flx                       ", &
+      "mean_down_sw_flx                       ", &
+      "mean_prec_rate                         ", &
+      "inst_zonal_moment_flx                  ", &
+      "inst_merid_moment_flx                  ", &
+      "inst_sensi_heat_flx                    ", &
+      "inst_laten_heat_flx                    ", &
+      "inst_down_lw_flx                       ", &
+      "inst_down_sw_flx                       ", &
+      "inst_temp_height2m                     ", &
+      "inst_spec_humid_height2m               ", &
+      "inst_zonal_wind_height10m              ", &
+      "inst_merid_wind_height10m              ", &
+      "inst_temp_height_surface               ", &
+      "inst_pres_height_surface               ", &
+      "inst_surface_height                    ", &
+      "mean_net_lw_flx                        ", &
+      "mean_net_sw_flx                        ", &
+      "inst_net_lw_flx                        ", &
+      "inst_net_sw_flx                        ", &
+      "mean_down_sw_ir_dir_flx                ", &
+      "mean_down_sw_ir_dif_flx                ", &
+      "mean_down_sw_vis_dir_flx               ", &
+      "mean_down_sw_vis_dif_flx               ", &
+      "inst_down_sw_ir_dir_flx                ", &
+      "inst_down_sw_ir_dif_flx                ", &
+      "inst_down_sw_vis_dir_flx               ", &
+      "inst_down_sw_vis_dif_flx               ", &
+      "mean_net_sw_ir_dir_flx                 ", &
+      "mean_net_sw_ir_dif_flx                 ", &
+      "mean_net_sw_vis_dir_flx                ", &
+      "mean_net_sw_vis_dif_flx                ", &
+      "inst_net_sw_ir_dir_flx                 ", &
+      "inst_net_sw_ir_dif_flx                 ", &
+      "inst_net_sw_vis_dir_flx                ", &
+      "inst_net_sw_vis_dif_flx                ", &
+!     "inst_ir_dir_albedo                     ", &
+!     "inst_ir_dif_albedo                     ", &
+!     "inst_vis_dir_albedo                    ", &
+!     "inst_vis_dif_albedo                    ", &
+      "inst_land_sea_mask                     ", &
+      "inst_temp_height_lowest                ", &
+      "inst_spec_humid_height_lowest          ", &
+      "inst_zonal_wind_height_lowest          ", &
+      "inst_merid_wind_height_lowest          ", &
+      "inst_pres_height_lowest                ", &
+      "inst_height_lowest                     ", &
+      "mean_fprec_rate                        "  /)
   
   ! Import Fields ----------------------------------------
-  type(ESMF_Field), public  ::                           &
-                       inst_sea_surf_temp,               & !  1
-                       ice_fraction,                     & !  2
-                       inst_ice_ir_dif_albedo,           & !  3
-                       inst_ice_ir_dir_albedo,           & !  4
-                       inst_ice_vis_dif_albedo,          & !  5
-                       inst_ice_vis_dir_albedo,          & !  6
-                       mean_up_lw_flx_ice,               & !  7
-                       mean_laten_heat_flx_atm_into_ice, & !  8
-                       mean_sensi_heat_flx_atm_into_ice, & !  9
-                       mean_evap_rate_atm_into_ice,      & ! 10
-                       stress_on_air_ice_zonal,          & ! 11
-                       stress_on_air_ice_merid,          & ! 12
-                       land_mask                           ! 13
+  type(ESMF_Field), public   :: importFields(NimportFields)
+  character(len=40), public, parameter :: importFieldsList(NimportFields) = (/ &
+      "land_mask                              ", &
+      "surface_temperature                    ", &
+      "sea_surface_temperature                ", &
+      "ice_fraction                           ", &
+      "inst_ice_ir_dif_albedo                 ", &
+      "inst_ice_ir_dir_albedo                 ", &
+      "inst_ice_vis_dif_albedo                ", &
+      "inst_ice_vis_dir_albedo                ", &
+      "mean_up_lw_flx                         ", &
+      "mean_laten_heat_flx                    ", &
+      "mean_sensi_heat_flx                    ", &
+      "mean_evap_rate                         ", &
+      "mean_zonal_moment_flx                  ", &
+      "mean_merid_moment_flx                  "  /)
   
   ! Utility GSM members ----------------------------------
   public            :: global_lats_ptr
@@ -94,10 +115,9 @@ module module_CPLFIELDS
   public            :: lonsperlat_ptr
   integer, pointer  :: lonsperlat_ptr(:)
 
-#endif
-
   ! Methods
   public fillExportFields
+  public queryFieldList
   public setupGauss2d
   
   !-----------------------------------------------------------------------------
@@ -110,121 +130,22 @@ module module_CPLFIELDS
     integer, intent(in)                         :: lonr, latr, rootPet
     integer, intent(out), optional              :: rc
     
+    integer           :: n
     !-----
     ! Fill updated data into the export Fields.
     !-----
     
     if (present(rc)) rc=ESMF_SUCCESS
     
-    call fillFields( &
-      fieldList=(/ &
-        mean_zonal_moment_flx,       & !  1
-        mean_merid_moment_flx,       & !  2
-        mean_sensi_heat_flx,         & !  3
-        mean_laten_heat_flx,         & !  4
-        mean_down_lw_flx,            & !  5
-        mean_down_sw_flx,            & !  6
-        mean_prec_rate,              & !  7
-        inst_zonal_moment_flx,       & !  8
-        inst_merid_moment_flx,       & !  9
-        inst_sensi_heat_flx,         & ! 10
-        inst_laten_heat_flx,         & ! 11
-        inst_down_lw_flx,            & ! 12
-        inst_down_sw_flx,            & ! 13
-        inst_temp_height2m,          & ! 14
-        inst_spec_humid_height2m,    & ! 15
-        inst_zonal_wind_height10m,   & ! 16
-        inst_merid_wind_height10m,   & ! 17
-        inst_temp_height_surface,    & ! 18
-        inst_pres_height_surface,    & ! 19
-        inst_surface_height,         & ! 20
-        mean_net_lw_flx,             & ! 21
-        mean_net_sw_flx,             & ! 22
-        inst_net_lw_flx,             & ! 23
-        inst_net_sw_flx,             & ! 24
-        mean_down_sw_ir_dir_flx,     & ! 25
-        mean_down_sw_ir_dif_flx,     & ! 26
-        mean_down_sw_vis_dir_flx,    & ! 27
-        mean_down_sw_vis_dif_flx,    & ! 28
-        inst_down_sw_ir_dir_flx,     & ! 29
-        inst_down_sw_ir_dif_flx,     & ! 30
-        inst_down_sw_vis_dir_flx,    & ! 31
-        inst_down_sw_vis_dif_flx,    & ! 32
-        mean_net_sw_ir_dir_flx,      & ! 33
-        mean_net_sw_ir_dif_flx,      & ! 34
-        mean_net_sw_vis_dir_flx,     & ! 35
-        mean_net_sw_vis_dif_flx,     & ! 36
-        inst_net_sw_ir_dir_flx,      & ! 37
-        inst_net_sw_ir_dif_flx,      & ! 38
-        inst_net_sw_vis_dir_flx,     & ! 39
-        inst_net_sw_vis_dif_flx,     & ! 40
-        inst_land_sea_mask           & ! 45
-      /), &
-      idList=(/ &
-          1, &
-          2, &
-          3, &
-          4, &
-          5, &
-          6, &
-          7, &
-          8, &
-          9, &
-         10, &
-         11, &
-         12, &
-         13, &
-         14, &
-         15, &
-         16, &
-         17, &
-         18, &
-         19, &
-         20, &
-         21, &
-         22, &
-         23, &
-         24, &
-         25, &
-         26, &
-         27, &
-         28, &
-         29, &
-         30, &
-         31, &
-         32, &
-         33, &
-         34, &
-         35, &
-         36, &
-         37, &
-         38, &
-         39, &
-         40, &
-         41  &
-      /), rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
+    do n=1, size(exportFields)
+      if (ESMF_FieldIsCreated(exportFields(n))) then
+        call ESMF_FieldScatter(exportFields(n), data_a2oi(:,:,n), &
+          rootPet=rootPet, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+      endif
+    enddo
 
-  contains
-  
-    subroutine fillFields(fieldList, idList, rc)
-      type(ESMF_Field)  :: fieldList(:)
-      integer           :: idList(:)
-      integer, optional :: rc
-      
-      integer           :: i
-      
-      if (present(rc)) rc=ESMF_SUCCESS
-      
-      do i=1, size(fieldList)
-        if (NUOPC_IsCreated(fieldList(i))) then
-          call ESMF_FieldScatter(fieldList(i), data_a2oi(:,:,idList(i)), &
-            rootPet=rootPet, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-        endif
-      enddo
-      
-    end subroutine
+    ESMF_ERR_RETURN(rc,rc)
 
   end subroutine
 #else
@@ -389,6 +310,41 @@ module module_CPLFIELDS
   end subroutine
 #endif
 
+  integer function queryFieldList(fieldlist, fieldname, abortflag, rc)
+    ! returns integer index of first found fieldname in fieldlist
+    ! by default, will abort if field not found, set abortflag to false 
+    !   to turn off the abort.
+    ! return value of < 1 means the field was not found
+    character(len=*),intent(in) :: fieldlist(:)
+    character(len=*),intent(in) :: fieldname
+    logical, optional :: abortflag
+    integer, optional :: rc
+
+    integer :: n
+    logical :: labort
+
+    labort = .true.
+    if (present(abortflag)) then
+      labort = abortflag
+    endif
+
+    queryFieldList = 0
+    n = 1
+    do while (queryFieldList < 1 .and. n <= size(fieldlist))  
+      if (trim(fieldlist(n)) == trim(fieldname)) then
+        queryFieldList = n
+      else
+        n = n + 1
+      endif
+    enddo
+
+    if (labort .and. queryFieldList < 1) then
+! #ifdef WITH_NUOPC
+     call ESMF_LogWrite('queryFieldList ABORT on fieldname '//trim(fieldname), ESMF_LOGMSG_INFO, line=__LINE__, file=__FILE__, rc=rc)
+      CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
+! #endif
+    endif
+  end function queryFieldList
   !-----------------------------------------------------------------------------
 
 end module

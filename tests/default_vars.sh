@@ -77,7 +77,7 @@ export CDATE=2012010100
 export GOCART_AER2POST=.false.
 export NST_FCST=0  ; export NDSLFV=.false.  ; export IDEA=.false.
 export SLG=.false.
-export A2OI_OUT=.false. ; export NGRID_A2OI=47 
+export A2OI_OUT=.false. ; export NGRID_A2OI=48
 }
 
 export_fim ()

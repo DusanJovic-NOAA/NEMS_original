@@ -31,7 +31,7 @@ if [ $MACHINE_ID = wcoss ]; then
   export pex=1           # for wcoss phase1
   export pex=${pex:-2}   # default - phase2
   export CLASS=debug # dev
-   export ACCNR=dev
+  export ACCNR=dev
   if [ $pex -eq 2 ] ; then
    export CLASS=dev$pex 
    export ACCNR=dev$pex
@@ -277,6 +277,7 @@ else
 fi
 
 # Finalize, Clenaup
+
 rm -f err out nmm_msub nmm_bsub nmm_qsub nmm_run gfs_fcst_run \
 nems.configure gfs_qsub gfs_fcst_run.IN ngac_qsub ngac_bsub gfs_bsub \
 configure_file_01 configure_file_02 configure_file_03 configure_file_04 \
