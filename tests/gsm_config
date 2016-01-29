@@ -50,9 +50,16 @@ elif [[ $wave -eq 382 ]] ; then
   export DELTIM=${DELTIM:-180}
 
 elif [[ $wave -eq 574 ]] ; then
-  export LONF=1760 ; export LATG=880 ; export LONR=1760 ; export LATR=880
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-120}
+  if [ $SLG = .false. ]; then
+    export LONF=1760 ; export LATG=880 ; export LONR=1760 ; export LATR=880
+    export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
+    export DELTIM=${DELTIM:-120}
+  else
+#jw run on linear grid
+    export LONF=1152 ; export LATG=576 ; export LONR=1152 ; export LATR=576
+    export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
+    export DELTIM=${DELTIM:-600}
+  fi
 
 elif [[ $wave -eq 852 ]] ; then
   export LONF=2560 ; export LATG=1280 ; export LONR=2560 ; export LATR=1280
@@ -87,8 +94,7 @@ export random_clds=${random_clds:-.false.}
 export mstrat=${mstrat:-.false.}
 export ctei_rm=${ctei_rm:-10.0,10.0}
 export ccnorm=${ccnorm:-.false.}
-export ADIAB=${ADIAB:-.false.}
-export adiab=${adiab:-${ADIAB:-.false.}}
+export ADIABATIC=${ADIABATIC:-.false.}
 export shal_cnv=${shal_cnv:-.true.}
 export sashal=${sashal:-.true.}
 export newsas=${newsas:-.true.}
@@ -136,6 +142,10 @@ export dspheat=.true.
 export settls_dep3ds=.true.
 export settls_dep3dg=.true.
 export levr=64
+  if [ $wave -eq 574 ]; then
+    export lingg_a=.true.
+    export lingg_b=.true.
+  fi
 fi
 export semilag=${semilag:-.false.}
 export shuff_lats_a=${shuff_lats_a:-.false.}

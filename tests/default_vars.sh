@@ -65,7 +65,7 @@ else
  export TASKS=32  ; export PE1=32       ; export NSOUT=0       ; export QUILT=.false.
 fi
 export NDAYS=2   ; export CP2=.false.  ; export IAER=0        ; export FHRES=180
-export WRTGP=1   ; export FDFI=0       ; export ADIAB=.false. ; export REDUCEDGRID=.true.
+export WRTGP=1   ; export FDFI=0       ; export ADIABATIC=.false. ; export REDUCEDGRID=.true.
 export FHZER=6
 export wave=62   ; export THRD=1
 export lm=64     ; export lsoil=4         ; export MEMBER_NAMES=c00

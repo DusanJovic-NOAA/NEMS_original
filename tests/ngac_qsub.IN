@@ -46,16 +46,17 @@ export NEMSDIR=_NEMSDIR_
 export WORKDIR=_WORKDIR_
 export REGSDIR=_REGSDIR_ 
 export FCST_SCRIPT_DIR=_NEMSDIR_/tests
+export DATAICDIR=_DATAICDIR_
 export PDY=20120717
 
 export FHSWR=3600.
 export FHLWR=3600.
 
-export GRDI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.gfsanl
+export GRDI=_REGSDIR_/$DATAICDIR/ngac.t00z.gfsanl
 if [ $NEMSIO_IN = .true. ] ; then
-  export SFCI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.sfnanl
+  export SFCI=_REGSDIR_/$DATAICDIR/ngac.t00z.sfnanl
 else
-  export SFCI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.sfcanl
+  export SFCI=_REGSDIR_/$DATAICDIR/ngac.t00z.sfcanl
 fi
 
 export wgrib=/home/George.Vandenberghe/nwprod/util/exec/wgrib

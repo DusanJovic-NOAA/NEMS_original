@@ -35,6 +35,7 @@ cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
                     | sed s:_REGSDIR_:${REGSDIR}:g   \
+                    | sed s:_DATAICDIR_:${DATAICDIR}:g   \
                     | sed s:_CONFIG_:${PARA_CONFIG}:g   \
                     | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
                     | sed s:_NEMSIOIN_:${NEMSIOIN}:g   \
@@ -62,6 +63,7 @@ cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
                     | sed s:_REGSDIR_:${REGSDIR}:g   \
+                    | sed s:_DATAICDIR_:${DATAICDIR}:g   \
                     | sed s:_CONFIG_:${PARA_CONFIG}:g   \
                     | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
                     | sed s:_NEMSIOIN_:${NEMSIOIN}:g   \

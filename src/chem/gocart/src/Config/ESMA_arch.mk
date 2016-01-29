@@ -97,6 +97,8 @@ ifeq ($(ARCH),Linux)
   SITE := $(patsubst fe%,zeus,$(SITE))
   SITE := $(patsubst t1%,wcoss,$(SITE))
   SITE := $(patsubst g1%,wcoss,$(SITE))
+  SITE := $(patsubst t2%,wcoss,$(SITE))
+  SITE := $(patsubst g2%,wcoss,$(SITE))
   SITE := $(patsubst ga%,gaea,$(SITE))
   SITE := $(patsubst tf%,theia,$(SITE))
 echo SITE= ${SITE}

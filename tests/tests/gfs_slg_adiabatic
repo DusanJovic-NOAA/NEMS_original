@@ -1,15 +1,15 @@
 ###############################################################################
 #
 #  GFS Semi-Lagrangian model
-#  32 tasks, T62L64, 24 hours forecast. physics version. NEMSIO output.
+#  32 tasks, T62L64, 24 hours forecast. adiabatic version. NEMSIO output.
 #  With digital filter. Read-in fron gfs_slg_nemsio 24 hours output file.
 #
 ###############################################################################
 
-export TEST_DESCR="Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions"
+export TEST_DESCR="Run SLG adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions"
 
-export CNTL_DIR=GFS_SLG
-export LIST_FILES="sigf00 SIG.F06 sigf24 sfcf00 SIG.F06 sfcf24 flxf00 FLX.F06 flxf24"
+export CNTL_DIR=GFS_SLG_ADIABATIC
+export LIST_FILES="sigf00 sigf06 sigf12 sigf24 "
 
 export_gsm
 
@@ -24,7 +24,7 @@ export lm=64
 export TASKS=32
 export TPN=16
 export THRD=1
-export ADIABATIC=.false.
+export ADIABATIC=.true.
 export IAER=111
 #jw export LD_PRELOAD=/u/James.A.Abeles/mpi_trace_linux_x86_64/shared/libmpitrace.so
 export WLCLK=29

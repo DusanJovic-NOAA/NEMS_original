@@ -586,7 +586,7 @@ export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
 export NGPTC=${NGPTC:-30}
 #jw
-export ADIAB=${ADIAB:-.false.}
+export ADIABATIC=${ADIABATIC:-.false.}
 export nsout=${nsout:-0}
 export LDFIFLTO=${LDFIFLTO:-.false.}
 export DFILEVS=${DFILEVS:-$LEVS}
@@ -639,16 +639,22 @@ export FNVEGC=${FNVEGC:-${FIXGLOBAL}/global_vegfrac.0.144.decpercent.grb}
 export FNVETC=${FNVETC:-${FIXGLOBAL}/global_vegtype.1x1.grb}
 export FNSOTC=${FNSOTC:-${FIXGLOBAL}/global_soiltype.1x1.grb}
 #export FNSMCC=${FNSMCC:-${FIXGLOBAL}/global_soilmcpc.1x1.grb}
-export FNSMCC=${FNSMCC:-${FIXGLOBAL}/global_soilmgldas.t${JCAP}.${LONR}.${LATR}.grb}
 export FNVMNC=${FNVMNC:-${FIXGLOBAL}/global_shdmin.0.144x0.144.grb}
 export FNVMXC=${FNVMXC:-${FIXGLOBAL}/global_shdmax.0.144x0.144.grb}
 export FNSLPC=${FNSLPC:-${FIXGLOBAL}/global_slope.1x1.grb}
 export FNABSC=${FNABSC:-${FIXGLOBAL}/global_snoalb.1x1.grb}
 export FNMSKH=${FNMSKH:-${FIXGLOBAL}/seaice_newland.grb}
+export OROGRAPHY_UF=${OROGRAPHY_UF:-${FIXGLOBAL}/global_orography_uf.t$MTNRSLUF.${LONR}.${LATR}.grb}
+export FNSMCC=${FNSMCC:-${FIXGLOBAL}/global_soilmgldas.t${JCAP}.${LONR}.${LATR}.grb}
+if [ $lingg_a = .true. ]; then
+export OROGRAPHY=${OROGRAPHY:-${FIXGLOBAL}/global_orography.t$MTNRSL.${LONR}.${LATR}.grb}
+export LONSPERLAT=${LONSPERLAT:-${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.${LONR}.${LATR}.txt}
+export LONSPERLAR=${LONSPERLAR:-${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.${LONR}.${LATR}.txt}
+else
 export OROGRAPHY=${OROGRAPHY:-${FIXGLOBAL}/global_orography.t$MTNRSL.grb}
-export OROGRAPHY_UF=${OROGRAPHY_UF:-${FIXGLOBAL}/global_orography_uf.t$MTNRSLUF.grb}
 export LONSPERLAT=${LONSPERLAT:-${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.txt}
 export LONSPERLAR=${LONSPERLAR:-${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.txt}
+fi
 export FNTSFA=${FNTSFA}
 export FNACNA=${FNACNA}
 export FNSNOA=${FNSNOA}
@@ -755,7 +761,7 @@ fi
 ioform_sig=${ioform_sig:-bin4}
 ioform_sfc=${ioform_sfc:-bin4}
 ioform_flx=${ioform_flx:-bin4}
-if [[ $ADIAB = .true. ]] ; then
+if [[ $ADIABATIC = .true. ]] ; then
   export NUM_FILE=1 ;
   export FILENAME_BASE="'SIG.F'"
   export FILE_IO_FORM=${FILE_IO_FORM:-"'bin4'"}
@@ -1317,7 +1323,7 @@ im:                      $LONB
 jm:                      $LATB
 global:                  .true.
 nhours_dfini:            $nhours_dfini
-adiabatic:               $ADIAB
+adiabatic:               $ADIABATIC
 lsoil:                   $LSOIL
 passive_tracer:          $PASSIVE_TRACER
 dfilevs:                 $DFILEVS

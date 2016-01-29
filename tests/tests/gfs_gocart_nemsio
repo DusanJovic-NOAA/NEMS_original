@@ -30,5 +30,6 @@ export dtphys=3600
 export wave=126
 export shuff_lats_a=.true.
 export shuff_lats_r=.true.
+export DATAICDIR=GFS_GOCART_NEMSIO
 
 RUN_SCRIPT=rt_gocart.sh

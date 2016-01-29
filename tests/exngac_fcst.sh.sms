@@ -563,7 +563,7 @@ export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
 export NGPTC=${NGPTC:-30}
 #jw
-export ADIAB=${ADIAB:-.false.}
+export ADIABATIC=${ADIABATIC:-.false.}
 export nsout=${nsout:-0}
 export LDFIFLTO=${LDFIFLTO:-.false.}
 export DFILEVS=${DFILEVS:-$LEVS}
@@ -723,7 +723,7 @@ if [ $NEMSIO_OUT = .false. -a $WRITE_DOPOST = .false. ] ; then
   export LWRTGRDCMP=.false.
 fi
 # number of output files, default =3, for adiab num_file=1
-if [[ $ADIAB = .true. ]] ; then
+if [[ $ADIABATIC = .true. ]] ; then
   export NUM_FILE=1 ;
   export FILENAME_BASE="'SIG.F'"
   export FILE_IO_FORM="'grib'"
@@ -1225,7 +1225,7 @@ im:                      $LONB
 jm:                      $LATB
 global:                  .true.
 nhours_dfini:            $nhours_dfini
-adiabatic:               $ADIAB
+adiabatic:               $ADIABATIC
 lsoil:                   $LSOIL
 passive_tracer:          $PASSIVE_TRACER
 dfilevs:                 $DFILEVS

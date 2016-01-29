@@ -8,26 +8,26 @@
 
 export TEST_DESCR="Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions"
 
-export CNTL_DIR=GFS_SLG_NEMSIO_READ
-export LIST_FILES="sigf00 SIG.F06 SIG.F12 SIG.F18 sigf24 "
+export CNTL_DIR=GFS_SLG
+export LIST_FILES="sigf00 SIG.F06 sigf24 sfcf00 SFC.F06 sfcf24 flxf00 FLX.F06 flxf24"
 
 export_gsm
 
-module purge
-module load EnvVars/1.0.0 ibmpe lsf ics/14.0.1 NetCDF/4.2/serial ESMF/630rp1
+#jw module purge
+#jw module load EnvVars/1.0.0 ibmpe lsf ics/14.0.1 NetCDF/4.2/serial ESMF/630rp1
 
-export CDATE=2012102400
-#export CDATE=2012010100
+export CDATE=2012010100
 export LDFI_SPECT=.true.
 export NDAYS=1
 export wave=62
 export lm=64
 export TASKS=32
-export TPN=16
-export THRD=1
-export ADIAB=.false.
+#jw export TPN=16
+export TPN=8
+export THRD=2
+export ADIABATIC=.false.
 export IAER=111
-export LD_PRELOAD=/u/James.A.Abeles/mpi_trace_linux_x86_64/shared/libmpitrace.so
+#jw export LD_PRELOAD=/u/James.A.Abeles/mpi_trace_linux_x86_64/shared/libmpitrace.so
 export WLCLK=29
 export SLG=.true.
 export PE1=32
@@ -74,5 +74,6 @@ export IEMS=1
 export ISOL=2
 export ICO2=2
 export RESTART=.false.
+export DATAICDIR=GFS_SLG
 
 RUN_SCRIPT=rt_gfs.sh

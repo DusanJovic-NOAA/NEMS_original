@@ -33,13 +33,15 @@ if [ $MACHINE_ID = wcoss ]; then
   export CLASS=debug # dev
   export ACCNR=dev
   if [ $pex -eq 2 ] ; then
-   export CLASS=dev$pex 
+#   export CLASS=dev$pex 
+   export CLASS=debug$pex 
    export ACCNR=dev$pex
   fi
 # export STMP=/stmp$pex
   export STMP=/ptmpp$pex
   export PTMP=/ptmpp$pex
   export SCHEDULER=lsf
+  export SIGHDR=/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
 elif [ $MACHINE_ID = gaea ]; then
   export DISKNM=/lustre/f1/unswept/ncep/Ratko.Vasic
   export STMP=/lustre/f1/ncep
@@ -70,8 +72,7 @@ fi
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 #export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
-#export RTPWD=/scratch4/NCEPDEV/nems/noscrub/Weiyu.Yang/REGRESSION_TEST
-#export RTPWD=/nems/noscrub/Weiyu.Yang/REGRESSION_TEST
+#export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_new
 
 export CREATE_BASELINE=false
 CB_arg=''
@@ -132,19 +133,13 @@ if [[ $CREATE_BASELINE == true ]]; then
   if [[ $CB_arg != gfs ]]; then
     echo "copy gfs"
 set +e
-    cp ${RTPWD}/GFS_ADIAB/*                ${RTPWD_U}/GFS_ADIAB/.
-    cp ${RTPWD}/GFS_DFI_NEMSIO/*           ${RTPWD_U}/GFS_DFI_NEMSIO/.
-    cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*      ${RTPWD_U}/GFS_DFI_REDUCEDGRID/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop/*        ${RTPWD_U}/GFS_DFI_hyb_2loop/.
-    cp ${RTPWD}/GFS_NODFI/*                ${RTPWD_U}/GFS_NODFI/.
-    cp ${RTPWD}/GFS_SLG_adiab/*            ${RTPWD_U}/GFS_SLG_adiab/.
-    cp ${RTPWD}/GFS_SLG_adiab_DFI/*        ${RTPWD_U}/GFS_SLG_adiab_DFI/.
-    cp ${RTPWD}/GFS_SLG_NEMSIO_READ/*      ${RTPWD_U}/GFS_SLG_NEMSIO_READ/.
-    cp ${RTPWD}/GFS_SLG_NEMSIO/*           ${RTPWD_U}/GFS_SLG_NEMSIO/.
-    cp ${RTPWD}/GFS_NODFI_ESMF_6.3.0rAPI/* ${RTPWD_U}/GFS_NODFI_ESMF_6.3.0rAPI/.
+    cp ${RTPWD}/GFS_EULERIAN/*             ${RTPWD_U}/GFS_EULERIAN/*
     cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
-    cp ${RTPWD}/WAM_gh_l150_NDSL/*         ${RTPWD_U}/WAM_gh_l150_NDSL/.
+    cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
+    cp ${RTPWD}/GFS_SLG_ADIABATIC/*        ${RTPWD_U}/GFS_SLG_ADIABATIC/.
+    cp ${RTPWD}/GFS_SLG/*                  ${RTPWD_U}/GFS_SLG/.
+    cp ${RTPWD}/GFS_SLG_48PE/*             ${RTPWD_U}/GFS_SLG_48PE/.
+    cp ${RTPWD}/GFS_SLG_t574/*             ${RTPWD_U}/GFS_SLG_t574/.
 set -e
   fi
   if [[ $CB_arg != nmm ]]; then
@@ -180,9 +175,8 @@ set -e
   if [[ $CB_arg != post ]]; then
     echo "copy post"
 set +e
-    cp    ${RTPWD}/GFS_DFI_POST/*          ${RTPWD_U}/GFS_DFI_POST/.
     cp    ${RTPWD}/NMMB_reg_post/*         ${RTPWD_U}/NMMB_reg_post/.
-    cp -r ${RTPWD}/GFS_GOCART_POST/*       ${RTPWD_U}/GFS_GOCART_POST/.
+#    cp -r ${RTPWD}/GFS_GOCART_POST/*       ${RTPWD_U}/GFS_GOCART_POST/.
 set -e
   fi
 fi
@@ -277,7 +271,6 @@ else
 fi
 
 # Finalize, Clenaup
-
 rm -f err out nmm_msub nmm_bsub nmm_qsub nmm_run gfs_fcst_run \
 nems.configure gfs_qsub gfs_fcst_run.IN ngac_qsub ngac_bsub gfs_bsub \
 configure_file_01 configure_file_02 configure_file_03 configure_file_04 \

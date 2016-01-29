@@ -13,8 +13,17 @@ export SIGIOIN=${SIGIOIN:-.true.}
 export SFCIOOUT=${SFCIOOUT:-.true.}
 export NEMSIOOUT=${NEMSIOOUT:-.false.}
 export SIGIOOUT=${SIGIOOUT:-.true.}
-export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
 export MACHINE_ID=${MACHINE_ID:-wcoss}
+if [ "$NEMSIOIN" = ".true." ]; then
+  if [ $MACHINE_ID = wcoss ]; then
+    export SIGHDR=/nwprod/exec/global_sighdr
+  elif [ $MACHINE_ID = theia ]; then
+    export SIGHDR=/scratch3/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
+  fi
+else
+  export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
+fi
+
 export SCHEDULER=${SCHEDULER:-lsf}
 export SHOWQ=${SHOWQ:-/opt/moab/default/bin/showq}
 export MSUB=${MSUB:-/opt/moab/default/bin/msub}
@@ -89,7 +98,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_FHMAXHF_:${FHMAX_HF}:g              \
                      | sed s:_fcyc_:${fcyc}:g                     \
                      | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g       \
-                     | sed s:_ADIAB_:${ADIAB}:g                   \
+                     | sed s:_ADIABATIC_:${ADIABATIC}:g                   \
                      | sed s:_NSTFCST_:${NST_FCST}:g              \
                      | sed s:_GOCART_:${GOCART}:g                 \
                      | sed s:_TRACER_:${TRACER}:g                 \
@@ -178,30 +187,17 @@ fi
  fi
 
  if [ "$NEMSIOIN" = ".true." ]; then
-# if [ $IDVC = 2 ] ; then
-#   export IC_DIR=${IC_DIR:-${RTPWD}/GFS_DFI_POST}
-
-# elif [ $IDVC = 3 ] ; then
-#   export IC_DIR=${IC_DIR:-${RTPWD}/GFS_NODFI}
-
-# fi
-# export IC_DIR=${IC_DIR:-${RTPWD}/$CNTL_DIR}
- #export IC_DIR=${RTPWD}/$CNTL_DIR
+  export IC_DIR=${IC_DIR:-${RTPWD}/$DATAICDIR}
   if [ $MACHINE_ID = wcoss ] ; then
-     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
+#     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
      export nemsioget=${nemsioget:-/nwprod/ngac.v1.0.0/exec/nemsio_get}
   elif [ $MACHINE_ID = theia ] ; then
-     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
+#     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
      export nemsioget=${nemsioget:-/scratch3/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
   fi
-
-# These gfsanl and sfnanl data were copy from Moorthi's directory at
-# /global/noscrub/Shrinivas.Moorthi/data on Surge machine. Weiyu.
-#-------------------------------------------------------------------
-  cp ${RTPWD}/GFS_SLG_NEMSIO_READ/gfsanl.$CDATE $RUNDIR
-  cp ${RTPWD}/GFS_SLG_NEMSIO_READ/sfnanl.$CDATE $RUNDIR
-#  cp $IC_DIR/gfsanl.$CDATE $RUNDIR
-#  cp $IC_DIR/sfnanl.$CDATE $RUNDIR
+  export SIGHDR=$nemsioget
+  cp $IC_DIR/gfsanl.$CDATE $RUNDIR
+  cp $IC_DIR/sfnanl.$CDATE $RUNDIR
 
 #                     NO NEMSIO INPUT
 #                     ---------------

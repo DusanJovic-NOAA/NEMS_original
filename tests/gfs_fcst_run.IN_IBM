@@ -29,7 +29,7 @@ fi
 #export EXPLICIT=.true.
  export EXPLICIT=.false.
 
- export ADIAB=_ADIAB_
+ export ADIABATIC=_ADIABATIC_
  export NST_FCST=_NSTFCST_   #0(AM), 1(am,nst) and 2(cpld nstnst)
  export NST_FCST=${NST_FCST:-0}
 ## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
@@ -60,13 +60,18 @@ fi
    export MPI_GROUP_MAX=128
    export HOUTASPS=12
    export IGEN=82
-   export FNTSFC=$FIXGLOBAL/RTGSST.1982.2012.monthly.clim.grb
+   export FNTSFC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/RTGSST.1982.2012.monthly.clim.grb"
    export FNAISC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/CFSR.SEAICE.1982.2012.monthly.clim.grb"
    export FNTG3C="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_tg3clim.2.6x1.5.grb"
    export FNVEGC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegfrac.0.144.decpercent.grb"
    export FNVETC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegtype.1x1.grb"
    export FNSOTC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soiltype.1x1.grb"
-   export FNSMCC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soilmgldas.t62.192.94.grb"
+   if [ $wave -eq 62 ]; then
+     export FNSMCC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soilmgldas.t${wave}.192.94.grb"
+   elif [ $wave -eq 574 ]; then
+     export FNSMCC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soilmgldas.t${wave}.1152.576.grb"
+   fi
+
    export FNMSKH="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/seaice_newland.grb"
    export FNTSFA=""
    export FNACNA=""
@@ -127,7 +132,7 @@ fi
  export machine=${machine:-${MACHINE_ID:-WCOSS}}
 #
 # number of output files, default =3, for adiab num_file=1
- if [[ $ADIAB = .true. ]] ; then
+ if [[ $ADIABATIC = .true. ]] ; then
      export NUM_FILE=1 ;
     export FILENAME_BASE="'SIG.F'"
     export FILE_IO_FORM="'grib'"
@@ -223,7 +228,7 @@ if [ $SLG = .true. ] ; then
     export FTSFS=90
     export FAISS=99999
     export cnvgwd=.true.
-    export dtphys=450
+#jw     export dtphys=450
     export cdmbgwd=0.25,2.0
 fi
 #
@@ -415,9 +420,6 @@ fi
  export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
  export POSTGPEXEC=$POSTGPDIR/global_postgp
  export POSTGPSH=/nwprod/ush/global_postgp.sh
-#
- export OROGRAPHY=$FIXGLOBAL/global_orography.t62.grb
- export OROGRAPHY_UF=$FIXGLOBAL/global_orography_uf.t62.grb
 #
 #
 # ------------------------ initial condition ----------------

@@ -1783,7 +1783,7 @@
       INTEGER :: I,J,N,N1,N2,NPOSN_1,NPOSN_2,LENGTH,MAXLENGTH
 !
       INTEGER :: FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)                &
-                ,INDX_2D,INDX_2D2,INDX_2D3                              &
+                ,INDX_2D,INDX_2D2,INDX_2D3,INDX_2DA                     &
                 ,IRET,IND1,IND2,IND3,IND4,CNT,INI1,INI2                 &  
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NMETA,TLMETA,VLEV,LSOIL
@@ -1810,7 +1810,6 @@
       LOGICAL                      :: GEN_COORD_HYBRID
       LOGICAL,DIMENSION(:),POINTER :: VARLVAL
 !
-      CHARACTER(6)                        :: MODEL_LEVEL
       CHARACTER(40)                       :: CFHOUR,CFORM
       CHARACTER(16)                       :: VLEVTYP
 !
@@ -2207,8 +2206,12 @@
         INDX_2D=index(NAME,"_2D")
 !
         IF (INDX_2D > 0) THEN
-          MODEL_LEVEL=NAME(INDX_2D-2:INDX_2D-1)
-          RECLEV(NREC)=(ICHAR(MODEL_LEVEL(1:1))-48)*10+ICHAR(MODEL_LEVEL(2:2))-48
+          INDX_2DA=INDEX(NAME(1:INDX_2D-1),"_",back=.true.)
+          RECLEV(NREC) = 0
+          DO I=1, INDX_2D-INDX_2DA-1
+            RECLEV(NREC) = (ICHAR(NAME(INDX_2D-i:INDX_2D-i))-48)*10**(I-1)+RECLEV(NREC)
+          ENDDO
+
           INDX_2D2=INDEX(NAME,"_")
           if(INDX_2D2>0) RECNAME(NREC)=NAME(1:INDX_2D2-1)
           CALL LOWERCASE(RECNAME(NREC))
@@ -2266,8 +2269,12 @@
         INDX_2D=INDEX(NAME,"_2D")
 !
         IF (INDX_2D > 0) THEN
-          MODEL_LEVEL=NAME(INDX_2D-2:INDX_2D-1)
-          RECLEV(NREC)=(ICHAR(MODEL_LEVEL(1:1))-48)*10+ICHAR(MODEL_LEVEL(2:2))-48
+          INDX_2DA=INDEX(NAME(1:INDX_2D-1),"_",back=.true.)
+          RECLEV(NREC) = 0
+          DO I=1, INDX_2D-INDX_2DA-1
+            RECLEV(NREC) = (ICHAR(NAME(INDX_2D-i:INDX_2D-i))-48)*10**(I-1)+RECLEV(NREC)
+          ENDDO
+
           INDX_2D2=INDEX(NAME,"_")
           if(INDX_2D2>0) RECNAME(NREC)=NAME(1:INDX_2D2-1)
           CALL LOWERCASE(RECNAME(NREC))

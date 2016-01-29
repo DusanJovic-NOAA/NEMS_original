@@ -23,7 +23,7 @@ fi
 #export EXPLICIT=.true.
  export EXPLICIT=.false.
 
- export ADIAB=_ADIAB_
+ export ADIABATIC=_ADIABATIC_
  export NST_FCST=_NSTFCST_   #0(AM), 1(am,nst) and 2(cpld nstnst)
  export NST_FCST=${NST_FCST:-0}
 ## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
@@ -86,7 +86,7 @@ fi
  export SIGHDR=_SIGHDR_
 #
 # number of output files, default =3, for adiab num_file=1
- if [[ $ADIAB = .true. ]] ; then
+ if [[ $ADIABATIC = .true. ]] ; then
      export NUM_FILE=1 ;
     export FILENAME_BASE="'SIG.F'"
     export FILE_IO_FORM="'grib'"
@@ -177,7 +177,7 @@ if [ $SLG = .true. ] ; then
     export FTSFS=90
     export FAISS=99999
     export cnvgwd=.true.
-    export dtphys=450
+#jw     export dtphys=450
     export cdmbgwd=0.25,2.0
     export CPIlist=
     export RIlist=
@@ -208,9 +208,6 @@ export WRITE_DOPOST=_wrtdopost_
 export POST_GRIBVERSION=_postgrbvs_
 export GOCART_AER2POST=_aer2post_
 export liope=.false.
-if [[ $QUILTING = .true. ]] ; then export liope=.true. ; fi
-#if [ $SLG = .true. ] ; then export liope=.true. ; fi
-#
 export NTHREADS=_THRDS_
 export MP_STDOUTMODE=ordered
 export MP_LABELIO=yes
@@ -316,6 +313,20 @@ grid_aldata=_CP2_
 #   Control for post and time averaging  If "YES" then run
 #   -- Defaults to "NO" 
 #
+export LDFIFLTO=.true.
+if [ $SLG = .true. ] ; then
+   export gfsio_out=.false.
+   export out_virttemp=.false.
+   export zflxtvd=.false.
+   export shuff_lats_a=.false.
+   export shuff_lats_r=.false.
+   export semilag=.true.
+else
+#   export zflxtvd=.true.
+   export shuff_lats_a=.true.
+   export shuff_lats_r=.true.
+   export semilag=.false.
+fi
 
 #
 #     Forecaset script and executable name
@@ -382,7 +393,11 @@ fi
   else
     export GRDI=$RUNDIR/gfsanl.$CDATE
     export SIGI=$RUNDIR/siganl.$CDATE
-    export SFCI=$RUNDIR/sfcanl.$CDATE
+    if [[ $NEMSIO_IN = .true. ]] ; then
+      export SFCI=$RUNDIR/sfnanl.$CDATE
+    else
+      export SFCI=$RUNDIR/sfcanl.$CDATE
+    fi
     export FHINI=00
   fi
 #
