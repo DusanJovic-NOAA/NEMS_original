@@ -69,8 +69,8 @@
      &                    ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT,PD       &
      &                    ,T,Q                                          &
      &                    ,THS,ALBEDO                                   &
-     &                    ,QV,QC,QR,QI,QS,QG,NI                         &
-     &                    ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI           &
+     &                    ,QC,QR,QI,QS,QG,NI                            &
+     &                    ,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI                &
      &                    ,NUM_WATER                                    &
      &                    ,SM,CLDFRA                                    &
      &                    ,RLWTT,RSWTT                                  &
@@ -173,13 +173,12 @@
                                                     ,CFRACM,CZMEAN      &
                                                     ,SIGT4
 !
-      ! REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QR,QG,NI
-      REAL,DIMENSION(:,:,:),POINTER,INTENT(INOUT)::QC,QI,QS,QV,QR,QG,NI
+      REAL,DIMENSION(:,:,:),POINTER,INTENT(INOUT)::QC,QI,QS,QR,QG,NI
 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
 !
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI
+      LOGICAL,INTENT(IN) :: F_QC,F_QR,F_QI,F_QS,F_QG,F_NI
 !
       CHARACTER(99),INTENT(IN) :: LONGWAVE,SHORTWAVE,CLDFRACTION
 !
@@ -223,7 +222,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: PI3D                      &
                                              ,THRATEN,THRATENLW         &
                                              ,THRATENSW                 &
-                                             ,PRL,RHO                   &
+                                             ,PRL,RHO,QV                &
                                              ,QCW,QCI,QSNOW,NCI         &
                                              ,QTdum,FIdum,FRdum
 !
@@ -506,6 +505,7 @@
                 DO K=1,LM
                   DO J=JMS,JME
                     DO I=IMS,IME
+                      QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))
                       QCW(I,J,K)=QC(I,J,K)
                       QCI(I,J,K)=0.
                       QSNOW(I,J,K)=0.
@@ -606,8 +606,8 @@
                  ,T,Q,QTdum,O3                                    &  ! QTdum was CW
                  ,ALBEDO                                          &
                  ,FIdum,FRdum                                     &  ! FIdum,FRdum were F_ICE,F_RAIN
-                 ,QV,QCW,QCI,QSNOW,QR,QG,NCI                      &  ! QCW,QCI,QSNOW,NCI were QC,QI,QS,NI
-                 ,F_QV,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI              &
+                 ,QCW,QCI,QSNOW,QR,QG,NCI                         &  ! QCW,QCI,QSNOW,NCI were QC,QI,QS,NI
+                 ,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI                   &
                  ,NUM_WATER                                       &
                  ,CLD_FRACTION                                    &
                  ,SM,CLDFRA                                       &

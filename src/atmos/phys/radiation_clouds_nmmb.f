@@ -2891,6 +2891,7 @@
            rainp(i,k) = 0.0
            snowp(i,k) = 0.0
            snden(i,k) = 0.0
+           resnow(i,k) = resnow_def
         enddo
       enddo
 

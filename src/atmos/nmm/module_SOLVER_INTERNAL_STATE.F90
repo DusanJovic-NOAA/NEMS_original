@@ -293,7 +293,6 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_ICE          => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_RIMEF        => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_RAIN         => NULL()
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QV             => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QC             => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QI             => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QR             => NULL()
@@ -575,9 +574,7 @@
 !
         INTEGER(kind=KINT) :: INDX_Q                                    &  !<-- Location of Q in tracer arrays
                              ,INDX_CW                                   &  !<-- Location of CW in tracer arrays
-                             ,INDX_O3                                   &  !<-- Location of O3 in tracer arrays
                              ,INDX_Q2=0                                 &  !<-- Location of Q2 in tracer arrays
-                             ,INDX_QV=0                                 &  !<-- Location of Qv in tracer arrays
                              ,INDX_QC=0                                 &  !<-- Location of Qc in tracer arrays
                              ,INDX_QI=0                                 &  !<-- Location of Qi in tracer arrays
                              ,INDX_QR=0                                 &  !<-- Location of Qr in tracer arrays
@@ -637,7 +634,6 @@
                         ,MICROPHYSICS
 !
         INTEGER(kind=KINT) :: NUM_WATER                                 &  !<-- 1 + types of water substance in microphysics
-                             ,P_QV                                      &  !<-- Index for water vapor in WATER array
                              ,P_QC                                      &  !<-- Index for cloud water in WATER array
                              ,P_QR                                      &  !<-- Index for rain in WATER array
                              ,P_QI                                      &  !<-- Index for cloud ice in WATER array
@@ -652,7 +648,7 @@
 
         INTEGER(kind=KINT) :: NP3D                                         !<-- cloud properties for rrtm
 !
-        LOGICAL(kind=KLOG) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
+        LOGICAL(kind=KLOG) :: F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
 !
 !-----------------------------------------------------------------------
 !***  Nesting
@@ -717,10 +713,8 @@
         REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: DDATA
 !
         REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: MAVAIL            &
-                                                     ,QCG,QSG,QVG       &
                                                      ,SHDMAX,SHDMIN     &
-                                                     ,SOILT1,STDH       &
-                                                     ,TSNAV
+                                                     ,STDH
 !
         REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: Q02,TH02
 !
@@ -853,61 +847,45 @@
 !-----------------------------------------------------------------------
 !
       int_state%D_SS=1
-      int_state%F_NI=.FALSE.
-      int_state%F_NR=.FALSE.
       int_state%has_reqc=0
       int_state%has_reqi=0
       int_state%has_reqs=0
 
       int_state%NUM_WATER=0
-      int_state%P_QV=-1
-      int_state%P_QC=-1
-      int_state%P_QI=-1
-      int_state%P_QR=-1
-      int_state%P_QS=-1
-      int_state%P_QG=-1
-      int_state%P_NI=-1
-      int_state%P_NR=-1
+      int_state%P_QC=0
+      int_state%P_QI=0
+      int_state%P_QR=0
+      int_state%P_QS=0
+      int_state%P_QG=0
+      int_state%P_NI=0
+      int_state%P_NR=0
+      int_state%F_QC=.FALSE.
+      int_state%F_QR=.FALSE.
+      int_state%F_QS=.FALSE.
+      int_state%F_QI=.FALSE.
+      int_state%F_QG=.FALSE.
+      int_state%F_NI=.FALSE.
+      int_state%F_NR=.FALSE.
 
       IF(TRIM(int_state%MICROPHYSICS)=='fer'.OR. &
          TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
-        int_state%NUM_WATER=1+5 ! aligo
-        int_state%P_QV=2
-        int_state%P_QC=3
-        int_state%P_QR=4
-        int_state%P_QS=5
-        int_state%P_QG=6 ! aligo
-        int_state%P_QI=1
-        int_state%F_QV=.TRUE.
+        int_state%NUM_WATER=4
+        int_state%P_QC=1
+        int_state%P_QR=2
+        int_state%P_QS=3
+        int_state%P_QG=4
         int_state%F_QC=.TRUE.
         int_state%F_QR=.TRUE.
         int_state%F_QS=.TRUE.
-        int_state%F_QI=.FALSE.
-        int_state%F_QG=.TRUE. ! aligo
+        int_state%F_QG=.TRUE.
         if(int_state%lmprate) int_state%D_SS=14
-!      ELSEIF(TRIM(int_state%MICROPHYSICS)=='wsm3')THEN
-!        int_state%NUM_WATER=1+3
-!        int_state%P_QV=2
-!        int_state%P_QC=3
-!        int_state%P_QR=4
-!        int_state%P_QS=1
-!        int_state%P_QI=1
-!        int_state%P_QG=1
-!        int_state%F_QV=.TRUE.
-!        int_state%F_QC=.TRUE.
-!        int_state%F_QR=.TRUE.
-!        int_state%F_QS=.FALSE.
-!        int_state%F_QI=.FALSE.
-!        int_state%F_QG=.FALSE.
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='wsm6')THEN
-        int_state%NUM_WATER=1+6
-        int_state%P_QV=2
-        int_state%P_QC=3
-        int_state%P_QR=4
-        int_state%P_QS=5
-        int_state%P_QI=6
-        int_state%P_QG=7
-        int_state%F_QV=.TRUE.
+        int_state%NUM_WATER=5
+        int_state%P_QC=1
+        int_state%P_QR=2
+        int_state%P_QS=3
+        int_state%P_QI=4
+        int_state%P_QG=5
         int_state%F_QC=.TRUE.
         int_state%F_QR=.TRUE.
         int_state%F_QS=.TRUE.
@@ -915,16 +893,14 @@
         int_state%F_QG=.TRUE.
         if(int_state%lmprate) int_state%D_SS=40
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='thompson')THEN
-        int_state%NUM_WATER=1+8
-        int_state%P_QV=2
-        int_state%P_QC=3
-        int_state%P_QI=4
-        int_state%P_QR=5
-        int_state%P_QS=6
-        int_state%P_QG=7
-        int_state%P_NI=8
-        int_state%P_NR=9
-        int_state%F_QV=.TRUE.
+        int_state%NUM_WATER=7
+        int_state%P_QC=1
+        int_state%P_QI=2
+        int_state%P_QR=3
+        int_state%P_QS=4
+        int_state%P_QG=5
+        int_state%P_NI=6
+        int_state%P_NR=7
         int_state%F_QC=.TRUE.
         int_state%F_QR=.TRUE.
         int_state%F_QS=.TRUE.
@@ -944,24 +920,17 @@
            write(6,*) 'DEBUG-GT:  Long/short-wave set to: ', TRIM(int_state%LONGWAVE), TRIM(int_state%SHORTWAVE)
         ENDIF
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='gfs')THEN
-        int_state%NUM_WATER=1+3
-        int_state%P_QV=2
-        int_state%P_QC=3
-        int_state%P_QR=1
-        int_state%P_QS=1
-        int_state%P_QI=4
-        int_state%P_QG=1
-        int_state%F_QV=.TRUE.
+        int_state%NUM_WATER=2
+        int_state%P_QC=1
+        int_state%P_QI=2
         int_state%F_QC=.TRUE.
-        int_state%F_QR=.FALSE.
-        int_state%F_QS=.FALSE.
         int_state%F_QI=.TRUE.
-        int_state%F_QG=.FALSE.
       ELSE
         write(0,*) 'Unknown microphysics : ',TRIM(int_state%MICROPHYSICS)
         stop
       ENDIF
 !
+      int_state%NUM_TRACERS_MET=3
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array
                                   int_state%NUM_TRACERS_MET             &  !<-- # of water, etc. tracers specified now (see below)
                                  +int_state%NUM_TRACERS_CHEM            &  !<-- # of specified scalars (chem, aerosol, etc.)
@@ -1103,7 +1072,6 @@
 
 !..Added by G. Thompson for multiple water species. Truly not declared
 !.. new memory but rather pointers into TRACERS array.
-      CALL SET_VAR_PTR(int_state%VARS,NV,'QV'        ,int_state%QV      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'QC'        ,int_state%QC      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'QI'        ,int_state%QI      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'QR'        ,int_state%QR      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
@@ -1415,65 +1383,50 @@
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_Q2-1)*TRACER_SIZE_1+1 : int_state%INDX_Q2*TRACER_SIZE_1)
       int_state%Q2=>int_state%VARS(I)%R3D
 !
-!-----------------------------------------------------------------------
-!***  Point O3 (General tracer for testin) at level 4(INDX_O3) of the Tracers array.
-!-----------------------------------------------------------------------
-!
-      int_state%INDX_O3=4
-      CALL FIND_VAR_INDX('O3',int_state%VARS,int_state%NUM_VARS,I)
-      int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_O3-1)*TRACER_SIZE_1+1 : int_state%INDX_O3*TRACER_SIZE_1)
-      int_state%O3=>int_state%VARS(I)%R3D
-!
 !--------------------------------
-!***  Water tracers
+!***  Water tracers (condensate only; water vapor is calculated from specific humidity)
 !--------------------------------
 !
       int_state%INDX_WATER_START = int_state%NUM_TRACERS_MET + int_state%NUM_TRACERS_CHEM + 1
       int_state%INDX_WATER_END = int_state%INDX_WATER_START + int_state%NUM_WATER - 1
 
-      if (int_state%P_QV .gt. 1) then
-         int_state%INDX_QV = int_state%INDX_WATER_START-1 + int_state%P_QV
-         CALL FIND_VAR_INDX('QV',int_state%VARS,int_state%NUM_VARS,I)
-         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QV-1)*TRACER_SIZE_1+1 : int_state%INDX_QV*TRACER_SIZE_1)
-         int_state%QV=>int_state%VARS(I)%R3D
-      endif
-      if (int_state%P_QC .gt. 1) then
+      if (int_state%P_QC .gt. 0) then
          int_state%INDX_QC = int_state%INDX_WATER_START-1 + int_state%P_QC
          CALL FIND_VAR_INDX('QC',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QC-1)*TRACER_SIZE_1+1 : int_state%INDX_QC*TRACER_SIZE_1)
          int_state%QC=>int_state%VARS(I)%R3D
       endif
-      if (int_state%P_QI .gt. 1) then
+      if (int_state%P_QI .gt. 0) then
          int_state%INDX_QI = int_state%INDX_WATER_START-1 + int_state%P_QI
          CALL FIND_VAR_INDX('QI',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QI-1)*TRACER_SIZE_1+1 : int_state%INDX_QI*TRACER_SIZE_1)
          int_state%QI=>int_state%VARS(I)%R3D
       endif
-      if (int_state%P_QR .gt. 1) then
+      if (int_state%P_QR .gt. 0) then
          int_state%INDX_QR = int_state%INDX_WATER_START-1 + int_state%P_QR
          CALL FIND_VAR_INDX('QR',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QR-1)*TRACER_SIZE_1+1 : int_state%INDX_QR*TRACER_SIZE_1)
          int_state%QR=>int_state%VARS(I)%R3D
       endif
-      if (int_state%P_QS .gt. 1) then
+      if (int_state%P_QS .gt. 0) then
          int_state%INDX_QS = int_state%INDX_WATER_START-1 + int_state%P_QS
          CALL FIND_VAR_INDX('QS',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QS-1)*TRACER_SIZE_1+1 : int_state%INDX_QS*TRACER_SIZE_1)
          int_state%QS=>int_state%VARS(I)%R3D
       endif
-      if (int_state%P_QG .gt. 1) then
+      if (int_state%P_QG .gt. 0) then
          int_state%INDX_QG = int_state%INDX_WATER_START-1 + int_state%P_QG
          CALL FIND_VAR_INDX('QG',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QG-1)*TRACER_SIZE_1+1 : int_state%INDX_QG*TRACER_SIZE_1)
          int_state%QG=>int_state%VARS(I)%R3D
       endif
-      if (int_state%P_NI .gt. 1) then
+      if (int_state%P_NI .gt. 0) then
          int_state%INDX_NI = int_state%INDX_WATER_START-1 + int_state%P_NI
          CALL FIND_VAR_INDX('NI',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NI-1)*TRACER_SIZE_1+1 : int_state%INDX_NI*TRACER_SIZE_1)
          int_state%NI=>int_state%VARS(I)%R3D
       endif
-      if (int_state%P_NR .gt. 1) then
+      if (int_state%P_NR .gt. 0) then
          int_state%INDX_NR = int_state%INDX_WATER_START-1 + int_state%P_NR
          CALL FIND_VAR_INDX('NR',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NR-1)*TRACER_SIZE_1+1 : int_state%INDX_NR*TRACER_SIZE_1)
@@ -1635,14 +1588,9 @@
       ALLOCATE(int_state%LPBL(IMS:IME,JMS:JME))   ;int_state%LPBL   = I4_IN ! Model layer containing top of the PBL
       ALLOCATE(int_state%DDATA(IMS:IME,JMS:JME))  ;int_state%DDATA  = R4_IN ! Observed precip to each physics timestep (kg m-2)
       ALLOCATE(int_state%MAVAIL(IMS:IME,JMS:JME)) ;int_state%MAVAIL = R4_IN ! Moisture availability
-      ALLOCATE(int_state%QCG(IMS:IME,JMS:JME))    ;int_state%QCG    = R4_IN ! Cloud water mixing ratio at the surface  (kg kg-1)
-      ALLOCATE(int_state%QSG(IMS:IME,JMS:JME))    ;int_state%QSG    = R4_IN ! Surface saturation water vapor mixing ratio  (kg kg-1)
-      ALLOCATE(int_state%QVG(IMS:IME,JMS:JME))    ;int_state%QVG    = R4_IN ! Water vapor mixing ratio at the surface  (kg kg-1)
       ALLOCATE(int_state%SHDMAX(IMS:IME,JMS:JME)) ;int_state%SHDMAX = R4_IN ! Maximum areal fractional coverage of annual green vegetation
       ALLOCATE(int_state%SHDMIN(IMS:IME,JMS:JME)) ;int_state%SHDMIN = R4_IN ! Minimum areal fractional coverage of annual green vegetation
-      ALLOCATE(int_state%SOILT1(IMS:IME,JMS:JME)) ;int_state%SOILT1 = R4_IN ! Snow temperature  (K)
       ALLOCATE(int_state%STDH(IMS:IME,JMS:JME))   ;int_state%STDH   = R4_IN ! Standard deviation of topography height (m) !zj
-      ALLOCATE(int_state%TSNAV(IMS:IME,JMS:JME))  ;int_state%TSNAV  = R4_IN ! Average snow temperature  (K)
       ALLOCATE(int_state%CROT(IMS:IME,JMS:JME))   ;int_state%CROT   = R4_IN ! Cosine of the angle between Earth and model coordinates
       ALLOCATE(int_state%SROT(IMS:IME,JMS:JME))   ;int_state%SROT   = R4_IN ! Sine of the angle between Earth and model coordinates
       ALLOCATE(int_state%HSTDV(IMS:IME,JMS:JME))  ;int_state%HSTDV  = R4_IN ! Standard deviation of the height (m)

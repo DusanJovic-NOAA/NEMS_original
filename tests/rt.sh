@@ -132,22 +132,19 @@ if [[ $CREATE_BASELINE == true ]]; then
 
   if [[ $CB_arg != gfs ]]; then
     echo "copy gfs"
-set +e
-    cp ${RTPWD}/GFS_EULERIAN/*             ${RTPWD_U}/GFS_EULERIAN/*
+    cp ${RTPWD}/GFS_EULERIAN/*             ${RTPWD_U}/GFS_EULERIAN/.
     cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
     cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
     cp ${RTPWD}/GFS_SLG_ADIABATIC/*        ${RTPWD_U}/GFS_SLG_ADIABATIC/.
     cp ${RTPWD}/GFS_SLG/*                  ${RTPWD_U}/GFS_SLG/.
     cp ${RTPWD}/GFS_SLG_48PE/*             ${RTPWD_U}/GFS_SLG_48PE/.
-    cp ${RTPWD}/GFS_SLG_t574/*             ${RTPWD_U}/GFS_SLG_t574/.
-set -e
+    cp ${RTPWD}/GFS_SLG_T574/*             ${RTPWD_U}/GFS_SLG_T574/.
   fi
   if [[ $CB_arg != nmm ]]; then
     echo "copy nmm"
-set +e
     cp ${RTPWD}/NMMB_2way_nests/*          ${RTPWD_U}/NMMB_2way_nests/.
-    cp ${RTPWD}/NMMB_gfsP_glob/*           ${RTPWD_U}/NMMB_gfsP_glob/.
-    cp ${RTPWD}/NMMB_gfsP_reg/*            ${RTPWD_U}/NMMB_gfsP_reg/.
+#    cp ${RTPWD}/NMMB_gfsP_glob/*           ${RTPWD_U}/NMMB_gfsP_glob/.
+#    cp ${RTPWD}/NMMB_gfsP_reg/*            ${RTPWD_U}/NMMB_gfsP_reg/.
     cp ${RTPWD}/NMMB_glob/*                ${RTPWD_U}/NMMB_glob/.
     cp ${RTPWD}/NMMB_mvg_nests/*           ${RTPWD_U}/NMMB_mvg_nests/.
     cp ${RTPWD}/NMMB_nests/*               ${RTPWD_U}/NMMB_nests/.
@@ -156,7 +153,7 @@ set +e
     cp ${RTPWD}/NMMB_reg_filt_zombie/*     ${RTPWD_U}/NMMB_reg_filt_zombie/.
     cp ${RTPWD}/NMMB_reg_hur/*             ${RTPWD_U}/NMMB_reg_hur/.
     cp ${RTPWD}/NMMB_reg_pcpadj/*          ${RTPWD_U}/NMMB_reg_pcpadj/.
-    cp ${RTPWD}/NMMB_reg_post/*            ${RTPWD_U}/NMMB_reg_post/.
+#    cp ${RTPWD}/NMMB_reg_post/*            ${RTPWD_U}/NMMB_reg_post/.
     cp ${RTPWD}/NMMB_reg_sas_zhao/*        ${RTPWD_U}/NMMB_reg_sas_zhao/.
     cp ${RTPWD}/NMMB_reg_sel_phy/*         ${RTPWD_U}/NMMB_reg_sel_phy/.
     cp ${RTPWD}/NMMB_reg_spec_adv/*        ${RTPWD_U}/NMMB_reg_spec_adv/.
@@ -164,7 +161,6 @@ set +e
     cp ${RTPWD}/NMMB_reg_timesr/*          ${RTPWD_U}/NMMB_reg_timesr/.
     cp ${RTPWD}/NMMB_reg_wsm6_gfdl/*       ${RTPWD_U}/NMMB_reg_wsm6_gfdl/.
     cp ${RTPWD}/NMMB_reg_wsm6_rrtm/*       ${RTPWD_U}/NMMB_reg_wsm6_rrtm/.
-set -e
   fi
   if [[ $CB_arg != fim ]]; then
     echo "copy fim"
@@ -174,10 +170,8 @@ set -e
   fi
   if [[ $CB_arg != post ]]; then
     echo "copy post"
-set +e
-    cp    ${RTPWD}/NMMB_reg_post/*         ${RTPWD_U}/NMMB_reg_post/.
+#    cp    ${RTPWD}/NMMB_reg_post/*         ${RTPWD_U}/NMMB_reg_post/.
 #    cp -r ${RTPWD}/GFS_GOCART_POST/*       ${RTPWD_U}/GFS_GOCART_POST/.
-set -e
   fi
 fi
 

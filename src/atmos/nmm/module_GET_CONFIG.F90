@@ -31,7 +31,6 @@
       SUBROUTINE GET_CONFIG_DIMS (GRID_COMP                             &
                                  ,INPES,JNPES                           &
                                  ,LM                                    &
-                                 ,NUM_TRACERS_MET                       &
                                  ,NUM_TRACERS_CHEM                      &
                                  ,PCPHR                                 &
                                  ,GFS                                   &
@@ -53,7 +52,6 @@
       INTEGER,             INTENT(OUT)   :: INPES,JNPES                 &
                                            ,LM                          &
                                            ,LNSH,LNSV                   &
-                                           ,NUM_TRACERS_MET             &
                                            ,NUM_TRACERS_CHEM            &
                                            ,PCPHR
       LOGICAL,             INTENT(OUT)   :: GFS,LMPRATE
@@ -141,22 +139,6 @@
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
                                   ,value =JNPES                         &  !<-- Put extracted quantity here
                                   ,label ='jnpes:'                      &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG: Extract NUM_TRACERS_MET from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =NUM_TRACERS_MET               &  !<-- Put extracted quantity here
-                                  ,label ='num_tracers_met:'            &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -904,23 +886,6 @@
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
                                   ,value =int_state%IDTADT              &  !<-- Put extracted quantity here
                                   ,label ='idtadt:'                     &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG: Extract NUM_TRACERS_MET from Config File"
-      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%NUM_TRACERS_MET     &  !<-- Put extracted quantity here
-                                  ,label ='num_tracers_met:'            &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

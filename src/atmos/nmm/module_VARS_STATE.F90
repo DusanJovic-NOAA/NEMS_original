@@ -387,7 +387,7 @@
       TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATACOPY_REFERENCE
 !     TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATA_COPY
 
-      INTEGER :: INDX_O3  !! FIXME
+      INTEGER :: INDX_Q2  !! FIXME
 
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -794,7 +794,7 @@
 !
 !!!!!!!!! FIX this later
 !!!!!!!!! FIX this later
-      INDX_O3 = 4
+      INDX_Q2 = 3
 !!!!!!!!! FIX this later
 !!!!!!!!! FIX this later
 
@@ -812,7 +812,7 @@
 !
           IF(TRIM(VARS(N)%VBL_NAME)=='TRACERS_PREV' .OR. &
              TRIM(VARS(N)%VBL_NAME)=='TRACERS') THEN
-            LDIM4=INDX_O3+1                                                !<-- TRACERS bounds:      INDX_O3+1 - UDIM4
+            LDIM4=INDX_Q2+1                                                !<-- TRACERS bounds:      INDX_Q2+1 - UDIM4
           ENDIF
 
           DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)
@@ -868,7 +868,7 @@
           UDIM4=UBOUND(VARS(N)%R4D,4)
 !
           IF( TRIM(VARS(N)%VBL_NAME)=='TRACERS') THEN
-            LDIM4=INDX_O3+1                                                !<-- TRACERS bounds:      INDX_O3+1 - UDIM4
+            LDIM4=INDX_Q2+1                                                !<-- TRACERS bounds:      INDX_Q2+1 - UDIM4
           ENDIF
 !
           DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)

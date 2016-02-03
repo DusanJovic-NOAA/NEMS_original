@@ -333,14 +333,6 @@ integer,allocatable       :: reclev(:)
          endif
         enddo
         call halo_exch(int_state%q,lm,2,2)
-!
-        do l=1,lm
-        do j=jms,jme
-        do i=ims,ime
-          int_state%qv(i,j,l)=int_state%q(i,j,l)/(1.-int_state%q(i,j,l))    ! WRF water array uses mixing ratio for vapor
-        enddo
-        enddo
-        enddo
 !-----------------------------------------------------------------------
 !
 !-- clwmr
@@ -452,7 +444,6 @@ integer,allocatable       :: reclev(:)
             do i=ims,ime
               int_state%tracers_prev(i,j,l,int_state%indx_q )=sqrt(max(int_state%q (i,j,l),0.))
               int_state%tracers_prev(i,j,l,int_state%indx_cw)=sqrt(max(int_state%cw(i,j,l),0.))
-              int_state%tracers_prev(i,j,l,int_state%indx_o3)=sqrt(max(int_state%o3(i,j,l),0.))
               int_state%tracers_prev(i,j,l,int_state%indx_q2)=sqrt(max(int_state%q2(i,j,l),0.))
             enddo
           enddo
@@ -4075,8 +4066,8 @@ integer,allocatable       :: reclev(:)
       call halo_exch(int_state%v,lm,2,2)
 !-----------------------------------------------------------------------
 !-- rest of tracers
-      int_state%tracers(:,:,:,int_state%indx_o3+1:int_state%num_tracers_total)=0.
-      do n=int_state%indx_o3+1,int_state%num_tracers_total                     !<-- The first 'indx_o3' arrays are unallocated pointers
+      int_state%tracers(:,:,:,int_state%indx_q2+1:int_state%num_tracers_total)=0.
+      do n=int_state%indx_q2+1,int_state%num_tracers_total                     !<-- The first 'indx_q2' arrays are unallocated pointers
         write(tn,'(I3.3)')n
         do l=1,lm
           call getrecn(recname,reclevtyp,reclev,nrec,'tracers_'//tn,     &

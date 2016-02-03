@@ -124,7 +124,6 @@
                            ,NLAYRS                                      &  !<-- Number of model layers
                            ,NTIMESTEP                                   &  !<-- Integration timestep
                            ,NUM_TRACERS_CHEM                            &  !<-- Number of chemistry tracer variables
-                           ,NUM_TRACERS_MET                             &  !<-- Number of meteorological tracer variables
                            ,WRITE_GROUP_READY_TO_GO                        !<-- The write group to use
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE,SAVE :: COMM_FCST_TASKS  !<-- Hold the intracommunicator for each domain's fcst tasks.
@@ -1196,13 +1195,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
-                                  ,value =NUM_TRACERS_MET               &  !<-- The variable filled (number of meteorological tracers)
-                                  ,label ='num_tracers_met:'            &  !<-- Give this label's value to the previous variable
-                                  ,rc    =RC)
-!
-      CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
                                   ,value =NUM_TRACERS_CHEM              &  !<-- The variable filled (number of chemical tracers)
-                                  ,label ='num_tracers_met:'            &  !<-- Give this label's value to the previous variable
+                                  ,label ='num_tracers_chem:'           &  !<-- Give this label's value to the previous variable
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4892,7 +4886,7 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: DFIHR,FILTER_METHOD,MEAN_ON,NDFISTEP        &
-                           ,NUM_TRACERS_CHEM,NUM_TRACERS_MET
+                           ,NUM_TRACERS_CHEM
 !
       INTEGER(kind=KINT) :: YY, MM, DD, H, M, S
 !
@@ -5116,7 +5110,7 @@
                                           ,INTEGER_DT                            &
                                           ,NUMERATOR_DT                          &
                                           ,IDENOMINATOR_DT                       &
-                                          ,NUM_TRACERS_MET                       &
+                                          ,solver_int_state%NUM_TRACERS_MET      &
                                           ,NUM_TRACERS_CHEM                      &
                                           ,solver_int_state%ITS                  &
                                           ,solver_int_state%ITE                  &
@@ -5171,7 +5165,7 @@
           IF(CURRTIME>=STARTTIME)THEN
             CALL DIGITAL_FILTER_DYN_SUM_NMM(domain_int_state%FILT_BUNDLE_FILTER   &
                                            ,MEAN_ON                               &
-                                           ,NUM_TRACERS_MET                       &
+                                           ,solver_int_state%NUM_TRACERS_MET      &
                                            ,NUM_TRACERS_CHEM                      &
                                            ,solver_int_state%ITS                  &
                                            ,solver_int_state%ITE                  &
@@ -5213,7 +5207,7 @@
           IF(TESTTIME==DFITIME)THEN
 !
             CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%FILT_BUNDLE_FILTER   &
-                                               ,NUM_TRACERS_MET                       &
+                                               ,solver_int_state%NUM_TRACERS_MET      &
                                                ,NUM_TRACERS_CHEM                      &
                                                ,solver_int_state%ITS                  &
                                                ,solver_int_state%ITE                  &
@@ -5279,7 +5273,7 @@
           IF(CURRTIME<=STARTTIME)THEN
             CALL DIGITAL_FILTER_DYN_SUM_NMM(domain_int_state%FILT_BUNDLE_FILTER   &
                                            ,MEAN_ON                               &
-                                           ,NUM_TRACERS_MET                       &
+                                           ,solver_int_state%NUM_TRACERS_MET      &
                                            ,NUM_TRACERS_CHEM                      &
                                            ,solver_int_state%ITS                  &
                                            ,solver_int_state%ITE                  &
@@ -5307,7 +5301,7 @@
           IF(TESTTIME==DFITIME)THEN
             IF (FILTER_METHOD == 3) THEN
             CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%FILT_BUNDLE_FILTER   &
-                                               ,NUM_TRACERS_MET                       &
+                                               ,solver_int_state%NUM_TRACERS_MET      &
                                                ,NUM_TRACERS_CHEM                      &
                                                ,solver_int_state%ITS                  &
                                                ,solver_int_state%ITE                  &

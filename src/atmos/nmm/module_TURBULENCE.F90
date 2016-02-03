@@ -94,8 +94,8 @@
                       ,PD,T,Q,CWM,F_ICE,F_RAIN,F_RIMEF,SR               &
                       ,Q2,U,V,DUDT,DVDT                                 &
                       ,THS,TSFC,SST,PREC,SNO,SNOWC                      &
-                      ,QV,QC,QR,QI,QS,QG                                &
-                      ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                    &
+                      ,QC,QR,QI,QS,QG                                   &
+                      ,F_QC,F_QR,F_QI,F_QS,F_QG                         &
                       ,FIS,Z0,Z0BASE,USTAR,PBLH,LPBL,XLEN_MIX,RMOL      &
                       ,EXCH_H,AKHS,AKMS,AKHS_OUT,AKMS_OUT               &
                       ,THZ0,QZ0,UZ0,VZ0,QSH,MAVAIL                      &
@@ -104,8 +104,7 @@
                       ,SFCEXC,ACSNOW,ACSNOM,SNOPCX,SICE,TG,SOILTB       &
                       ,ALBASE,MXSNAL,ALBEDO,SH2O,SI,EPSR                &
                       ,U10,V10,TH10,Q10,TSHLTR,QSHLTR,PSHLTR,PSFC_OUT   &
-                      ,T2,QSG,QVG,QCG,SOILT1,TSNAV                      &
-                      ,TWBS,QWBS,SFCSHX,SFCLHX,SFCEVP                   &
+                      ,T2,TWBS,QWBS,SFCSHX,SFCLHX,SFCEVP                &
                       ,POTEVP,POTFLX,SUBSHX                             &
                       ,APHTIM,ARDSW,ARDLW,ASRFC                         &
                       ,CROT,SROT,MIXHT                                  &
@@ -222,17 +221,15 @@
                                                                  ,BGROFF,CMC       &
                                                                  ,PBLH,POTEVP      &
                                                                  ,POTFLX,PREC      &
-                                                                 ,QCG,QSH,QSG      &
-                                                                 ,QVG,QZ0,RMOL     &
+                                                                 ,QSH,QZ0,RMOL     &
                                                                  ,SFCEVP           &
                                                                  ,SFCLHX,SFCSHX    &
                                                                  ,SI,SMSTOT        &
                                                                  ,SNO,SNOPCX       &
                                                                  ,SNOWC            &
-                                                                 ,SOILT1           &
                                                                  ,SSROFF,SUBSHX    &
                                                                  ,T2,THS,THZ0      &
-                                                                 ,TSFC,TSNAV       &
+                                                                 ,TSFC             &
                                                                  ,USTAR,UZ0,VZ0    &
                                                                  ,Z0,Z0BASE        &
                                                                  ,APHTIM,ARDSW     & !<-- Were scalars
@@ -252,7 +249,7 @@
                                                                       ,Q,Q2   &
                                                                       ,T,U,V
 !
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: QV,QC,QI,QR,QS,QG
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: QC,QI,QR,QS,QG
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE  &
                                                                        ,F_RAIN
@@ -277,7 +274,7 @@
 !  For precip assimilation:
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: DDATA
-      LOGICAL(kind=KLOG),INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      LOGICAL(kind=KLOG),INTENT(IN) :: F_QC,F_QR,F_QI,F_QS,F_QG
       LOGICAL(kind=KLOG),INTENT(IN) :: GWDFLG,PCPFLG
 
 ! FOR Hurricane PBL/SFCLAY

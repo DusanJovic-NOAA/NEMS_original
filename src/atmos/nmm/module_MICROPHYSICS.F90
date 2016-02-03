@@ -63,8 +63,8 @@
                          ,T,Q,CWM,OMGALF                                &
                          ,TRAIN,SR                                      &
                          ,F_ICE,F_RAIN,F_RIMEF                          &
-                         ,QV,QC,QR,QI,QS,QG,NI,NR                       &
-                         ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR       &
+                         ,QC,QR,QI,QS,QG,NI,NR                          &
+                         ,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR            &
                          ,PREC,ACPREC,AVRAIN,ACPREC_TOT                 &
                          ,acpcp_ra,acpcp_sn,acpcp_gr, refl_10cm         &
                          ,re_cloud,re_ice,re_snow                       &
@@ -144,7 +144,7 @@
                                                            ,TRAIN
 !
       REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) ::         &
-     &                                          QV,QC,QI,QR,QS,QG,NI,NR
+     &                                          QC,QI,QR,QS,QG,NI,NR
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: F_ICE       &
                                                            ,F_RAIN      &
@@ -156,7 +156,7 @@
 !
       LOGICAL,INTENT(IN) :: NESTED,SPECIFIED
 !
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
+      LOGICAL,INTENT(IN) :: F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
 !
 !***  State Variables for ETAMPNEW Microphysics 
 !
@@ -186,9 +186,9 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: DZ                        &
                                              ,P_PHY,PI_PHY              &
-                                             ,RR,TH_PHY
+                                             ,RR,TH_PHY,QV
 !
-      LOGICAL :: WARM_RAIN,F_QT
+      LOGICAL :: WARM_RAIN,F_QT,USE_QV
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -268,24 +268,32 @@
 !.......................................................................
 !
 !-----------------------------------------------------------------------
-!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
+!***  IF NEEDED, UPDATE WATER VAPOR RATIO FROM SPECIFIC HUMIDITY.
 !-----------------------------------------------------------------------
 !
+      IF(TRIM(MICROPHYSICS)=='wsm6' .OR. TRIM(MICROPHYSICS)=='thompson')THEN
+        USE_QV=.TRUE.    !-- Initialize QV, update Q & CWM at the end
+      ELSE    
+        USE_QV=.FALSE.
+      ENDIF   
+!
+      IF(USE_QV) THEN
 !.......................................................................
 !$omp parallel do                                                       &
 !$omp& private(i,j,k)
 !.......................................................................
-      DO K=1,LM
-        DO J=JMS,JME
-          DO I=IMS,IME
+        DO K=1,LM
+          DO J=JTS_B1,JTE_B1
+          DO I=ITS_B1,ITE_B1
             QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))
           ENDDO
+          ENDDO
         ENDDO
-      ENDDO
-!
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
+      ENDIF
+!
 !-----------------------------------------------------------------------
 !
 !***  CALL MICROPHYSICS
@@ -382,7 +390,6 @@
                    IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM ,            &
                    ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM )
           CASE ('wsm6')
-      !       write(0,*)'call wsm6'
              CALL wsm6(                                             &
                   TH=th_phy                                         &
                  ,Q=QV                                              &
@@ -406,18 +413,8 @@
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM    &
                  ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
                  ,D_SS=d_ss,MPRATES=mprates)
-                DO K=1,LM
-                DO J=JMS,JME
-                DO I=IMS,IME
-                 Q(I,J,K)=QV(I,J,K)/(1.+QV(I,J,K)) !To s.h.
-                 CWM(I,J,K)=QC(i,j,k)+QR(i,j,k)+QI(i,j,k) &
-                           +QS(i,j,k)+QG(i,j,k)
-                ENDDO
-                ENDDO
-                ENDDO
-
-!+---+-----------------------------------------------------------------+
           CASE ('thompson')
+!+---+-----------------------------------------------------------------+
 !            write(6,*)'DEBUG-GT, calling mp_gt_driver'
              CALL mp_gt_driver(                                     &
                   qv=qv                                             &
@@ -447,16 +444,9 @@
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM    &
                  ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
                                                                     )
-                DO K=1,LM
-                DO J=JMS,JME
-                DO I=IMS,IME
-                 Q(I,J,K)=QV(I,J,K)/(1.+QV(I,J,K)) !To s.h.
-                 CWM(I,J,K)=QC(i,j,k)+QR(i,j,k)+QI(i,j,k) &
-                           +QS(i,j,k)+QG(i,j,k)
-                ENDDO
-                ENDDO
-                ENDDO
+!
 !..rainncv is actually all precip, so need to subtract snow/graupel to isolate rain only
+!
                 DO J=JMS,JME
                 DO I=IMS,IME
                    acpcp_sn(I,J) = acpcp_sn(I,J) + snowncv(i,j)
@@ -493,9 +483,27 @@
 !
 !-----------------------------------------------------------------------
 !
+      IF(USE_QV) THEN    !-- Update Q & CWM for WSM6 & Thompson microphysics
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(i,j,k,tnew)
+!$omp& private(i,j,k)
+!.......................................................................
+        DO K=1,LM
+          DO J=JTS_B1,JTE_B1
+          DO I=ITS_B1,ITE_B1
+            Q(I,J,K)=QV(I,J,K)/(1.+QV(I,J,K))
+            CWM(I,J,K)=QC(i,j,k)+QR(i,j,k)+QI(i,j,k)+QS(i,j,k)+QG(i,j,k)
+          ENDDO
+          ENDDO
+        ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+      ENDIF
+!
+!.......................................................................
+!$omp parallel do                                                       &
+!$omp& private(i,j,k,TNEW,MP_TTEN)
 !.......................................................................
       DO K=1,LM
         DO J=JTS_B1,JTE_B1

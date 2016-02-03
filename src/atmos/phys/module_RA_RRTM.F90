@@ -103,8 +103,8 @@
      &                    ,T,Q,CW,O3                                    &
      &                    ,ALBEDO                                       &
      &                    ,F_ICE,F_RAIN                                 &
-     &                    ,QV,QC,QI,QS,QR,QG,NI                         &
-     &                    ,F_QV,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI           &
+     &                    ,QC,QI,QS,QR,QG,NI                            &
+     &                    ,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI                &
      &                    ,NUM_WATER                                    &
      &                    ,CLD_FRACTION                                 &
      &                    ,SM,CLDFRA                                    &
@@ -171,10 +171,9 @@
                                                       ,CFRACM,CZMEAN    &
                                                       ,SIGT4
 !
-      LOGICAL,INTENT(IN) :: F_QC,F_QS                                   &
-     &                    ,F_QV,F_QI,F_QR,F_QG,F_NI 
+      LOGICAL,INTENT(IN) :: F_QC,F_QS,F_QI,F_QR,F_QG,F_NI 
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QC,QS       &
-     &                    ,QV,QI,QR,QG,NI 
+     &                    ,QI,QR,QG,NI 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CLDFRA
 !

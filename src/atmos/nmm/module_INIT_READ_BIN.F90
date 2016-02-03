@@ -334,14 +334,6 @@ integer(kind=kint):: &
         enddo
         call halo_exch(int_state%q,lm,2,2)
 !
-        do l=1,lm
-        do j=jms,jme
-        do i=ims,ime
-          int_state%qv(i,j,l)=int_state%q(i,j,l)/(1.-int_state%q(i,j,l))    ! WRF water array uses mixing ratio for vapor
-        enddo
-        enddo
-        enddo
-!
 !-----------------------------------------------------------------------
 !
         do l=1,lm
@@ -465,7 +457,6 @@ integer(kind=kint):: &
             do i=ims,ime
               int_state%tracers_prev(i,j,l,int_state%indx_q )=sqrt(max(int_state%q (i,j,l),0.))
               int_state%tracers_prev(i,j,l,int_state%indx_cw)=sqrt(max(int_state%cw(i,j,l),0.))
-              int_state%tracers_prev(i,j,l,int_state%indx_o3)=sqrt(max(int_state%o3(i,j,l),0.))
               int_state%tracers_prev(i,j,l,int_state%indx_q2)=sqrt(max(int_state%q2(i,j,l),0.))
             enddo
           enddo
@@ -2404,7 +2395,7 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
 !***  TRACERS
 !-----------------------------------------------------------------------
-      DO N=int_state%INDX_O3+1,int_state%NUM_TRACERS_TOTAL  !<-- The first 'indx_o3' arrays are unallocated pointers
+      DO N=int_state%INDX_Q2+1,int_state%NUM_TRACERS_TOTAL  !<-- The first 'indx_q2' arrays are unallocated pointers
         DO L=1,LM
           IF(MYPE==0)THEN
             READ(NFCST)TEMP1

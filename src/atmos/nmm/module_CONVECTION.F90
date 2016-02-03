@@ -51,8 +51,8 @@
                        ,DYH,RESTRT,HYDRO                                &
                        ,CLDEFI                                          &
                        ,F_ICE,F_RAIN                                    &
-                       ,QV,QC,QR,QI,QS,QG                               &
-                       ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                   &
+                       ,QC,QR,QI,QS,QG                                  &
+                       ,F_QC,F_QR,F_QI,F_QS,F_QG                        &
                        ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                &
                        ,dxh                                             &
                        ,PT,PD,T,Q,CWM,TCUCN                             &
@@ -114,7 +114,7 @@
       logical(kind=klog),intent(in):: &
        hydro,restrt &
       ,entrain,newall,newswap,newupup,nodeep &
-      ,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg
+      ,f_qc,f_qr,f_qi,f_qs,f_qg
 !
       integer(kind=kint),intent(in):: &
        cu_physics &
@@ -182,7 +182,7 @@
        w0avg
 !
       REAL(KIND=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) ::         &
-     &                                                QV,QC,QI,QR,QS,QG
+     &                                                QC,QI,QR,QS,QG
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------

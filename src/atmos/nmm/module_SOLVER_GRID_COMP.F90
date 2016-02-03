@@ -60,7 +60,7 @@
       USE MODULE_CONTROL,ONLY : NUM_DOMAINS_MAX,TIMEF
 !
       USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CAPPA,CP,ELIV,ELWV,EPSQ,G &
-                                 ,P608,PQ0,R_D,TIW
+                                 ,P608,PQ0,R_D,TIW,EPSQ2
 !
       USE MODULE_DIAGNOSE,ONLY : EXIT,FIELD_STATS                       &
                                 ,MAX_FIELDS,MAX_FIELDS_HR,MAX_FIELDS_W6 &
@@ -569,7 +569,6 @@
       CALL GET_CONFIG_DIMS (GRID_COMP                                   &
                            ,int_state%INPES,int_state%JNPES             &
                            ,LM                                          &
-                           ,int_state%NUM_TRACERS_MET                   &
                            ,int_state%NUM_TRACERS_CHEM                  &
                            ,int_state%PCPHR                             &
                            ,int_state%GFS                               &
@@ -896,6 +895,37 @@
         ENDDO
         ENDDO
 !
+!-- Initialize 4D microphysics rates (diagnostic arrays)
+!
+        DO KK=1,int_state%d_ss
+          DO L=1,LM
+            DO J=JMS,JME
+            DO I=IMS,IME
+              int_state%MPRATES(I,J,L,KK)=0.
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDDO
+!
+!-- Initialize all tracer-related arrays to zero. Water vapor mixing 
+!   ratio array (int_state%QV) is no longer in solver_run but is
+!   calculated when needed in the physics drivers.
+!   
+        DO N=1,int_state%NUM_TRACERS_TOTAL
+          DO L=1,LM
+            DO J=JMS,JME
+            DO I=IMS,IME
+              int_state%TRACERS     (I,J,L,N)=1.E-20
+              int_state%TRACERS_SQRT(I,J,L,N)=1.E-20
+              int_state%TRACERS_PREV(I,J,L,N)=1.E-20
+              int_state%TRACERS_TEND(I,J,L,N)=1.E-20
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDDO
+!
+!-- Initialize all "normal" 3D arrays
+!
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
@@ -904,50 +934,23 @@
           int_state%F_ICE(I,J,L)=0.
           int_state%F_RAIN(I,J,L)=0.
           int_state%F_RIMEF(I,J,L)=0.
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        DO N=1,int_state%NUM_TRACERS_TOTAL
-        DO L=1,LM
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%TRACERS     (I,J,L,N)=1.E-20
-          int_state%TRACERS_SQRT(I,J,L,N)=1.E-20
-          int_state%TRACERS_PREV(I,J,L,N)=1.E-20
-          int_state%TRACERS_TEND(I,J,L,N)=1.E-20
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        IF(.NOT. (int_state%GFS .or. &
-                  TRIM(int_state%MICROPHYSICS) == 'wsm6' .or. &
-                  TRIM(int_state%MICROPHYSICS) == 'thompson' ) )THEN
-        DO L=1,LM
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%TRACERS     (I,J,L,int_state%INDX_WATER_START)=0.0
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDIF
-!
-        DO L=1,LM
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%Q2(I,J,L)=0.02
-          int_state%W_TOT(I,J,L)=0.
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        DO L=1,LM
-        DO J=JMS,JME
-        DO I=IMS,IME
+          int_state%refl_10cm(I,J,L)=-35.0
+          int_state%Q2(I,J,L)=EPSQ2      !=> int_state%TRACERS(:,:,:,INDX_Q2)
+          int_state%OMGALF(I,J,L)=0.
+          int_state%T(I,J,L)=-1.E6
+          int_state%U(I,J,L)=-1.E6
+          int_state%V(I,J,L)=-1.E6
+          int_state%RLWTT(I,J,L)=0.
+          int_state%RSWTT(I,J,L)=0.
+          int_state%EXCH_H(I,J,L)=0.
+          int_state%XLEN_MIX(I,J,L)=0.
+          int_state%CLDFRA(I,J,L)=0.
+          int_state%TRAIN(I,J,L) =0.
+          int_state%TCUCN(I,J,L) =0.
           int_state%TCT(I,J,L) =-1.E6
           int_state%TCU(I,J,L) =-1.E6
           int_state%TCV(I,J,L) =-1.E6
+          int_state%W_TOT(I,J,L)=0.
         ENDDO
         ENDDO
         ENDDO
@@ -955,27 +958,6 @@
         int_state%I_PAR_STA=0
         int_state%J_PAR_STA=0
         int_state%NMTS=-999
-!
-        DO L=1,LM
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%OMGALF(I,J,L)=0.
-          int_state%T(I,J,L)=-1.E6
-          int_state%U(I,J,L)=-1.E6
-          int_state%V(I,J,L)=-1.E6
-
-          int_state%RLWTT(I,J,L)=0.
-          int_state%RSWTT(I,J,L)=0.
-
-          int_state%EXCH_H(I,J,L)=0.
-          int_state%XLEN_MIX(I,J,L)=0.
-
-          int_state%CLDFRA(I,J,L)=0.
-          int_state%TRAIN(I,J,L) =0.
-          int_state%TCUCN(I,J,L) =0.
-        ENDDO
-        ENDDO
-        ENDDO
 !
         DO L=1,NUM_SOIL_LAYERS
           int_state%SLDPTH(L)=SLDPTH(L)
@@ -1144,21 +1126,6 @@
         ENDDO
         ENDDO
 !
-        DO L=1,LM
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%Told(I,J,L)=0.
-          int_state%Tadj(I,J,L)=0.
-          int_state%F_ICE(I,J,L)=0.
-          int_state%F_RAIN(I,J,L)=0.
-          int_state%F_RIMEF(I,J,L)=0.
-          do KK=1,int_state%d_ss
-            int_state%MPRATES(I,J,L,KK)=0.
-          enddo
-          int_state%refl_10cm(I,J,L)=-35.0
-        ENDDO
-        ENDDO
-        ENDDO
         IF (int_state%has_reqc.eq.1 .and. int_state%has_reqi.eq.1 .and. int_state%has_reqs.eq.1) THEN
         DO L=1,LM
         DO J=JMS,JME
@@ -1794,20 +1761,6 @@
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
                               ,name ='INDX_CW'                          &  !<-- The inserted quantity will have this name
                               ,value=int_state%INDX_CW                  &  !<-- The value of this is associated with the preceding name
-                              ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert INDX_QV into Physics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
-                              ,name ='INDX_QV'                          &  !<-- The inserted quantity will have this name
-                              ,value=int_state%INDX_QV                  &  !<-- The value of this is associated with the preceding name
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2518,7 +2471,7 @@
 !***  SAVEs are for dereferenced constant variables.
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT),SAVE :: IDTADT,IFACT,IHRSTBC                   &
+      INTEGER(kind=KINT),SAVE :: IDTADT,IDTADTQ,IFACT,IHRSTBC                   &
                                 ,INTEGER_DT                             &
                                 ,KSE,KSS                                &
                                 ,LNSAD,LNSH,LNSV,LPT2,NBOCO             &
@@ -2796,6 +2749,11 @@
       GLOBAL=int_state%GLOBAL
       HYDRO=int_state%HYDRO
       IDTADT=int_state%IDTADT
+      IF(GLOBAL) THEN
+        IDTADTQ=IDTADT  !global
+      ELSE
+        IDTADTQ=1       !regional
+      ENDIF
       IHRSTBC=int_state%IHRSTBC
       KSE=int_state%NUM_TRACERS_MET
       KSS=1
@@ -4226,16 +4184,132 @@
       td%adv1_tim=td%adv1_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  Advection of tracers
+!*** Advect specific humidity IDTADTQ time steps
+!-----------------------------------------------------------------------
+!
+q_tracer: IF(MOD(ABS(NTIMESTEP),IDTADTQ)==0)THEN
+        KSS=int_state%INDX_Q
+        KSE1=KSS
+  !
+        btim=timef()
+        CALL ADV2                                                         &
+            (GLOBAL                                                       &
+            ,IDTADTQ,KSS,KSE1,LM,LNSAD                                    &
+            ,DT,RDYH                                                      &
+            ,int_state%DSG2,int_state%PDSG1                               &
+            ,int_state%FAH,int_state%RDXH                                 &
+            ,int_state%PD,int_state%PDO                                   &
+            ,int_state%PSGDT                                              &
+            ,int_state%UP,int_state%VP                                    &
+            ,int_state%INDX_Q2                                            &
+            ,int_state%TRACERS                                            &
+            ,int_state%TRACERS_PREV                                       &
+!
+!***  Temporary arguments
+!
+            ,int_state%PFNE,int_state%PFNW                                &
+            ,int_state%PFX,int_state%PFY                                  &
+            ,int_state%TRACERS_SQRT                                       &
+            ,int_state%TRACERS_TEND)
+        td%adv2_tim=td%adv2_tim+(timef()-btim)
+!
+!-----------------------------------------------------------------------
+!***  Filtering and boundary conditions for global forecasts of specific humidity
+!-----------------------------------------------------------------------
+!
+        IF(GLOBAL)THEN
+          btim=timef()
+          DO KS=KSS,KSE1
+             CALL FFTFHN                                                  &
+                    (LM                                                   &
+                    ,int_state%KHFILT                                     &
+                    ,int_state%HFILT                                      &
+                    ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,KS)      &
+                    ,int_state%WFFTRH,int_state%NFFTRH                    &
+                    ,NUM_PES,MYPE,MPI_COMM_COMP)
+          ENDDO
+          td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Tracer monotonization for specific humidity
+!-----------------------------------------------------------------------
+!
+        btim=timef()
+        CALL MONO                                                         &
+            (IDTADTQ,KSS,KSE1,LM                                          &
+            ,int_state%DSG2,int_state%PDSG1                               &
+            ,int_state%DARE                                               &
+            ,int_state%PD                                                 &
+            ,int_state%INDX_Q2                                            &
+            ,int_state%TRACERS                                            &
+            ,INPES,JNPES                                                  &
+            ,int_state%USE_ALLREDUCE                                      &
+!
+!***  Temporary arguments
+!
+            ,int_state%TRACERS_SQRT                                       &
+            ,int_state%TRACERS_TEND)
+        td%mono_tim=td%mono_tim+(timef()-btim)
+!
+!-----------------------------------------------------------------------
+!***  Update specific humidity
+!-----------------------------------------------------------------------
+!
+          btim=timef()
+          CALL UPDATES                                                     &
+            (LM,int_state%NUM_TRACERS_TOTAL,KSS,KSE1                       &
+            ,int_state%TRACERS,int_state%TRACERS_TEND)
+          td%updates_tim=td%updates_tim+(timef()-btim)
+!
+!-----------------------------------------------------------------------
+!
+          IF(GLOBAL)THEN
+            btim=timef()
+            CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES)
+            td%swaphn_tim=td%swaphn_tim+(timef()-btim)
+            btim=timef()
+            CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
+            td%polehn_tim=td%polehn_tim+(timef()-btim)
+          ENDIF
+!
+          btim=timef()
+          CALL HALO_EXCH(int_state%Q,LM,2,2)
+          td%exch_dyn=td%exch_dyn+(timef()-btim)
+      ENDIF  q_tracer
+!
+!-----------------------------------------------------------------------
+!***  Advection of tracers *other* than specific humidity
 !-----------------------------------------------------------------------
 ! 
-      tracers: IF(MOD(ABS(NTIMESTEP),IDTADT)==0)THEN
+not_q_tracers: IF(MOD(ABS(NTIMESTEP),IDTADT)==0)THEN
 !
 !-----------------------------------------------------------------------
 !
         btim=timef()
 !
+!-- Water vapor *mixing ratio* is not considered below, it will be 
+!   calculated from specific humidity before entering the physics block
+!
         IF(int_state%SPEC_ADV)THEN
+!
+!-- Separate species advection (SPEC_ADV=T): advect Q2 (TKE) and 
+!   individual *condensate* species (QC,QI,QR,QS,QG,etc)
+!
+!-- At the initial time step (NTIMESTEP=0), subroutine UPDATE_WATER has not
+!   been called yet, so the initial individual hydrometeor species (QC,QI,etc.) 
+!   have not been calculated from the int_state%CW/F_ice/F_rain arrays when
+!   initialized from NPS-generated input files.  In the trunk code, the total
+!   condensate is advected along with the individual species, so this leads to
+!   an initial discrepancy in the values for int_state%CW, which are passed in
+!   as input to the radiation code. 
+!
+!          IF(NTIMESTEP<=0) THEN
+!            KSS=int_state%INDX_CW
+!          ELSE
+!            KSS=int_state%INDX_Q2
+!          ENDIF
+          KSS=int_state%INDX_CW
           KSE1=int_state%NUM_TRACERS_TOTAL
           IF (RIME_FACTOR_ADVECT) THEN
 !----------- QG(:,:,:)=F_RIMEF(:,:,:)*QS(:,:,:) for advection
@@ -4248,10 +4322,14 @@
                                      ,ITS,ITE,JTS,JTE)
           ENDIF
         ELSE
-          KSE1=KSE
+!
+!-- Total condensate advection (SPEC_ADV=F): advect Q2 (TKE) & total condensate (CW)
+!
+          KSS=int_state%INDX_CW
+          KSE1=int_state%INDX_Q2
         ENDIF
 
-!       write(6,*) 'DEBUG-GT: calling ADV2, kss,kse=',kss,kse1
+!       write(6,*) 'DEBUG-GT: 2nd call to ADV2, kss,kse=',kss,kse1
 !
         CALL ADV2                                                       &
           (GLOBAL                                                       &
@@ -4279,11 +4357,11 @@
 !***  Filtering and boundary conditions for global forecasts
 !-----------------------------------------------------------------------
 !
-          IF(GLOBAL)THEN
+        IF(GLOBAL)THEN
 !
-            btim=timef()
+          btim=timef()
 !
-              DO KS=KSS,KSE1
+          DO KS=KSS,KSE1
                 CALL FFTFHN                                             &
                   (LM                                                   &
                   ,int_state%KHFILT                                     &
@@ -4291,11 +4369,11 @@
                   ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,KS)      &
                   ,int_state%WFFTRH,int_state%NFFTRH                    &
                   ,NUM_PES,MYPE,MPI_COMM_COMP)
-              ENDDO
+          ENDDO
 ! 
-            td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
+          td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
 !
-          ENDIF
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Tracer monotonization
@@ -4334,10 +4412,9 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF(GLOBAL)THEN
+if_global: IF(GLOBAL)THEN    !-- Global NMMB
 !
           btim=timef()
-          CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
@@ -4346,7 +4423,6 @@
           td%swaphn_tim=td%swaphn_tim+(timef()-btim)
 !
           btim=timef()
-          CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
@@ -4354,51 +4430,39 @@
 !
           td%polehn_tim=td%polehn_tim+(timef()-btim)
 !
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        btim=timef()
-        CALL HALO_EXCH(int_state%Q,LM                                   &
-                      ,int_state%CW,LM                                  &
+          btim=timef()
+          CALL HALO_EXCH(int_state%CW,LM                                &
                       ,int_state%O3,LM                                  &
                       ,int_state%Q2,LM                                  &
                       ,2,2)
-        td%exch_dyn=td%exch_dyn+(timef()-btim)
-!
-        IF(int_state%SPEC_ADV)THEN
-          DO KS=KSS,KSE1
-!
-            IF(KS /= int_state%INDX_Q .AND.                             &
-               KS /= int_state%INDX_CW .AND.                            &
-               KS /= int_state%INDX_O3 .AND.                            &
-               KS /= int_state%INDX_Q2 ) THEN
-!
-          btim=timef()
-              CALL HALO_EXCH(                                           &
-                int_state%TRACERS(IMS:IME,JMS:JME,1:LM,KS),LM           &
-               ,2,2)
           td%exch_dyn=td%exch_dyn+(timef()-btim)
 !
-              IF (RIME_FACTOR_ADVECT) THEN
-!--------------- F_RIMEF(:,:,:)=QG(:,:,:)/QS(:,:,:) for physics
-                 RIME_FACTOR_INPUT=.FALSE.
-                 CALL RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT             &
-                                         ,int_state%QS,int_state%QG     &
-                                         ,int_state%F_RIMEF             &
-                                         ,IDS,IDE,JDS,JDE,LM            &
-                                         ,IMS,IME,JMS,JME               &
-                                         ,ITS,ITE,JTS,JTE)
-              ENDIF
+        ELSE  if_global      !-- Regional NMMB
 !
-            ENDIF
-!
+          btim=timef()
+          DO KS=KSS,KSE1
+            CALL HALO_EXCH(                                             &
+                int_state%TRACERS(IMS:IME,JMS:JME,1:LM,KS),LM           &
+               ,2,2)
           ENDDO
-        ENDIF
+          td%exch_dyn=td%exch_dyn+(timef()-btim)
+!
+          IF (RIME_FACTOR_ADVECT) THEN
+!--------------- F_RIMEF(:,:,:)=QG(:,:,:)/QS(:,:,:) for physics (after advection)
+            RIME_FACTOR_INPUT=.FALSE.
+            CALL RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT                  &
+                                     ,int_state%QS,int_state%QG         &
+                                     ,int_state%F_RIMEF                 &
+                                     ,IDS,IDE,JDS,JDE,LM                &
+                                     ,IMS,IME,JMS,JME                   &
+                                     ,ITS,ITE,JTS,JTE)
+           ENDIF
+!
+        ENDIF  if_global
 !
 !-----------------------------------------------------------------------
 !
-      ENDIF tracers
+      ENDIF not_q_tracers
 !
 !-----------------------------------------------------------------------
 !***  Interface pressures and horizontal part of Omega-Alpha term
@@ -4988,6 +5052,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                             ,IDS,IDE,JDS,JDE,LM                         &
                             ,IMS,IME,JMS,JME                            &
                             ,ITS,ITE,JTS,JTE)
+!
         ENDIF update_wtr
 !
 !---------------------------------------------------------------------
@@ -5092,10 +5157,10 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                         ,int_state%PT,int_state%PD                      &
                         ,int_state%T,int_state%Q                        &
                         ,int_state%THS,int_state%ALBEDO                 &
-                        ,int_state%QV,int_state%QC,int_state%QR         &
+                        ,int_state%QC,int_state%QR                      &
                         ,int_state%QI,int_state%QS,int_state%QG         &
                         ,int_state%NI                                   &
-                        ,int_state%F_QV,int_state%F_QC,int_state%F_QR   &
+                        ,int_state%F_QC,int_state%F_QR                  &
                         ,int_state%F_QI,int_state%F_QS,int_state%F_QG   &
                         ,int_state%F_NI                                 &
                         ,int_state%NUM_WATER                            &
@@ -5275,9 +5340,9 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                     ,int_state%THS,int_state%TSKIN,int_state%SST        &
                     ,int_state%PREC,int_state%SNO                       &
                     ,int_state%SNOWC                                    &
-                    ,int_state%QV,int_state%QC,int_state%QR             &
+                    ,int_state%QC,int_state%QR                          &
                     ,int_state%QI,int_state%QS,int_state%QG             &
-                    ,int_state%F_QV,int_state%F_QC,int_state%F_QR       &
+                    ,int_state%F_QC,int_state%F_QR                      &
                     ,int_state%F_QI,int_state%F_QS,int_state%F_QG       &
                     ,int_state%FIS,int_state%Z0,int_state%Z0BASE        &
                     ,int_state%USTAR,int_state%PBLH,int_state%LPBL      &
@@ -5301,8 +5366,6 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                     ,int_state%TH10,int_state%Q10                       &
                     ,int_state%TSHLTR,int_state%QSHLTR,int_state%PSHLTR &
                     ,int_state%PSFC,int_state%T2                        &
-                    ,int_state%QSG,int_state%QVG,int_state%QCG          &
-                    ,int_state%SOILT1,int_state%TSNAV                   &
                     ,int_state%TWBS,int_state%QWBS                      &
                     ,int_state%SFCSHX,int_state%SFCLHX,int_state%SFCEVP &
                     ,int_state%POTEVP,int_state%POTFLX,int_state%SUBSHX &
@@ -5511,9 +5574,9 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                        ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
                        ,int_state%CLDEFI                                  &
                        ,int_state%F_ICE,int_state%F_RAIN                  &
-                       ,int_state%QV,int_state%QC,int_state%QR            &
+                       ,int_state%QC,int_state%QR                         &
                        ,int_state%QI,int_state%QS,int_state%QG            &
-                       ,int_state%F_QV,int_state%F_QC,int_state%F_QR      &
+                       ,int_state%F_QC,int_state%F_QR                     &
                        ,int_state%F_QI,int_state%F_QS,int_state%F_QG      &
                        ,int_state%DSG2,int_state%SGML2,int_state%SG2      &
                        ,int_state%PDSG1,int_state%PSGML1,int_state%PSG1   &
@@ -5659,10 +5722,10 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                        ,int_state%CW,int_state%OMGALF                      &
                        ,int_state%TRAIN,int_state%SR                       &
                        ,int_state%F_ICE,int_state%F_RAIN,int_state%F_RIMEF &
-                       ,int_state%QV,int_state%QC,int_state%QR             &
+                       ,int_state%QC,int_state%QR                          &
                        ,int_state%QI,int_state%QS,int_state%QG             &
                        ,int_state%NI,int_state%NR                          & ! G. Thompson
-                       ,int_state%F_QV,int_state%F_QC,int_state%F_QR       &
+                       ,int_state%F_QC,int_state%F_QR                      &
                        ,int_state%F_QI,int_state%F_QS,int_state%F_QG       &
                        ,int_state%F_NI,int_state%F_NR                      & ! G. Thompson
                        ,int_state%PREC,int_state%ACPREC                    &
@@ -5810,24 +5873,11 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
         td%exch_phy=td%exch_phy+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  Synchronize mixing ratio with specific humidity.
-!-----------------------------------------------------------------------
-!
-        DO L=1,LM
-        DO J=JTS,JTE
-        DO I=ITS,ITE
-          int_state%QV(I,J,L)=int_state%Q(I,J,L)/(1.-int_state%Q(I,J,L))
-        ENDDO
-        ENDDO
-        ENDDO
-!
-!-----------------------------------------------------------------------
 !***  If advection is on, cloud species are advected.
 !-----------------------------------------------------------------------
 !
         IF(int_state%SPEC_ADV)THEN
           btim=timef()
-          IF(int_state%F_QV) CALL HALO_EXCH(int_state%QV,LM,2,2)
           IF(int_state%F_QC) CALL HALO_EXCH(int_state%QC,LM,2,2)
           IF(int_state%F_QR) CALL HALO_EXCH(int_state%QR,LM,2,2)
           IF(int_state%F_QS) CALL HALO_EXCH(int_state%QS,LM,2,2)
@@ -10900,16 +10950,6 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 !
       IF(NTIMESTEP<=1)THEN
         CLD_INIT=.TRUE.
-!LPC - need to identify/initialize whatever arrays replaced "water"!
-!LPC        DO NW = 1, NUM_WATER
-!LPC        DO K=1,LM
-!LPC         DO J=JMS,JME
-!LPC          DO I=IMS,IME
-!LPC            WATER(I,J,K, NW)=0.0
-!LPC          ENDDO
-!LPC         ENDDO
-!LPC        ENDDO
-!LPC        ENDDO
       ELSE
         CLD_INIT=.FALSE.
       ENDIF

@@ -4294,7 +4294,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
  up &                        !
 ,vp                          !
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:kse),intent(inout):: &
  s &                         ! tracers
 ,sp                          ! s at previous time level
 
@@ -4305,7 +4305,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 ,pfx &                       ! mass flux, x direction
 ,pfy                         ! mass flux, y direction
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:kse),intent(inout):: &
  s1 &                        ! intermediate value of sqrt(s)
 ,tcs                         ! timechange of s
 
@@ -4349,7 +4349,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
  crs &                       ! vertical advection temporary
 ,rcms                        ! vertical advection temporary
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:kse):: &
  rsts                        ! vertical advection temporary
 !
 !-----------------------------------------------------------------------
@@ -4385,6 +4385,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
 !
 !***  Interpolate q2 (2*TKE) from interfaces to midlayers
 !
+q2_check: if (kss<=indx_q2 .and. indx_q2<=kse) then
       do l=lm,2,-1
         do j=jstart,jstop
           do i=its_h1,ite_h1
@@ -4397,6 +4398,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
           s(i,j,1,indx_q2)=max((s(i,j,1,indx_q2)+epsq2)*0.5,epsq2)
         enddo
       enddo
+    endif  q2_check
 !-----------------------------------------------------------------------
       do ks=kss,kse ! loop by species
 !-----------------------------------------------------------------------
@@ -4778,14 +4780,14 @@ real(kind=kfpt),dimension(jds:jde),intent(in):: &
 real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
  pd                          ! sigma range pressure difference
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:kse),intent(inout):: &
  s                           ! s at previous time level
 
 logical(kind=klog) :: &
  use_allreduce
 
 !---temporary arguments-------------------------------------------------
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:kse),intent(inout):: &
  s1 &                        ! intermediate value of s
 ,tcs                         ! timechange of s
 !--local variables------------------------------------------------------
@@ -4827,20 +4829,20 @@ real(kind=kdbl):: &
 ,sumns &                     !
 ,sumps                       !
 
-real(kind=kdbl),dimension(ide*jde*(kse-kss+1)):: &
+real(kind=kdbl),dimension(ide*jde*kse):: &
  s1_glob                     !
 
-real(kind=kfpt),dimension((ite_b1-its_b1+1)*(jte_b1-jts_b1+1)*(kse-kss+1)):: &
+real(kind=kfpt),dimension((ite_b1-its_b1+1)*(jte_b1-jts_b1+1)*kse):: &
  s1_loc                      !
 
 real(kind=kfpt),dimension(:), allocatable :: &
  s1_pe_loc                   !
 
-real(kind=kdbl),dimension(2*kss-1:2*kse):: &
+real(kind=kdbl),dimension(1:2*kse):: &
  gsums &                     ! sum of neg/pos changes all global fields
 ,xsums                       ! sum of neg/pos changes all global fields
 
-real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,kss:kse):: &
+real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:kse):: &
  s1l_sum
 
 real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm):: &
@@ -5055,7 +5057,7 @@ real(kind=kdbl),save :: sumdo3=0.
 !***  Skip computing the global reduction if they are to be read in
 !***  from another run to check bit reproducibility.
 !-----------------------------------------------------------------------
-        lngth=2*kse-2*kss+2
+        lngth=2*kse
         call mpi_allreduce(xsums,gsums,lngth &
                           ,mpi_double_precision &
                           ,mpi_sum,mpi_comm_comp,irecv)
@@ -5081,7 +5083,7 @@ real(kind=kdbl),save :: sumdo3=0.
             loc_jts_b1 = max(local_jstart(pe),jds+1)
             loc_jte_b1 = min(local_jend  (pe),jde-1)
             loc_len    = (loc_ite_b1-loc_its_b1+1)*    &
-                         (loc_jte_b1-loc_jts_b1+1)*(kse-kss+1)
+                         (loc_jte_b1-loc_jts_b1+1)*kse
             allocate(s1_pe_loc(1:loc_len))
             call mpi_recv(s1_pe_loc(1:loc_len),loc_len &
                          ,mpi_real,pe,pe,mpi_comm_comp,jstat,ierr)
@@ -5112,7 +5114,7 @@ real(kind=kdbl),save :: sumdo3=0.
           enddo
 
         else
-          loc_lngth=(ite_b1-its_b1+1)*(jte_b1-jts_b1+1)*(kse-kss+1)
+          loc_lngth=(ite_b1-its_b1+1)*(jte_b1-jts_b1+1)*kse
 
           n=0
           do ks=kss,kse
@@ -5129,7 +5131,7 @@ real(kind=kdbl),save :: sumdo3=0.
 
         endif
 
-        call mpi_bcast(gsums,(kse-kss+1)*2 &
+        call mpi_bcast(gsums,kse*2 &
                       ,mpi_double_precision,0,mpi_comm_comp,ierr)
 
 !----------------------------------------------------------------------
@@ -5177,6 +5179,7 @@ real(kind=kdbl),save :: sumdo3=0.
 !***  Interpolate q2 tendencies and q2 itself from midlayers back to 
 !     interfaces
 !
+q2_check: if (kss<=indx_q2 .and. indx_q2<=kse) then
       do l=1,lm
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
@@ -5200,6 +5203,7 @@ real(kind=kdbl),save :: sumdo3=0.
           s(i,j,lm,indx_q2)=epsq2
         enddo
       enddo
+    endif  q2_check
 !
 !-----------------------------------------------------------------------
 !
