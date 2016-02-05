@@ -34,8 +34,8 @@ export ISOL=1
 export ICO2=2
 export IAER=111
 export fcyc=0
-export FHOUT_HF=1
-export FHMAX_HF=0
+export FHOUT_HF=${FHOUT_HF:-1}
+export FHMAX_HF=${FHMAX_HF:-0}
 
 if [ $GEFS_ENSEMBLE = 0 ] ; then
 
@@ -297,7 +297,7 @@ elif [ $SCHEDULER = 'lsf' ]; then
                      | sed s:_SCHED_:${SCHEDULER}:g   >  gfs_bsub
 fi
 
-cp exglobal_fcst.sh.sms_nems $RUNDIR
+cp exglobal_fcst_nems.sh $RUNDIR
 
 export RUNDIR=$RUNDIR
 

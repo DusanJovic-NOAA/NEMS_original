@@ -481,7 +481,7 @@ export D3DO=${8:-${D3DO}}
 export NSTI=${9:-${NSTI:-?}}
 export NSTO=${10:-${NSTO}}
 export G3DO=${11:-${G3DO}}
-export FHOUT_HF=${12:-${FHOUT_HF:-0}}
+export FHOUT_HF=${12:-${FHOUT_HF:-1}}
 export FHMAX_HF=${13:-${FHMAX_HF:-0}}
 export AERO=${14:-${AERO}}
 
@@ -1156,8 +1156,6 @@ cat << EOF > atm_namelist.rc
 core: $core
 print_esmf:     .false.
 
-nhours_dfini=${nhours_dfini:-$FHDFI}
-
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35
 deltim:                  ${DELTIM}.0
@@ -1255,6 +1253,8 @@ post_gribversion:        $POST_GRIBVERSION      # True--> grib version for post 
 gocart_aer2post:         $GOCART_AER2POST
 write_nemsioflag:        .TRUE.       # True--> Write nemsio run history files
 nfhout:                  $FHOUT
+nfhout_hf:               $FHOUT_HF
+nfhmax_hf:               $FHMAX_HF
 nsout:                   $nsout
 
 io_recl:                 100
@@ -1417,6 +1417,7 @@ EOF
 cat  > atm_namelist <<EOF
  &nam_dyn
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
+  FHOUT_HF=$FHOUT_HF, FHMAX_HF=$FHMAX_HF,
   FHRES=$FHRES, FHROT=$FHROT, FHDFI=$FHDFI, nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonf=$LONF, latg=$LATG,
   jcap=$JCAP,   levs=$LEVS,  levr=$LEVR,
@@ -1432,6 +1433,7 @@ cat  > atm_namelist <<EOF
   $DYNVARS /
  &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
+  FHOUT_HF=$FHOUT_HF, FHMAX_HF=$FHMAX_HF,
   FHRES=$FHRES, FHROT=$FHROT, FHCYC=$FHCYC, FHDFI=$FHDFI,
   FHZER=$FHZER, FHLWR=$FHLWR, FHSWR=$FHSWR,nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonr=$LONR, latr=$LATR,

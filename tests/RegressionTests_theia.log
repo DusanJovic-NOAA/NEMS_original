@@ -1,4 +1,4 @@
-Mon Feb  1 22:06:21 UTC 2016
+Thu Feb  4 03:51:29 UTC 2016
 Start Regression test
 
 
@@ -6,8 +6,8 @@ Start Regression test
 Test 1 nmm_cntrl Compare NMMB-global results with previous trunk version
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_cntrl
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_cntrl
 Checking test 1 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -24,8 +24,8 @@ Test 1 PASS
 Test 2 nmm_nemsio Test NMMB-global NEMSIO as input file
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_nemsio
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_nemsio
 Checking test 2 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -40,8 +40,8 @@ Test 2 PASS
 Test 3 nmm_rest Test NMMB-global restart run
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_rest
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_rest
 Checking test 3 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 3 PASS 
@@ -51,8 +51,8 @@ Test 3 PASS
 Test 4 nmm_rest_nio Test NMMB-global restart run from NEMSIO file
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_rest_nio
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_rest_nio
 Checking test 4 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 4 PASS 
@@ -62,8 +62,8 @@ Test 4 PASS
 Test 5 nmm_decomp Test NMMB-global different decomposition
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_decomp
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_decomp
 Checking test 5 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -76,8 +76,8 @@ Test 5 PASS
 Test 6 nmm_thread Test NMMB-global threading
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_thread
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_thread
 Checking test 6 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -92,8 +92,8 @@ Test 6 PASS
 Test 7 nmm_reg_ctl Compare NMMB-regional results with previous trunk version
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_ctl
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_ctl
 Checking test 7 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
@@ -117,8 +117,8 @@ Test 7 PASS
 Test 8 nmm_reg_nemsio Test NMMB-regional NEMSIO as input file
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_nemsio
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_nemsio
 Checking test 8 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -131,8 +131,8 @@ Test 8 PASS
 Test 9 nmm_reg_rst Test NMMB-regional restart run
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_rst
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_rst
 Checking test 9 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 9 PASS 
@@ -142,8 +142,8 @@ Test 9 PASS
 Test 10 nmm_reg_rst_nio Test NMMB-regional restart run with NEMSIO file
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_rst_nio
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_rst_nio
 Checking test 10 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 10 PASS 
@@ -153,8 +153,8 @@ Test 10 PASS
 Test 11 nmm_reg_decomp Test NMMB-regional different decomposition
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_decomp
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_decomp
 Checking test 11 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -165,8 +165,8 @@ Test 11 PASS
 Test 12 nmm_reg_thread Test NMMB-regional threading
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_thread
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_thread
 Checking test 12 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -181,8 +181,8 @@ Test 12 PASS
 Test 13 nmm_reg_sel_phy Test NMMB-regional with selected GFS physics schemes
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_sel_phy
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_sel_phy
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_sel_phy
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_sel_phy
 Checking test 13 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -197,8 +197,8 @@ Test 13 PASS
 Test 14 nmm_reg_spec_adv Test NMMB-regional with separate species advection ON
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_spec_adv
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_spec_adv
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_spec_adv
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_spec_adv
 Checking test 14 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -213,8 +213,8 @@ Test 14 PASS
 Test 15 nmm_reg_spec_adv_rst Test NMMB-regional with separate species advection ON
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_spec_adv
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_spec_adv_rst
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_spec_adv
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_spec_adv_rst
 Checking test 15 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -225,8 +225,8 @@ Test 15 PASS
 Test 16 nmm_reg_wsm6_gfdl Test NMMB-regional with physics schemes WSM6 and GFDL
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_wsm6_gfdl
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_wsm6_gfdl
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_wsm6_gfdl
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_wsm6_gfdl
 Checking test 16 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -241,8 +241,8 @@ Test 16 PASS
 Test 17 nmm_reg_wsm6_rrtm Test NMMB-regional with physics schemes WSM6 and RRTM
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_wsm6_rrtm
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_wsm6_rrtm
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_wsm6_rrtm
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_wsm6_rrtm
 Checking test 17 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -257,8 +257,8 @@ Test 17 PASS
 Test 18 nmm_reg_sas_zhao Test NMMB-regional with physics schemes SAS, ZHAO
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_sas_zhao
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_sas_zhao
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_sas_zhao
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_sas_zhao
 Checking test 18 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -273,8 +273,8 @@ Test 18 PASS
 Test 19 nmm_reg_thomp Test NMMB-regional with THOMPSON microphysics scheme
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_thomp
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_thomp
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_thomp
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_thomp
 Checking test 19 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -289,8 +289,8 @@ Test 19 PASS
 Test 20 nmm_reg_hur Test NMMB-regional with HWRF physics
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_hur
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_hur
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_hur
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_hur
 Checking test 20 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -305,8 +305,8 @@ Test 20 PASS
 Test 21 nmm_reg_pcpadj Test NMMB-regional with precipitation adjustment on
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_pcpadj
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_pcpadj
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_pcpadj
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_pcpadj
 Checking test 21 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -321,8 +321,8 @@ Test 21 PASS
 Test 22 nmm_reg_timesr Test NMMB-regional writing time series
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_timesr
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_timesr
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_timesr
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_timesr
 Checking test 22 results ....
  Comparing nmmb_hst_01_bin_0006h_00m_00.00s.........OK
  Comparing ts_p01_d01.bin.........OK
@@ -334,8 +334,8 @@ Test 22 PASS
 Test 23 nmm_nests Test NMMB-regional with static nests
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_nests
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_nests
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_nests
 Checking test 23 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -368,8 +368,8 @@ Test 23 PASS
 Test 24 nmm_nest_rest Test NMMB-regional static nests with restart
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_nest_rest
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_nests
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_nest_rest
 Checking test 24 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -386,8 +386,8 @@ Test 24 PASS
 Test 25 nmm_reg_filt Test NMMB-regional digital filter with static nests
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_filt
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_filt
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_filt
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_filt
 Checking test 25 results ....
  Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
@@ -402,8 +402,8 @@ Test 25 PASS
 Test 26 nmm_reg_filt_zombie Test NMMB-regional digital filter with zombie grandchild
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_reg_filt_zombie
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_reg_filt_zombie
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg_filt_zombie
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_reg_filt_zombie
 Checking test 26 results ....
  Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
@@ -418,8 +418,8 @@ Test 26 PASS
 Test 27 nmm_mvg_nests Test NMMB-regional with moving nests
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_mvg_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_mvg_nests
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_mvg_nests
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_mvg_nests
 Checking test 27 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -452,8 +452,8 @@ Test 27 PASS
 Test 28 nmm_mvg_nests_restart Test NMMB-regional with moving nests - RESTART
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_mvg_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_mvg_nests_restart
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_mvg_nests
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_mvg_nests_restart
 Checking test 28 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -470,8 +470,8 @@ Test 28 PASS
 Test 29 nmm_mvg_nests_gens Test NMMB-regional with 1-way moving nests and generational task assignments
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_mvg_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_mvg_nests_gens
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_mvg_nests
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_mvg_nests_gens
 Checking test 29 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -504,8 +504,8 @@ Test 29 PASS
 Test 30 nmm_2way_nests Test NMMB-regional with 2-way moving nests
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_2way_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_2way_nests
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_2way_nests
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_2way_nests
 Checking test 30 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -538,8 +538,8 @@ Test 30 PASS
 Test 31 nmm_2way_nests_restart Test NMMB-regional with 2-way moving nests - RESTART
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/NMMB_2way_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/nmm_2way_nests_restart
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_2way_nests
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/nmm_2way_nests_restart
 Checking test 31 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -558,8 +558,8 @@ GFS eulerian dycore,32 total proc (tasks), 1 thread, quilt, digital filter on re
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/GFS_EULERIAN
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/gfs_eulerian
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/GFS_EULERIAN
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/gfs_eulerian
 Checking test 32 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -586,8 +586,8 @@ WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no q
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/WAM_gh_l150
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/wam_gh_l150
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/WAM_gh_l150
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/wam_gh_l150
 Checking test 33 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -614,20 +614,20 @@ Test 33 PASS
 Test 34 gfs_slg Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions
 Test 34
 Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions
-GFS, 32 proc, 1 thread
+GFS, 33 proc, 1 thread
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/GFS_SLG
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/gfs_slg
+baseline dir = /scratch4/NCEPDEV/nems/noscrub/Jun.Wang/REGRESSION_TEST_20160202/GFS_SLG
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/gfs_slg
 Checking test 34 results ....
  Comparing sigf00.........OK
- Comparing SIG.F06.........OK
+ Comparing sigf01.........OK
  Comparing sigf24.........OK
  Comparing sfcf00.........OK
- Comparing SIG.F06.........OK
+ Comparing sfcf01.........OK
  Comparing sfcf24.........OK
  Comparing flxf00.........OK
- Comparing FLX.F06.........OK
+ Comparing flxf01.........OK
  Comparing flxf24.........OK
 Test 34 PASS 
 
@@ -639,8 +639,8 @@ Run SLG adiabatic test with NEMSIO and digital filter from NEMSIO initial condit
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/GFS_SLG_ADIABATIC
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/gfs_slg_adiabatic
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/GFS_SLG_ADIABATIC
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/gfs_slg_adiabatic
 Checking test 35 results ....
  Comparing sigf00.........OK
  Comparing sigf06.........OK
@@ -656,8 +656,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 48 proc, 1 thread
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/GFS_SLG_48PE
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/gfs_slg_48pe
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/GFS_SLG_48PE
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/gfs_slg_48pe
 Checking test 36 results ....
  Comparing sigf00.........OK
  Comparing sigf06.........OK
@@ -681,8 +681,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 32 proc, 2 thread
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/GFS_SLG
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/gfs_slg_2thread
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/GFS_SLG
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/gfs_slg_2thread
 Checking test 37 results ....
  Comparing sigf00.........OK
  Comparing SIG.F06.........OK
@@ -703,8 +703,8 @@ Run T574 SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initi
 GFS, 96 proc, 1 thread
 
 
-baseline dir = /scratch4/NCEPDEV/stmp4/Dusan.Jovic/REGRESSION_TEST/GFS_SLG_T574
-working dir  = /scratch4/NCEPDEV/stmp3/Dusan.Jovic/rt_52070/gfs_slg_t574
+baseline dir = /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/REGRESSION_TEST/GFS_SLG_T574
+working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_135540/gfs_slg_t574
 Checking test 38 results ....
  Comparing sigf00.........OK
  Comparing SIG.F06.........OK
@@ -752,4 +752,4 @@ Test 39 PASS
 
 
 REGRESSION TEST WAS SUCCESSFUL
-Tue Feb  2 02:34:02 UTC 2016
+Thu Feb  4 07:42:05 UTC 2016

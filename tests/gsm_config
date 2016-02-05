@@ -225,7 +225,7 @@ fi
 export NGPTC=${NGPTC:-$((wave/10))}
 export LEVR=${levr:-0}
 #
-export FCSTSCRIPT=${FCSTSCRIPT:-$srcdir/tests/exglobal_fcst.sh.sms_nems}
+export FCSTSCRIPT=${FCSTSCRIPT:-$srcdir/tests/exglobal_fcst_nems.sh}
 export FCSTEXEC=${FCSTEXEC:-$srcdir/exe/NEMS.x}
 #
 #

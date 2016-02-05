@@ -502,7 +502,7 @@ export D3DO=${8:-${D3DO}}
 export NSTI=${9:-${NSTI:-?}}
 export NSTO=${10:-${NSTO}}
 export G3DO=${11:-${G3DO}}
-export FHOUT_HF=${12:-${FHOUT_HF:-0}}
+export FHOUT_HF=${12:-${FHOUT_HF:-1}}
 export FHMAX_HF=${13:-${FHMAX_HF:-0}}
 export AERO=${14:-${AERO}}
 
@@ -1254,7 +1254,6 @@ cat << EOF > atm_namelist.rc
 core: $core
 print_esmf:     ${print_esmf}
 
-nhours_dfini=${nhours_dfini:-$FHDFI}
 
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35
@@ -1353,6 +1352,8 @@ post_gribversion:        $POST_GRIBVERSION      # True--> grib version for post 
 gocart_aer2post:         $GOCART_AER2POST
 write_nemsioflag:        .TRUE.       # True--> Write nemsio run history files
 nfhout:                  $FHOUT
+nfhout_hf:               $FHOUT_HF
+nfhmax_hf:               $FHMAX_HF
 nsout:                   $nsout
 
 io_recl:                 100

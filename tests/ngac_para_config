@@ -83,7 +83,7 @@ fi
 
  export FCSTEXEC=${NEMSDIR}/exe/NEMS.x
 #export FCST_SCRIP=${NEMSDIR}/job/exngac_fcst.sh.sms
- export FCST_SCRIP=${NEMSDIR}/tests/exglobal_fcst.sh.sms_nems
+ export FCST_SCRIP=${NEMSDIR}/tests/exglobal_fcst_nems.sh
  export FHMAX=24                                    #### reduce from 120 to 24 
 
 ### for ngac parm/fix directory

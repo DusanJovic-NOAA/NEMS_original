@@ -9,7 +9,7 @@
 export TEST_DESCR="Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions"
 
 export CNTL_DIR=GFS_SLG
-export LIST_FILES="sigf00 SIG.F06 sigf24 sfcf00 SIG.F06 sfcf24 flxf00 FLX.F06 flxf24"
+export LIST_FILES="sigf00 sigf01 sigf24 sfcf00 sfcf01 sfcf24 flxf00 flxf01 flxf24"
 
 export_gsm
 
@@ -21,7 +21,7 @@ export LDFI_SPECT=.true.
 export NDAYS=1
 export wave=62
 export lm=64
-export TASKS=32
+export TASKS=33
 export TPN=16
 export THRD=1
 export ADIABATIC=.false.
@@ -29,7 +29,7 @@ export IAER=111
 #jw export LD_PRELOAD=/u/James.A.Abeles/mpi_trace_linux_x86_64/shared/libmpitrace.so
 export WLCLK=29
 export SLG=.true.
-export PE1=32
+export PE1=33
 export NEMSIOIN=.true.
 export NEMSIOOUT=.true.
 export SIGIOIN=.false.
@@ -41,7 +41,7 @@ export WRITE_DOPOST=.false.
 export POST_GRIBVERSION=.false.
 export GOCART_AER2POST=.false.
 export NSOUT=0
-export QUILT=.false.
+export QUILT=.true.
 export isoil=4
 export MEMBER_NAMES=c00
 export CP2=.false.
@@ -74,5 +74,8 @@ export ISOL=2
 export ICO2=2
 export RESTART=.false.
 export DATAICDIR=GFS_SLG
+export FHOUT_HF=1
+export FHMAX_HF=12
+
 
 RUN_SCRIPT=rt_gfs.sh
