@@ -17,44 +17,32 @@ include         $(TOP)/conf/configure.nems.NUOPC
 ################################################################################
 ## Other settings
 
-NETCDF_INC   = -I$(NETCDF)/include
-NETCDF_LIB   = -L$(NETCDF)/lib -lnetcdf
+NETCDF_INC  = -I$(NETCDF)/include
+NETCDF_LIB  = -L$(NETCDF)/lib -lnetcdff -lnetcdf
 
-LIBDIR=/scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/libs
-PARADIR=/contrib/nceplibs_ext/lib
-POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
+W3_LIB      = ${W3NCO_LIBd} ${W3EMC_LIBd}
+BACIO_LIB   = ${BACIO_LIB4}
+SP_LIB      = ${SP_LIBd}
 
-NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
-NEMSIO_LIB   = -L${LIBDIR} -lnemsio
-
-BACIO_LIB    = -L${LIBDIR} -lbacio_4
-W3_LIB       = -L${LIBDIR} -lw3nco_d -lw3emc_d
-SP_LIB       = -L${LIBDIR} -lsp_d
-SYS_LIB      =
- 
-EXTLIBS      = $(NEMSIO_LIB) \
-               $(BACIO_LIB) \
-               $(W3_LIB) \
-               $(SP_LIB) \
-               $(NETCDF_LIB) \
-               $(ESMF_LIB) \
-               $(SYS_LIB)
-
-## for the post quilting option
+POSTDIR     = /scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
 POSTMOD     = ${POSTDIR}/incmod/post_4
 POST_INC    = -I${POSTDIR}/incmod/post_4
 POST_LIB    = -L${POSTDIR} -lnceppost
-W3_POST_LIB = -L${LIBDIR}  -lw3nco_4 -lw3emc_4
-CRTM_LIB    = -L${PARADIR} -lcrtm
-G2_LIB      =  -L${LIBDIR} -lg2tmpl -lg2_4  -L${PARADIR} -ljasper -lpng -lz
-XML_LIB     = -L${PARADIR} -lxmlparse
-SIGIO_LIB   = -L${LIBDIR} -lsigio_4
-SFCIO_LIB   = -L${LIBDIR} -lsfcio
+W3_POST_LIB = ${W3NCO_LIB4} ${W3EMC_LIB4}
+G2_LIB      = ${G2TMPL_LIB} ${G2_LIB4} ${JASPER_LIB} ${PNG_LIB} ${Z_LIB}
+SIGIO_LIB   = ${SIGIO_LIB4}
+SFCIO_LIB   = ${SFCIO_LIB4}
 
-EXTLIBS_POST = $(NEMSIO_LIB) \
-               $(POST_LIB) \
+EXTLIBS     = $(NEMSIO_LIB) \
+              $(W3_LIB) \
+              $(BACIO_LIB) \
+              $(SP_LIB) \
+              $(ESMF_LIB) \
+              $(NETCDF_LIB)
+
+EXTLIBS_POST = $(POST_LIB) \
+               $(NEMSIO_LIB) \
                $(W3_POST_LIB) \
-               $(XML_LIB) \
                $(G2_LIB) \
                $(BACIO_LIB) \
                $(SIGIO_LIB) \
@@ -62,42 +50,43 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(SP_LIB) \
                $(CRTM_LIB) \
                $(ESMF_LIB) \
-               $(NETCDF_LIB) \
-               $(SYS_LIB)
-###
-FC          = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -openmp -convert big_endian -assume byterecl -mkl=sequential -diag-disable 8290,8291
-F77         = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -openmp -convert big_endian -assume byterecl -mkl=sequential -diag-disable 8290,8291
-FREE         = -free
-FIXED        = -fixed
-R8           = -r8
+               $(NETCDF_LIB)
 
-FINCS        = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
-   TRAPS        = -g -traceback
-#1 TRAPS        = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
-#2 TRAPS        = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all
-#3 TRAPS        = -g -traceback -ftrapuv -fpe0 -ftz -check all
-#5 TRAPS        = -g -fno-inline -no-ip -traceback
+FC          = mpiifort -g -traceback -openmp -mkl=sequential -diag-disable 8290,8291 -warn errors
 
-FFLAGS       = $(TRAPS) $(FINCS) -fp-model strict
+FREE        = -free
+FIXED       = -fixed
+R8          = -r8
 
-OPTS_NMM     = -O3
-OPTS_GFS     = -O3
-OPTS_GEN     = -O3
-OPTS_FIM     = -O3
+FINCS       = $(ESMF_INC) -I$(NEMSIO_INC) $(NETCDF_INC)
 
-FFLAGM_DEBUG =
+ifeq ($(DEBUG),on)
+  TRAPS     = -ftrapuv -fno-inline -no-ip -fpe0 -ftz -fp-stack-check -check all -check noarg_temp_created
+  OPTS_NMM  = -O0
+  OPTS_GFS  = -O0
+  OPTS_GEN  = -O0
+  OPTS_FIM  = -O0
+else
+  TRAPS     =
+  OPTS_NMM  = -O3
+  OPTS_GFS  = -O3
+  OPTS_GEN  = -O3
+  OPTS_FIM  = -O3
+endif
 
-FFLAGS_NMM   = $(OPTS_NMM) $(FFLAGS)
-FFLAGS_GFS   = $(OPTS_GFS) $(FFLAGS) $(FREE)
-FFLAGS_GFSF  = $(OPTS_GFS) $(FFLAGS) $(FIXED)
-FFLAGS_GEN   = $(OPTS_GEN) $(FFLAGS)
-FFLAGS_FIM   = $(OPTS_FIM) $(FFLAGS)
+FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model strict
 
-FPP          = -fpp
-CPP          = /lib/cpp -P -traditional
-CPPFLAGS     = -DENABLE_SMP -DCHNK_RRTM=8
+FFLAGS_NMM  = $(OPTS_NMM) $(FFLAGS)
+FFLAGS_GFS  = $(OPTS_GFS) $(FFLAGS) $(FREE)
+FFLAGS_GFSF = $(OPTS_GFS) $(FFLAGS) $(FIXED)
+FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
+FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
-AR           = ar
-ARFLAGS      = -r
+FPP         = -fpp
+CPP         = /lib/cpp -P -traditional
+CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8
 
-RM           = rm
+AR          = ar
+ARFLAGS     = -r
+
+RM          = rm

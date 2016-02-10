@@ -12,6 +12,8 @@
 #BSUB -P GFS-T2O
 #BSUB -a poe
 
+set -eux
+
 source /usrx/local/Modules/default/init/sh
 source _SRCD_/src/conf/modules.nems
 module list

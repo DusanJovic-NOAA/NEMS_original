@@ -366,8 +366,6 @@ integer(kind=kint):: &
 !
 !-----------------------------------------------------------------------
 !
-        int_state%NTSTI=ntsd+1
-!
         tend_max=real(int_state%IHREND)
         ntstm_max=nint(tend_max*3600./int_state%DT)+1
         tend=real(int_state%nhours_fcst)
@@ -2639,6 +2637,7 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
 !***  W
 !-----------------------------------------------------------------------
+      int_state%W=0.0
       DO L=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
@@ -2690,7 +2689,6 @@ integer(kind=kint):: &
         close(nfcst)
 !
 !-----------------------------------------------------------------------
-        int_state%NTSTI=ntsd+1
 !
         tend_max=real(int_state%IHREND)
         ntstm_max=nint(tend_max*3600./int_state%DT)+1
@@ -2713,6 +2711,7 @@ integer(kind=kint):: &
           int_state%NTSTM=min(int_state%NTSTM,ntstm_max)
         endif
 !
+        ntsd=0
         int_state%IHR=nint(ntsd*int_state%DT/3600.)
 !-----------------------------------------------------------------------
         do l=1,lm

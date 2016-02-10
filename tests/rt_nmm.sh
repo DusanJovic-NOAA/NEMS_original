@@ -138,10 +138,13 @@ fi
 if [ ${MODE} = 2-way  ]; then
   rm -f configure_file_02 configure_file_03 configure_file_04
   cat nmm_conf/nmm_mnests_2way_conf_02.IN | sed s:_WGT_:${WGT}:g                  \
+                                          | sed s:_FCSTL_:${FCSTL}:g              \
                                           | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
   cat nmm_conf/nmm_mnests_2way_conf_03.IN | sed s:_WGT_:${WGT}:g                  \
+                                          | sed s:_FCSTL_:${FCSTL}:g              \
                                           | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
   cat nmm_conf/nmm_mnests_2way_conf_04.IN | sed s:_WGT_:${WGT}:g                  \
+                                          | sed s:_FCSTL_:${FCSTL}:g              \
                                           | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
 fi
 
@@ -212,7 +215,19 @@ elif [ $SCHEDULER = 'pbs' ]; then
   if   [ $status = 'Q' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
   elif [ $status = 'H' ];  then echo $n "min. TEST ${TEST_NR} is held in a queue,    Status: " $status
   elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-  elif [ $status = 'E' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  elif [ $status = 'E' -o $status = 'C' ];  then
+    jobid=`qstat -u ${USER} | grep ${JBNME} | awk '{print $1}'`
+    exit_status=`qstat ${jobid} -f | grep exit_status | awk '{print $3}'`
+    if [ $exit_status != 0 ]; then
+      echo "Test ${TEST_NR} FAIL " >> ${REGRESSIONTEST_LOG}
+      (echo;echo;echo)             >> ${REGRESSIONTEST_LOG}
+      echo "Test ${TEST_NR} FAIL "
+      (echo;echo;echo)
+      echo $TEST_NAME >> fail_test
+      exit 0
+    fi
+    echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
+    job_running=0
   elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
   else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
   fi
@@ -225,7 +240,23 @@ elif [ $SCHEDULER = 'lsf' ]; then
   FnshHrs=${FnshHrs:-0}
   if   [ $status = 'PEND' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
   elif [ $status = 'RUN'  ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'EXIT' ];  then
+    echo "Test ${TEST_NR} FAIL " >> ${REGRESSIONTEST_LOG}
+    (echo;echo;echo)             >> ${REGRESSIONTEST_LOG}
+    echo "Test ${TEST_NR} FAIL "
+    (echo;echo;echo)
+    echo $TEST_NAME >> fail_test
+    exit 0
   else                             echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+    exit_status=`bjobs -u ${USER} -J ${JBNME} -a 2>/dev/null | grep $QUEUE | awk '{print $3}'`
+    if [ $exit_status = 'EXIT' ];  then
+      echo "Test ${TEST_NR} FAIL " >> ${REGRESSIONTEST_LOG}
+      (echo;echo;echo)             >> ${REGRESSIONTEST_LOG}
+      echo "Test ${TEST_NR} FAIL "
+      (echo;echo;echo)
+      echo $TEST_NAME >> fail_test
+      exit 0
+    fi
   fi
 
 
@@ -261,26 +292,26 @@ printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
 printf %s " Comparing " $i "....."
 
 if [ ! -f ${RUNDIR}/$i ] ; then
-  
-  echo ".......MISSING file" >> ${REGRESSIONTEST_LOG} 
-  echo ".......MISSING file" 
-  test_status='FAIL' 
 
-elif [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then 
+  echo ".......MISSING file" >> ${REGRESSIONTEST_LOG}
+  echo ".......MISSING file"
+  test_status='FAIL'
 
-  echo ".......MISSING baseline" >> ${REGRESSIONTEST_LOG} 
-  echo ".......MISSING baseline" 
-  test_status='FAIL' 
-   
-else 
-   
+elif [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
+
+  echo ".......MISSING baseline" >> ${REGRESSIONTEST_LOG}
+  echo ".......MISSING baseline"
+  test_status='FAIL'
+
+else
+
   d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
-    echo ".......NOT OK" >> ${REGRESSIONTEST_LOG} 
-    echo ".......NOT OK" 
-    test_status='FAIL' 
-     
+    echo ".......NOT OK" >> ${REGRESSIONTEST_LOG}
+    echo ".......NOT OK"
+    test_status='FAIL'
+
   else
 
     echo "....OK" >> ${REGRESSIONTEST_LOG}

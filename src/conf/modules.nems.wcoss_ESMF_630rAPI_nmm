@@ -1,2 +1,15 @@
 module purge
-module load ics/15.0.3 ibmpe lsf NetCDF/3.6.3
+module load ics/15.0.3 ibmpe lsf NetCDF/4.2/serial
+
+##
+## load nwprod libraries
+##
+module load bacio
+module load nemsio
+module load w3nco
+module load w3emc
+module load sp
+module load crtm/v2.0.6
+module load g2tmpl g2 jasper png z
+module load sigio
+module load sfcio

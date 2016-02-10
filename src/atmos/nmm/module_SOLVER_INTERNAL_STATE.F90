@@ -544,7 +544,7 @@
 !
 !
         INTEGER(kind=KINT) :: NTSD,IDTADT,IHR,IHREND                    &
-                             ,LNSAD,NBOCO,NTSTI,NTSTM,NTSTM_MAX
+                             ,LNSAD,NBOCO,NTSTM,NTSTM_MAX
 !
 !
         REAL(kind=KFPT) :: DT_TEST_RATIO                                &

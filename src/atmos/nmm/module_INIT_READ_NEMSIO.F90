@@ -353,8 +353,6 @@ integer,allocatable       :: reclev(:)
 !
 !-----------------------------------------------------------------------
 !
-        int_state%NTSTI=ntsd+1
-!
         tend_max=real(int_state%IHREND)
         ntstm_max=nint(tend_max*3600./int_state%DT)+1
         tend=real(int_state%nhours_fcst)
@@ -4086,9 +4084,6 @@ integer,allocatable       :: reclev(:)
       call halo_exch(int_state%tracers,lm,int_state%num_tracers_total,1,2,2)
 !-----------------------------------------------------------------------
 !
-        ntsd=0
-        int_state%ntsti=ntsd+1
-!
         tend_max=real(int_state%ihrend)
         ntstm_max=nint(tend_max*3600./int_state%dt)+1
         tend=real(int_state%nhours_fcst)
@@ -4110,6 +4105,7 @@ integer,allocatable       :: reclev(:)
           int_state%ntstm=min(int_state%ntstm,ntstm_max)
         endif
 !
+        ntsd=0
         int_state%ihr=nint(ntsd*int_state%dt/3600.)
 !-----------------------------------------------------------------------
         do l=1,lm

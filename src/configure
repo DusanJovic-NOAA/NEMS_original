@@ -178,13 +178,12 @@ else
      echo;
      echo " 'configure 6.3r_nmm_wcoss'     : ESMF 6.3.0r library on wcoss for nmm"
      echo " 'configure 6.3r_gsm_wcoss'     : ESMF 6.3.0r library on wcoss for gsm"
-     echo " 'configure 6_nmm_theia'        : ESMF 6.3.0r series library on theia for nmm"
      echo " 'configure 6_nmm_theia'        : ESMF 6.3.0rp1 series library on theia nmm"
      echo " 'configure 6_gsm_theia'        : ESMF 6.3.0rp1 series library on theia gsm"
      echo " 'configure 6_yellowstone'      : ESMF 6.3.0r series library on yellowstone"
      echo;
-     echo " 'esmf_version nuopc_wcoss'     : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on wcoss"
+     echo " 'configure nuopc_wcoss'        : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on wcoss"
      echo " 'configure nuopc_gaea'         : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on gaea"
      echo " 'configure nuopc_theia'        : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on theia"
      echo;
-fi     
+fi

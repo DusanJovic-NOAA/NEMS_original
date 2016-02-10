@@ -1,6 +1,21 @@
 
 # This script is responsible for loading modules that are compatible with
-# the ESMF 6.3.0r API. 
+# the ESMF 6.3.0r API.
 
- module purge
- module load intel/15.1.133 impi/5.0.3.048 netcdf/3.6.3
+module purge
+module load intel/15.1.133 impi/5.0.3.048 netcdf/4.3.0
+
+##
+## load nwprod libraries
+##
+module use -a /scratch3/NCEPDEV/nwprod/lib/modulefiles
+module load bacio
+module load nemsio
+module load w3nco
+module load w3emc
+module load sp
+module load crtm/v2.0.6
+module load g2tmpl g2 jasper png z
+module load sigio
+module load sfcio
+

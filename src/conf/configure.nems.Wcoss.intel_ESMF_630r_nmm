@@ -10,42 +10,29 @@ gfsdir=atmos/$(gfs)
 NETCDF_INC  = $(NETCDF_INCLUDE)
 NETCDF_LIB  = $(NETCDF_LDFLAGS)
 
-#NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
-#NEMSIO_LIB  = -L/nwprod/lib -lnemsio
-NEMSIO_INC  = -I/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad/incmod
-NEMSIO_LIB  = -L/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad -lnemsio
+W3_LIB      = ${W3NCO_LIBd} ${W3EMC_LIBd}
+BACIO_LIB   = ${BACIO_LIB4}
+SP_LIB      = ${SP_LIBd}
 
-W3_LIB      = -L/nwprod/lib -lw3nco_d -lw3emc_d
-BACIO_LIB   = -L/nwprod/lib -lbacio_4
-SP_LIB      = -L/nwprod/lib -lsp_d
-SYS_LIB     =
-
-#POSTDIR     = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
-#POSTDIR     = /global/noscrub/Shrinivas.Moorthi/post_wam_moorthi/src
- POSTDIR     = /global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
+POSTDIR     = /global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
 POSTMOD     = ${POSTDIR}/incmod/post_4
 POST_INC    = -I${POSTDIR}/incmod/post_4
 POST_LIB    = -L${POSTDIR} -lnceppost
-W3_POST_LIB = -L/nwprod/lib -lw3nco_4 -lw3emc_4
-CRTM_LIB    = -L/nwprod/lib -lcrtm_v2.0.6
-G2_LIB      = -L/nwprod/lib -lg2tmpl -lg2_4 -ljasper -lpng -lz
-XML_LIB     = -L/nwprod/lib -lxmlparse
-SIGIO_LIB   = -L/nwprod/lib -lsigio_4
-SFCIO_LIB   = -L/nwprod/lib -lsfcio_4
+W3_POST_LIB = ${W3NCO_LIB4} ${W3EMC_LIB4}
+G2_LIB      = ${G2TMPL_LIB} ${G2_LIB4} ${JASPER_LIB} ${PNG_LIB} ${Z_LIB}
+SIGIO_LIB   = ${SIGIO_LIB4}
+SFCIO_LIB   = ${SFCIO_LIB4}
 
 EXTLIBS     = $(NEMSIO_LIB) \
               $(W3_LIB) \
               $(BACIO_LIB) \
               $(SP_LIB) \
               $(ESMF_LIB) \
-              $(NETCDF_LIB) \
-              $(SYS_LIB)
-
+              $(NETCDF_LIB)
 
 EXTLIBS_POST = $(POST_LIB) \
                $(NEMSIO_LIB) \
                $(W3_POST_LIB) \
-               $(XML_LIB) \
                $(G2_LIB) \
                $(BACIO_LIB) \
                $(SIGIO_LIB) \
@@ -53,25 +40,31 @@ EXTLIBS_POST = $(POST_LIB) \
                $(SP_LIB) \
                $(CRTM_LIB) \
                $(ESMF_LIB) \
-               $(NETCDF_LIB) \
-               $(SYS_LIB)
+               $(NETCDF_LIB)
 
-FC          = mpiifort -g -openmp  -mkl=sequential -diag-disable 8290,8291
-FPP         = -fpp
+FC          = mpiifort -g -traceback -openmp -mkl=sequential -diag-disable 8290,8291 -warn errors
+
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8
 
-FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
-TRAPS       =
-#TRAPS       = -ftrapuv -fno-inline -no-ip -traceback -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
+FINCS       = $(ESMF_INC) -I$(NEMSIO_INC) $(NETCDF_INC)
+
+ifeq ($(DEBUG),on)
+  TRAPS     = -ftrapuv -fno-inline -no-ip -fpe0 -ftz -fp-stack-check -check all -check noarg_temp_created
+  OPTS_NMM  = -O0
+  OPTS_GFS  = -O0
+  OPTS_GEN  = -O0
+  OPTS_FIM  = -O0
+else
+  TRAPS     =
+  OPTS_NMM  = -O2
+  OPTS_GFS  = -O3
+  OPTS_GEN  = -O2
+  OPTS_FIM  = -O2
+endif
 
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
-
-OPTS_NMM    = -O2 
-OPTS_GFS    = -O3
-OPTS_GEN    = -O2
-OPTS_FIM    = -O2
 
 FFLAGS_NMM  = $(OPTS_NMM) $(FFLAGS)
 FFLAGS_GFS  = $(OPTS_GFS) $(FFLAGS) $(FREE)
@@ -79,6 +72,7 @@ FFLAGS_GFSF = $(OPTS_GFS) $(FFLAGS) $(FIXED)
 FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
+FPP         = -fpp
 CPP         = /lib/cpp -P -traditional
 CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8
 

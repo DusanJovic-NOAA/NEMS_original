@@ -1397,7 +1397,7 @@
 !
         if (mype==-9999) then
           write(0,*)'solver'
-          write(0,*)'ihr,ihrst,lpt2,ntsti,ntstm=',int_state%ihr,int_state%ihrst,int_state%lpt2,int_state%ntsti,int_state%ntstm
+          write(0,*)'ihr,ihrst,lpt2,ntstm=',int_state%ihr,int_state%ihrst,int_state%lpt2,int_state%ntstm
           write(0,*)'idat=',int_state%idat(1),int_state%idat(2),int_state%idat(3)
           write(0,*)'dsg1=',minval(int_state%dsg1),maxval(int_state%dsg1)
           write(0,*)'pdsg1=',minval(int_state%pdsg1),maxval(int_state%pdsg1)

@@ -25,6 +25,257 @@
 !----------------------------------------------------------------------
 !######################################################################
 !----------------------------------------------------------------------
+      SUBROUTINE NWR(INT_STATE,ARRAY,KK,FIELD,NTSD                     &
+                    ,MYPE,NPES,MPI_COMM_COMP                           &
+                    ,IDS,IDE,JDS,JDE                                   &
+                    ,IMS,IME,JMS,JME                                   &
+                    ,ITS,ITE,JTS,JTE                                   &
+                    ,DOMAIN_ID )
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+      USE NEMSIO_MODULE
+      USE MODULE_INCLUDE
+      USE MODULE_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE
+      IMPLICIT NONE
+!----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      TYPE(SOLVER_INTERNAL_STATE),POINTER :: INT_STATE
+      INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
+                                      ,IMS,IME,JMS,JME                 &
+                                      ,ITS,ITE,JTS,JTE                 &
+                                      ,KK,MPI_COMM_COMP,MYPE,NPES,NTSD
+!
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,KK),INTENT(IN) :: ARRAY
+!
+      CHARACTER(*),INTENT(IN) :: FIELD
+!
+      INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: DOMAIN_ID
+!
+!--------------------
+!*** Local Variables
+!--------------------
+!
+      INTEGER :: IUNIT=23
+!
+      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+      INTEGER,DIMENSION(MPI_STATUS_SIZE,4) :: STATUS_ARRAY
+      INTEGER(KIND=KINT),DIMENSION(2) :: IM_REM,JM_REM,IT_REM,JT_REM
+!
+      INTEGER(KIND=KINT) :: I,IENDX,IER,IPE,IRECV,IRTN,ISEND           &
+                           ,J,K,N,NLEN,NSIZE
+      INTEGER(KIND=KINT) :: ITS_REM,ITE_REM,JTS_REM,JTE_REM
+!
+      REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE) :: TWRITE
+      REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:) :: VALUES
+      CHARACTER(2) :: DOM_ID
+      CHARACTER(5) :: TIMESTEP
+      CHARACTER(6) :: FMT
+      CHARACTER(128) :: FILENAME
+!
+      TYPE(NEMSIO_GFILE) :: NEMSIOFILE
+      INTEGER :: IRET
+      INTEGER :: NREC, FIELDSIZE
+      REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:) :: TMP,GLAT1D,GLON1D
+      CHARACTER(16),DIMENSION(:),ALLOCATABLE :: RECNAME,RECLEVTYP
+      INTEGER,      DIMENSION(:),ALLOCATABLE :: RECLEV
+
+      INTEGER :: NMETAVARI, NMETAVARR, NMETAVARL
+      CHARACTER(16),DIMENSION(:),ALLOCATABLE :: VARINAME                &
+                                           ,VARRNAME                    &
+                                           ,VARLNAME
+      INTEGER,DIMENSION(:),ALLOCATABLE :: VARIVAL
+      REAL,DIMENSION(:),ALLOCATABLE :: VARRVAL
+      LOGICAL,DIMENSION(:),ALLOCATABLE :: VARLVAL
+      INTEGER :: IDATE(7)
+!
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+!
+      FMT='(I5.5)'
+      NLEN=5
+      WRITE(TIMESTEP,FMT)NTSD
+!
+      IF(PRESENT(DOMAIN_ID))THEN
+        FMT='(I2.2)'
+        WRITE(DOM_ID,FMT)DOMAIN_ID
+        FILENAME='dump_'//FIELD//'_'//'D'//DOM_ID//'_'//TIMESTEP(1:NLEN)
+      ELSE
+        FILENAME='dump_'//FIELD//'_'//TIMESTEP(1:NLEN)
+      ENDIF
+!
+      IF(MYPE==0)THEN
+      CALL NEMSIO_INIT(IRET=IRET)
+
+      IDATE=0
+      IDATE(1)=int_state%IDAT(3)
+      IDATE(2)=int_state%IDAT(2)
+      IDATE(3)=int_state%IDAT(1)
+      IDATE(4)=int_state%IHRST
+      IDATE(7)=100
+
+      NMETAVARI=2
+      NMETAVARR=4
+      NMETAVARL=1
+
+      ALLOCATE(VARINAME(NMETAVARI))
+      ALLOCATE(VARRNAME(NMETAVARR))
+      ALLOCATE(VARLNAME(NMETAVARL))
+
+      ALLOCATE(VARIVAL(NMETAVARI))
+      ALLOCATE(VARRVAL(NMETAVARR))
+      ALLOCATE(VARLVAL(NMETAVARL))
+
+      VARINAME(1)='IM' ; VARIVAL(1)=IDE
+      VARINAME(2)='JM' ; VARIVAL(2)=JDE
+
+      VARRNAME(1)='TLM0D' ; VARRVAL(1)=INT_STATE%TLM0D
+      VARRNAME(2)='TPH0D' ; VARRVAL(2)=INT_STATE%TPH0D
+      VARRNAME(3)='DPHD' ; VARRVAL(3)=INT_STATE%DPHD
+      VARRNAME(4)='DLMD' ; VARRVAL(4)=INT_STATE%DLMD
+
+      VARLNAME(1)='GLOBAL' ; VARLVAL(1)=INT_STATE%GLOBAL
+
+
+      NREC=KK
+      ALLOCATE(RECNAME(NREC),RECLEVTYP(NREC),RECLEV(NREC))
+      FIELDSIZE=IDE*JDE
+      ALLOCATE(TMP(FIELDSIZE))
+      ALLOCATE(GLAT1D(FIELDSIZE),GLON1D(FIELDSIZE))
+      GLAT1D=0.0
+      GLON1D=0.0
+      GLAT1D(1)=int_state%GLAT(1,1)
+      GLON1D(1)=int_state%GLON(1,1)
+
+      RECNAME(:) = FIELD
+      RECLEVTYP(:) = 'mid layer'
+      RECLEV(:) = (/ ( K , K=1,KK) /)
+
+      CALL NEMSIO_OPEN(NEMSIOFILE,trim(FILENAME),'write',iret,           &
+        modelname="NMMB", gdatatype="bin4",  idate=IDATE,                &
+        dimx=IDE,dimy=JDE,dimz=KK,nframe=0,                              &
+        nmeta=12,nrec=nrec,lon=glon1d,lat=glat1d,                        &
+        extrameta=.true.,                                                &
+        nmetavari=NMETAVARI,                                             &
+        nmetavarr=NMETAVARR,                                             &
+        nmetavarl=NMETAVARL,                                             &
+        variname=VARINAME,                                               &
+        varrname=VARRNAME,                                               &
+        varlname=VARLNAME,                                               &
+        varival=VARIVAL,                                                 &
+        varrval=VARRVAL,                                                 &
+        varlval=VARLVAL,                                                 &
+        recname=RECNAME,reclevtyp=RECLEVTYP,reclev=RECLEV)
+
+        if (iret/=0) then
+        write(0,*)' NEMSIO_OPEN iret /= 0 ',iret
+        endif
+      END IF
+!
+!----------------------------------------------------------------------
+      DO 500 K=1,KK
+!----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          TWRITE(I,J)=ARRAY(I,J,K)
+        ENDDO
+        ENDDO
+!
+        DO IPE=1,NPES-1
+          CALL MPI_RECV(IT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          CALL MPI_RECV(JT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+!
+          ITS_REM=IT_REM(1)
+          ITE_REM=IT_REM(2)
+          JTS_REM=JT_REM(1)
+          JTE_REM=JT_REM(2)
+!
+          NSIZE=(ITE_REM-ITS_REM+1)*(JTE_REM-JTS_REM+1)
+          ALLOCATE(VALUES(1:NSIZE))
+!
+          CALL MPI_RECV(VALUES,NSIZE,MPI_REAL,IPE,IPE                   &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          N=0
+          DO J=JTS_REM,JTE_REM
+            DO I=ITS_REM,ITE_REM
+              N=N+1
+              TWRITE(I,J)=VALUES(N)
+            ENDDO
+          ENDDO
+!
+          DEALLOCATE(VALUES)
+!
+        ENDDO
+
+        TMP=RESHAPE(TWRITE,(/FIELDSIZE/))
+        CALL NEMSIO_WRITEREC(NEMSIOFILE,K,TMP,IRET=IRET)
+        if (iret/=0) then
+        write(0,*)' NEMSIO_WRITEREC iret /= 0 ',iret
+        endif
+!
+!----------------------------------------------------------------------
+      ELSE
+!
+        NSIZE=(ITE-ITS+1)*(JTE-JTS+1)
+        ALLOCATE(VALUES(1:NSIZE))
+!
+        N=0
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          N=N+1
+          VALUES(N)=ARRAY(I,J,K)
+        ENDDO
+        ENDDO
+!
+        IT_REM(1)=ITS
+        IT_REM(2)=ITE
+        JT_REM(1)=JTS
+        JT_REM(2)=JTE
+!
+        CALL MPI_SEND(IT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+        CALL MPI_SEND(JT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        CALL MPI_SEND(VALUES,NSIZE,MPI_REAL,0,MYPE                      &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        DEALLOCATE(VALUES)
+!
+      ENDIF
+!----------------------------------------------------------------------
+!
+      CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
+!
+!
+!----------------------------------------------------------------------
+!
+  500 CONTINUE
+!
+!----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        DEALLOCATE(TMP)
+        CALL NEMSIO_CLOSE(NEMSIOFILE)
+        CALL NEMSIO_FINALIZE()
+      END IF
+!
+!----------------------------------------------------------------------
+!
+      END SUBROUTINE NWR
+!
+!----------------------------------------------------------------------
+!######################################################################
+!----------------------------------------------------------------------
       SUBROUTINE TWR(ARRAY,KK,FIELD,NTSD,MYPE,NPES,MPI_COMM_COMP       &
                     ,IDS,IDE,JDS,JDE                                   &
                     ,IMS,IME,JMS,JME                                   &

@@ -10,7 +10,7 @@
 #MSUB -l size=_TASKS_
 #MSUB -l walltime=00:_WLCLK_:00
 
-set -eu
+set -eux
 
 echo "Model started:  " `date`
 

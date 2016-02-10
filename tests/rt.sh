@@ -33,8 +33,8 @@ if [ $MACHINE_ID = wcoss ]; then
   export CLASS=debug # dev
   export ACCNR=dev
   if [ $pex -eq 2 ] ; then
-#   export CLASS=dev$pex 
-   export CLASS=debug$pex 
+#   export CLASS=dev$pex
+   export CLASS=debug$pex
    export ACCNR=dev$pex
   fi
 # export STMP=/stmp$pex
@@ -233,7 +233,7 @@ cat $TESTS_FILE | while read line; do
     [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
     [[ $CREATE_BASELINE == true && $CB != *${CB_arg}* && 'all' != *${CB_arg}* ]] && continue
 
-    (( TEST_NR += 1 )) 
+    (( TEST_NR += 1 ))
     (
       export RUNDIR=${RUNDIR_ROOT}/${TEST_NAME}
       source tests/$TEST_NAME
@@ -246,7 +246,7 @@ cat $TESTS_FILE | while read line; do
   fi
 
   die "Unknown command $line"
-  
+
 done
 
 if [ -e fail_test ]; then

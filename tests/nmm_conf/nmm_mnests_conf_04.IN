@@ -119,7 +119,6 @@ wcor:    0.18               # Divergence correction factor
  
 idtadt:  2                  # Number of adjustment timesteps between tracer advection calls (normally 1)
 
-num_tracers_met:   4        # Number of specified meterological "tracer" scalars (e.g., water)
 num_tracers_chem:  0        # Number of specified chem/aerosol "tracer" scalars
 
 lnsh:  5                    # Number of boundary blending rows for H points
