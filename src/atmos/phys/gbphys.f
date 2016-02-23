@@ -286,8 +286,12 @@
 !     old_monin- logical, flag for diff monin schemes              1    !
 !     cnvgwd   - logical, flag for conv gravity wave drag          1    !
 !     shal_cnv - logical, flag for calling shallow convection      1    !
-!     sashal   - logical, flag for new shallow conv scheme         1    !
-!     newsas   - logical, flag for new sas conv scheme             1    !
+!     sashal   - integer, flag for new shallow conv scheme         1    !
+!              1: operational version (2015) 2: updated new shallow convection
+!              0:
+!     newsas   - integer, flag for new sas conv scheme             1    !
+!              1: operational version (2015) 2: updated new sas version
+!              0: old sas version before Jul 2010
 !     cal_pre  - logical, flag controls precip type algorithm      1    !
 !     mom4ice  - logical, flag controls mom4 sea-ice               1    !
 !     mstrat   - logical, flag for moorthi approach for stratus    1    !
@@ -572,9 +576,10 @@
 
 
       integer, intent(in) :: nlons(im), ncw(2), nst_fcst
+      integer, intent(in) :: sashal, newsas
 
       logical, intent(in) :: ras,        pre_rad,   ldiag3d, flipv,     &
-     &                       old_monin,  cnvgwd,    sashal,  newsas,    &
+     &                       old_monin,  cnvgwd,                        &
      &                       redrag,     hybedmf,   dspheat,            &
      &                       lssav,                 mom4ice, mstrat,    &
      &                       trans_trac, moist_adj, cal_pre, cscnv,     &
@@ -1170,7 +1175,7 @@
 
 !    Only used for old shallow convection with mstrat=.true.
 
-      if (((.not. sashal .and. shal_cnv) .or. old_monin)                &
+      if (((sashal.eq.0 .and. shal_cnv) .or. old_monin)                 &
      &                                   .and. mstrat) then
         do i = 1, im
           ctei_rml(i) = ctei_rm(1)*work1(i) + ctei_rm(2)*work2(i)
@@ -2172,13 +2177,18 @@
 !
       if (.not. ras .and. .not. cscnv) then
 
-        if (newsas) then             ! no random cloud top
+        if (newsas .eq. 1) then             ! no random cloud top
           call sascnvn(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,           &
      &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
      &                rain1,kbot,ktop,kcnv,islmsk,                      &
      &                vvel,ncld,ud_mf,dd_mf,dt_mf,cnvw,cnvc)
+        elseif (newsas .eq. 2) then
+          call sascnvn1(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,          &
+     &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
+     &                rain1,kbot,ktop,kcnv,islmsk,                      &
+     &                vvel,ncld,ud_mf,dd_mf,dt_mf,cnvw,cnvc)
 !         if (lprnt) print *,' rain1=',rain1(ipr)
-        else                         ! random cloud top
+        elseif (newsas .eq. 0) then         ! random cloud top
           call sascnv(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,            &
      &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
      &                rain1,kbot,ktop,kcnv,islmsk,                      &
@@ -2544,9 +2554,36 @@
 
         if (shal_cnv) then               ! Shallow convection parameterization
 !                                        -----------------------------------
-          if (sashal) then               ! opr option now at 2014
+          if (sashal.eq.1) then               ! opr option now at 2014
                                          !-----------------------
-            call shalcnv(im,ix,levs,dtp,del,prsl,pgr,phil,              &
+            call shalcnv(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,         &
+     &                   clw,gq0,gt0,gu0,gv0,                           &
+     &                   rain1,kbot,ktop,kcnv,islmsk,                   &
+     &                   vvel,ncld,hpbl,hflx,evap,ud_mf,dt_mf,          &
+     &                   cnvw,cnvc)
+
+            if (shcnvcw .and. num_p3d == 4 .and. npdf3d == 3 ) then
+              do k = 1, levs
+                do i = 1, im
+                  phy_f3d(i,k,num2) = cnvw(i,k)
+                  phy_f3d(i,k,num3) = cnvc(i,k)
+!???              phy_f3d(i,k,num2) = phy_f3d(i,k,num2) + cnvw(i,k)
+!???              phy_f3d(i,k,num3) = phy_f3d(i,k,num3) + cnvc(i,k)
+                enddo
+              enddo
+            endif
+            do i = 1, im
+              raincs(i) = frain    * rain1(i)
+              rainc(i)  = rainc(i) + raincs(i)
+            enddo
+            if (lssav) then
+              do i = 1, im
+                cnvprcp(i) = cnvprcp(i) + raincs(i)
+              enddo
+            endif
+
+          elseif (sashal .eq. 2) then
+            call shalcnv1(im,ix,levs,dtp,del,prsl,pgr,phil,             &
      &                   clw,gq0,gt0,gu0,gv0,                           &
      &                   kbot,ktop,kcnv,islmsk,                         &
      &                   vvel,ncld,hpbl,hflx,evap,ud_mf,dt_mf,          &
@@ -2562,17 +2599,8 @@
                 enddo
               enddo
             endif
-!           do i = 1, im
-!             raincs(i) = frain    * rain1(i)
-!             rainc(i)  = rainc(i) + raincs(i)
-!           enddo
-!           if (lssav) then
-!             do i = 1, im
-!               cnvprcp(i) = cnvprcp(i) + raincs(i)
-!             enddo
-!           endif
 
-          else                           ! modified Tiedtke Shallow convecton
+          elseif (sashal .eq. 0) then    ! modified Tiedtke Shallow convecton
                                          !-----------------------------------
             do i = 1, im
               levshc(i) = 0

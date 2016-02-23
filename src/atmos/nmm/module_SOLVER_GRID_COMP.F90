@@ -36,6 +36,7 @@
 !   2014-03-28 Xingren Wu - Add "_CPL" field for GBPHYS call
 !   2014-05-14 J. Wang - Adding cgwf,prslrd0 and levr to gbphys call
 !   2014-06-26 Weiguo Wang -- Add HURRICANE PBL and SFCLAY calls
+!   2016-02-16 J. Wang - change newsas/sashal from logical to integer
 !-----------------------------------------------------------------------
 !
       USE ESMF
@@ -2578,7 +2579,8 @@
 
       REAL (kind=KDBL) ,DIMENSION(:),ALLOCATABLE   :: SWH,HLW,DKH,RNP
 !--- gbphys ---
-      LOGICAL                                      :: OLD_MONIN, CNVGWD, NEWSAS
+      LOGICAL                                      :: OLD_MONIN, CNVGWD
+      INTEGER                                      :: NEWSAS
       INTEGER ,DIMENSION(2)                        :: NCW
       REAL (kind=KDBL)                             :: CGWF(2),PRSLRD0
       REAL (kind=KDBL)                             :: CCWF,FAC
@@ -6596,7 +6598,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
          NCW(2)      = 150
          OLD_MONIN   = .FALSE.
          CNVGWD      = .FALSE.
-         NEWSAS      = .FALSE.
+         NEWSAS      = 0
          CCWF        = 0.5d0  ! only for RAS scheme
          CGWF        = 0.1    ! cloud top fraction for convective gwd scheme
          PRSLRD0     = 0.     ! pressure(pa) above which Raleigh damping applied
@@ -9884,6 +9886,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 !
       LOGICAL,SAVE :: ALLOWED_TO_READ=.TRUE.
       LOGICAL :: OPENED
+      LOGICAL :: LSASHAL
 
       LOGICAL :: CRICK_PROOF, CCNORM, NORAD_PRECIP
 !
@@ -10536,7 +10539,9 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
             IFLIP=0    !   0: input data from toa to sfc
                        !   1: input data from sfc to toa
 
-            SASHAL=.false.        ! New Massflux based shallow convection  (Not in use for NMMB)
+            SASHAL=0              ! New Massflux based shallow convection  (Not in use for NMMB)
+            LSASHAL=.false.
+            if (SASHAL>0 .and. .not.RAS) LSASHAL=.true.
             CRICK_PROOF=.false.   ! flag for eliminating CRICK (smooths profiles)
             CCNORM=.true.         ! flag for incloud condensate mixing ratio
             NORAD_PRECIP=.false.  ! flag for precip in radiation
@@ -10619,7 +10624,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
      &       ( SFULLD,LM,ICTM,ISOL,ICO2,IAER,IAER_MDL,IALB,IEMS,NTCW,  &
      &         NP3D,NTOZ,IOVR_SW,IOVR_LW,ISUBCSW,ISUBCLW,              &
      &         ICLIQ_SW,ICICE_SW,ICLIQ_LW,ICICE_LW,                    &
-     &         SASHAL,CRICK_PROOF,CCNORM,NORAD_PRECIP,IFLIP,MYPE )
+     &         LSASHAL,CRICK_PROOF,CCNORM,NORAD_PRECIP,IFLIP,MYPE )
 !  ---        outputs:
 !                ( none )
 

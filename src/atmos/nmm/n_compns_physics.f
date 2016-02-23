@@ -157,7 +157,7 @@
       LGOC3D           = .false.
       fhgoc3d          = 72.0
       shal_cnv         = .true.
-      sashal           = .true.
+      sashal           = 1 
       crick_proof      = .false.
       ccnorm           = .false.
       newsas           = .true.
@@ -275,7 +275,7 @@ c$$$      read(5,nam_phy)
         print *,' The time filter coefficient tfiltc=',tfiltc
         if (.not. old_monin) print *,' New PBL scheme used'
         if (.not. shal_cnv) print *,' No shallow convection used'
-        if (sashal) print *,' New Massflux based shallow convection'
+        if (sashal>0) print *,' New Massflux based shallow convection'
      &,                     ' used'
         if (cnvgwd) print *,' Convective GWD parameterization used'
           if (crick_proof) print *,' CRICK-Proof cloud water used in'

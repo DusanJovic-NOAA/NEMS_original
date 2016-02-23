@@ -588,6 +588,7 @@ export NGPTC=${NGPTC:-30}
 #jw
 export ADIABATIC=${ADIABATIC:-.false.}
 export nsout=${nsout:-0}
+export LDFI_GRD=${LDFI_GRD:-.false.}
 export LDFIFLTO=${LDFIFLTO:-.false.}
 export DFILEVS=${DFILEVS:-$LEVS}
 export NUM_FILE=${NUM_FILE:-3}
@@ -1327,6 +1328,7 @@ lsoil:                   $LSOIL
 passive_tracer:          $PASSIVE_TRACER
 dfilevs:                 $DFILEVS
 ldfiflto:                $LDFIFLTO
+ldfi_grd:                $LDFI_GRD
 lwrtgrdcmp:              $LWRTGRDCMP
 nemsio_in:               $NEMSIO_IN
 
