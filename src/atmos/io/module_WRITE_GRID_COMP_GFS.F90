@@ -1912,8 +1912,8 @@
 !
         CALL NEMSIO_CLOSE(NEMSIOFILE)
 !       
-        write(0,*)'in wrt_run, close nemsio file,',trim(GFNAME),   &
-          'quilting=',wrt_int_state%quilting
+!        write(0,*)'in wrt_run, close nemsio file,',trim(GFNAME),   &
+!          'quilting=',wrt_int_state%quilting
 !
         CALL NEMSIO_FINALIZE()
 !

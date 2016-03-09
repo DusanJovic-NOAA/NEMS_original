@@ -23,6 +23,7 @@ if [ "$NEMSIOIN" = ".true." ]; then
 else
   export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
 fi
+export fcst_begin=${fcst_begin:-YES}
 
 export SCHEDULER=${SCHEDULER:-lsf}
 export SHOWQ=${SHOWQ:-/opt/moab/default/bin/showq}
@@ -88,6 +89,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_CP2_:${CP2}:g                       \
                      | sed s:_RUNDIR_:${RUNDIR}:g                 \
                      | sed s:_RESTART_:${RESTART}:g               \
+                     | sed s:_FCST_BEGIN_:${fcst_begin}:g               \
                      | sed s:_PATHTR_:${PATHTR}:g                 \
                      | sed s:_FDFI_:${FDFI}:g                     \
                      | sed s:_FHOUT_:${FHOUT}:g                   \
@@ -118,6 +120,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_SIGHDR_:${SIGHDR}:g                 \
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
                      | sed s:_RTPWD_:${RTPWD}:g                   \
+                     | sed s:_DATAICDIR_:${DATAICDIR}:g           \
                      | sed s:_SCHEDULER_:${SCHEDULER}:g           \
                      | sed s:_SLG_:${SLG}:g                       \
                      | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
@@ -189,15 +192,18 @@ fi
  if [ "$NEMSIOIN" = ".true." ]; then
   export IC_DIR=${IC_DIR:-${RTPWD}/$DATAICDIR}
   if [ $MACHINE_ID = wcoss ] ; then
-#     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
      export nemsioget=${nemsioget:-/nwprod/ngac.v1.0.0/exec/nemsio_get}
   elif [ $MACHINE_ID = theia ] ; then
-#     IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
      export nemsioget=${nemsioget:-/scratch3/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
   fi
   export SIGHDR=$nemsioget
-  cp $IC_DIR/gfsanl.$CDATE $RUNDIR
-  cp $IC_DIR/sfnanl.$CDATE $RUNDIR
+  if [ $fcst_begin = YES ]; then
+    cp $IC_DIR/gfsanl.$CDATE $RUNDIR
+    cp $IC_DIR/sfnanl.$CDATE $RUNDIR
+  else
+    cp $IC_DIR/sigf${nhourb} $RUNDIR
+    cp $IC_DIR/sfcf${nhourb} $RUNDIR
+  fi
 
 #                     NO NEMSIO INPUT
 #                     ---------------

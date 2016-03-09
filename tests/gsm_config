@@ -8,6 +8,7 @@ set -x
 # export gfsio_in=.true.
 # export gfsio_out=.true.,
 
+export fcst_begin=${fcst_begin:-YES}
 export NTRAC=${NTRAC:-${ntrac:-3}}
 export NTOZ=${NTOZ:-2}
 export NTCW=${NTCW:-3}
@@ -238,5 +239,4 @@ export LONB=$im
 export LATB=$jm
 export VERBOSE=YES
 #
-export FHROT=00
 #

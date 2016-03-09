@@ -1,21 +1,22 @@
 ###############################################################################
 #
-#  GFS Semi-Lagrangian model
+#  GFS Semi-Lagrangian model restart from history file
 #  32 tasks, T62L64, 24 hours forecast. physics version. NEMSIO output.
 #  With digital filter. Read-in fron gfs_slg_nemsio 24 hours output file.
 #
 ###############################################################################
 
-export TEST_DESCR="Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions"
+export TEST_DESCR="Run SLG restart from history file non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions"
 
-export CNTL_DIR=GFS_SLG
-export LIST_FILES="sigf00 sigf01 sigf24 sfcf00 sfcf01 sfcf24 flxf00 flxf01 flxf24"
+export CNTL_DIR=GFS_SLG_RSTHST
+export LIST_FILES="sigf30 sigf48 sfcf30 sfcf48 flxf30 flxf48"
 
 export_gsm
 
 #jw module purge
 #jw module load EnvVars/1.0.0 ibmpe lsf ics/14.0.1 NetCDF/4.2/serial ESMF/630rp1
 
+export fcst_begin=NO
 export CDATE=2012010100
 export LDFI_SPECT=.true.
 export NDAYS=2
@@ -52,7 +53,6 @@ export LONB=192
 export LATB=94
 export LONR=192
 export LATR=94
-export FHROT=0
 export FHZER=6
 export FHOUT_HF=1
 export FHMAX_HF=0
@@ -73,7 +73,7 @@ export IEMS=1
 export ISOL=2
 export ICO2=2
 export RESTART=.false.
-export DATAICDIR=GFS_SLG
+export DATAICDIR=gfs_slg
 export FHOUT_HF=1
 export FHMAX_HF=12
 

@@ -137,6 +137,7 @@ if [[ $CREATE_BASELINE == true ]]; then
     cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
     cp ${RTPWD}/GFS_SLG_ADIABATIC/*        ${RTPWD_U}/GFS_SLG_ADIABATIC/.
     cp ${RTPWD}/GFS_SLG/*                  ${RTPWD_U}/GFS_SLG/.
+    cp ${RTPWD}/GFS_SLG_RSTHST/*           ${RTPWD_U}/GFS_SLG_RSTHST/.
     cp ${RTPWD}/GFS_SLG_48PE/*             ${RTPWD_U}/GFS_SLG_48PE/.
     cp ${RTPWD}/GFS_SLG_T574/*             ${RTPWD_U}/GFS_SLG_T574/.
   fi

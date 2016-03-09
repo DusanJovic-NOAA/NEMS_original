@@ -105,6 +105,7 @@ fi
  export IDEA=_IDEA_
  export IDEA=${IDEA:-.false.}
  export RTPWD=_RTPWD_
+ export DATAICDIR=_DATAICDIR_
 
 # nemsio input/output
  export NEMSIO_IN=_NEMSIOIN_
@@ -161,6 +162,8 @@ fi
 NST_SPINUP=${NST_SPINUP:-.false.}
 
 # restart default is coldstart
+ export fcst_begin=_FCST_BEGIN_
+ export fcst_begin=${fcst_begin:-YES}
  export RESTART=_RESTART_
  export RESTART=${RESTART:-.false.}
  if [ $RESTART = .true. ] ; then
@@ -272,7 +275,6 @@ export DUMPDIR=/global/shared/dump
 export RUNDIR=${RUNDIR:-$expt}
 export SCRIPTS=${SCRIPTS:-$TOPDIR/wx23sm/gsm/scripts}
 
-export fcst_begin=${fcst_begin:-YES}
 export cold_sfc=${cold_sfc:-NO}
 export hybrid=${hybrid:-NO}
 #
@@ -296,14 +298,18 @@ fi
 #    begining from nhourb
 #
 export ndays=_NDAYS_
+export restart_ndays=${restart_ndays:-1}
 if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
+ export FHROT=0
 else
  if [[ -s $RUNDIR/grdr1 ]] ; then
    export nhourb=`$nemsioget $RUNDIR/grdr1 nfhour`
-   export FHROT=${FHROT:-$nhourb}
+   export FHROT=$nhourb
  else
-   nhourb=$((ndays*24))
+   export nhourb=$((restart_ndays*24))
+   export FHROT=$nhourb
+   export restart=YES
  fi
 fi
 #
@@ -380,6 +386,7 @@ fi
 srcdir=_PATHTR_
 export FCSTSCRIPT=$srcdir/tests/exglobal_fcst_nems.sh
 export FCSTEXEC=$srcdir/exe/NEMS.x
+#jw export FCSTEXEC=/ptmpp2/Jun.Wang/test/trunk/exe/NEMS.x
 
 export CONFIG=${GSM_CONFIG:-$srcdir/tests/gsm_config}
 set -a;. $CONFIG;set +a
@@ -432,14 +439,22 @@ fi
     export SFCI=$RUNDIR/sfcr
     export FHINI=`$nemsioget $GRDI nfhour |grep -i "nfhour"|awk -F" " '{print $2}'`
   else
-    export GRDI=$RUNDIR/gfsanl.$CDATE
-    export SIGI=$RUNDIR/siganl.$CDATE
-    if [[ $NEMSIO_IN = .true. ]] ; then
-      export SFCI=$RUNDIR/sfnanl.$CDATE
+    if [[ ${fcst_begin} = YES ]] then
+      export GRDI=$RUNDIR/gfsanl.$CDATE
+      export SIGI=$RUNDIR/siganl.$CDATE
+      if [[ $NEMSIO_IN = .true. ]] ; then
+        export SFCI=$RUNDIR/sfnanl.$CDATE
+      else
+        export SFCI=$RUNDIR/sfcanl.$CDATE
+      fi
+      export FHINI=00
     else
-      export SFCI=$RUNDIR/sfcanl.$CDATE
+      if [[ -s $RUNDIR/../$DATAICDIR/sigf${nhourb} ]]; then
+        export GRDI=$RUNDIR/../$DATAICDIR/sigf${nhourb}
+        export SIGI=$RUNDIR/../$DATAICDIR/sigf${nhourb}
+        export SFCI=$RUNDIR/../$DATAICDIR/sfcf${nhourb}
+      fi
     fi
-    export FHINI=00
   fi
 #
 # ------------------------ post varables ----------------
