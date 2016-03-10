@@ -41,6 +41,9 @@ fi
  export SLG=_SLG_
  export F107_KP_SIZE=_F107_KP_SIZE_
  export F107_KP_INTERVAL=_F107_KP_INTERVAL_
+ export WAM_IPE_COUPLING=_WAM_IPE_COUPLING_
+ export HEIGHT_DEPENDENT_G=_HEIGHT_DEPENDENT_G_
+ export F107_KP_SKIP_SIZE=_F107_KP_SKIP_SIZE_
 
  if [[ $SLG = .true. ]] ; then
    module load ibmpe

@@ -63,6 +63,10 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
  fi
 ##
 
+ export WAM_IPE_COUPLING=${WAM_IPE_COUPLING:-.false.}
+ export HEIGHT_DEPENDENT_G=${HEIGHT_DEPENDENT_G:-.false.}
+ export F107_KP_SKIP_SIZE=${F107_KP_SKIP_SIZE:-0}
+
  cd $PATHRT
 
  cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g                   \
@@ -110,6 +114,9 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_NDSLFV_:${NDSLFV}:g                 \
                      | sed s:_SPECTRALLOOP_:${SPECTRALLOOP}:g     \
                      | sed s:_IDEA_:${IDEA}:g                     \
+                     | sed s:_WAM_IPE_COUPLING_:${WAM_IPE_COUPLING}:g       \
+                     | sed s:_HEIGHT_DEPENDENT_G_:${HEIGHT_DEPENDENT_G}:g   \
+                     | sed s:_F107_KP_SKIP_SIZE_:${F107_KP_SKIP_SIZE}:g   \
                      | sed s:_CDATE_:${CDATE}:g                   \
                      | sed s:_IEMS_:${IEMS}:g                     \
                      | sed s:_ISOL_:${ISOL}:g                     \

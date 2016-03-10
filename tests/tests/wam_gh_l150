@@ -28,5 +28,8 @@ export SFCPRESS_ID=2
 export SPECTRALLOOP=2
 export F107_KP_SIZE=56
 export F107_KP_INTERVAL=10800
+export WAM_IPE_COUPLING=.true.
+export HEIGHT_DEPENDENT_G=.true.
+export F107_KP_SKIP_SIZE=24
 
 RUN_SCRIPT=rt_gfs.sh

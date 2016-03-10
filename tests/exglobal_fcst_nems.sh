@@ -63,6 +63,10 @@
 # 2015-10-19 Weiyu Yang  - add the f107_kp_size, f107_kp_interval.
 #                          number of inputted f10.7 and kp data and the time
 #                          interval of them.
+# 2016-03-07 Weiyu Yang  - Add WAM IPE coupling flags wam_ipe_coupling and 
+#                          height_dependent_g. Add f107_kp_skip_size to skip
+#                          the f10.7 and kp observation data before the start time
+#                          of the forecast run.
 #
 # Usage:  global_forecast.sh SIGI/GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -1530,6 +1534,8 @@ cat  > atm_namelist <<EOF
   spectral_loop=$SPECTRAL_LOOP, explicit=$EXPLICIT,
   ndslfv=$NDSLFV,mass_dp=$MASS_DP,process_split=$PROCESS_SPLIT,
   reduced_grid=$REDUCED_GRID,lsidea=$IDEA,
+  wam_ipe_coupling=$WAM_IPE_COUPLING,
+  height_dependent_g=$HEIGHT_DEPENDENT_G,
   semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   dfilevs=$DFILEVS,
@@ -1545,6 +1551,7 @@ cat  > atm_namelist <<EOF
   lsoil=$LSOIL, nmtvr=$NMTVR, lsidea=$IDEA, 
   f107_kp_size=$F107_KP_SIZE, 
   f107_kp_interval=$F107_KP_INTERVAL,
+  f107_kp_skip_size=$F107_KP_SKIP_SIZE,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
