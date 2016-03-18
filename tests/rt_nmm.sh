@@ -167,6 +167,7 @@ fi
 sh ./nmm_run
 
 # wait for the job to enter the queue
+count=0
 job_running=0
 until [ $job_running -eq 1 ]
 do
@@ -178,6 +179,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
 elif [ $SCHEDULER = 'lsf' ]; then
   job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${QUEUE} | wc -l`;sleep 5
 fi
+(( count=count+1 )) ; if [ $count -eq 13 ] ; then echo "No job in queue after one minute, exiting..." ; exit 2 ; fi
 done
 
 # wait for the job to finish and compare results

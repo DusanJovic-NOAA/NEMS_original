@@ -1721,10 +1721,10 @@
 !==========================================================================
       IF (ialbflg == 2) THEN
 
-         SMX(1:IX) = SM
-         SFCALBEDO(1:IX) = SALBEDO
-
          do i = 1, IM
+
+            SMX(i) = SM(i)
+            SFCALBEDO(i) = SALBEDO(i)
 
 !..... THE FOLLOWING CODE GETS ALBEDO FROM PAYNE,1972 TABLES IF
 !         1) OPEN SEA POINT (SLMSK=1);  2) KALB=0

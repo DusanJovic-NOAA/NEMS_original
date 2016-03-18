@@ -171,9 +171,10 @@
                                                       ,CFRACM,CZMEAN    &
                                                       ,SIGT4
 !
-      LOGICAL,INTENT(IN) :: F_QC,F_QS,F_QI,F_QR,F_QG,F_NI 
+      LOGICAL,INTENT(IN) :: F_QC,F_QS,F_QI,F_QR,F_QG,F_NI
+
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QC,QS       &
-     &                    ,QI,QR,QG,NI 
+     &                     ,QI,QR,QG,NI 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CLDFRA
 !
@@ -836,13 +837,6 @@
       ENDIF  ICWP_Test   !*** End of Old NAM/GFDL cloud inputs ***
 !-----------------------------------------------------------------------
 
-
-      FLGMIN_L(1)= 0.20d0 ! --- for ferrier
-
-      CV (1)=0.d0         ! not in use
-      CVB(1)=0.d0         ! not in use
-      CVT(1)=0.d0         ! not in use
-
       FHSWR=(NRADS*DT)/3600.        ! [h]
       FHLWR=(NRADL*DT)/3600.        ! [h]
       DTLW =(NRADL*DT)              ! [s]
@@ -867,8 +861,6 @@
 
       fhr = float(ihr)+float(imin)/60.
       solhr = mod( fhr, f24 )
-
-
 
 
 !==========================================================================
@@ -905,6 +897,7 @@
        ! else
        !    XLON(1) = GLON(I,J) + PI        ! if in -pi->+pi convert to 0->2pi
        ! endif
+
        XLAT(1:im)=GLAT(IRANGE,J)
        SINLAT(1:im) = SIN ( XLAT(1:im) )
        COSLAT(1:im) = COS ( XLAT(1:im) )
@@ -926,6 +919,13 @@
        ENDWHERE
 !
 !---
+!
+      FLGMIN_L(1:im)= 0.20d0 ! --- for ferrier
+
+      CV (1:im)=0.d0         ! not in use
+      CVB(1:im)=0.d0         ! not in use
+      CVT(1:im)=0.d0         ! not in use
+
       PRSI(1:im,1)=P8W(IRANGE,1)/1000.                                ! [kPa]
 !
       DO L=1,LM
@@ -1073,8 +1073,8 @@ IF(P1<1.E-2) WRITE(6,"(a,3i4,2g11.4)") 'I,J,L,PRSL,E_sat=',I,J,L,P1,ESAT   !dbg
 !
       CU_cloud=.FALSE.
       CU_Bogus1: IF (CUCLD) THEN
-       DO I=ITS,ITE
-         ii = i-ITS+1
+       DO I=IBEG,IEND     !-- to be consistent with IM form "daypart" (ver. 44371, 20140815)
+         ii = i-IBEG+1
          LCNVT=MIN(LM, NINT(CUTOP(I,J)) )   !-- Convective cloud top
          LCNVB=MIN(LM, NINT(CUBOT(I,J)) )   !-- Convective cloud base
          CU_DEPTH=0.
@@ -1181,6 +1181,7 @@ IF(P1<1.E-2) WRITE(6,"(a,3i4,2g11.4)") 'I,J,L,PRSL,E_sat=',I,J,L,P1,ESAT   !dbg
          !===========================================================
             DO I=1,IM
               ARG_CW = MAXVAL( CW(IDEX,J,1:LM) )  !- for *total condensate*
+
               IF (ARG_CW<EPSQ2) THEN  
                  DO L=1,LM
                     CLDCOV_V(I,L) = 0.d0
