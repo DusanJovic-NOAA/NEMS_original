@@ -77,6 +77,7 @@ MODULES_GFSF=                                \
 	           rascnvv2.o                \
 	           namelist_soilveg.o        \
 	           module_bfmicrophysics.o   \
+	           mersenne_twister.o        \
 	           tracer_const_h.o          \
 	           gfs_phy_tracer_config.o   \
                    rad_initialize.o          \
