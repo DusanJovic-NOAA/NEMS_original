@@ -1844,7 +1844,7 @@
 !     &                   ugrs, vgrs, dtp, con_cp, levr, prsl, prslrd0)
 !      else
         call rayleigh_damp(im, ix, im, levs, dvdt, dudt, dtdt, ugrs,
-     &                     vgrs, dtp, con_cp, levr, prsl, prslrd0)
+     &                     vgrs, dtp, con_cp, levr, pgr, prsl, prslrd0)
       endif
 
       do  k = 1, levs
