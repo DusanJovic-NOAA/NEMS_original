@@ -141,7 +141,11 @@ c-----------------------------
      &  	  0.00   , 0.00   , 0.00   , 0.00   , 0.00,
      &  	  0.00   , 0.00   , 0.00   , 0.00   , 0.00/)
 
-      LPARAM =.TRUE.
+! PT 5/18/2015 - changed to FALSE to match atm_namelist setting
+! PT LPARAM is not used anywhere
+!      LPARAM =.TRUE.
+      LPARAM =.FALSE.
+
 !     changed for version 2.5.2
 !      DATA ZBOT_DATA /-3.0/
       ZBOT_DATA   = -8.0
@@ -194,10 +198,10 @@ c-----------------------------
 ! NAMELIST_NAME must be 50 characters or less.
 ! ----------------------------------------------------------------------
 !lu: namelist is set up in run script
-         if (me == 0) write(0,*) 'read namelist cwsoilvegSOIL_VEG'
+!PT         if (me == 0) write(0,*) 'read namelist cwsoilvegSOIL_VEG'
 !$$$         READ(5, SOIL_VEG)
-         rewind(nlunit)
-         READ(nlunit, SOIL_VEG)
+!PT         rewind(nlunit)
+!PT         READ(nlunit, SOIL_VEG)
 
 !*       WRITE(6, SOIL_VEG)
 ! 	 OPEN(58, FILE = 'namelist_filename.txt')
