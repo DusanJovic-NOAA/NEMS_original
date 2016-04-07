@@ -99,7 +99,7 @@
       real (kind=kind_phys), parameter :: rad2dg= 180.0 / con_pi
 
 !  ---  global surface emissivity index array and control flag  set up in 'sfc_init'
-      integer, allocatable  ::  idxems(:,:)
+      integer, allocatable, save       ::  idxems(:,:)
       integer :: iemslw = 0
 !
       public  sfc_init, setalb, setemis

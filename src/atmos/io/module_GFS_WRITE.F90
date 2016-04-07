@@ -58,7 +58,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      LOGICAL,SAVE :: QUILTING    
+      LOGICAL,SAVE :: QUILTING, ADIABATIC    
       INTEGER      :: MYPE                                           !<-- My MPI task ID
 !
 !-----------------------------------------------------------------------
@@ -349,6 +349,7 @@
       CHARACTER( 2)          :: MY_WRITE_GROUP
       CHARACTER(6)           :: FMT='(I2.2)'
       CHARACTER(ESMF_MAXSTR) :: WRITE_NAME
+      CHARACTER(50)          :: MODE
 !
       INTEGER :: I,J,K,RC,RC_SETUP
 !
@@ -396,6 +397,9 @@
                                   ,WRITE_TASKS_PER_GROUP                &  !<-- Number of write tasks per group from config file
                                   ,label ='write_tasks_per_group:'      &
                                   ,rc    =RC)
+!
+
+      CALL ESMF_ConfigGetAttribute(CF, ADIABATIC, label ='adiabatic:', rc=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -533,17 +537,20 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Write Import State into Physics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+!
+      IF(.not. ADIABATIC) THEN
+        MESSAGE_CHECK="Insert Write Import State into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(            EXP_STATE_PHY        & !<-- Physics export state receives a state
-                        ,LISTWRAPPER(IMP_STATE_WRITE)     & !<-- Add the write components' import state
-                        ,rc         =RC)
+        CALL ESMF_StateAdd(            EXP_STATE_PHY        & !<-- Physics export state receives a state
+                          ,LISTWRAPPER(IMP_STATE_WRITE)     & !<-- Add the write components' import state
+                          ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !

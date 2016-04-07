@@ -47,11 +47,11 @@
 !    sep  2009 --  s. moorthi removed rcl and additional reformatting   !
 !                     and optimization + made pa as input pressure unit.!
 !         2009  -- xu li       recreatead the code                      !
-!    feb  2010  -- s. moorthi added ass the changed made to the previous!
+!    feb  2010  -- s. moorthi added some changes made to the previous   !
 !                  version                                              !
 !                                                                       !
 !                                                                       !
-!  ====================  defination of variables  ====================  !
+!  ====================  definition of variables  ====================  !
 !                                                                       !
 !  inputs:                                                       size   !
 !     im       - integer, horiz dimension                          1    !

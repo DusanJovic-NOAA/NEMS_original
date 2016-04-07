@@ -2,11 +2,11 @@
       USE MACHINE , ONLY : kind_phys
       use physcons, grav => con_g, cp => con_cp, alhl => con_hvap       &
      &,             alhf => con_hfus, rgas => con_rd, rkap => con_rocp  &
-     &,             nu => con_FVirt
+     &,             nu => con_FVirt,  pi   => con_pi
       implicit none
       SAVE
 !
-      integer, parameter :: nrcmax=32 ! Maximum # of random clouds per 1200s
+      integer,              parameter :: nrcmax=32 ! Maximum # of random clouds per 1200s
 
       real (kind=kind_phys), parameter :: delt_c=1800.0/3600.0          &
 !     Adjustment time scales in hrs for deep and shallow clouds
@@ -16,13 +16,12 @@
 !
       logical,               parameter :: fix_ncld_hr=.true.
 !
-      real(kind=kind_phys), parameter  :: ZERO=0.0, HALF=0.5,  ONE=1.0, &
-     &                                    TWO=2.0,  FOUR_P2=4.E2,       &
-     &                                    FOUR=4.,  ONE_M10=1.E-10,     &
-     &                                    ONE_M6=1.E-6, ONE_M5=1.E-5,   &
-     &                                    ONE_M2=1.E-2, ONE_M1=1.E-1
-!
-      real(kind=kind_phys), parameter  :: cmb2pa = 100.0  ! Conversion from Mb to Pa
+      real (kind=kind_phys), parameter :: ZERO=0.0,     HALF=0.5        &
+     &,                                   ONE=1.0,      TWO=2.0, FOUR=4.&
+     &,                                   FOUR_P2=4.E2, ONE_M10=1.E-10  &
+     &,                                   ONE_M6=1.E-6, ONE_M5=1.E-5    &
+     &,                                   ONE_M2=1.E-2, ONE_M1=1.E-1    &
+     &,                                   cmb2pa = 100.0  ! Conversion from Mb to Pa
 !
       real(kind=kind_phys), parameter  ::                               &
      &           ONEBG   = ONE / GRAV,    GRAVCON = cmb2pa * ONEBG      &
@@ -103,11 +102,11 @@
       real(kind=kind_phys) AC(16), AD(16)
 !
       integer, parameter :: nqrp=500001
-      real(kind=kind_phys) C1XQRP, C2XQRP, TBQRP(NQRP), TBQRA(NQRP)     &
-     &,                    TBQRB(NQRP)
+      real(kind=kind_phys)  C1XQRP, C2XQRP, TBQRP(NQRP), TBQRA(NQRP)    &
+     &,                     TBQRB(NQRP)
 !
       integer, parameter :: nvtp=10001
-      real(kind=kind_phys) C1XVTP, C2XVTP, TBVTP(NVTP)
+      real(kind=kind_phys)  C1XVTP, C2XVTP, TBVTP(NVTP)
 !
       contains
 !
@@ -118,14 +117,14 @@
       AFC = -(1.01097E-4*DT)*(3600./DT)**0.57777778
       end subroutine set_ras_afc
 
-      subroutine ras_init(levs,  me)
+      subroutine ras_init(levs, me)
 !
       Implicit none
 !
-      integer levs
+      integer levs, me
 !
       real(kind=kind_phys) actp,   facm, tem,  actop, tem1, tem2
-      integer              i, l, me
+      integer              i, l
       PARAMETER (ACTP=1.7,   FACM=1.00)
 !
       real(kind=kind_phys) PH(15),    A(15)
@@ -166,9 +165,9 @@
           drdp(i)  = (REFR(i+1)-REFR(i)) / (REFP(i+1)-REFP(i))
         enddo
 !
-        VTP    = 36.34*SQRT(1.2)* (0.001)**0.1364
+        VTP = 36.34*SQRT(1.2)* (0.001)**0.1364
 !
-        if (me .eq. 0) print *,' NO DOWNDRAFT FOR CLOUD TYPES'          &
+        if (me == 0) print *,' NO DOWNDRAFT FOR CLOUD TYPES'            &
      &,        ' DETRAINING WITHIN THE BOTTOM ',DD_DP,' hPa LAYERS'
 !
         first = .false.
@@ -207,10 +206,10 @@
 !     PARAMETER (MAX_NEG_BOUY=0.30, REVAP=.true., CUMFRC=.true.)
 !!    PARAMETER (MAX_NEG_BOUY=0.05, REVAP=.true., CUMFRC=.true.)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      PARAMETER (                   REVAP=.true., CUMFRC=.true.)
+      PARAMETER (                   REVAP  = .true.,  CUMFRC=.true.)
       PARAMETER (WRKFUN = .FALSE.,  UPDRET = .FALSE., vsmooth=.false.)
 !     PARAMETER (CRTFUN = .TRUE.,   CALKBL = .false., BOTOP=.true.)
-      PARAMETER (CRTFUN = .TRUE.,   CALKBL = .true., BOTOP=.true.)
+      PARAMETER (CRTFUN = .TRUE.,   CALKBL = .true.,  BOTOP=.true.)
 !
 !!    parameter (rhfacs=0.70, rhfacl=0.70)
 !     parameter (rhfacs=0.75, rhfacl=0.75)
@@ -226,7 +225,7 @@
 !    No pressure gradient force in momentum mixing
       real (kind=kind_phys), parameter :: pgftop=0.0, pgfbot=0.0        &
 !     real (kind=kind_phys), parameter :: pgftop=0.55, pgfbot=0.55      &
-     &,          pgfgrad=(pgfbot-pgftop)*0.001
+     &,                                   pgfgrad=(pgfbot-pgftop)*0.001
 !
       end module module_rascnv
 !
@@ -265,19 +264,19 @@
 !
 !      input
 !
-      Integer IM, IX, k, ncrnd, me, trac, ipr, nrcm
-      Integer kbot(im), ktop(im), kcnv(im), KPBL(im), lmh(im), kdt
+      Integer IM, IX, k, ncrnd, me, trac, ipr, nrcm, kdt
+      integer, dimension(im) :: kbot, ktop, kcnv, kpbl, lmh
 !
-      real(kind=kind_phys) tin(ix,k),     qin(ix,k),  uin(ix,k)         &
-     &,                    vin(ix,k),     prsi(ix,k+1)                  &
-     &,                    prsik(ix,k+1), prsl(ix,k), prslk(ix,k+1)     &
-     &,                    phil(ix,k),    phii(ix,k+1),ccwfac(im)       &
-     &,                    ccin(ix,k,trac+2)                            &
-!    &,                    prsik(ix,k+1), clt(ix,k)                     &
-     &,                    RAINC(im),     CDRAG(im),  DDVEL(im)         &
-     &,                    rannum(ix,nrcm),dlqfac                       &
-     &,                    ud_mf(im,k), dd_mf(im,k), det_mf(im,k)
-      real(kind=kind_phys) DT, facmb, garea(im), dtf, rhc(im,k)         &
+      real(kind=kind_phys), dimension(ix,k)   :: tin, qin,  uin, vin    &
+     &,                                          prsl, prslk, phil
+      real(kind=kind_phys), dimension(ix,k+1) :: prsi, prsik, phii
+      real(kind=kind_phys), dimension(im,k)   :: ud_mf, dd_mf, det_mf   &
+     &,                                          rhc
+      real(kind=kind_phys), dimension(im)     :: ccwfac, rainc, cdrag   &
+     &,                                          ddvel, garea
+      real(kind=kind_phys), dimension(ix,nrcm):: rannum
+      real(kind=kind_phys)                       ccin(ix,k,trac+2)
+      real(kind=kind_phys) dlqfac, DT, facmb, dtf
 !
 !     Added for aerosol scavenging for GOCART
 !
@@ -287,28 +286,28 @@
 !
 !     locals
 !
-!     real(kind=kind_phys) RAIN,     toi(k), qoi(k),  uvi(k,trac+2)     &
-      real(kind=kind_phys) RAIN,     toi(k), qoi(k)                     &
-     &,                    TCU(k),   QCU(k), PCU(k),   clw(k), cli(k)   &
-     &,                    QII(k),   QLI(k), PRS(k+1), PSJ(k+1)         &
-     &,                    phi_l(k), phi_h(k+1)                         &
-     &,                    wfnc,     flx(k+1), FLXD(K+1)
-      real(kind=kind_phys) daylen,pfac,tla,pl,clwmin
-      integer icm,irnd,ib
+      real(kind=kind_phys), dimension(k)   :: toi, qoi, tcu, qcu        &
+     &,                                       pcu,  clw, cli, qii, qli  &
+     &,                                       phi_l,prsm,psjm           &
+     &,                                       alfinq, alfind, rhc_l
+      real(kind=kind_phys), dimension(k+1) :: prs, psj, phi_h, flx, flxd
 
-      PARAMETER (ICM=100, DAYLEN=86400.0, PFAC=1.0/450.0,clwmin=1.0e-10)
+
+      integer, parameter :: icm = 100
+      real,    parameter :: DAYLEN=86400.0, PFAC=1.0/450.0              &
+     &,                     clwmin=1.0e-10
       Integer  IC(ICM)
 !
       real(kind=kind_phys), allocatable ::  ALFINT(:,:), uvi(:,:)
      &,                                     trcfac(:,:), rcu(:,:)
-      real(kind=kind_phys)            ALFINQ(K),   PRSM(K),  PSJM(K)    &
-     &,                    alfind(K), rhc_l(k), dtvd(2,4)
+      real(kind=kind_phys)                  dtvd(2,4)
 !    &,                    DPI(K),    psjp(k+1)              
-      real(kind=kind_phys) CFAC, TEM, dpi, sgc, ccwf, tem1, tem2
+      real(kind=kind_phys) CFAC, TEM,  sgc, ccwf, tem1, tem2            &
+     &,                    rain,wfnc,tla,pl
 !
       Integer              KCR,  KFX, NCMX, NC,  KTEM, I,   L, lm1      &
      &,                    ntrc, ia,  ll,   km1, kp1,  ipt, lv, KBL, n  &
-     &,                    lmhij, KRMIN, KRMAX, KFMAX, kblmx
+     &,                    lmhij, KRMIN, KRMAX, KFMAX, kblmx, irnd,ib
       real(kind=kind_phys) sgcs(k,im)
 !
       LOGICAL  DNDRFT, lprint
@@ -319,17 +318,19 @@
       real                fscav_(trac+2)  ! Fraction scavenged per km
 !
 !     write(0,*)' fscav=',fscav,' trac=',trac
+
       fscav_ = 0.0                        ! By default no scavenging
       if (trac > 0) then
         do i=1,trac
           fscav_(i) = fscav(i)
         enddo
       endif
+
 !     if (lprnt) write(0,*)' in RAS fscav=',fscav_,' ccwfac=',
 !    &                      ccwfac(ipr)
 !
-      km1    = k - 1
-      kp1    = k + 1
+      km1     = k - 1
+      kp1     = k + 1
 !
       dlq_fac = dlqfac
       tem     = 1.0 + dlq_fac
@@ -342,11 +343,12 @@
       ENDIF
       if (ntrc > 0) then
         if (.not. allocated(trcfac)) allocate (trcfac(k,ntrc))
-        if (.not. allocated(uvi)) allocate (uvi(k,ntrc))
-        if (.not. allocated(rcu)) allocate (rcu(k,ntrc))
+        if (.not. allocated(uvi))    allocate (uvi(k,ntrc))
+        if (.not. allocated(rcu))    allocate (rcu(k,ntrc))
         do n=1, ntrc
           do l=1,k
             trcfac(l,n) = 1.0         !  For other tracers
+            rcu(l,n)    = 0.0
           enddo
         enddo
       endif
@@ -393,19 +395,19 @@
           if (flipv) ll = kp1 -l ! Input variables are bottom to top!
           SGC = prsl(ipt,ll) * tem
           sgcs(l,ipt) = sgc
-          IF (SGC .LE. 0.050) KRMIN = L
-!         IF (SGC .LE. 0.700) KRMAX = L
-!         IF (SGC .LE. 0.800) KRMAX = L
-          IF (SGC .LE. 0.760) KRMAX = L
-!         IF (SGC .LE. 0.930) KFMAX = L
-          IF (SGC .LE. 0.970) KFMAX = L    ! Commented on 20060202
-!         IF (SGC .LE. 0.700) kblmx = L    ! Commented on 20101015
-          IF (SGC .LE. 0.600) kblmx = L    ! 
-!         IF (SGC .LE. 0.650) kblmx = L    ! Commented on 20060202
+          IF (SGC <= 0.050) KRMIN = L
+!         IF (SGC <= 0.700) KRMAX = L
+!         IF (SGC <= 0.800) KRMAX = L
+          IF (SGC <= 0.760) KRMAX = L
+!         IF (SGC <= 0.930) KFMAX = L
+          IF (SGC <= 0.970) KFMAX = L    ! Commented on 20060202
+!         IF (SGC <= 0.700) kblmx = L    ! Commented on 20101015
+          IF (SGC <= 0.600) kblmx = L    ! 
+!         IF (SGC <= 0.650) kblmx = L    ! Commented on 20060202
         ENDDO
         krmin = max(krmin,2)
 
-!     if (lprnt .and. ipt .eq. ipr) print *,' krmin=',krmin,' krmax=',
+!     if (lprnt .and. ipt == ipr) print *,' krmin=',krmin,' krmax=',
 !    &krmax,' kfmax=',kfmax,' lmhij=',lmhij,' tem=',tem
 !
         if (fix_ncld_hr) then
@@ -431,20 +433,20 @@
 !    &,               ' krmax=',krmax,' kfmax=',kfmax
 !    &,               ' kcr=',kcr, ' cdrag=',cdrag(ipr)
  
-        IF (KFX .GT. 0) THEN
-           IF (BOTOP) THEN
-              DO NC=1,KFX
-                IC(NC) = KTEM + 1 - NC
-              ENDDO
-           ELSE
-              DO NC=KFX,1,-1
-               IC(NC) = KTEM + 1 - NC
-              ENDDO
-           ENDIF
+        IF (KFX > 0) THEN
+          IF (BOTOP) THEN
+            DO NC=1,KFX
+              IC(NC) = KTEM + 1 - NC
+            ENDDO
+          ELSE
+            DO NC=KFX,1,-1
+              IC(NC) = KTEM + 1 - NC
+            ENDDO
+          ENDIF
         ENDIF
 !
         NCMX  = KFX + NCRND
-        IF (NCRND .GT. 0) THEN
+        IF (NCRND > 0) THEN
           DO I=1,NCRND
             IRND = (RANNUM(ipt,I)-0.0005)*(KCR-KRMIN+1)
             IC(KFX+I) = IRND + KRMIN
@@ -455,13 +457,13 @@
 !
 !     print *,' in rascnv: k=',k,'lat=',lat,' lprnt=',lprnt
 !     if (lprnt) then
-!        if (me .eq. 0) then
+!        if (me == 0) then
 !        print *,' tin',(tin(ia,l),l=k,1,-1)
 !        print *,' qin',(qin(ia,l),l=k,1,-1)
 !     endif
 !
 !
-        lprint = lprnt .and. ipt .eq. ipr
+        lprint = lprnt .and. ipt == ipr
 !       lprint = lprnt
         do l=1,k
           ll = l
@@ -477,8 +479,9 @@
           pcu(l)     = 0.0
           flx(l)     = 0.0
           flxd(l)    = 0.0
-          rcu(l,1)   = 0.0
-          rcu(l,2)   = 0.0
+          do n=1,ntrc
+            rcu(l,n)   = 0.0
+          enddo
 !                          Transfer input prognostic data into local variable
           toi(l)     = tin(ipt,ll)
           qoi(l)     = qin(ipt,ll)
@@ -499,7 +502,7 @@
         flx(k+1)  = 0.0
         flxd(k+1) = 0.0
 !
-        if (ccin(ipt,1,2) .le. -999.0) then  ! input ice/water are together 
+        if (ccin(ipt,1,2) <= -999.0) then  ! input ice/water are together 
           do l=1,k
             ll = l
             if (flipv) ll = kp1 -l ! Input variables are bottom to top!
@@ -544,7 +547,7 @@
 !     if(lprint) print *,' PRSM=',PRSM
 !     if (lprint) then
 !        print *,' qns=',qns(ia),' qoi=',qn0(ia,k),'qin=',qin(ia,1)
-!        if (me .eq. 0) then
+!        if (me == 0) then
 !        print *,' toi',(tn0(ia,l),l=1,k)
 !        print *,' qoi',(qn0(ia,l),l=1,k),' kbl=',kbl
 !     endif
@@ -657,7 +660,7 @@
           enddo
         endif
 !
-!       lprint = lprnt .and. ipt .eq. ipr
+!       lprint = lprnt .and. ipt == ipr
 
 !     if (lprint) then
 !       print *,' trcfac=',trcfac(krmin:k,1+trac)
@@ -673,8 +676,8 @@
           IB = IC(NC)
           if (ib > kbl) cycle
 
-!         lprint = lprnt .and. ipt .eq. ipr
-!         lprint = lprnt .and. ipt .eq. ipr .and. ib .eq. 41
+!         lprint = lprnt .and. ipt == ipr
+!         lprint = lprnt .and. ipt == ipr .and. ib == 41
 !
           DNDRFT = DPD > 0.0
 !
@@ -776,7 +779,7 @@
      &,              REVAP, WRKFUN, CALKBL, CRTFUN, DNDRFT, lprint      &
      &,              DT, KDT, TLA, DPD                                  &
      &,              ALFINT, rhfacl, rhfacs, garea(ipt)                 &
-     &,              ccwf,   CDRAG(ipt), trcfac                         & 
+     &,              ccwf,   CDRAG(ipt), trcfac                         &
      &,              alfind, rhc_l, phi_l, phi_h, PRS, PRSM,sgcs(1,ipt) &
      &,              TOI, QOI, UVI, QLI, QII, KBL, DDVEL(ipt)           &
      &,              TCU, QCU, RCU, PCU, FLX, FLXD, RAIN, WFNC, fscav_  &
@@ -874,12 +877,12 @@
              kcnv(ipt) = 1
           endif
 !  New test for convective clouds ! added in 08/21/96
-          if (clw(l)+cli(l) .gt. 0.0 .OR.                               &
-     &        qli(l)+qii(l) .gt. clwmin) ktop(ipt) = l
+          if (clw(l)+cli(l) > 0.0 .OR.                                  &
+     &        qli(l)+qii(l) > clwmin) ktop(ipt) = l
         enddo
         do l=1,km1
-          if (clw(l)+cli(l) .gt. 0.0 .OR.                               &
-     &        qli(l)+qii(l) .gt. clwmin) kbot(ipt) = l
+          if (clw(l)+cli(l) > 0.0 .OR.                                  &
+     &        qli(l)+qii(l) > clwmin) kbot(ipt) = l
         enddo
         if (flipv) then
           ktop(ipt) = kp1 - ktop(ipt)
@@ -934,7 +937,7 @@
 !************************ SUBROUTINE CLOUD  ****************************
 !************************  October 2004     ****************************
 !********************  VERSION 2.0  (modified) *************************
-!************* Shrinivas.Moorthi@noaa.gov (301) 763 8000(X7233) ********
+!************* Shrinivas.Moorthi@noaa.gov (301) 683-3718  ***** ********
 !***********************************************************************
 !*Reference:
 !-----------
@@ -990,38 +993,41 @@
       INTEGER K, KD, NTRC, kblmx
 
 
-      real(kind=kind_phys) TOI(K),    QOI(K ),  PRS(K+1),  PRSM(K)      &
-     &,                    QLI(K),    QII(K),   PHIH(K+1), PHIL(K)      &
-     &,                    ROI(K,NTRC), SGCS(K)
-      real(kind=kind_phys) CD,        UFN,     DSFC
-      INTEGER KPBL,   KBL,     KB1, kdt
+      real(kind=kind_phys), dimension(K)   ::  TOI,  QOI, PRSM, QLI, QII&
+     &,                                        PHIL, SGCS, rhc_ls       &
+     &,                                        alfind
+      real(kind=kind_phys), dimension(K+1) ::  PRS,  PHIH
+      real(kind=kind_phys), dimension(K,NTRC) :: ROI, trcfac
+      real(kind=kind_phys)                    :: CD, UFN, DSFC
+      INTEGER                                 :: KPBL, KBL, KB1, kdt
 
-      real(kind=kind_phys) FRACBL, MAX_NEG_BOUY,                        &
-     &                     ALFINT(K,NTRC+4), RHFACL, RHFACS, garea, ccwf
-      real(kind=kind_phys) DPD, alfind(k), rhc_ls(k)
-      real(kind=kind_phys) trcfac(k,NTRC)
+      real(kind=kind_phys) ALFINT(K,NTRC+4)
+      real(kind=kind_phys) FRACBL, MAX_NEG_BOUY, DPD,                   &
+     &                     RHFACL, RHFACS, garea, ccwf
  
 !  UPDATE ARGUMENTS
 
-      real(kind=kind_phys) TCU(K),   QCU(K),    RCU(K,NTRC)             &
-     &,                    TCD(K),   QCD(K),    PCU(K)                  &
-     &,                    FLX(K+1), FLXD(K+1), CUP
+      real(kind=kind_phys), dimension(K)      :: TCU, QCU, TCD, QCD, PCU
+      real(kind=kind_phys), dimension(K+1)    :: FLX, FLXD
+      real(kind=kind_phys), dimension(K,NTRC) :: RCU
+      real(kind=kind_phys)                    :: CUP
 
 !  TEMPORARY WORK SPACE
 
-      real(kind=kind_phys) HOL(KD:K),  QOL(KD:K),   GAF(KD:K+1)         &
-     &,                    HST(KD:K),  QST(KD:K),   TOL(KD:K)           &
-     &,                    GMH(KD:K),  GMS(KD:K+1), GAM(KD:K+1)         &
-     &,                    AKT(KD:K),  AKC(KD:K),   BKC(KD:K)           &
-     &,                    LTL(KD:K),  RNN(KD:K),   FCO(KD:K)           &
-     &,                                PRI(KD:K)                        &
-     &,                    QIL(KD:K),  QLL(KD:K)                        &
-     &,                    ZET(KD:K),  XI(KD:K),    RNS(KD:K)           &
-     &,                    Q0U(KD:K),  Q0D(KD:K),   vtf(KD:K)           &
-     &,                    DLB(KD:K+1),DLT(KD:K+1), ETA(KD:K+1)         &
-     &,                    PRL(KD:K+1)                                  &
-     &,                    CIL(KD:K),  CLL(KD:K),   ETAI(KD:K)          &
-     &,                    dlq(kd:k)
+      real(kind=kind_phys), dimension(KD:K)   :: HOL, QOL, HST, QST     &
+     &,                           TOL, GMH, AKT, AKC, BKC, LTL, RNN     &
+     &,                           FCO, PRI, QIL, QLL, ZET, XI, RNS      &
+     &,                           Q0U, Q0D, vtf, CIL, CLL, ETAI, dlq    &
+     &,                           wrk1, wrk2, dhdp, qrb, qrt, evp       &
+     &,                           ghd, gsd, etz, cldfr
+
+      real(kind=kind_phys), dimension(KD:K+1) :: GAF, GMS, GAM, DLB     &
+     &,                           DLT, ETA, PRL, BUY, ETD, HOD, QOD
+      real(kind=kind_phys), dimension(KD:K-1) :: etzi
+
+      real(kind=kind_phys) fscav_(ntrc)
+
+      LOGICAL ep_wfn, cnvflg, LOWEST, SKPDD, DDFT, UPDRET
 
       real(kind=kind_phys) ALM,   DET,    HCC,  CLP                     &
      &,                    HSU,   HSD,    QTL,  QTV                     &
@@ -1034,61 +1040,33 @@
      &,                    TX7,   TX8,    TX9,  RHC                     &
      &,                    hstkd, qstkd,  ltlkd, q0ukd, q0dkd, dlbkd    &
      &,                    qtp, qw00, qi00, qrbkd                       &
-     &,                    hstold, rel_fac, prism
-
-      real(kind=kind_phys) fscav_(ntrc)
-
-      real(kind=kind_phys) wrk1(kd:k), wrk2(kd:k)
-
-
-      LOGICAL ep_wfn, cnvflg
-
-      LOGICAL LOWEST, SKPDD
-
-      real(kind=kind_phys) TL, PL, QL, QS, DQS, ST1, SGN, TAU,          &
+     &,                    hstold, rel_fac, prism                       &
+     &,                    TL, PL, QL, QS, DQS, ST1, SGN, TAU,          &
      &                     QTVP, HB, QB, TB, QQQ,                       &
      &                     HCCP, DS, DH, AMBMAX, X00, EPP, QTLP,        &
      &                     DPI, DPHIB, DPHIT, DEL_ETA, DETP,            &
      &                     TEM, TEM1, TEM2, TEM3, TEM4,                 &
      &                     ST2, ST3, ST4, ST5,                          &
-     &                     ERRMIN, ERRMI2, ERRH, ERRW, ERRE, TEM5,      &
+     &                     ERRH, ERRW, ERRE, TEM5,                      &
      &                     TEM6, HBD, QBD, st1s, shal_fac, hmax, hmin,  &
-     &                     dhdpmn, dhdp(kd:k)
-      parameter (ERRMIN=0.0001, ERRMI2=0.1*ERRMIN)
-      INTEGER I, L,  N,  KD1, II                                        &
+     &                     dhdpmn, avt, avq, avr, avh                   &
+     &,                    TRAIN, DOF, CLDFRD, tla, gmf                 &
+     &,                    FAC, RSUM1, RSUM2, RSUM3, dpneg, hcrit       &
+     &,                    ACTEVAP,AREARAT,DELTAQ,MASS,MASSINV,POTEVAP  &
+     &,                    TEQ,QSTEQ,DQDT,QEQ                           &
+     &,                    CLFRAC, DT, clf, clvfr, delzkm, fnoscav
+
+      real(kind=kind_phys), parameter :: ERRMIN=0.0001                  &
+     &,                                  ERRMI2=0.1*ERRMIN
+      INTEGER I, L,  N,  KD1, II, idh, lcon                             &
      &,       KP1, IT, KM1, KTEM, KK, KK1, LM1, LL, LP1, kbls, kmxh
      &,       kblh, kblm, kblpmn, kmax, kmaxm1, kmaxp1, klcl, kmin, kmxb
-
-      real avt, avq, avr, avh
 !
 
 !     real(kind=kind_phys), parameter :: rainmin=1.0e-9
       real(kind=kind_phys), parameter :: rainmin=1.0e-8
       real(kind=kind_phys), parameter :: oneopt9=1.0/0.09
       real(kind=kind_phys), parameter :: oneopt4=1.0/0.04
-
-      real(kind=kind_phys) CLFRAC, DT, clf, clvfr
-
-      real(kind=kind_phys) ACTEVAP,AREARAT,DELTAQ,MASS,MASSINV,POTEVAP  &
-     &,                    TEQ,QSTEQ,DQDT,QEQ
-!
-!     Temporary workspace and parameters needed for downdraft
-!
-      real(kind=kind_phys) TLA, GMF
-!
-      real(kind=kind_phys) BUY(KD:K+1), QRB(KD:K),   QRT(KD:K)          &
-     &,                    ETD(KD:K+1), HOD(KD:K+1), QOD(KD:K+1)        &
-     &,                    GHD(KD:K),   GSD(KD:K),   EVP(KD:K)          &
-     &,                    ETZ(KD:K),   CLDFR(KD:K), ETZI(KD:K-1)       &
-     &,                    TRAIN, DOF, CLDFRD                           &
-     &,                    FAC, RSUM1, RSUM2, RSUM3, dpneg, hcrit
-      INTEGER IDH, lcon
-      LOGICAL DDFT, UPDRET
-!
-!  Scavenging related parameters
-!
-      real                delzkm          ! layer thickness in km
-      real                fnoscav         ! fraction of tracer *not* scavenged
 !
 !***********************************************************************
 !
@@ -1215,7 +1193,7 @@
       HOL(L) = HOL(L) + ETA(L)
       HST(L) = HST(L) + ETA(L)
 !
-!     if (kd .eq. 12) then
+!     if (kd == 12) then
 !       if (lprnt) then
 !         print *,' IN CLOUD for KD=',KD,' K=',K
 !         print *,' l=',l,' hol=',hol(l),' hst=',hst(l)
@@ -1339,11 +1317,11 @@
 !    &                     min((prl(kbl) - prl(kd))*0.05, 10.0))
 !!   &                     min((prl(kbl) - prl(kd))*0.05, 20.0))
 !!   &                     min((prl(kbl) - prl(kd))*0.05, 30.0))
-!        if (prl(k+1)-prl(kbl) .lt. tem1) then
+!        if (prl(k+1)-prl(kbl) < tem1) then
 !          KTEM = MAX(KD+1, KBLMX)
 !          do l=k,KTEM,-1
 !            tem = prl(k+1) - prl(l)
-!            if (tem .gt. tem1) then
+!            if (tem > tem1) then
 !              kbl = min(kbl,l)
 !              exit
 !            endif
@@ -1371,7 +1349,7 @@
 !!
 !     if (lprnt) print *,' kbl=',kbl,' prlkbl=',prl(kbl),prl(k+1)
 
-      if(PRL(Kmaxp1)-PRL(KBL) .gt. bldmax .or. kb1 .le. kd) then
+      if(PRL(Kmaxp1)-PRL(KBL) > bldmax .or. kb1 <= kd) then
         return
       endif
 !
@@ -1431,7 +1409,7 @@
       TX2 = HOL(KD)
       IDH = KD1
       DO L=KD1,KB1
-        IF (HOL(L) .LT. TX2) THEN
+        IF (HOL(L) < TX2) THEN
            TX2 = HOL(L)
            IDH = L             ! Level of minimum moist static energy!
         ENDIF
@@ -1441,7 +1419,7 @@
 !
       TEM1 = HBL - HOL(KD)
       TEM  = HBL - HST(KD1) - LTL(KD1) * NU *(QOL(KD1)-QST(KD1))
-      LOWEST = KD .EQ. KB1
+      LOWEST = KD == KB1
 
       lcon = kd
       do l=kb1,kd1,-1
@@ -1456,8 +1434,8 @@
 !
       TX1    = RHFACS - QBL / TX1       !     Average RH
 
-      cnvflg = (TEM .GT. ZERO .OR. (LOWEST .AND. TEM1 .GE. ZERO))       &
-     &         .AND. (TX1 .LT. RHRAM)
+      cnvflg = (TEM > ZERO .OR. (LOWEST .AND. TEM1 >= ZERO))            &
+     &         .AND. (TX1 < RHRAM)
 
 !     if(lprnt) print *,' cnvflg=',cnvflg,' tem=',tem,' tem1=',tem1
 !    &,' tx1=',tx1,' rhram=',rhram,' kbl=',kbl,' kd=',kd,' lowest='
@@ -1605,7 +1583,7 @@
         TX4    = (TX4 + RNN(L)) * TEM
         TX5    = (TX5 + GMH(L)) * TEM
       ENDDO
-      IF (KD .LT. KB1) THEN
+      IF (KD < KB1) THEN
          HSD   = HST(KD1) + LTL(KD1) *  NU *(QOL(KD1)-QST(KD1))
       ELSE
          HSD   = HBL
@@ -1646,7 +1624,7 @@
       QOS    = QOL(KD)
       QIS    = CIL(KD)
       QLS    = CLL(KD)
-      cnvflg = HBL .GT. HSU .and. abs(tx1) .gt. 1.0e-4
+      cnvflg = HBL > HSU .and. abs(tx1) > 1.0e-4
 
 !     if (lprnt) print *,' ii=',ii,' cnvflg=',cnvflg,' hsu=',hsu
 !    &,' hbl=',hbl,' tx1=',tx1,' hsd=',hsd
@@ -1667,19 +1645,19 @@
 
 !     if(lprnt) print *,' tx2=',tx2,' tx1=',tx1,' st2=',st2
 !
-       if (tx2 .eq. 0.0) then
+       if (tx2 == 0.0) then
          alm = - st2 / tx1
-         if (alm .gt. almax) alm = -100.0
+         if (alm > almax) alm = -100.0
        else
          x00 = tx2 + tx2
          epp = tx1 * tx1 - (x00+x00)*st2
-         if (epp .gt. 0.0) then
+         if (epp > 0.0) then
            x00  = 1.0 / x00
            tem  = sqrt(epp)
            tem1 = (-tx1-tem)*x00
            tem2 = (-tx1+tem)*x00
-           if (tem1 .gt. almax) tem1 = -100.0
-           if (tem2 .gt. almax) tem2 = -100.0
+           if (tem1 > almax) tem1 = -100.0
+           if (tem2 > almax) tem2 = -100.0
            alm  = max(tem1,tem2)
 
 !     if (lprnt) print *,' tem1=',tem1,' tem2=',tem2,' alm=',alm
@@ -1695,25 +1673,25 @@
 !   NON-ENTRAINIG CLOUD DETRAINS IN LOWER HALF OF TOP LAYER.
 !   NO CLOUDS ARE ALLOWED TO DETRAIN BELOW THE TOP LAYER.
 !
-       ELSEIF ( (HBL .LE. HSU) .AND.                                    &
-     &          (HBL .GT. ST1   )     ) THEN
+       ELSEIF ( (HBL <= HSU) .AND.                                      &
+     &          (HBL > ST1   )     ) THEN
          ALM = ZERO
 !        CLP = (HBL-ST1) / (HSU-ST1)    ! commented on Jan 16, 2010
        ENDIF
 !
       cnvflg = .TRUE.
-      IF (ALMIN1 .GT. 0.0) THEN
-        IF (ALM .GE. ALMIN1) cnvflg = .FALSE.
+      IF (ALMIN1 > 0.0) THEN
+        IF (ALM >= ALMIN1) cnvflg = .FALSE.
       ELSE
-        LOWEST   = KD .EQ. KB1
-        IF ( (ALM .GT. ZERO) .OR.                                       &
-     &      (.NOT. LOWEST .AND. ALM .EQ. ZERO) ) cnvflg = .FALSE.
+        LOWEST   = KD == KB1
+        IF ( (ALM > ZERO) .OR.                                          &
+     &      (.NOT. LOWEST .AND. ALM == ZERO) ) cnvflg = .FALSE.
       ENDIF
 !
 !===>  IF NO SOUNDING MEETS SECOND CONDITION, RETURN
 !
       IF (cnvflg) THEN
-         IF (ii .gt. 0 .or. (qw00 .eq. 0.0 .and. qi00 .eq. 0.0)) RETURN
+         IF (ii > 0 .or. (qw00 == 0.0 .and. qi00 == 0.0)) RETURN
          CLP = 1.0
          ep_wfn = .true.
          GO TO 888
@@ -1723,7 +1701,7 @@
 !    &,' ii=',ii,' clp=',clp
 
       st1s = ONE
-      IF(CLP.GT.ZERO .AND. CLP.LT.ONE) THEN
+      IF(CLP > ZERO .AND. CLP < ONE) THEN
         ST1     = HALF*(ONE+CLP)
         ST2     = ONE - ST1
         st1s    = st1
@@ -1819,7 +1797,7 @@
      &        + DEL_ETA*(QOL(L)+CLL(L)+CIL(L)) + ST1)  * AKC(L)
 
 !     if(lprnt) print *,' detp=',detp,' bkc=',bkc(l),' det=',det
-!     if (lprnt .and. kd .eq. 15) 
+!     if (lprnt .and. kd == 15) 
 !    &          print *,' detp=',detp,' bkc=',bkc(l),' det=',det
 !    &,' qtvp=',qtvp,' qtv=',qtv,' del_eta=',del_eta,' qol='
 !    &,qol(l),' st1=',st1,' akc=',akc(l)
@@ -1834,7 +1812,7 @@
          st1    = min(tx2,tem2)
          tx2    = tem2
 !
-         IF (rns(l) .lt. zero .or. st1 .lt. zero) ep_wfn = .TRUE.
+         IF (rns(l) < zero .or. st1 < zero) ep_wfn = .TRUE.
          IF (DETP <= ZERO) cnvflg = .TRUE.
 
          ST1  = HST(L) - LTL(L)*NU*(QST(L)-QOL(L))
@@ -1843,7 +1821,7 @@
          TEM2 = HCCP   + DETP   * QTP * ALHF
 !
 !     if(lprnt) print *,' hst=',hst(l),' ltl=',ltl(l),' nu=',nu
-!     if (lprnt .and. kd .eq. 15) 
+!     if (lprnt .and. kd == 15) 
 !    &          print *,' hst=',hst(l),' ltl=',ltl(l),' nu=',nu
 !    &,' qst=',qst(l),' qol=',qol(l),' hccp=',hccp,' detp=',detp
 !    *,' qtp=',qtp,' alhf=',alhf,' vtf=',vtf(l)
@@ -1854,7 +1832,7 @@
          TEM4 = (TEM2 - ETA(L  )*ST1 - ST2*(DETP-TEM5*eta(l)))  * DLT(L)
 !
 !     if (lprnt) then
-!     if (lprnt .and. kd .eq. 12) then 
+!     if (lprnt .and. kd == 12) then 
 !       print *,' tem3=',tem3,' tx1=',tx1,' st1=',st1,' eta1=',eta(l+1)
 !    &, ' st2=',st2,' det=',det,' tem5=',tem5,' dlb=',dlb(l)
 !       print *,' tem4=',tem4,' tem2=',tem2,' detp=',detp
@@ -1873,7 +1851,7 @@
 
 !     if (lprnt) print *,' wfn=',wfn,' akm=',akm
 
-         if (st1 .lt. zero .and. wfn .lt. zero) then
+         if (st1 < zero .and. wfn < zero) then
            dpneg = dpneg + prl(l+1) - prl(l)
          endif
 
@@ -1900,7 +1878,7 @@
       TEM2    = QLL(KD1) - BKC(KD)
       RNS(KD) = TEM1*DETP  + TEM2*DET - ST1
 !
-      IF (rns(kd) .lt. zero) ep_wfn = .TRUE.
+      IF (rns(kd) < zero) ep_wfn = .TRUE.
       IF (DETP <= ZERO) cnvflg = .TRUE.
 !
   888 continue
@@ -1909,10 +1887,10 @@
 !    &,' clp=',clp,' hst(kd)=',hst(kd)
 
       if (ep_wfn) then
-        IF ((qw00 .eq. 0.0 .and. qi00 .eq. 0.0)) RETURN
-        if (ii .eq. 0) then
+        IF ((qw00 == 0.0 .and. qi00 == 0.0)) RETURN
+        if (ii == 0) then
           ii  = 1
-          if (clp .gt. 0.0 .and. clp .lt. 1.0) then
+          if (clp > 0.0 .and. clp < 1.0) then
             hst(kd) = hstkd
             qst(kd) = qstkd
             ltl(kd) = ltlkd
@@ -1973,7 +1951,7 @@
 !     If only to calculate workfunction save it and return
 !
       IF (WRKFUN) THEN
-        IF (WFN .GE. 0.0) WFNC = WFN
+        IF (WFN >= 0.0) WFNC = WFN
         RETURN
       ELSEIF (.NOT. CRTFUN) THEN
         ACR = WFNC
@@ -1984,10 +1962,10 @@
       CALCUP = .FALSE.
 
       TEM  =  max(0.05, MIN(CD*200.0, MAX_NEG_BOUY))
-      IF (WFN .GT. ACR .AND.  (.NOT. cnvflg)                             &
-!    & .and. dpneg .lt. 100.0  .AND. AKM .LE. TEM) THEN
-     & .and. dpneg .lt. 150.0  .AND. AKM .LE. TEM) THEN
-!    & .and. dpneg .lt. 200.0  .AND. AKM .LE. TEM) THEN
+      IF (WFN > ACR .AND.  (.NOT. cnvflg)                               &
+!    & .and. dpneg < 100.0  .AND. AKM <= TEM) THEN
+     & .and. dpneg < 150.0  .AND. AKM <= TEM) THEN
+!    & .and. dpneg < 200.0  .AND. AKM <= TEM) THEN
 !
         CALCUP = .TRUE.
       ENDIF
@@ -2002,7 +1980,7 @@
 ! This is for not LL - 20050601
       IF (ALMIN2 .NE. 0.0) THEN
         IF (ALMIN1 .NE. ALMIN2) ST1 = 1.0 / max(ONE_M10,(ALMIN2-ALMIN1))
-        IF (ALM .LT. ALMIN2) THEN
+        IF (ALM < ALMIN2) THEN
            CLP = CLP * max(0.0, min(1.0,(0.3 + 0.7*(ALM-ALMIN1)*ST1)))
 !          CLP = CLP * max(0.0, min(1.0,(0.2 + 0.8*(ALM-ALMIN1)*ST1)))
 !          CLP = CLP * max(0.0, min(1.0,(0.1 + 0.9*(ALM-ALMIN1)*ST1)))
@@ -2030,7 +2008,7 @@
       IF (DNDRFT) THEN
 !
         TRAIN = 0.0
-        IF (CLP .GT. 0.0) THEN
+        IF (CLP > 0.0) THEN
           DO L=KD,KB1
             TRAIN = TRAIN + RNN(L)
           ENDDO
@@ -2038,7 +2016,7 @@
 
         PL = (PRL(KD1) + PRL(KD))*HALF
         TEM = PRL(K+1)*(1.0-DPD*0.001)
-        IF (TRAIN .GT. 1.0E-4 .AND. PL .LE. TEM) DDFT  = .TRUE.
+        IF (TRAIN > 1.0E-4 .AND. PL <= TEM) DDFT  = .TRUE.
 !
       ENDIF
 !
@@ -2093,7 +2071,7 @@
 !     tem1 = max(ZERO, min(HALF, (prl(kd)-300.0)*0.005))
       tem1 = 0.0
 !     tem1 = 1.0
-!     if (kd1 .eq. kbl) tem1 = 0.0
+!     if (kd1 == kbl) tem1 = 0.0
 !
       tem2    = 1.0 - tem1
       TEM = DET * QIL(KD)
@@ -2245,7 +2223,7 @@
          CIL(L) = CIL(L) + QIL(L) * TESTMB
       ENDDO
 !
-      if (alm .gt. 0.0) then
+      if (alm > 0.0) then
         HOS     = HOS + GMH(KD)  * TESTMB
         QOS     = QOS + (GMH(KD)-GMS(KD)) * (TESTMB/ALHL)
         QLS     = QLS + QLL(KD) * TESTMB
@@ -2382,69 +2360,70 @@
 
 !===>  PRECIPITATION AND CLW DETRAINMENT
 !
-      avt = 0.0
-      avq = 0.0
-      avr = dof
+      if (amb > 0.0) then
+        avt = 0.0
+        avq = 0.0
+        avr = dof
 
 !
-      DSFC = DSFC + AMB * ETD(K) * (1.0/DT)
+        DSFC = DSFC + AMB * ETD(K) * (1.0/DT)
 !
 !     DO L=KBL,KD,-1
-      DO L=K,KD,-1
+        DO L=K,KD,-1
           PCU(L) = PCU(L) + AMB*RNN(L)      !  (A40)
           avr    = avr + rnn(l)
 !     if(lprnt) print *,' avr=',avr,' rnn=',rnn(l),' l=',l
-      ENDDO
+        ENDDO
 !
 !===> TEMPARATURE AND Q CHANGE AND CLOUD MASS FLUX DUE TO CLOUD TYPE KD
 !
-      TX1  = AMB * (ONE/CP)
-      TX2  = AMB * (ONE/ALHL)
-      DO L=KD,K
-        ST1    = GMS(L)*TX1
-        TOI(L) = TOI(L) + ST1
-        TCU(L) = TCU(L) + ST1
-        TCD(L) = TCD(L) + GSD(L) * TX1
+        TX1  = AMB * (ONE/CP)
+        TX2  = AMB * (ONE/ALHL)
+        DO L=KD,K
+          ST1    = GMS(L)*TX1
+          TOI(L) = TOI(L) + ST1
+          TCU(L) = TCU(L) + ST1
+          TCD(L) = TCD(L) + GSD(L) * TX1
 !
-        st1 = st1 - (alhl/cp) * (QIL(L) + QLL(L)) * AMB
+          st1 = st1 - (alhl/cp) * (QIL(L) + QLL(L)) * AMB
 
-        avt = avt + st1 * (prs(l+1)-prs(l))
+          avt = avt + st1 * (prs(l+1)-prs(l))
 
-        FLX(L)  = FLX(L)  + ETA(L)*AMB
-        FLXD(L) = FLXD(L) + ETD(L)*AMB
+          FLX(L)  = FLX(L)  + ETA(L)*AMB
+          FLXD(L) = FLXD(L) + ETD(L)*AMB
 !
-        QII(L)  = QII(L) + QIL(L) * AMB
-        TEM     = 0.0
+          QII(L)  = QII(L) + QIL(L) * AMB
+          TEM     = 0.0
 
-        QLI(L)  = QLI(L) + QLL(L) * AMB + TEM
+          QLI(L)  = QLI(L) + QLL(L) * AMB + TEM
 
-        ST1     = (GMH(L)-GMS(L)) * TX2
+          ST1     = (GMH(L)-GMS(L)) * TX2
 
-        QOI(L)  = QOI(L) + ST1
-        QCU(L)  = QCU(L) + ST1
-        QCD(L)  = QCD(L) + (GHD(L)-GSD(L)) * TX2
+          QOI(L)  = QOI(L) + ST1
+          QCU(L)  = QCU(L) + ST1
+          QCD(L)  = QCD(L) + (GHD(L)-GSD(L)) * TX2
 !
-        avq = avq + (st1+(QLL(L)+QIL(L))*amb) * (prs(l+1)-prs(l))
-!       avq = avq + st1 * (prs(l+1)-prs(l))
-!       avr = avr + (QLL(L) + QIL(L)*(1+alhf/alhl))
-!       avr = avr + (QLL(L) + QIL(L))
-!    *                  * (prs(l+1)-prs(l)) * gravcon
+          avq = avq + (st1+(QLL(L)+QIL(L))*amb) * (prs(l+1)-prs(l))
+!         avq = avq + st1 * (prs(l+1)-prs(l))
+!         avr = avr + (QLL(L) + QIL(L)*(1+alhf/alhl))
+!         avr = avr + (QLL(L) + QIL(L))
+!    *                    * (prs(l+1)-prs(l)) * gravcon
 
-!     if(lprnt) print *,' avr=',avr,' qll=',qll(l),' l=',l
-!    &,' qil=',qil(l)
+!       if(lprnt) print *,' avr=',avr,' qll=',qll(l),' l=',l
+!    &,  ' qil=',qil(l)
 
-      ENDDO
-      avr = avr * amb
+        ENDDO
+        avr = avr * amb
 !
 !      Correction for negative condensate!
 !     if (advcld) then
 !       do l=kd,k
-!         if (qli(l) .lt. 0.0) then
+!         if (qli(l) < 0.0) then
 !           qoi(l) = qoi(l) + qli(l)
 !           toi(l) = toi(l) - (alhl/cp) * qli(l)
 !           qli(l) = 0.0
 !         endif
-!         if (qii(l) .lt. 0.0) then
+!         if (qii(l) < 0.0) then
 !           qoi(l) = qoi(l) + qii(l)
 !           toi(l) = toi(l) - ((alhl+alhf)/cp) * qii(l)
 !           qii(l) = 0.0
@@ -2462,9 +2441,9 @@
 !       print *,' avt=',avt,' avq=',avq,' avr=',avr,' avh='
 !    *   ,avh,' alm=',alm,' DDFT=',DDFT,' KD=',KD
 !    &,' TOIK-',toi(k),' TOIK-1=',toi(k-1),' TOIK-2=',toi(k-2)
-!        if (kd .eq. 12 .and. .not. ddft) stop
-!       if (avh .gt. 0.1 .or. abs(avt+avq) .gt. 1.0e-5 .or.
-!    &      abs(avt-avr) .gt. 1.0e-5 .or. abs(avr+avq) .gt. 1.0e-5) stop
+!        if (kd == 12 .and. .not. ddft) stop
+!       if (avh > 0.1 .or. abs(avt+avq) > 1.0e-5 .or.
+!    &      abs(avt-avr) > 1.0e-5 .or. abs(avr+avq) > 1.0e-5) stop
 !
 !     if (lprnt) then
 !       print *,' For KD=',KD
@@ -2472,121 +2451,121 @@
 !       print *,' QCU=',(Qcu(l),l=kd,k)
 !     endif
 !
-      TX1 = 0.0
-      TX2 = 0.0
+        TX1 = 0.0
+        TX2 = 0.0
 !
-      IF (REVAP) THEN !     REEVAPORATION OF FALLING CONVECTIVE RAIN
+        IF (REVAP) THEN !     REEVAPORATION OF FALLING CONVECTIVE RAIN
 !
-       tem = 0.0
-       do l=kd,kbl
-         IF (L .lt. IDH .or. (.not. DDFT)) THEN
-           tem = tem + amb * rnn(l)
-         endif
-       enddo
-       tem = tem + amb * dof
-       tem = tem * (3600.0/dt)
-!!!!   tem1 = max(1.0, min(100.0,sqrt((5.0E10/max(garea,one)))))
-!      tem1 = max(1.0, min(100.0,(7.5E10/max(garea,one))))
-!      tem1 = max(1.0, min(100.0,(5.0E10/max(garea,one))))
-!      tem1 = max(1.0, min(100.0,(4.0E10/max(garea,one))))
-!!     tem1 = sqrt(max(1.0, min(100.0,(4.0E10/max(garea,one))))) ! 20100902
-       tem1 = sqrt(max(1.0, min(100.0,(6.25E10/max(garea,one))))) ! 20110530
+         tem = 0.0
+         do l=kd,kbl
+           IF (L < IDH .or. (.not. DDFT)) THEN
+             tem = tem + amb * rnn(l)
+           endif
+         enddo
+         tem = tem + amb * dof
+         tem = tem * (3600.0/dt)
+!!!!     tem1 = max(1.0, min(100.0,sqrt((5.0E10/max(garea,one)))))
+!        tem1 = max(1.0, min(100.0,(7.5E10/max(garea,one))))
+!        tem1 = max(1.0, min(100.0,(5.0E10/max(garea,one))))
+!        tem1 = max(1.0, min(100.0,(4.0E10/max(garea,one))))
+!!       tem1 = sqrt(max(1.0, min(100.0,(4.0E10/max(garea,one))))) ! 20100902
+         tem1 = sqrt(max(1.0, min(100.0,(6.25E10/max(garea,one))))) ! 20110530
 
-!      if (lprnt) print *,' clfr0=',clf(tem),' tem=',tem,' tem1=',tem1
+!        if (lprnt) print *,' clfr0=',clf(tem),' tem=',tem,' tem1=',tem1
 
-!      clfrac = max(ZERO, min(ONE, rknob*clf(tem)*tem1))
-!      clfrac = max(ZERO, min(0.25, rknob*clf(tem)*tem1))
-       clfrac = max(ZERO, min(half, rknob*clf(tem)*tem1))
+!        clfrac = max(ZERO, min(ONE, rknob*clf(tem)*tem1))
+!        clfrac = max(ZERO, min(0.25, rknob*clf(tem)*tem1))
+         clfrac = max(ZERO, min(half, rknob*clf(tem)*tem1))
 
-!      if (lprnt) then
-!        print *,' cldfrd=',cldfrd,' amb=',amb,' clfrac=',clfrac
-!        print *,' tx3=',tx3,' etakd=',eta(kd),' pri=',pri(kd)
-!        print *,' RNN=',RNN(kd:k)
-!      endif
+!        if (lprnt) then
+!          print *,' cldfrd=',cldfrd,' amb=',amb,' clfrac=',clfrac
+!          print *,' tx3=',tx3,' etakd=',eta(kd),' pri=',pri(kd)
+!          print *,' RNN=',RNN(kd:k)
+!        endif
 !
-!cnt   DO L=KD,K
-       DO L=KD,KBL         ! Testing on 20070926
+!cnt     DO L=KD,K
+         DO L=KD,KBL         ! Testing on 20070926
 !                                                 for L=KD,K
-         IF (L .GE. IDH .AND. DDFT) THEN
-           TX2    = TX2 + AMB * RNN(L)
-           CLDFRD = MIN(AMB*CLDFR(L), clfrac)
-         ELSE
-           TX1 = TX1 + AMB * RNN(L)
-         ENDIF
-         tx4 = zfac * phil(l)
-         tx4 = (one - tx4 * (one - half*tx4)) * afc
+           IF (L >= IDH .AND. DDFT) THEN
+             TX2    = TX2 + AMB * RNN(L)
+             CLDFRD = MIN(AMB*CLDFR(L), clfrac)
+           ELSE
+             TX1 = TX1 + AMB * RNN(L)
+           ENDIF
+           tx4 = zfac * phil(l)
+           tx4 = (one - tx4 * (one - half*tx4)) * afc
 !
-         IF (TX1 .GT. 0. .OR. TX2 .GT. 0.0) THEN
-          TEQ     = TOI(L)
-          QEQ     = QOI(L)
-          PL      = 0.5 * (PRL(L+1)+PRL(L))
+           IF (TX1 > 0. .OR. TX2 > 0.0) THEN
+             TEQ     = TOI(L)
+             QEQ     = QOI(L)
+             PL      = 0.5 * (PRL(L+1)+PRL(L))
 
-          ST1     = MAX(ZERO, MIN(ONE, (TCR-TEQ)*TCRF))
-          ST2     = ST1*ELFOCP + (1.0-ST1)*ELOCP
+             ST1     = MAX(ZERO, MIN(ONE, (TCR-TEQ)*TCRF))
+             ST2     = ST1*ELFOCP + (1.0-ST1)*ELOCP
 
-          CALL QSATCN ( TEQ,PL,QSTEQ,DQDT)
-!         CALL QSATCN ( TEQ,PL,QSTEQ,DQDT,.false.)
+             CALL QSATCN ( TEQ,PL,QSTEQ,DQDT)
+!            CALL QSATCN ( TEQ,PL,QSTEQ,DQDT,.false.)
 !
-          DELTAQ = 0.5 * (QSTEQ*rhc_ls(l)-QEQ) / (1.+ST2*DQDT)
+             DELTAQ = 0.5 * (QSTEQ*rhc_ls(l)-QEQ) / (1.+ST2*DQDT)
 !
-          QEQ    = QEQ + DELTAQ
-          TEQ    = TEQ - DELTAQ*ST2
+             QEQ    = QEQ + DELTAQ
+             TEQ    = TEQ - DELTAQ*ST2
 !
-          TEM1   = MAX(ZERO, MIN(ONE, (TCR-TEQ)*TCRF))
-          TEM2   = TEM1*ELFOCP + (1.0-TEM1)*ELOCP
+             TEM1   = MAX(ZERO, MIN(ONE, (TCR-TEQ)*TCRF))
+             TEM2   = TEM1*ELFOCP + (1.0-TEM1)*ELOCP
 
-          CALL QSATCN ( TEQ,PL,QSTEQ,DQDT)
-!         CALL QSATCN ( TEQ,PL,QSTEQ,DQDT,.false.)
+             CALL QSATCN ( TEQ,PL,QSTEQ,DQDT)
+!            CALL QSATCN ( TEQ,PL,QSTEQ,DQDT,.false.)
 !
-          DELTAQ = (QSTEQ*rhc_ls(l)-QEQ) / (1.+TEM2*DQDT)
+             DELTAQ = (QSTEQ*rhc_ls(l)-QEQ) / (1.+TEM2*DQDT)
 !
-          QEQ    = QEQ + DELTAQ
-          TEQ    = TEQ - DELTAQ*TEM2
+             QEQ    = QEQ + DELTAQ
+             TEQ    = TEQ - DELTAQ*TEM2
 
-          IF (QEQ .GT. QOI(L)) THEN
-            POTEVAP = (QEQ-QOI(L))*(PRL(L+1)-PRL(L))*GRAVCON
+             IF (QEQ > QOI(L)) THEN
+               POTEVAP = (QEQ-QOI(L))*(PRL(L+1)-PRL(L))*GRAVCON
 
-            tem4    = 0.0
-            if (tx1 .gt. 0.0)                                           &
-     &      TEM4    = POTEVAP * (1. - EXP( tx4*TX1**0.57777778 ) )
-!    &      TEM4    = POTEVAP * (1. - EXP( AFC*tx4*SQRT(TX1) ) )
-            ACTEVAP = MIN(TX1, TEM4*CLFRAC)
+               tem4    = 0.0
+               if (tx1 > 0.0)                                           &
+     &         TEM4    = POTEVAP * (1. - EXP( tx4*TX1**0.57777778 ) )
+!    &         TEM4    = POTEVAP * (1. - EXP( AFC*tx4*SQRT(TX1) ) )
+               ACTEVAP = MIN(TX1, TEM4*CLFRAC)
 
 !     if(lprnt) print *,' L=',L,' actevap=',actevap,' tem4=',tem4,
 !    &' clfrac='
 !    &,clfrac,' potevap=',potevap,'efac=',AFC*SQRT(TX1*TEM3)
 !    &,' tx1=',tx1
 
-            if (tx1 .lt. rainmin*dt) actevap = min(tx1, potevap)
+               if (tx1 < rainmin*dt) actevap = min(tx1, potevap)
 !
-            tem4    = 0.0
-            if (tx2 .gt. 0.0)                                           &
-     &      TEM4    = POTEVAP * (1. - EXP( tx4*TX2**0.57777778 ) )
-!    &      TEM4    = POTEVAP * (1. - EXP( AFC*tx4*SQRT(TX2) ) )
-            TEM4    = min(MIN(TX2, TEM4*CLDFRD), potevap-actevap)
-            if (tx2 .lt. rainmin*dt) tem4 = min(tx2, potevap-actevap)
+               tem4    = 0.0
+               if (tx2 > 0.0)                                           &
+     &         TEM4    = POTEVAP * (1. - EXP( tx4*TX2**0.57777778 ) )
+!    &        TEM4    = POTEVAP * (1. - EXP( AFC*tx4*SQRT(TX2) ) )
+               TEM4    = min(MIN(TX2, TEM4*CLDFRD), potevap-actevap)
+               if (tx2 < rainmin*dt) tem4 = min(tx2, potevap-actevap)
 !
-            TX1     = TX1 - ACTEVAP
-            TX2     = TX2 - TEM4
-            ST1     = (ACTEVAP+TEM4) * PRI(L)
-            QOI(L)  = QOI(L) + ST1
-            QCU(L)  = QCU(L) + ST1
+               TX1     = TX1 - ACTEVAP
+               TX2     = TX2 - TEM4
+               ST1     = (ACTEVAP+TEM4) * PRI(L)
+               QOI(L)  = QOI(L) + ST1
+               QCU(L)  = QCU(L) + ST1
 !
 
-            ST1     = ST1 * ELOCP
-            TOI(L)  = TOI(L) - ST1 
-            TCU(L)  = TCU(L) - ST1
-          ENDIF
-         ENDIF
-       ENDDO
+               ST1     = ST1 * ELOCP
+               TOI(L)  = TOI(L) - ST1 
+               TCU(L)  = TCU(L) - ST1
+             ENDIF
+           ENDIF
+         ENDDO
 !
-       CUP = CUP + TX1 + TX2 + DOF * AMB
-      ELSE
-       DO L=KD,K
-         TX1 = TX1 + AMB * RNN(L)
-       ENDDO
-       CUP = CUP + TX1 + DOF * AMB
-      ENDIF
+          CUP = CUP + TX1 + TX2 + DOF * AMB
+        ELSE
+          DO L=KD,K
+            TX1 = TX1 + AMB * RNN(L)
+          ENDDO
+          CUP = CUP + TX1 + DOF * AMB
+        ENDIF
 
 !     if (lprnt) print *,' tx1=',tx1,' tx2=',tx2,' dof=',dof
 !    &,' cup=',cup*86400/dt,' amb=',amb
@@ -2595,76 +2574,77 @@
 !
 !    Convective transport (mixing) of passive tracers
 !
-      if (NTRC > 0) then
-        do l=kd,k-1
-          if (etz(l) .ne. zero) etzi(l) = one / etz(l)
-        enddo
-        DO N=1,NTRC        ! Tracer loop ; first two are u and v
+        if (NTRC > 0) then
+          do l=kd,k-1
+            if (etz(l) /= zero) etzi(l) = one / etz(l)
+          enddo
+          DO N=1,NTRC        ! Tracer loop ; first two are u and v
 
-          DO L=KD,K
-            HOL(L) = ROI(L,N)
-          ENDDO
+            DO L=KD,K
+              HOL(L) = ROI(L,N)
+            ENDDO
 !
-          HCC     = RBL(N)
-          HOD(KD) = HOL(KD)
+            HCC     = RBL(N)
+            HOD(KD) = HOL(KD)
 !      Compute downdraft properties for the tracer
-          DO L=KD1,K
-            ST1 = ONE - ALFIND(L)
-            HB  = ALFIND(L)  * HOL(L-1) + ST1 * HOL(L)
-            IF (ETZ(L-1) .NE. ZERO) THEN
-              TEM = ETZI(L-1)
-              IF (ETD(L)  > ETD(L-1)) THEN
-                HOD(L) = (ETD(L-1)*(HOD(L-1)-HOL(L-1))                  &
-     &                 +  ETD(L)  *(HOL(L-1)-HB) +  ETZ(L-1)*HB) * TEM
-              ELSE
-                HOD(L) = (ETD(L-1)*(HOD(L-1)-HB) + ETZ(L-1)*HB) * TEM
+            DO L=KD1,K
+              ST1 = ONE - ALFIND(L)
+              HB  = ALFIND(L)  * HOL(L-1) + ST1 * HOL(L)
+              IF (ETZ(L-1) /= ZERO) THEN
+                TEM = ETZI(L-1)
+                IF (ETD(L)  > ETD(L-1)) THEN
+                 HOD(L) = (ETD(L-1)*(HOD(L-1)-HOL(L-1))                 &
+     &                   +  ETD(L)  *(HOL(L-1)-HB) +  ETZ(L-1)*HB) * TEM
+                ELSE
+                 HOD(L) = (ETD(L-1)*(HOD(L-1)-HB) + ETZ(L-1)*HB) * TEM
+                ENDIF
+               ELSE
+                HOD(L) = HB
               ENDIF
-            ELSE
-              HOD(L) = HB
-            ENDIF
-          ENDDO
+            ENDDO
              
-          DO L=KB1,KD,-1
-            HCC = HCC + (ETA(L)-ETA(L+1))*HOL(L)
-          ENDDO
+            DO L=KB1,KD,-1
+              HCC = HCC + (ETA(L)-ETA(L+1))*HOL(L)
+            ENDDO
 !
 !         Scavenging -- fscav   - fraction scavenged [km-1]
 !                       delz    - distance from the entrainment to detrainment layer [km]
 !                       fnoscav - the fraction not scavenged
 !                                 following Liu et al. [JGR,2001] Eq 1
 
-          if (FSCAV_(N) > 0.0) then
-            DELZKM = ( PHIL(KD) - PHIH(KD1) ) *(onebg*0.001)
-            FNOSCAV = exp(- FSCAV_(N) * DELZKM)
-          else
-            FNOSCAV = 1.0
-          endif
-
-          GMH(KD) = PRI(KD) * (HCC-ETA(KD)*HOL(KD)) * trcfac(kd,n)      &
-     &                                              * FNOSCAV
-          DO L=KD1,K
             if (FSCAV_(N) > 0.0) then
-              DELZKM = ( PHIL(KD) - PHIH(L+1) ) *(onebg*0.001)
+              DELZKM = ( PHIL(KD) - PHIH(KD1) ) *(onebg*0.001)
               FNOSCAV = exp(- FSCAV_(N) * DELZKM)
+            else
+              FNOSCAV = 1.0
             endif
-            ST1      = ONE - ALFINT(L,N+4)
-            ST2      = ONE - ALFIND(L)
-            HB       = ALFINT(L,N+4) * HOL(L-1) + ST1 * HOL(L)
-            HBD      = ALFIND(L) * HOL(L-1) + ST2 * HOL(L)
-            TEM5     = ETD(L)    * (HOD(L) - HBD)
-            DH       = ETA(L)    * (HB - HOL(L))   * FNOSCAV + TEM5
-            GMH(L  ) = DH * PRI(L) * trcfac(l,n)
-            DH       = ETA(L)    * (HOL(L-1) - HB) * FNOSCAV - TEM5
-            GMH(L-1) = GMH(L-1)  + DH * PRI(L-1) * trcfac(l,n)
-          ENDDO
+
+            GMH(KD) = PRI(KD) * (HCC-ETA(KD)*HOL(KD)) * trcfac(kd,n)    &
+     &                                                * FNOSCAV
+            DO L=KD1,K
+              if (FSCAV_(N) > 0.0) then
+                DELZKM = ( PHIL(KD) - PHIH(L+1) ) *(onebg*0.001)
+                FNOSCAV = exp(- FSCAV_(N) * DELZKM)
+              endif
+              ST1      = ONE - ALFINT(L,N+4)
+              ST2      = ONE - ALFIND(L)
+              HB       = ALFINT(L,N+4) * HOL(L-1) + ST1 * HOL(L)
+              HBD      = ALFIND(L) * HOL(L-1) + ST2 * HOL(L)
+              TEM5     = ETD(L)    * (HOD(L) - HBD)
+              DH       = ETA(L)    * (HB - HOL(L))   * FNOSCAV + TEM5
+              GMH(L  ) = DH * PRI(L) * trcfac(l,n)
+              DH       = ETA(L)    * (HOL(L-1) - HB) * FNOSCAV - TEM5
+              GMH(L-1) = GMH(L-1)  + DH * PRI(L-1) * trcfac(l,n)
+            ENDDO
 !
-          DO L=KD,K
-            ST1      = GMH(L)*AMB
-            ROI(L,N) = HOL(L)   + ST1
-            RCU(L,N) = RCU(L,N) + ST1
-          ENDDO
-        ENDDO                             ! Tracer loop NTRC
-      endif
+            DO L=KD,K
+              ST1      = GMH(L)*AMB
+              ROI(L,N) = HOL(L)   + ST1
+              RCU(L,N) = RCU(L,N) + ST1
+            ENDDO
+          ENDDO                             ! Tracer loop NTRC
+        endif
+      endif             ! amb > 0.0
 
 !     if (lprnt) print *,' toio=',toi
 !     if (lprnt) print *,' qoio=',qoi
@@ -2690,7 +2670,7 @@
 !*************************  October 2004  ******************************
 !***********************************************************************
 !***********************************************************************
-!************* Shrinivas.Moorthi@noaa.gov (301) 763 8000(X7233) ********
+!************* Shrinivas.Moorthi@noaa.gov (301) 683-3718 ***************
 !***********************************************************************
 !***********************************************************************
 !23456789012345678901234567890123456789012345678901234567890123456789012
@@ -2709,50 +2689,54 @@
 !
 !  INPUT ARGUMENTS
 !
-      INTEGER K, KD
+      INTEGER K, KD, KBL
       real(kind=kind_phys) ALFIND(K)
-      INTEGER KBL, KB1
 
-      LOGICAL SKPDD, SKPUP
-
-      real(kind=kind_phys) HOL(KD:K),   QOL(KD:K),   GAF(KD:K+1)        &
-     &,                    HST(KD:K),   QST(KD:K),   TOL(KD:K)          &
-     &,                    BUY(KD:K+1), QRB(KD:K),   QRT(KD:K)          &
-     &,                    GAM(KD:K+1), RNN(KD:K),   RNS(KD:K)                       &
-     &,                    ETA(KD:K+1), PRL(KD:K+1), ETAI(KD:K)
+      real(kind=kind_phys), dimension(kd:k)   ::  HOL, QOL, HST, QST    &
+     &,                                           TOL, QRB, QRT, RNN    &
+     &,                                           RNS, ETAI
+      real(kind=kind_phys), dimension(kd:k+1) ::  GAF, BUY, GAM, ETA    &
+     &,                                           PRL
 !
 !     real(kind=kind_phys)    HBL,     QBL,        PRIS                 &
 !    &,                       TRAIN,   WFN,        ALM
-      real(kind=kind_phys)    TRAIN,   WFN,        ALM
 !
 !     TEMPORARY WORK SPACE
 !
-      real(kind=kind_phys) GMS(KD:K+1)
-      real(kind=kind_phys) TX1,    TX2,  TX3, TX4                       &
-     &,                    TX5,    TX6,  TX7, TX8, TX9
-      LOGICAL cnvflg
+      real(kind=kind_phys), dimension(KD:K)   :: RNF, WCB,  EVP, STLT   &
+     &,                                          GHD, GSD,  CLDFRD      &
+     &,                                          GQW, QRPI, QRPS, BUD
 
-      real(kind=kind_phys) TL, PL, QL, QS, DQS, ST1,  HB, QB, TB        &
-     &,                    QQQ, PICON, PIINV, DEL_ETA                   &
-     &,                    TEM, TEM1, TEM2, TEM3, TEM4, ST2             &
-     &,                    ERRMIN, ERRMI2, ERRH, ERRW, ERRE, TEM5       &
-     &,                    TEM6, HBD, QBD
-      INTEGER I, L,  N, IX, KD1, II                                     &
-     &,       KP1, IT, KM1, KTEM, KK, KK1, LM1, LL, LP1                 &
-     &,       IP1, JJ, ntla
+      real(kind=kind_phys), dimension(KD:K+1) :: QRP, WVL, WVLO, ETD    &
+     &,                                          HOD, QOD, ROR, GMS
 
+      real(kind=kind_phys) TL,     PL,     QL,      QS,   DQS,  ST1     &
+     &,                    QQQ,    PICON,  DEL_ETA, HB,   QB,   TB      &
+     &,                    TEM,    TEM1,   TEM2,    TEM3, TEM4, ST2     &
+     &,                    ERRMIN, ERRMI2, ERRH,    ERRW, ERRE, TEM5    &
+     &,                    TEM6,   HBD,    QBD,     TX1,  TX2,  TX3     &
+     &,                    TX4,    TX5,    TX6,     TX7,  TX8,  TX9     &
+     &,                    WFN,    ALM,    VTPEXP , AL2                 &
+     &,                    TRAIN,  GMF,    ONPG,    CTLA, VTRM          &
+     &,                    RPART,  QRMIN,  AA1,     BB1,  CC1,   DD1    &
+     &,                    WC2MIN, WCMIN,  WCBASE,  F2,   F3,    F5     &
+     &,                    GMF1,   GMF5,   QRAF,    QRBF, del_tla       &
+     &,                    TLA,    STLA,   CTL2,    CTL3, ASIN          &
+     &,                    RNT,    RNB,    ERRQ,    RNTP, QRPF,  VTPF   &
+     &,                    EDZ,    DDZ,    CE,      QHS,  FAC,   FACG   &
+     &,                    RSUM1,  RSUM2,  RSUM3,   CEE,  DOF,   DOFW
+!    &,                    sialf
+
+      INTEGER              I, L,  N, IX, KD1, II, kb1, IP1, JJ, ntla    &
+     &,                    KP1, IT, KM1, KTEM, KK, KK1, LM1, LL, LP1    &
+     &,                    IDW, IDH, IDN(K), idnm
 !
       integer, parameter :: NUMTLA=2
 !     integer, parameter :: NUMTLA=4
       parameter (ERRMIN=0.0001, ERRMI2=0.1*ERRMIN)
 !     parameter (ERRMIN=0.00001, ERRMI2=0.1*ERRMIN)
 !
-      real(kind=kind_phys) TLA,    STLA,  CTL2, CTL3
-      real(kind=kind_phys) GMF,    PI,    ONPG, CTLA, VTRM, VTPEXP      &
-     &,    RPART,  QRMIN,  AA1,    BB1,   CC1,  DD1                     &
-     &,    WC2MIN, WCMIN,  WCBASE, F2,    F3,   F5, GMF1, GMF5          &
-     &,    QRAF,   QRBF,   del_tla               
-!    &,    sialf
+      real (kind=kind_phys), parameter :: PIINV=1.0/PI
 !
       parameter (ONPG=1.0+0.5, GMF=1.0/ONPG, RPART=0.0)
 !     parameter (ONPG=1.0+0.5, GMF=1.0/ONPG, RPART=1.0)
@@ -2764,40 +2748,20 @@
 !     parameter (QRMIN=1.0E-6, WC2MIN=1.00, GMF1=GMF/AA1, GMF5=GMF/F5)
 !     parameter (sialf=0.5)
 !
-      PARAMETER (PI=3.1415926535897931, PIINV=1.0/PI)
       INTEGER ITR, ITRMU, ITRMD, KTPD, ITRMIN, ITRMND
 !     PARAMETER (ITRMU=25, ITRMD=25, ITRMIN=7)
       PARAMETER (ITRMU=25, ITRMD=25, ITRMIN=12, ITRMND=12)
 !     PARAMETER (ITRMU=25, ITRMD=25, ITRMIN=12)
 !     PARAMETER (ITRMU=14, ITRMD=18, ITRMIN=7)
 !     PARAMETER (ITRMU=10, ITRMD=10, ITRMIN=5)
-      real(kind=kind_phys) QRP(KD:K+1), WVL(KD:K+1), AL2
-      real(kind=kind_phys) WVLO(KD:K+1)
 !
-      real(kind=kind_phys) RNF(KD:K),   ETD(KD:K+1), WCB(KD:K)          &
-     &,                    HOD(KD:K+1), QOD(KD:K+1), EVP(KD:K)          &
-     &,                    ROR(KD:K+1), STLT(KD:K)                      &
-     &,                    GHD(KD:K),   GSD(KD:K),   CLDFRD(KD:K)       &
-     &,                    RNT,        RNB                              &
-     &,                    ERRQ,       RNTP
-      INTEGER IDW, IDH, IDN(K), idnm
-      real(kind=kind_phys) ELM(K)
 !     real(kind=kind_phys) EM(K*K), ELM(K)
-      real(kind=kind_phys) EDZ, DDZ, CE, QHS, FAC, FACG, ASIN,          &
-     &                     RSUM1, RSUM2, RSUM3, CEE
-      LOGICAL DDFT, UPDRET, DDLGK
-!
-      real(kind=kind_phys) AA(KD:K,KD:K+1), QW(KD:K,KD:K)               &
-     &,                    BUD(KD:K), VT(2), VRW(2), TRW(2)             &
-     &,                    GQW(KD:K)                                    &
-     &,                    QA(3),     WA(3),    DOF, DOFW               &
-     &,                    QRPI(KD:K), QRPS(KD:K)
-!    &,                    GQW(KD:K), WCB(KD:K)
+      real(kind=kind_phys) ELM(K), AA(KD:K,KD:K+1), QW(KD:K,KD:K)       &
+     &,                    VT(2),  VRW(2), TRW(2), QA(3), WA(3)
+
+      LOGICAL SKPDD, SKPUP, cnvflg, DDFT, UPDRET, DDLGK, lprnt
 
 !***********************************************************************
-
-      real(kind=kind_phys) QRPF, VTPF
-      logical lprnt
 
 !     if(lprnt) print *,' K=',K,' KD=',KD,' In Downdrft'
 
@@ -2841,11 +2805,11 @@
 !       GMS(L) = VTP * ROR(L) ** VTPEXP
         GMS(L) = VTP * VTPF(ROR(L))
         QRP(L) = QRMIN
-        if (buy(l) .le. 0.0 .and. kk .eq. KBL) then
+        if (buy(l) <= 0.0 .and. kk == KBL) then
           kk = l
         endif
       ENDDO
-      if (kk .ne. kbl) then
+      if (kk /= kbl) then
         do l=kk,kbl
           buy(l) = 0.9 * buy(l-1)
         enddo
@@ -2929,8 +2893,8 @@
 !
       do ntla=1,numtla
 !
-!       if (errq .lt. 1.0 .or. tla .gt. 45.0) cycle
-        if (errq .lt. 0.1 .or. tla .gt. 45.0) cycle
+!       if (errq < 1.0 .or. tla > 45.0) cycle
+        if (errq < 0.1 .or. tla > 45.0) cycle
 !
         tla = tla + del_tla
         STLA = SIN(TLA*PI/180.0)
@@ -2973,10 +2937,10 @@
               TX1     = TX1    + QRP(L+1) * GQW(L+1)
               ST1     = WCB(L) + QW(L,L)  * QRP(L)                      &
      &                         + TX1      * GSD(L)
-              if (st1 .gt. wc2min) then
+              if (st1 > wc2min) then
 !               WVL(L)  = SQRT(ST1)
                 WVL(L)  = 0.5 * (SQRT(ST1) + WVL(L))
-!               if (itr .eq. 1) wvl(l) = wvl(l) * 0.25
+!               if (itr == 1) wvl(l) = wvl(l) * 0.25
               else
 
 !       if (lprnt)  print *,' l=',l,' st1=',st1,' wcb=',wcb(l),' qw='
@@ -3022,7 +2986,7 @@
             TX1     = 0.5
             TX8     = 0.0
 !
-            IF (RNT .GE. 0.0) THEN
+            IF (RNT >= 0.0) THEN
               TX3 = (RNT-CTL3*TX6) * QRPI(KD)
               TX5 = CTL2 * TX6 * STLT(KD)
             ELSE
@@ -3088,9 +3052,9 @@
               TRW(1)  = TRW(2)
               VRW(1)  = VRW(2)
 !
-              IF (WVL(KTEM) .EQ. WCMIN) WA(1) = 0.0
-              IF (WVL(LL)   .EQ. WCMIN) WA(2) = 0.0
-              IF (WVL(L)    .EQ. WCMIN) WA(3) = 0.0
+              IF (WVL(KTEM) == WCMIN) WA(1) = 0.0
+              IF (WVL(LL)   == WCMIN) WA(2) = 0.0
+              IF (WVL(L)    == WCMIN) WA(3) = 0.0
               DO N=KTEM,KBL
                 AA(LL,N) = (WA(1)*QW(KTEM,N) * STLT(KTEM)               &
      &                   +  WA(2)*QW(LL,N)   * STLT(LL)                 &
@@ -3155,9 +3119,9 @@
 !
             IDW     = MAX(L-2, KD)
 !
-            IF (WVL(IDW) .EQ. WCMIN) WA(1) = 0.0
-            IF (WVL(LL)  .EQ. WCMIN) WA(2) = 0.0
-            IF (WVL(L)   .EQ. WCMIN) WA(3) = 0.0
+            IF (WVL(IDW) == WCMIN) WA(1) = 0.0
+            IF (WVL(LL)  == WCMIN) WA(2) = 0.0
+            IF (WVL(L)   == WCMIN) WA(3) = 0.0
 !
             KK = IDW
             DO N=KK,L
@@ -3178,7 +3142,7 @@
 !
 !      For the top of the boundary layer
 !
-            IF (RNB .LT. 0.0) THEN
+            IF (RNB < 0.0) THEN
                KK    = KBL
                TEM   = VT(2) * TRW(2)
                QA(2) = (RNB - CTL3*TEM) * QRPI(KK)
@@ -3198,8 +3162,8 @@
             WA(3) = 0.0
 !
             KK = KBL
-            IF (WVL(KK-1) .EQ. WCMIN) WA(1) = 0.0
-            IF (WVL(KK)   .EQ. WCMIN) WA(2) = 0.0
+            IF (WVL(KK-1) == WCMIN) WA(1) = 0.0
+            IF (WVL(KK)   == WCMIN) WA(2) = 0.0
 !
             DO II=1,2
                N = KK + II - 2
@@ -3219,7 +3183,7 @@
 !
             DO L=KD1,KBL
               LM1  = L - 1
-              cnvflg = ABS(AA(LM1,LM1)) .LT. ABS(AA(L,LM1))
+              cnvflg = ABS(AA(LM1,LM1)) < ABS(AA(L,LM1))
               DO  N=LM1,KBL+1
                  IF (cnvflg) THEN
                     TX1       = AA(LM1,N)
@@ -3258,9 +3222,9 @@
             ENDDO
 !
 !           tem = 0.5
-            if (tx2 .gt. 1.0 .and. abs(errq-tx2) .gt. 0.1) then
+            if (tx2 > 1.0 .and. abs(errq-tx2) > 0.1) then
               tem = 0.5
-!!          elseif (tx2 .lt. 0.1) then
+!!          elseif (tx2 < 0.1) then
 !!            tem = 1.2
             else
               tem = 1.0
@@ -3273,9 +3237,9 @@
 !
 !       if (lprnt) print *,' itr=',itr,' tx2=',tx2
 
-            IF (ITR .LT. ITRMIN) THEN
+            IF (ITR < ITRMIN) THEN
                TEM = ABS(ERRQ-TX2) 
-               IF (TEM .GE. ERRMI2 .AND. TX2 .GE. ERRMIN) THEN 
+               IF (TEM >= ERRMI2 .AND. TX2 >= ERRMIN) THEN 
                  ERRQ  = TX2                              ! Further iteration !
                ELSE 
                  SKPUP = .TRUE.                           ! Converges      !
@@ -3285,21 +3249,21 @@
                ENDIF 
             ELSE
                TEM = ERRQ - TX2
-!              IF (TEM .LT. ZERO .AND. ERRQ .GT. 0.1) THEN
-               IF (TEM .LT. ZERO .AND. ERRQ .GT. 0.5) THEN
-!              IF (TEM .LT. ZERO .and.                                    &
-!    &            (ntla .lt. numtla .or. ERRQ .gt. 0.5)) THEN
+!              IF (TEM < ZERO .AND. ERRQ > 0.1) THEN
+               IF (TEM < ZERO .AND. ERRQ > 0.5) THEN
+!              IF (TEM < ZERO .and.                                    &
+!    &            (ntla < numtla .or. ERRQ > 0.5)) THEN
 !     if (lprnt) print *,' tx2=',tx2,' errq=',errq,' tem=',tem
                  SKPUP = .TRUE.                           ! No convergence !
-                 ERRQ = 10.0                              ! No rain profile!
-!!!!           ELSEIF (ABS(TEM).LT.ERRMI2 .OR. TX2.LT.ERRMIN) THEN
-               ELSEIF (TX2.LT.ERRMIN) THEN
+                 ERRQ  = 10.0                             ! No rain profile!
+!!!!           ELSEIF (ABS(TEM) < ERRMI2 .OR. TX2 < ERRMIN) THEN
+               ELSEIF (TX2 < ERRMIN) THEN
                  SKPUP = .TRUE.                           ! Converges      !
                  ERRQ = 0.0                               ! Rain profile exists!
 !     if (lprnt) print *,' here2'
-               elseif (tem .lt. zero .and. errq .lt. 0.1) then
+               elseif (tem < zero .and. errq < 0.1) then
                  skpup = .true.
-!                if (ntla .eq. numtla .or. tem .gt. -0.003) then
+!                if (ntla == numtla .or. tem > -0.003) then
                    errq  = 0.0
 !                else
 !                  errq = 10.0
@@ -3307,8 +3271,8 @@
                ELSE
                  ERRQ = TX2                               ! Further iteration !
 !     if (lprnt) print *,' itr=',itr,' errq=',errq
-!              if (itr .eq. itrmu .and. ERRQ .GT. ERRMIN*10             &
-!    &            .and. ntla .eq. 1) ERRQ = 10.0 
+!              if (itr == itrmu .and. ERRQ > ERRMIN*10             &
+!    &            .and. ntla == 1) ERRQ = 10.0 
                ENDIF
             ENDIF
 !
@@ -3324,12 +3288,12 @@
 !    &,' errq=',errq
 !     endif
 !
-        IF (ERRQ .LT. 0.1) THEN
+        IF (ERRQ < 0.1) THEN
           DDFT = .TRUE.
           RNB  = - RNB
-   !      do l=kd1,kb1-1
-   !        if (wvl(l)-wcbase .lt. 1.0E-9) ddft = .false.
-   !      enddo
+!         do l=kd1,kb1-1
+!           if (wvl(l)-wcbase < 1.0E-9) ddft = .false.
+!         enddo
         ELSE
           DDFT = .FALSE.
         ENDIF
@@ -3344,7 +3308,7 @@
           ENDDO
 !     if (lprnt) print *,' tx1+rnt+rnb=',tx1+rnt+rnb, ' train=',train
           TX1 = TRAIN / (TX1+RNT+RNB)
-          IF (ABS(TX1-1.0) .LT. 0.2) THEN
+          IF (ABS(TX1-1.0) < 0.2) THEN
              RNT = MAX(RNT*TX1,ZERO)
              RNB = RNB * TX1
           ELSE
@@ -3427,8 +3391,8 @@
 !
 !       Here we assume RPART of detrained rain RNT goes to Pd
 !
-        IF (RNT .GT. 0.0) THEN
-          if (TX1 .gt. 0.0) THEN
+        IF (RNT > 0.0) THEN
+          if (TX1 > 0.0) THEN
             QRP(KD) = (RPART*RNT / (ROR(KD)*TX1*GMS(KD)))               &
      &                                          ** (1.0/1.1364)
            else
@@ -3447,9 +3411,9 @@
       DO L=KD1,K+1
 
           QA(1) = 0.0
-          ddlgk = idn(idnm) .eq. 99
+          ddlgk = idn(idnm) == 99
           if (.not. ddlgk) cycle
-          IF (L .LE. K) THEN
+          IF (L <= K) THEN
             ST1   = 1.0 - ALFIND(L)
             WA(1) = ALFIND(L)*HOL(L-1) + ST1*HOL(L)
             WA(2) = ALFIND(L)*QOL(L-1) + ST1*QOL(L)
@@ -3465,11 +3429,11 @@
           ENDIF
 !
           FAC = 2.0
-          IF (L .EQ. KD1) FAC = 1.0
+          IF (L == KD1) FAC = 1.0
 
           FACG    = FAC * 0.5 * GMF5     !  12/17/97
 !
-!         DDLGK   =  IDN(idnm) .EQ. 99
+!         DDLGK   =  IDN(idnm) == 99
           BUD(KD) = ROR(L)
 
 !         IF (DDLGK) THEN
@@ -3507,7 +3471,7 @@
             ERRQ   = 10.0
 
 !
-            IF (L .LE. KBL) THEN
+            IF (L <= KBL) THEN
               TX3 = STLT(L-1) * QRT(L-1) * (0.5*FAC)
               TX8 = STLT(L)   * QRB(L-1) * (0.5*FAC)
               TX9 = TX8 + TX3
@@ -3518,7 +3482,7 @@
             ENDIF
 !
             TEM  = WVL(L-1) + VT(1)
-            IF (TEM .GT. 0.0) THEN
+            IF (TEM > 0.0) THEN
               TEM1 = 1.0 / (TEM*ROR(L-1))
               TX3 = VT(1) * TEM1 * ROR(L-1) * TX3
               TX6 = TX1 * TEM1
@@ -3527,8 +3491,8 @@
             ENDIF
 !         ENDIF
 !
-          IF (L .EQ. KD1) THEN
-            IF (RNT .GT. 0.0) THEN
+          IF (L == KD1) THEN
+            IF (RNT > 0.0) THEN
               TEM    = MAX(QRP(L-1),QRP(L))
               WVL(L) = TX1 * TEM * QRB(L-1)*(FACG*5.0)
             ENDIF
@@ -3542,7 +3506,7 @@
 !       No downdraft above level IDH
 !
 
-          IF (L .LT. IDH) THEN
+          IF (L < IDH) THEN
 
             ETD(L)   = 0.0
             HOD(L)   = WA(1)
@@ -3565,17 +3529,17 @@
 !    &,                      ' tx1=',tx1
           DO ITR=1,ITRMD
 !
-!           cnvflg =  DDLGK .AND. (ERRQ .GT. ERRMIN)
-            cnvflg =  ERRQ .GT. ERRMIN
+!           cnvflg =  DDLGK .AND. (ERRQ > ERRMIN)
+            cnvflg =  ERRQ > ERRMIN
             IF (cnvflg) THEN
 !
 !             VT(1)  = GMS(L) * QRP(L) ** 0.1364
               VT(1)  = GMS(L) * QRPF(QRP(L))
               TEM    =  WVL(L) + VT(1)
 !
-              IF (TEM .GT. 0.0) THEN
+              IF (TEM > 0.0) THEN
                 ST1    = ROR(L) * TEM * QRP(L) + RNT
-                IF (ST1 .NE. 0.0) ST1 = 2.0 * EVP(L-1) / ST1
+                IF (ST1 /= 0.0) ST1 = 2.0 * EVP(L-1) / ST1
                 TEM1   = 1.0 / (TEM*ROR(L))
                 TEM2   = VT(1) * TEM1 * ROR(L) * TX8
               ELSE
@@ -3589,7 +3553,7 @@
 !
               st2 = tx5
               TEM = ROR(L)*WVL(L) - ROR(L-1)*WVL(L-1)
-              if (tem .gt. 0.0) then
+              if (tem > 0.0) then
                 TX5 = (TX1 - ST1 + TEM2 + TX3)/(1.0+tem*tem1)
               else
                 TX5 = TX1 - tem*tx6 - ST1 + TEM2 + TX3
@@ -3599,14 +3563,14 @@
 !
 !             qqq = 1.0 + tem * tem1 * (1.0 - sialf)
 !
-!             if (qqq .gt. 0.0) then
+!             if (qqq > 0.0) then
 !               TX5   = (TX1 - sialf*tem*tx6 - ST1 + TEM2 + TX3) / qqq
 !             else
 !               TX5   = (TX1 - tem*tx6 - ST1 + TEM2 + TX3)
 !             endif
 !
 !     if(lprnt) print *,' tx51=',tx5,' tx1=',tx1,' st1=',st1,' tem2='
-!     if(tx5 .le. 0.0 .and. l .gt. kd+2)
+!     if(tx5 <= 0.0 .and. l > kd+2)
 !    * print *,' tx51=',tx5,' tx1=',tx1,' st1=',st1,' tem2='
 !    *,tem2,' tx3=',tx3,' tem=',tem,' tem1=',tem1,' wvl=',wvl(l-1),
 !    &wvl(l),' l=',l,' itr=',itr,' evp=',evp(l-1),' vt=',vt(1)
@@ -3619,18 +3583,18 @@
               TEM1   = ETD(L)
               ETD(L) = ROR(L) * TX5 * MAX(WVL(L),ZERO)
 !
-              if (etd(l) .gt. 0.0) etd(l) = 0.5 * (etd(l) + tem1)
+              if (etd(l) > 0.0) etd(l) = 0.5 * (etd(l) + tem1)
 !
 
               DEL_ETA = ETD(L) - ETD(L-1)
 
 !               TEM       = DEL_ETA * TRW(2)
 !               TEM2      = MAX(MIN(TEM, 1.0), -1.0)
-!               IF (ABS(TEM) .GT. 1.0 .AND. ETD(L) .GT. 0.0 ) THEN
+!               IF (ABS(TEM) > 1.0 .AND. ETD(L) > 0.0 ) THEN
 !                 DEL_ETA = TEM2 * TRW(1)
 !                 ETD(L)  = ETD(L-1) + DEL_ETA
 !               ENDIF
-!               IF (WVL(L) .GT. 0.0) TX5 = ETD(L) / (ROR(L)*WVL(L))
+!               IF (WVL(L) > 0.0) TX5 = ETD(L) / (ROR(L)*WVL(L))
 !
                 ERRE  = ETD(L) - TEM1
 !
@@ -3645,13 +3609,13 @@
               WCB(L-1) = ETD(L) + DDZ
 !
               TEM1  = HOD(L)
-              IF (DEL_ETA .GT. 0.0) THEN
+              IF (DEL_ETA > 0.0) THEN
                 QQQ    = 1.0 / (ETD(L) + DDZ)
                 HOD(L) = (ETD(L-1)*HOD(L-1) + DEL_ETA*HOL(L-1)          &
      &                                            + DDZ*WA(1)) * QQQ
                 QOD(L) = (ETD(L-1)*QOD(L-1) + DEL_ETA*QOL(L-1)          &
      &                                            + DDZ*WA(2)) * QQQ
-              ELSEif((ETD(L-1) + EDZ) .gt. 0.0) then
+              ELSEif((ETD(L-1) + EDZ) > 0.0) then
                 QQQ    = 1.0 / (ETD(L-1) + EDZ)
                 HOD(L) = (ETD(L-1)*HOD(L-1) + EDZ*WA(1)) * QQQ
                 QOD(L) = (ETD(L-1)*QOD(L-1) + EDZ*WA(2)) * QQQ
@@ -3710,16 +3674,16 @@
 !    *,' rnf=',rnf(l-1),' evp=',evp(l-1),' itr=',itr,' L=',L
 
 !
-              if (qa(1) .gt. 0.0) then
-              IF (ETD(L) .GT. 0.0) THEN
-                TEM    = QA(1) / (ETD(L)+ROR(L)*TX5*VT(1))
-                QRP(L) = MAX(TEM,ZERO)
-              ELSEIF (TX5 .GT. 0.0) THEN
-                QRP(L) = (MAX(ZERO,QA(1)/(ROR(L)*TX5*GMS(L))))           &
+              if (qa(1) > 0.0) then
+                IF (ETD(L) > 0.0) THEN
+                  TEM    = QA(1) / (ETD(L)+ROR(L)*TX5*VT(1))
+                  QRP(L) = MAX(TEM,ZERO)
+                ELSEIF (TX5 > 0.0) THEN
+                  QRP(L) = (MAX(ZERO,QA(1)/(ROR(L)*TX5*GMS(L))))        &
      &                                          ** (1.0/1.1364)
-              ELSE
-                QRP(L) = 0.0
-              ENDIF
+                ELSE
+                  QRP(L) = 0.0
+                ENDIF
               else
                 qrp(l) = 0.5 * qrp(l)
               endif
@@ -3738,7 +3702,7 @@
 !                                              Compute W (L+1/2)
 
               TEM1   = WVL(L)
-!             IF (ETD(L) .GT. 0.0) THEN
+!             IF (ETD(L) > 0.0) THEN
               WVL(L) = VT(2) * (ETD(L-1)*WVL(L-1) - FACG                &
      &                 * (BUY(L-1)*QRT(L-1)+BUY(L)*QRB(L-1)))
 !
@@ -3747,7 +3711,7 @@
 !    &,' etd1=',etd(l-1),' wvl1=',wvl(l-1)
 !             ENDIF
 !
-              if (wvl(l) .lt. 0.0) then
+              if (wvl(l) < 0.0) then
 !               WVL(L) = max(wvl(l), 0.1*tem1)
 !               WVL(L) = 0.5*tem1
 !               WVL(L) = 0.1*tem1
@@ -3765,18 +3729,18 @@
               ERRQ   = ERRQ + ABS(ERRW/MAX(WVL(L),ONE_M5))
 
 !     if (lprnt) print *,' errw=',errw,' wvl=',wvl(l)
-!     if(lprnt .or. tx5 .eq. 0.0) then
-!     if(tx5 .eq. 0.0 .and. l .gt. kbl) then
+!     if(lprnt .or. tx5 == 0.0) then
+!     if(tx5 == 0.0 .and. l > kbl) then
 !        print *,' errq=',errq,' itr=',itr,' l=',l,' wvl=',wvl(l)
 !    &,' tx5=',tx5,' idnm=',idnm,' etd1=',etd(l-1),' etd=',etd(l)
 !    &,' kbl=',kbl
 !     endif
 !
 !     if(lprnt) print *,' itr=',itr,' itrmnd=',itrmnd,' itrmd=',itrmd
-!             IF (ITR .GE. MIN(ITRMIN,ITRMD/2)) THEN
-              IF (ITR .GE. MIN(ITRMND,ITRMD/2)) THEN
+!             IF (ITR >= MIN(ITRMIN,ITRMD/2)) THEN
+              IF (ITR >= MIN(ITRMND,ITRMD/2)) THEN
 !     if(lprnt) print *,' itr=',itr,' etd1=',etd(l-1),' errq=',errq
-                IF (ETD(L-1) .EQ. 0.0 .AND. ERRQ .GT. 0.2) THEN
+                IF (ETD(L-1) == 0.0 .AND. ERRQ > 0.2) THEN
 !     if(lprnt) print *,' bud=',bud(kd),' wa=',wa(1),wa(2)
                   ROR(L)   = BUD(KD)
                   ETD(L)   = 0.0
@@ -3798,12 +3762,12 @@
                   EVP(L-1) = 0.0
                   TEM      = MAX(TX1*RNT+RNF(L-1),ZERO)
                   QA(1)    = TEM - EVP(L-1)
-!                 IF (QA(1) .GT. 0.0) THEN
+!                 IF (QA(1) > 0.0) THEN
 
 !     if(lprnt) print *,' ror=',ror(l),' tx5=',tx5,' tx1=',tx1
 !    *,' tx9=',tx9,' gms=',gms(l),' qa=',qa(1)
 !     if(lprnt) call mpi_quit(13)
-!     if (tx5 .eq. 0.0 .or. gms(l) .eq. 0.0)
+!     if (tx5 == 0.0 .or. gms(l) == 0.0)
 !     if (lprnt) 
 !    *  print *,' Atx5=',tx5,' gms=',gms(l),' ror=',ror(l)
 !    *,' L=',L,' QA=',QA(1),' tx1=',tx1,' tx9=',tx9
@@ -3818,7 +3782,7 @@
                 ENDIF
 !
                 DEL_ETA = ETD(L) - ETD(L-1)
-                IF(DEL_ETA .LT. 0.0 .AND. ERRQ .GT. 0.1) THEN
+                IF(DEL_ETA < 0.0 .AND. ERRQ > 0.1) THEN
                   ROR(L)   = BUD(KD)
                   ETD(L)   = 0.0
                   WVL(L)   = 0.0
@@ -3881,14 +3845,14 @@
                   qrp(l)   = 0.0
 
 !
-!     if (tx5 .eq. 0.0 .or. gms(l) .eq. 0.0)
+!     if (tx5 == 0.0 .or. gms(l) == 0.0)
 !     if (lprnt)
 !    *  print *,' Btx5=',tx5,' gms=',gms(l),' ror=',ror(l)
 !    *,' L=',L,' QA=',QA(1),' tx1=',tx1,' tx9=',tx9
 !    *,' kbl=',kbl,' etd1=',etd(l-1),' DEL_ETA=',DEL_ETA
 !    &,' evp=',evp(l-1)
 !
-!                 IF (QA(1) .GT. 0.0) THEN
+!                 IF (QA(1) > 0.0) THEN
 !!                  RNS(L-1) = QA(1)
 !!!                 tx5      = tx9
 !                   QRP(L) = (QA(1) / (ROR(L)*TX5*GMS(L)))              &
@@ -3901,7 +3865,7 @@
 !                 TEM1   = TEM1 * (1.0 + NU*QOD(L)) * DOFW
 !                 BUY(L) = (TEM1 - 1.0 - QRP(L)) * ROR(L) * TX5
 !
-!                 IF (QA(1) .GT. 0.0) RNS(L) = QA(1)
+!                 IF (QA(1) > 0.0) RNS(L) = QA(1)
 
                   IF (L .LE. K) THEN
                      RNS(L) = QA(1)
@@ -3917,11 +3881,10 @@
             ENDIF
 !
           ENDDO                ! End of the iteration loop  for a given L!
-          IF (L .LE. K) THEN
-            IF (ETD(L-1) .EQ. 0.0                                       &
-     &         .AND. ERRQ .GT. 0.1 .and. l .le. kbl) THEN
-!!!  &         .AND. ERRQ .GT. ERRMIN*10.0 .and. l .le. kbl) THEN
-!    &         .AND. ERRQ .GT. ERRMIN*10.0) THEN
+          IF (L <= K) THEN
+            IF (ETD(L-1) == 0.0 .AND. ERRQ > 0.1 .and. l <= kbl) THEN
+!!!  &         .AND. ERRQ > ERRMIN*10.0 .and. l <= kbl) THEN
+!    &         .AND. ERRQ > ERRMIN*10.0) THEN
                ROR(L)   = BUD(KD)
                HOD(L)   = WA(1)
                QOD(L)   = WA(2)
@@ -3934,12 +3897,12 @@
                QA(1)    = QA(1) - EVP(L-1)
 
 !              QRP(L)   = 0.0
-!              if (tx5 .eq. 0.0 .or. gms(l) .eq. 0.0) then
+!              if (tx5 == 0.0 .or. gms(l) == 0.0) then
 !                print *,' Ctx5=',tx5,' gms=',gms(l),' ror=',ror(l)     &
 !    &,          ' L=',L,' QA=',QA(1),' tx1=',tx1,' tx9=',tx9           &
 !    &,          ' kbl=',kbl,' etd1=',etd(l-1),' DEL_ETA=',DEL_ETA
 !              endif
-!              IF (QA(1) .GT. 0.0) THEN
+!              IF (QA(1) > 0.0) THEN
 
                  QRP(L) = (QA(1) / (ROR(L)*TX5*GMS(L)))                 &
      &                                         ** (1.0/1.1364)
@@ -3955,16 +3918,16 @@
           ENDIF
 !
           LL = MIN(IDN(idnm), K+1)
-          IF (ERRQ .LT. 1.0 .AND. L .LE. LL) THEN
-            IF (ETD(L-1) .GT. 0.0 .AND. ETD(L) .EQ. 0.0) THEN
+          IF (ERRQ < 1.0 .AND. L <= LL) THEN
+            IF (ETD(L-1) > 0.0 .AND. ETD(L) == 0.0) THEN
              IDN(idnm) = L
              wvl(l)    = 0.0
-             if (L .lt. KBL .or. tx5 .gt. 0.0) idnm  = idnm + 1
+             if (L < KBL .or. tx5 > 0.0) idnm  = idnm + 1
              errq      = 0.0
             ENDIF
-            if (etd(l) .eq. 0.0 .and. l .gt. kbl) then
+            if (etd(l) == 0.0 .and. l > kbl) then
               idn(idnm) = l
-              if (tx5 .gt. 0.0) idnm  = idnm + 1
+              if (tx5 > 0.0) idnm  = idnm + 1
             endif
           ENDIF
 
@@ -3978,8 +3941,8 @@
 !     If downdraft properties are not obtainable, (i.e.solution does
 !      not converge) , no downdraft is assumed
 !
-!         IF (ERRQ .GT. ERRMIN*100.0 .AND. IDN(idnm) .EQ. 99)           &
-          IF (ERRQ .GT. 0.1 .AND. IDN(idnm) .EQ. 99)                    &
+!         IF (ERRQ > ERRMIN*100.0 .AND. IDN(idnm) == 99)                &
+          IF (ERRQ > 0.1 .AND. IDN(idnm) == 99)                         &
      &                          DDFT = .FALSE.
 !
 !
@@ -4014,7 +3977,7 @@
 
 !     if (lprnt) print *,' tx2=',tx2
       II = IDH
-      IF (II .GE. KD1+1) THEN
+      IF (II >= KD1+1) THEN
          RNN(KD)   = RNN(KD) + RNF(KD)
          TX2       = TX2 + RNF(KD)
          RNN(II-1) = 0.0
@@ -4024,14 +3987,14 @@
       DO L=KD,K
         II = IDH
 
-        IF (L .GT. KD1 .AND. L .LT. II) THEN
+        IF (L > KD1 .AND. L < II) THEN
           RNN(L-1) = RNF(L-1)
           TX2      = TX2 + RNN(L-1)
-        ELSEIF (L .GE. II .AND. L .LT. IDN(idnm)) THEN
+        ELSEIF (L >= II .AND. L < IDN(idnm)) THEN
           rnn(l)   = rns(l)
           tx2      = tx2 + rnn(l)
           TX1      = TX1 + EVP(L)
-        ELSEIF (L .GE. IDN(idnm)) THEN
+        ELSEIF (L >= IDN(idnm)) THEN
           ETD(L+1) = 0.0
           HOD(L+1) = 0.0
           QOD(L+1) = 0.0
@@ -4056,7 +4019,7 @@
 !
 !     if (lprnt) print *,' train=',train,' tx2=',tx2,' tx1=',tx1
 
-      IF (TX1 .GT. 0.0) THEN
+      IF (TX1 > 0.0) THEN
         TX1 = (TRAIN - TX2) / TX1
       ELSE
         TX1 = 0.0
@@ -4075,11 +4038,12 @@
       SUBROUTINE QSATCN(TT,P,Q,DQDT)
 !     SUBROUTINE QSATCN(TT,P,Q,DQDT,lprnt)
 
-      USE MACHINE , ONLY : kind_phys
+      USE MACHINE ,  ONLY : kind_phys
       USE FUNCPHYS , ONLY : fpvs
-      USE PHYSCONS, RV => con_RV, CVAP => con_CVAP, CLIQ => con_CLIQ    &
-     &,             CSOL => con_CSOL, TTP => con_TTP, HVAP => con_HVAP  &
-     &,             HFUS => con_HFUS, EPS => con_eps, EPSM1 => con_epsm1
+      USE PHYSCONS, RV   => con_RV,  CVAP => con_CVAP, CLIQ => con_CLIQ &
+     &,             CSOL => con_CSOL, TTP => con_TTP,  HVAP => con_HVAP &
+     &,             HFUS => con_HFUS, EPS => con_eps                    &
+     &,            EPSM1 => con_epsm1
       implicit none
 !
       real(kind=kind_phys) TT, P, Q, DQDT
@@ -4109,48 +4073,47 @@
       end
 
       SUBROUTINE ANGRAD( PRES, ALM,  AL2, TLA, PRB, WFN, UFN)
-      USE MACHINE , ONLY : kind_phys
+      USE MACHINE ,    ONLY : kind_phys
       use module_ras , only : refp, refr, tlac, plac, tlbpl, drdp, almax
       implicit none
 
-      real(kind=kind_phys) PRES                                         &
-     &,                    ALM,  AL2,  TLA,  TEM, TEM1                  &
+      real(kind=kind_phys) PRES, ALM,  AL2,  TLA,  TEM, TEM1            &
      &,                    PRB,  ACR,  WFN,  UFN
 !
       integer i
 !
-      IF (TLA .LT. 0.0) THEN
-          IF (PRES .LE. PLAC(1)) THEN
+      IF (TLA < 0.0) THEN
+          IF (PRES <= PLAC(1)) THEN
             TLA = TLAC(1)
-          ELSEIF (PRES .LE. PLAC(2)) THEN
+          ELSEIF (PRES <= PLAC(2)) THEN
             TLA = TLAC(2) + (PRES-PLAC(2))*tlbpl(1)
-          ELSEIF (PRES .LE. PLAC(3)) THEN
+          ELSEIF (PRES <= PLAC(3)) THEN
             TLA = TLAC(3) + (PRES-PLAC(3))*tlbpl(2)
-          ELSEIF (PRES .LE. PLAC(4)) THEN
+          ELSEIF (PRES <= PLAC(4)) THEN
             TLA = TLAC(4) + (PRES-PLAC(4))*tlbpl(3)
-          ELSEIF (PRES .LE. PLAC(5)) THEN
+          ELSEIF (PRES <= PLAC(5)) THEN
             TLA = TLAC(5) + (PRES-PLAC(5))*tlbpl(4)
-          ELSEIF (PRES .LE. PLAC(6)) THEN
+          ELSEIF (PRES <= PLAC(6)) THEN
             TLA = TLAC(6) + (PRES-PLAC(6))*tlbpl(5)
-          ELSEIF (PRES .LE. PLAC(7)) THEN
+          ELSEIF (PRES <= PLAC(7)) THEN
             TLA = TLAC(7) + (PRES-PLAC(7))*tlbpl(6)
-          ELSEIF (PRES .LE. PLAC(8)) THEN
+          ELSEIF (PRES <= PLAC(8)) THEN
             TLA = TLAC(8) + (PRES-PLAC(8))*tlbpl(7)
           ELSE
             TLA = TLAC(8)
           ENDIF
       ENDIF
-        IF (PRES .GE. REFP(1)) THEN
+        IF (PRES >= REFP(1)) THEN
           TEM = REFR(1)
-        ELSEIF (PRES .GE. REFP(2)) THEN
+        ELSEIF (PRES >= REFP(2)) THEN
           TEM = REFR(1) + (PRES-REFP(1)) * drdp(1)
-        ELSEIF (PRES .GE. REFP(3)) THEN
+        ELSEIF (PRES >= REFP(3)) THEN
           TEM = REFR(2) + (PRES-REFP(2)) * drdp(2)
-        ELSEIF (PRES .GE. REFP(4)) THEN
+        ELSEIF (PRES >= REFP(4)) THEN
           TEM = REFR(3) + (PRES-REFP(3)) * drdp(3)
-        ELSEIF (PRES .GE. REFP(5)) THEN
+        ELSEIF (PRES >= REFP(5)) THEN
           TEM = REFR(4) + (PRES-REFP(4)) * drdp(4)
-        ELSEIF (PRES .GE. REFP(6)) THEN
+        ELSEIF (PRES >= REFP(6)) THEN
           TEM = REFR(5) + (PRES-REFP(5)) * drdp(5)
         ELSE
           TEM = REFR(6)
@@ -4162,7 +4125,7 @@
       RETURN
       END
       SUBROUTINE SETQRP
-      USE MACHINE , ONLY : kind_phys
+      USE MACHINE ,    ONLY : kind_phys
       use module_ras , only : NQRP,C1XQRP,C2XQRP,TBQRP,TBQRA,TBQRB
       implicit none
 
@@ -4188,7 +4151,7 @@
       END
       FUNCTION QRPF(QRP)
 !
-      USE MACHINE , ONLY : kind_phys
+      USE MACHINE ,    ONLY : kind_phys
       use module_ras , only : NQRP,C1XQRP,C2XQRP,TBQRP,TBQRA,TBQRB
       implicit none
 
@@ -4205,7 +4168,7 @@
       RETURN
       END
       SUBROUTINE QRABF(QRP,QRAF,QRBF)
-      USE MACHINE , ONLY : kind_phys
+      USE MACHINE ,    ONLY : kind_phys
       use module_ras , only : NQRP,C1XQRP,C2XQRP,TBQRP,TBQRA,TBQRB
       implicit none
 !
@@ -4213,7 +4176,7 @@
       PARAMETER (ONE=1.0)
       INTEGER JX
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-      REAL_NQRP=REAL(NQRP)
+      REAL_NQRP = REAL(NQRP)
       XJ   = MIN(MAX(C1XQRP+C2XQRP*QRP,ONE),REAL_NQRP)
       JX   = MIN(XJ,NQRP-ONE)
       XJ   = XJ - JX
@@ -4223,7 +4186,7 @@
       RETURN
       END
       SUBROUTINE SETVTP
-      USE MACHINE , ONLY : kind_phys
+      USE MACHINE ,    ONLY : kind_phys
       use module_ras , only : NVTP,C1XVTP,C2XVTP,TBVTP
       implicit none
 
@@ -4245,7 +4208,7 @@
       END
       FUNCTION VTPF(ROR)
 !
-      USE MACHINE , ONLY : kind_phys
+      USE MACHINE ,    ONLY : kind_phys
       use module_ras , only : NVTP,C1XVTP,C2XVTP,TBVTP
       implicit none
       real(kind=kind_phys) ROR, VTPF, XJ, REAL_NVTP, ONE
@@ -4270,11 +4233,11 @@
      &,                                   pr1=1.0,   pr2=5.0            &
      &,                                   pr3=20.0
 !
-      if (prate .lt. pr1) then
+      if (prate < pr1) then
         clf = ccf1
-      elseif (prate .lt. pr2) then
+      elseif (prate < pr2) then
         clf = ccf2
-      elseif (prate .lt. pr3) then
+      elseif (prate < pr3) then
         clf = ccf3
       else
         clf = ccf4

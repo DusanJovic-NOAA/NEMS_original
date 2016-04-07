@@ -2542,11 +2542,11 @@
        end if
 !cggg landice end
 !
-! ensure the consistency between snwdph and sheleg
+! ensure the consistency between snwdph and weasd
 !
       if(fsnol .lt. 99999.) then  
        if(me .eq. 0) then
-       print *,'dbgx -- scale snwdph from sheleg'
+       print *,'dbgx -- scale snwdph from weasd'
        endif
        do i = 1, len
         if(slifcs(i).eq.1.) swdfcs(i) = 10.* snofcs(i)
@@ -2564,7 +2564,7 @@
       do i = 1, len
         if(slifcs(i).eq.1.) then
         if(snofcs(i).ne.0. .and. swdfcs(i).eq.0.) then
-          print *,'dbgx --scale snwdph from sheleg',
+          print *,'dbgx --scale snwdph from weasd',
      +        i, swdfcs(i), snofcs(i)
           swdfcs(i) = 10.* snofcs(i)
         endif

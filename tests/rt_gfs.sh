@@ -18,7 +18,7 @@ if [ "$NEMSIOIN" = ".true." ]; then
   if [ $MACHINE_ID = wcoss ]; then
     export SIGHDR=/nwprod/exec/global_sighdr
   elif [ $MACHINE_ID = theia ]; then
-    export SIGHDR=/scratch3/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
+    export SIGHDR=/scratch4/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
   fi
 else
   export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}

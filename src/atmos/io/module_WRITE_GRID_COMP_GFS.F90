@@ -48,7 +48,7 @@
       USE esmf_mod
       USE MODULE_WRITE_INTERNAL_STATE_GFS
       USE MODULE_WRITE_ROUTINES_GFS,ONLY : FIRST_PASS_GFS               &
-                                      ,WRITE_NEMSIO_OPEN 
+                                          ,WRITE_NEMSIO_OPEN 
 !
       USE MODULE_IO_MPI_DEF,ONLY    :  NUM_PES_FCST,NUM_PES_WRT         &
                                       ,N_GROUP,PETLIST_WRITE            &
@@ -75,14 +75,14 @@
       INTEGER,PARAMETER :: MAX_LENGTH_I1D=5000                            !<-- Max words in all 1-D integer history variables
       INTEGER,PARAMETER :: MAX_LENGTH_I2D=50000                           !<-- Max I,J points in each integer 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_R1D=25000                           !<-- Max words in all 1-D real history variables
-!      INTEGER,PARAMETER :: MAX_LENGTH_R2D=100000                          !<-- Max I,J points in each real 2D subdomain
+!     INTEGER,PARAMETER :: MAX_LENGTH_R2D=100000                          !<-- Max I,J points in each real 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_R2D=100000                          !<-- Max I,J points in each real 2D subdomain
-!      INTEGER,PARAMETER :: MAX_LENGTH_R2D=700000                          !<-- Max I,J points in each real 2D subdomain
+!     INTEGER,PARAMETER :: MAX_LENGTH_R2D=700000                          !<-- Max I,J points in each real 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_LOG=MAX_DATA_LOG                    !<-- Max logical variables
 !
       INTEGER,SAVE      :: LAST_FCST_TASK                                 !<-- Rank of the last forecast task
       INTEGER,SAVE      :: LEAD_WRITE_TASK                                !<-- Rank of the lead (first) write task in this write group
-      INTEGER,SAVE      :: LEAD_WRITE_TASK_INTER                         !<-- Rank of the lead (first) write task in this write group
+      INTEGER,SAVE      :: LEAD_WRITE_TASK_INTER                          !<-- Rank of the lead (first) write task in this write group
       INTEGER,SAVE      :: LAST_WRITE_TASK                                !<-- Rank of the last write task the write group
       INTEGER,SAVE      :: NTASKS                                         !<-- # of write tasks in the current group + all forecast tasks
       INTEGER,SAVE      :: NWTPG                                          !<-- # of write tasks (servers) per group 
@@ -95,18 +95,17 @@
 !-----------------------------------------------------------------------
 !
 !gfs
-      INTEGER         :: NFILE2WRT
-      INTEGER,DIMENSION(:),allocatable       :: LFILE2WRT
-      TYPE(NEMSIO_GFILE),save      :: NEMSIOFILE
+      INTEGER                          :: NFILE2WRT
+      INTEGER,DIMENSION(:),allocatable :: LFILE2WRT
+      TYPE(NEMSIO_GFILE),save          :: NEMSIOFILE
 !
 !-----------------------------------------------------------------------
 !
       TYPE(WRITE_INTERNAL_STATE_GFS),POINTER :: WRT_INT_STATE             ! The internal state pointer.
 !
 !-----------------------------------------------------------------------
-      REAL(KIND=kind_evod)         :: btim,btim0
-      REAL(KIND=kind_evod),PUBLIC,SAVE :: write_init_tim                     &
-                                    ,write_run_tim  
+      REAL(KIND=kind_evod)             :: btim,btim0
+      REAL(KIND=kind_evod),PUBLIC,SAVE :: write_init_tim, write_run_tim  
 !-----------------------------------------------------------------------
 !
       CONTAINS
@@ -240,10 +239,10 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE WRT_INITIALIZE_GFS(WRT_COMP                            &
-                               ,IMP_STATE_WRITE                         &
-                               ,EXP_STATE_WRITE                         &
-                               ,CLOCK                                   &
-                               ,RC_INIT)
+                                   ,IMP_STATE_WRITE                     &
+                                   ,EXP_STATE_WRITE                     &
+                                   ,CLOCK                               &
+                                   ,RC_INIT)
 !
 !-----------------------------------------------------------------------
 !***  INITIALIZE THE WRITE GRIDDED COMPONENT.
@@ -285,15 +284,15 @@
 !
 !-----------------------------------------------------------------------
 !
-      RC     =ESMF_SUCCESS
-      RC_INIT=ESMF_SUCCESS
+      RC      = ESMF_SUCCESS
+      RC_INIT = ESMF_SUCCESS
 !
 !----------------------------------------------------------------------- 
 !***  INITIALIZE THE WRITE COMPONENT TIMERS.
 !----------------------------------------------------------------------- 
 !
-      write_init_tim=0.
-      write_run_tim=0.
+      write_init_tim = 0.
+      write_run_tim  = 0.
 !
 !----------------------------------------------------------------------- 
 !***  ALLOCATE THE WRITE COMPONENT'S INTERNAL STATE.
@@ -305,7 +304,7 @@
 !***  ATTACH THE INTERNAL STATE TO THE WRITE COMPONENT.
 !----------------------------------------------------------------------- 
 !
-      wrap%WRITE_INT_STATE=>WRT_INT_STATE
+      wrap%WRITE_INT_STATE => WRT_INT_STATE
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Attach the Write Component's Internal State"
@@ -329,8 +328,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine for this group of tasks
-                            ,rc=RC)
+      CALL ESMF_VMGetCurrent(vm=VM,rc=RC)                                  !<-- VM is ESMF virtual machine for this group of tasks
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -344,7 +342,7 @@
 !
       IF(.NOT.ALLOCATED(NCURRENT_GROUP))THEN
         ALLOCATE(NCURRENT_GROUP(1),stat=ISTAT)
-        NCURRENT_GROUP(1)=N_GROUP
+        NCURRENT_GROUP(1) = N_GROUP
       ENDIF
 !
 !----------------------------------------------------------------------- 
@@ -352,7 +350,7 @@
 !----------------------------------------------------------------------- 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Get MPI Task IDs and Count from VM"
+      MESSAGE_CHECK = "Get MPI Task IDs and Count from VM"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -376,17 +374,17 @@
 !
       CALL GET_CONFIG_WRITE_GFS(WRT_COMP,WRT_INT_STATE,RC)              !<-- User's routine to extract configfile data
 !
-      NWTPG          =wrt_int_state%WRITE_TASKS_PER_GROUP
+      NWTPG = wrt_int_state%WRITE_TASKS_PER_GROUP
       IF(wrt_int_state%QUILTING) THEN
-        LAST_FCST_TASK =NTASKS-NWTPG-1
-        LEAD_WRITE_TASK=LAST_FCST_TASK+1
-        LAST_WRITE_TASK=NTASKS-1
-        LEAD_WRITE_TASK_INTER=NUM_PES_FCST
+        LAST_FCST_TASK        = NTASKS-NWTPG-1
+        LEAD_WRITE_TASK       = LAST_FCST_TASK+1
+        LAST_WRITE_TASK       = NTASKS-1
+        LEAD_WRITE_TASK_INTER = NUM_PES_FCST
       ELSE
-        LAST_FCST_TASK=NTASKS-1
-        LEAD_WRITE_TASK=LAST_FCST_TASK
-        LAST_WRITE_TASK=LAST_FCST_TASK
-        LEAD_WRITE_TASK_INTER=NUM_PES_FCST-1
+        LAST_FCST_TASK        = NTASKS-1
+        LEAD_WRITE_TASK       = LAST_FCST_TASK
+        LAST_WRITE_TASK       = LAST_FCST_TASK
+        LEAD_WRITE_TASK_INTER = NUM_PES_FCST-1
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -409,6 +407,7 @@
         ALLOCATE(wrt_int_state%ALL_DATA_R1D(MAX_LENGTH_R1D,wrt_int_state%num_file),stat=ISTAT)
       ENDIF
 !
+!     write(0,*)' MAXSIZE_R2D=',MAXSIZE_R2D,' num_file=',wrt_int_state%num_file
       IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_R2D))THEN
          ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAXSIZE_R2D,wrt_int_state%num_file),stat=ISTAT)
 !        ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAXSIZE_R2D),stat=ISTAT)
@@ -482,7 +481,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Set the Output Base Time to the Initial Clock Time"
+      MESSAGE_CHECK = "Set the Output Base Time to the Initial Clock Time"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -498,17 +497,17 @@
 !***  SET THE FIRST HISTORY FILE'S TIME INDEX.
 !-----------------------------------------------------------------------
 !
-      wrt_int_state%NFHOUR=0
+      wrt_int_state%NFHOUR = 0
 !
 !-----------------------------------------------------------------------
 !
-      IF(RC_INIT==ESMF_SUCCESS)THEN
+      IF(RC_INIT /= ESMF_SUCCESS) THEN
 !!!     WRITE(0,*)"PASS: Write_Initialize."
-      ELSE
+!     ELSE
         WRITE(0,*)"FAIL: Write_Initialize."
       ENDIF
 !
-!      write_init_tim=timef()-btim0
+!      write_init_tim = timef() - btim0
 !
 !----------------------------------------------------------------------- 
 !
@@ -647,30 +646,30 @@
       REAL(kind_evod)                       :: timef
 !
       REAL(KIND=kind_evod),DIMENSION(:)  ,POINTER  :: WORK_ARRAY_R1D
-!      REAL(KIND=kind_evod),DIMENSION(:,:),POINTER  :: WORK_ARRAY_R2D
-      REAL(KIND=kind_io4),DIMENSION(:,:),POINTER  :: WORK_ARRAY_R2D
-      REAL(KIND=kind_io4),DIMENSION(:)  ,POINTER  :: GLAT1D,GLON1D,TMP
+!      REAL(KIND=kind_evod),DIMENSION(:,:),POINTER :: WORK_ARRAY_R2D
+      REAL(KIND=kind_io4),DIMENSION(:,:),POINTER   :: WORK_ARRAY_R2D
+      REAL(KIND=kind_io4),DIMENSION(:)  ,POINTER   :: GLAT1D,GLON1D,TMP
 !
-      LOGICAL                               :: WRITE_LOGICAL
-      LOGICAL,SAVE                          :: FIRST=.TRUE.
-      LOGICAL,SAVE                          :: FILE_FIRST=.true.
+      LOGICAL                                 :: WRITE_LOGICAL
+      LOGICAL,SAVE                            :: FIRST=.TRUE.
+      LOGICAL,SAVE                            :: FILE_FIRST=.true.
 !
 !-- post variables
-      CHARACTER                             :: POST_GRIDTYPE
-      INTEGER                               :: POST_MAPTYPE,NSOIL
-      LOGICAL                               :: LOGFILEINPOST
+      CHARACTER                               :: POST_GRIDTYPE
+      INTEGER                                 :: POST_MAPTYPE,NSOIL
+      LOGICAL                                 :: LOGFILEINPOST
 !
-      CHARACTER(ESMF_MAXSTR)                :: NAME,GFNAME
+      CHARACTER(ESMF_MAXSTR)                  :: NAME,GFNAME
 !
-      TYPE(ESMF_Logical)                    :: WORK_LOGICAL
+      TYPE(ESMF_Logical)                      :: WORK_LOGICAL
 !
-      TYPE(ESMF_VM)                         :: VM
-      TYPE(ESMF_Grid),SAVE                  :: GRID1
-      TYPE(ESMF_DELayout)                   :: MY_DE_LAYOUT
-      TYPE(ESMF_Field)                      :: FIELD_WORK1
+      TYPE(ESMF_VM)                           :: VM
+      TYPE(ESMF_Grid),SAVE                    :: GRID1
+      TYPE(ESMF_DELayout)                     :: MY_DE_LAYOUT
+      TYPE(ESMF_Field)                        :: FIELD_WORK1
 !
-      TYPE(WRITE_WRAP_GFS)                        :: WRAP
-      TYPE(WRITE_INTERNAL_STATE_GFS),POINTER      :: WRT_INT_STATE
+      TYPE(WRITE_WRAP_GFS)                    :: WRAP
+      TYPE(WRITE_INTERNAL_STATE_GFS), POINTER :: WRT_INT_STATE
       TYPE(ESMF_LOGICAL),DIMENSION(:),POINTER :: FIRST_IO_PE
       TYPE(ESMF_Time)                         :: CURRTIME
 !
@@ -679,14 +678,14 @@
 !-----------------------------------------------------------------------
 !
       real(kind=kind_evod) :: wait_time
-      real(kind=8) :: times,times2,btim,btim0
+      real(kind=8)         :: times,times2,btim,btim0
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      RC    =ESMF_SUCCESS
-      RC_RUN=ESMF_SUCCESS
+      RC     = ESMF_SUCCESS
+      RC_RUN = ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -708,10 +707,10 @@
 !***  RETRIEVE THE WRITE COMPONENT'S ESMF INTERNAL STATE.
 !-----------------------------------------------------------------------
 !
-      btim0=timef()
+      btim0 = timef()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Retrieve Write Component's Internal State"
+      MESSAGE_CHECK = "Retrieve Write Component's Internal State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -723,7 +722,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      WRT_INT_STATE=>wrap%WRITE_INT_STATE                                  !<-- Local working pointer to internal state
+      WRT_INT_STATE => wrap%WRITE_INT_STATE                                !<-- Local working pointer to internal state
 !
 !-----------------------------------------------------------------------
 !***  GET THE CURRENT LOCAL VM.
@@ -732,7 +731,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Retrieve the Current VM for WRT_RUN"
+      MESSAGE_CHECK = "Retrieve the Current VM for WRT_RUN"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -752,22 +751,16 @@
 !***  TO ALL TASKS IN THE GROUP INCLUDING THE CURRENT WRITE TASKS.
 !-----------------------------------------------------------------------
 !
-      NCURRENT_GROUP(1)=N_GROUP
+      NCURRENT_GROUP(1) = N_GROUP
 !
-      MYPE_LOCAL=MYPE
-      if(wrt_int_state%quilting .and. MYPE>=LAST_FCST_TASK.and.NWTPG>0) &
-         MYPE_LOCAL=MOD(MYPE-NUM_PES_FCST,NWTPG)
-      if(.not.wrt_int_state%quilting .and. MYPE==LEAD_WRITE_TASK) &
-         MYPE_LOCAL=0
-!
-!      write(0,*)'in write_run, NWTPG=',NWTPG,'LAST_FCST_TASK=',         &
-!       LAST_FCST_TASK,'LEAD_WRITE_TASK=',LEAD_WRITE_TASK,               &
-!       'LAST_WRITE_TASK=',LAST_WRITE_TASK,'mype_local=',MYPE_LOCAL,     &
-!       'NCURRENT_GROUP(1)=',NCURRENT_GROUP(1),'LEAD_WRITE_TASK_INTER=', &
-!       LEAD_WRITE_TASK_INTER
+      MYPE_LOCAL = MYPE
+      if(wrt_int_state%quilting .and. MYPE >= LAST_FCST_TASK .and. NWTPG > 0) &
+         MYPE_LOCAL = MOD(MYPE-NUM_PES_FCST,NWTPG)
+      if(.not.wrt_int_state%quilting .and. MYPE == LEAD_WRITE_TASK) &
+         MYPE_LOCAL = 0
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Broadcast Current Write Group Number"
+      MESSAGE_CHECK = "Broadcast Current Write Group Number"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -802,7 +795,7 @@
 !***  HAVE THE INFORMATION.
 !-----------------------------------------------------------------------
 !
-      if(mype<num_pes_fcst) then
+      if(mype < num_pes_fcst) then
          CALL ESMF_AttributeGet(state     =IMP_STATE_WRITE             &  !<-- The Write component's import state
                              ,name      ='ipt_lats_node_a'             &  !<-- Name of the Attribute to extract
                              ,value =wrt_int_state%ipt_lats_node_a     &  !<-- Extract local subdomain starting I's
@@ -850,34 +843,34 @@
 !*** allocate IH_INT, IH_REAL for MPI_ISEND
 !
         if(.NOT.ALLOCATED(IH_INT) ) THEN
-           ALLOCATE(IH_INT(wrt_int_state%num_file))
-           ALLOCATE(IH_REAL(wrt_int_state%num_file))
-           DO I=1,wrt_int_state%num_file
-           IH_INT(I)=MPI_REQUEST_NULL
-           IH_REAL(I)=MPI_REQUEST_NULL
-           ENDDO
-       endif
+          ALLOCATE(IH_INT(wrt_int_state%num_file))
+          ALLOCATE(IH_REAL(wrt_int_state%num_file))
+          DO I=1,wrt_int_state%num_file
+            IH_INT(I)  = MPI_REQUEST_NULL
+            IH_REAL(I) = MPI_REQUEST_NULL
+          ENDDO
+        endif
 !
-       endif !fcst tasks
+      endif !fcst tasks
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Broadcast pdryini,zhour"
+        MESSAGE_CHECK = "Broadcast pdryini,zhour"
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_VMBroadcast(VM                                        &  !<-- The local VM
-                           ,zhour                                       &  !<-- The current active write group
-                           ,1                                           &  !<-- # of elements to broadcast
-                           ,0                                           &  !<-- Root sender is fcst task 0
+                             ,zhour                                     &  !<-- The current active write group
+                             ,1                                         &  !<-- # of elements to broadcast
+                             ,0                                         &  !<-- Root sender is fcst task 0
                            ,rc=RC)
-        wrt_int_state%zhour=zhour(1)
+        wrt_int_state%zhour = zhour(1)
 !
         CALL ESMF_VMBroadcast(VM                                        &  !<-- The local VM
-                           ,pdryini                                     &  !<-- The current active write group
-                           ,1                                           &  !<-- # of elements to broadcast
-                           ,0                                           &  !<-- Root sender is fcst task 0 
+                             ,pdryini                                   &  !<-- The current active write group
+                             ,1                                         &  !<-- # of elements to broadcast
+                             ,0                                         &  !<-- Root sender is fcst task 0 
                            ,rc=RC)
-!        write(0,*)'after vmbrct,pdryini=',pdryini(1)
-        wrt_int_state%pdryini=pdryini(1)
+!       write(0,*)'after vmbrct,pdryini=',pdryini(1)
+        wrt_int_state%pdryini = pdryini(1)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -885,10 +878,10 @@
 !
       ALLOCATE(FIRST_IO_PE(1))                                            !<-- A flag indicating that this is or is not
 !
-      IF( FILE_FIRST )THEN
-        FIRST_IO_PE(1)=ESMF_TRUE
+      IF( FILE_FIRST ) THEN
+        FIRST_IO_PE(1) = ESMF_TRUE
       ELSE
-        FIRST_IO_PE(1)=ESMF_FALSE
+        FIRST_IO_PE(1) = ESMF_FALSE
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -899,7 +892,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Broadcast FIRST_PASS Status"
+      MESSAGE_CHECK = "Broadcast FIRST_PASS Status"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -915,10 +908,10 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF(FIRST_IO_PE(1)==ESMF_TRUE)THEN
-        FIRST=.TRUE.
+      IF(FIRST_IO_PE(1) == ESMF_TRUE)THEN
+        FIRST = .TRUE.
       ELSE
-        FIRST=.FALSE.
+        FIRST = .FALSE.
       ENDIF
 !
       DEALLOCATE(FIRST_IO_PE)
@@ -928,7 +921,7 @@
 !-----------------------------------------------------------------------
       file_loop_all: Do NBDL=1, wrt_int_state%num_file
 !
-      times=timef()
+        times=timef()
 !-----------------------------------------------------------------------
 !***  CERTAIN WORK NEEDS TO BE DONE ONLY THE FIRST TIME THAT EACH
 !***  GROUP OF WRITE TASKS IS INVOKED.  THIS MOSTLY CONSISTS OF
@@ -936,14 +929,14 @@
 !***  FROM THE IMPORT STATE THAT DOES NOT CHANGE WITH FORECAST TIME.
 !-----------------------------------------------------------------------
 !
-      first_block: IF(FIRST)THEN                                           !<-- Execute this routine only if this is the 
+        first_block: IF(FIRST)THEN                                           !<-- Execute this routine only if this is the 
                                                                            !(FILE_FIRST )THEN!    1st pass by the current set of write tasks.
 !
 !-----------------------------------------------------------------------
 !
           CALL FIRST_PASS_GFS(IMP_STATE_WRITE                           &
-                       ,WRT_INT_STATE,NTASKS,MYPE,NBDL                  &
-                       ,NCURRENT_GROUP(1))
+                             ,WRT_INT_STATE,NTASKS,MYPE,NBDL            &
+                             ,NCURRENT_GROUP(1))
 !
 !-----------------------------------------------------------------------
 !***  ALL FORECAST TASKS PLUS THE WRITE TASKS IN THIS WRITE GROUP
@@ -956,7 +949,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      ENDIF first_block
+        ENDIF first_block
 !
 !-----------------------------------------------------------------------
 !***  THE ELAPSED FORECAST TIME (HOURS) WILL BE APPENDED TO THE NAME
@@ -964,48 +957,50 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Current Time for Output"
+        MESSAGE_CHECK="Extract Current Time for Output"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_ClockGet(clock   =CLOCK                                 &  !<-- The ESMF Clock
-                        ,currTime=CURRTIME                              &  !<-- The current time (ESMF) on the clock
-                        ,rc      =RC)
+        CALL ESMF_ClockGet(clock   =CLOCK                                 &  !<-- The ESMF Clock
+                          ,currTime=CURRTIME                              &  !<-- The current time (ESMF) on the clock
+                          ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  ESMF TIME DIFFERENCE BETWEEN START TIME AND CURRENT TIME
 !-----------------------------------------------------------------------
 !
-      wrt_int_state%IO_CURRTIMEDIFF=CURRTIME-wrt_int_state%IO_BASETIME
+!       print *,' CURRTIME=',CURRTIME,' IO_BASETIME=',wrt_int_state%IO_BASETIME,' mype=',mype
+        wrt_int_state%IO_CURRTIMEDIFF = CURRTIME-wrt_int_state%IO_BASETIME
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Elapsed Forecast Time for Output"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+        MESSAGE_CHECK="Elapsed Forecast Time for Output"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_TimeIntervalGet(timeinterval=wrt_int_state%IO_CURRTIMEDIFF &
-                               ,h           =wrt_int_state%NFHOUR          &  !<-- The elapsed time in hours (REAL)
-                               ,rc          =RC)
+        CALL ESMF_TimeIntervalGet(timeinterval=wrt_int_state%IO_CURRTIMEDIFF &
+                                 ,h           =wrt_int_state%NFHOUR          &  !<-- The elapsed time in hours (REAL)
+                                 ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !
-      IM=wrt_int_state%IM(1)
-      JM=wrt_int_state%JM(1)
+        IM = wrt_int_state%IM(1)
+        JM = wrt_int_state%JM(1)
 !
-      KOUNT_I2D=wrt_int_state%KOUNT_I2D(NBDL)
-      KOUNT_R2D=wrt_int_state%KOUNT_R2D(NBDL)
-      NFCST_TASKS=NUM_PES_FCST                                             !<-- Number of fcst tasks sending to this write task
+        KOUNT_I2D   = wrt_int_state%KOUNT_I2D(NBDL)
+        KOUNT_R2D   = wrt_int_state%KOUNT_R2D(NBDL)
+        NFCST_TASKS = NUM_PES_FCST                 !<-- Number of fcst tasks sending to this write task
 !
+
 !-----------------------------------------------------------------------
-      fcst_tasks: IF( MYPE<NFCST_TASKS)THEN      !<-- Only the forecast tasks can see this data so far
+        fcst_tasks: IF( MYPE<NFCST_TASKS)THEN      !<-- Only the forecast tasks can see this data so far
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -1014,16 +1009,16 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract History Bundle from Write Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+          MESSAGE_CHECK = "Extract History Bundle from Write Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
-                          ,itemName   =wrt_int_state%filename_base(NBDL)     &  !<-- The name of the history data Bundle
-                          ,fieldbundle=FILE_BUNDLE                      &  !<-- The history data Bundle inside the import state
-                          ,rc         =RC)
+          CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
+                            ,itemName   =wrt_int_state%filename_base(NBDL)     &  !<-- The name of the history data Bundle
+                            ,fieldbundle=FILE_BUNDLE                      &  !<-- The history data Bundle inside the import state
+                            ,rc         =RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -1031,47 +1026,47 @@
 !***  THIS INCLUDES ALL INDIVIDUAL 2D HISTORY QUANTITIES AS WELL AS
 !***  ALL MODEL LEVELS OF THE 3D REAL HISTORY ARRAYS.
 !-----------------------------------------------------------------------
-        NN_INTEGER = 0
-        NN_REAL    = 0
+          NN_INTEGER = 0
+          NN_REAL    = 0
 !
-        ipt_lats_node_a = wrt_int_state%ipt_lats_node_a
-        lats_node_a     = wrt_int_state%lats_node_a
+          ipt_lats_node_a = wrt_int_state%ipt_lats_node_a
+          lats_node_a     = wrt_int_state%lats_node_a
 !
 !-----------------------------------------------------------------------
 !***  BE SURE THE INTEGER AND REAL BUFFERS ARE AVAILABLE FOR ISENDs
 !-----------------------------------------------------------------------
 !
-        btim = timef()
-        CALL MPI_WAIT(IH_INT(NBDL),JSTAT,IERR) 
-        wait_time = timef()-btim
-        if(wait_time > 1.e3) write(0,*)' Long integer buffer WAIT =',wait_time*1.e-3
+          btim = timef()
+          CALL MPI_WAIT(IH_INT(NBDL),JSTAT,IERR) 
+          wait_time = timef()-btim
+          if(wait_time > 1.e3) write(0,*)' Long integer buffer WAIT =',wait_time*1.e-3
 !
-        btim = timef()
-        CALL MPI_WAIT(IH_REAL(NBDL),JSTAT,IERR) 
-        wait_time = timef()-btim
-        if(wait_time > 1.e3) write(0,*)' Long real buffer WAIT =',wait_time*1.e-3
+          btim = timef()
+          CALL MPI_WAIT(IH_REAL(NBDL),JSTAT,IERR) 
+          wait_time = timef()-btim
+          if(wait_time > 1.e3) write(0,*)' Long real buffer WAIT =',wait_time*1.e-3
 !
 !-----------------------------------------------------------------------
 !
-        btim=timef()
+          btim=timef()
 !
-        field_block: DO N=1,wrt_int_state%NCOUNT_FIELDS(NBDL)                 !<-- Loop through all Fields in the import state
+          field_block: DO N=1,wrt_int_state%NCOUNT_FIELDS(NBDL)                 !<-- Loop through all Fields in the import state
 !
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract 2-D Fields from History Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+            MESSAGE_CHECK="Extract 2-D Fields from History Bundle"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleGet(FILE_BUNDLE                               &  !<-- The write component's history data Bundle
-                                  ,FIELDNAME  =wrt_int_state%FIELD_NAME(N,NBDL)   &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                        &  !<-- The ESMF Field data pointer
-                                  ,rc    =RC)
+            CALL ESMF_FieldBundleGet(FILE_BUNDLE                               &  !<-- The write component's history data Bundle
+                                    ,FIELDNAME  =wrt_int_state%FIELD_NAME(N,NBDL)   &  !<-- The ESMF Field's name
+                                    ,field =FIELD_WORK1                        &  !<-- The ESMF Field data pointer
+                                    ,rc    =RC)
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -1079,52 +1074,53 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Check Datatype of Field from History Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+            MESSAGE_CHECK="Check Datatype of Field from History Bundle"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldGet(field   =FIELD_WORK1                       &  !<-- The ESMF Field
-                            ,typekind=DATATYPE                          &  !<-- ESMF specifier of variable type and kind
-                            ,rc      =RC)
+            CALL ESMF_FieldGet(field   =FIELD_WORK1                       &  !<-- The ESMF Field
+                              ,typekind=DATATYPE                          &  !<-- ESMF specifier of variable type and kind
+                              ,rc      =RC)
  
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !--------------------------------------------------------------------
 !                      -- INTEGER FIELDS --
 !--------------------------------------------------------------------
 !
-          IF(DATATYPE == ESMF_TYPEKIND_I4) THEN                               !<-- Extract integer gridded data from each ESMF Field
+
+            IF(DATATYPE == ESMF_TYPEKIND_I4) THEN                               !<-- Extract integer gridded data from each ESMF Field
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Extract Pointer from 2-D Integer Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+              MESSAGE_CHECK="Extract Pointer from 2-D Integer Field"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldGet(field     =FIELD_WORK1                  &  !<-- The ESMF Field
-                              ,localDe   =0                            &  !<-- # of DEs in this grid
-                              ,farrayPtr =WORK_ARRAY_I2D               &  !<-- Put the 2D integer data from the Field here
-                              ,rc        =RC)
+              CALL ESMF_FieldGet(field     =FIELD_WORK1                  &  !<-- The ESMF Field
+                                ,localDe   =0                            &  !<-- # of DEs in this grid
+                                ,farrayPtr =WORK_ARRAY_I2D               &  !<-- Put the 2D integer data from the Field here
+                                ,rc        =RC)
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            ISTART = LBOUND(WORK_ARRAY_I2D,1)
-            IEND   = UBOUND(WORK_ARRAY_I2D,1)
-            JSTART = LBOUND(WORK_ARRAY_I2D,2)
-            JEND   = UBOUND(WORK_ARRAY_I2D,2)
+              ISTART = LBOUND(WORK_ARRAY_I2D,1)
+              IEND   = UBOUND(WORK_ARRAY_I2D,1)
+              JSTART = LBOUND(WORK_ARRAY_I2D,2)
+              JEND   = UBOUND(WORK_ARRAY_I2D,2)
 !*** allow buff_mult has larger subdomain
-            if(JEND>wrt_int_state%lats_node_a)JEND=wrt_int_state%lats_node_a
+              if(JEND > wrt_int_state%lats_node_a) JEND = wrt_int_state%lats_node_a
 !
-            IF(NN_INTEGER+IEND*JEND>MAXSIZE_I2D)THEN
-              WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
-                       ,' MAX_LENGTH_I2D OR MAX_DATA_I2D BECAUSE'       &
-                       ,' YOU HAVE EXCEEDED THE DECLARED SIZE OF'       &
-                       ,' ALL_DATA_I2D'
-            ENDIF
+              IF(NN_INTEGER+IEND*JEND>MAXSIZE_I2D)THEN
+                WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
+                         ,' MAX_LENGTH_I2D OR MAX_DATA_I2D BECAUSE'       &
+                         ,' YOU HAVE EXCEEDED THE DECLARED SIZE OF'       &
+                         ,' ALL_DATA_I2D'
+              ENDIF
 !
 !
 !-----------------------------------------------------------------------
@@ -1132,90 +1128,103 @@
 !* data to write task data(im*nrecord*lats(mytask)
 !-----------------------------------------------------------------------
 !
-            if(NTASKS > 1) then
-              NNEXT=(IEND-ISTART+1)*KOUNT_I2D
-              DO J=JSTART,JEND
-                JMAP = wrt_int_state%nwrttask_on_fcst(J)
-                N1   = (J-JSTART)*NNEXT
-                wrt_int_state%ALL_DATA_I2D(NN_INTEGER+1+N1:              &
-                  NN_INTEGER+IEND-ISTART+1+N1,NBDL)=                          &
-                  WORK_ARRAY_I2D(ISTART:IEND,JMAP)     !<-- String together this task's 2D real data
-              ENDDO
-              NN_INTEGER=NN_INTEGER+IEND-ISTART+1   !<-- for next record
+              if(NTASKS > 1) then
+                NNEXT = (IEND-ISTART+1)*KOUNT_I2D
+                DO J=JSTART,JEND
+                  JMAP = wrt_int_state%nwrttask_on_fcst(J)
+                  N1   = (J-JSTART)*NNEXT
+                  wrt_int_state%ALL_DATA_I2D(NN_INTEGER+1+N1:              &
+                    NN_INTEGER+IEND-ISTART+1+N1,NBDL) =                          &
+                    WORK_ARRAY_I2D(ISTART:IEND,JMAP)     !<-- String together this task's 2D real data
+                ENDDO
+                NN_INTEGER = NN_INTEGER+IEND-ISTART + 1  !<-- for next record
 !
-            else
+              else
 !
-              wrt_int_state%ALL_DATA_I2D(NN_INTEGER+1:NN_INTEGER+IM*JM,NBDL)= &
-                reshape(WORK_ARRAY_I2D,(/im*jm/) )
-              NN_INTEGER=NN_INTEGER+IM*JM
-            endif
+                wrt_int_state%ALL_DATA_I2D(NN_INTEGER+1:NN_INTEGER+IM*JM,NBDL)= &
+                  reshape(WORK_ARRAY_I2D,(/im*jm/) )
+                NN_INTEGER = NN_INTEGER+IM*JM
+              endif
 !
 !--------------------------------------------------------------------
 !                        -- REAL FIELDS --
 !--------------------------------------------------------------------
 !
-          ELSEIF(DATATYPE == ESMF_TYPEKIND_R4) THEN                        !<-- Extract real gridded data from each ESMF Field
+            ELSEIF(DATATYPE == ESMF_TYPEKIND_R4) THEN                        !<-- Extract real gridded data from each ESMF Field
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Extract Pointer from 2-D Real Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+              MESSAGE_CHECK = "Extract Pointer from 2-D Real Field"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
-                              ,localDe   =0                             &  !<-- # of DEs in this grid
-                              ,farrayPtr =WORK_ARRAY_R2D                &  !<-- Put the 2D real data from the Field here
-                              ,rc        =RC)
+              CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
+                                ,localDe   =0                             &  !<-- # of DEs in this grid
+                                ,farrayPtr =WORK_ARRAY_R2D                &  !<-- Put the 2D real data from the Field here
+                                ,rc        =RC)
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            ISTART = LBOUND(WORK_ARRAY_R2D,1)
-            IEND   = UBOUND(WORK_ARRAY_R2D,1)
-            JSTART = LBOUND(WORK_ARRAY_R2D,2)
-            JEND   = UBOUND(WORK_ARRAY_R2D,2)
+              ISTART = LBOUND(WORK_ARRAY_R2D,1)
+              IEND   = UBOUND(WORK_ARRAY_R2D,1)
+              JSTART = LBOUND(WORK_ARRAY_R2D,2)
+              JEND   = UBOUND(WORK_ARRAY_R2D,2)
 !jw allow buff_mult has larger subdomain
-            if(JEND>wrt_int_state%lats_node_a) JEND = wrt_int_state%lats_node_a
+              if(JEND>wrt_int_state%lats_node_a) JEND = wrt_int_state%lats_node_a
 
-            IF(NN_REAL+IEND*JEND>MAXSIZE_R2D)THEN
-              WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
-                       ,' MAX_LENGTH_R2D OR MAX_DATA_R2D BECAUSE'       &
-                       ,' YOU HAVE EXCEEDED THE DECLARED SIZE OF'       &
-                       ,' ALL_DATA_R2D'
-            ENDIF
+              IF(NN_REAL+IEND*JEND>MAXSIZE_R2D)THEN
+                WRITE(0,*)' WARNING:  YOU MUST INCREASE THE SIZE OF'      &
+                         ,' MAX_LENGTH_R2D OR MAX_DATA_R2D BECAUSE'       &
+                         ,' YOU HAVE EXCEEDED THE DECLARED SIZE OF'       &
+                         ,' ALL_DATA_R2D'
+              ENDIF
 !
 !*** regroup to send to write processes
 !
-            if(NTASKS > 1) then
-            NNEXT = (IEND-ISTART+1)*KOUNT_R2D
-            DO J=JSTART,JEND
-              JMAP = wrt_int_state%nwrttask_on_fcst(J)
-              N1   = (J-JSTART)*NNEXT
-!              if(N==1)write(0,*)'fcst,J=',J,'JSTART=',JSTART,'JEND=',JEND,'JMAP=', &
-!                JMAP,'N1=',N1,'ISTART=',ISTART,'IEND=',IEND,'NN_REAL=',NN_REAL, &
-!                'NNEXT=',NNEXT,'KOUNT=',KOUNT_R2D
-              wrt_int_state%ALL_DATA_R2D(NN_REAL+1+N1:NN_REAL+IEND-ISTART+1+N1,NBDL)=  &
-                WORK_ARRAY_R2D(ISTART:IEND,JMAP)                                  !<-- String together this task's 2D real data
-            ENDDO
-            NN_REAL=NN_REAL+IEND-ISTART+1
+              if(NTASKS > 1) then
+                NNEXT = (IEND-ISTART+1)*KOUNT_R2D
+!$omp parallel do private(i,j,ij,jmap,n1)
+                DO J=JSTART,JEND
+                  JMAP = wrt_int_state%nwrttask_on_fcst(J)
+                  N1   = (J-JSTART)*NNEXT
 
-            else
-             wrt_int_state%ALL_DATA_R2D(NN_REAL+1:NN_REAL+IM*JM,NBDL)=          &
-               reshape(WORK_ARRAY_R2D,(/im*jm/) )
-             NN_REAL=NN_REAL+(IEND-ISTART+1)*(JEND-JSTART+1)
-            endif
+!               wrt_int_state%ALL_DATA_R2D(NN_REAL+1+N1:NN_REAL+IEND-ISTART+1+N1,NBDL)=  &
+!               WORK_ARRAY_R2D(ISTART:IEND,JMAP)                                  !<-- String together this task's 2D real data
+
+                  ij = nn_real + n1 - istart + 1
+                  do i=istart,iend
+                    wrt_int_state%ALL_DATA_R2D(ij+i,nbdl) = WORK_ARRAY_R2D(i,jmap)
+                  enddo
+                ENDDO
+                NN_REAL = NN_REAL + IEND - ISTART + 1
+
+              else
+
+!            wrt_int_state%ALL_DATA_R2D(NN_REAL+1:NN_REAL+IM*JM,NBDL)=          &
+!              reshape(WORK_ARRAY_R2D,(/im*jm/) )
+!$omp parallel do private(i,j,ij)
+                do j=jstart,jend
+                  ij = nn_real + (j-1)*(iend-istart+1)
+                  do i=istart,iend
+                    wrt_int_state%ALL_DATA_R2D(ij+i,nbdl) = WORK_ARRAY_R2D(i,j)
+                  enddo
+                enddo
+
+                NN_REAL = NN_REAL + (IEND-ISTART+1)*(JEND-JSTART+1)
+              endif
 !
-          ENDIF
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !
-        ENDDO field_block
+          ENDDO field_block
 !
 !
 !-----------------------------------------------------------------------
 !
-      ifntasks1: IF(NTASKS > 1 .and. mype/= lead_write_task) THEN
+          ifntasks1: IF(NTASKS > 1 .and. mype /= lead_write_task) THEN
 !
 !-----------------------------------------------------------------------
 !***  ALL FORECAST TASKS NOW SEND THEIR STRINGS OF 2D HISTORY DATA
@@ -1223,74 +1232,71 @@
 !*** send data to write tasks
 !-----------------------------------------------------------------------
 !
-         DO N=lead_write_task,last_write_task
+            DO N=lead_write_task,last_write_task
 !
 !-----------------------------------------------------------------------
 !***  FIRST THE 2-D INTEGER DATA.
 !-----------------------------------------------------------------------
 !
-!            write(0,*)' in module_WRITE_GRID_COMP_GFS N=',N,' nwtpg=',&
-!           nwtpg,lead_write_task,last_write_task,nfcst_tasks
-            N1 = mod(n-nfcst_tasks,nwtpg) + 1
-            if(wrt_int_state%quilting) then
-              target_wrttask = N1-1
-              mpi_commun = MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))
-            else
-              target_wrttask = lead_write_task
-              mpi_commun     = MPI_COMM_COMP
-            endif
+              N1 = mod(n-nfcst_tasks,nwtpg) + 1
+              if(wrt_int_state%quilting) then
+                target_wrttask = N1-1
+                mpi_commun = MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))
+              else
+                target_wrttask = lead_write_task
+                mpi_commun     = MPI_COMM_COMP
+              endif
 !
-            NLAT_I2D   = wrt_int_state%NLAT_TO_WRITE_TASK(N1)*IM*KOUNT_I2D
-            NSTART_I2D = (wrt_int_state%NSTART_TO_WRITE_TASK(N1)-1)*IM*KOUNT_I2D+1
-            IF(NLAT_I2D > 0)THEN
+              NLAT_I2D   = wrt_int_state%NLAT_TO_WRITE_TASK(N1)*IM*KOUNT_I2D
+              NSTART_I2D = (wrt_int_state%NSTART_TO_WRITE_TASK(N1)-1)*IM*KOUNT_I2D+1
+
+              IF(NLAT_I2D > 0)THEN
 !
-              CALL MPI_ISEND(wrt_int_state%ALL_DATA_I2D(NSTART_I2D,NBDL)&  !<-- Fcst tasks' string of 2D integer history data
-                            ,NLAT_I2D                                   &  !<-- #of words in the data string
-                            ,MPI_INTEGER                                &  !<-- The datatype
-                            ,target_wrttask                             &  !<-- The target write task
-                            ,wrt_int_state%NFHOUR*1000+mype+NBDL*10     &  !<-- An MPI tag
-                            ,mpi_commun                                 &  !<-- The MPI intercommunicator between fcst and quilt tasks
-                            ,IH_INT(NBDL)                               &  !<-- MPI communication request handle
-                            ,IERR )
+                CALL MPI_ISEND(wrt_int_state%ALL_DATA_I2D(NSTART_I2D,NBDL)&  !<-- Fcst tasks' string of 2D integer history data
+                              ,NLAT_I2D                                   &  !<-- #of words in the data string
+                              ,MPI_INTEGER                                &  !<-- The datatype
+                              ,target_wrttask                             &  !<-- The target write task
+                              ,wrt_int_state%NFHOUR*1000+mype+NBDL*10     &  !<-- An MPI tag
+                              ,mpi_commun                                 &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                              ,IH_INT(NBDL)                               &  !<-- MPI communication request handle
+                              ,IERR )
 !
-              IF(IERR /= 0) WRITE(0,*)' ISend of integer data by fcst task 0 has failed.  IERR=',IERR
-            ENDIF
+                IF(IERR /= 0) WRITE(0,*)' ISend of integer data by fcst task 0 has failed.  IERR=',IERR
+              ENDIF
 !
 !-----------------------------------------------------------------------
 !***  THEN THE 2-D REAL DATA.
 !-----------------------------------------------------------------------
 !
-            NLAT_R2D   = wrt_int_state%NLAT_TO_WRITE_TASK(N1)*IM*KOUNT_R2D
-            NSTART_R2D = (wrt_int_state%NSTART_TO_WRITE_TASK(N1)-1)*IM*KOUNT_R2D+1
-            IF(NLAT_R2D > 0) THEN
-              CALL MPI_ISEND(wrt_int_state%ALL_DATA_R2D(NSTART_R2D,NBDL)  &  !<-- Fcst tasks' string of 2D real history data
-                            ,NLAT_R2D                                     &  !<-- #of words in the data string
-                            ,MPI_REAL                                     &  !<-- The datatype
-                            ,target_wrttask                               &  !<-- The target write task
-                            ,wrt_int_state%NFHOUR*1000+mype+N1*100+NBDL*10 &  !<-- An MPI tag
-                            ,mpi_commun                                   &  !<-- The MPI intercommunicator between fcst and quilt tasks
-                            ,IH_REAL(NBDL)                                &  !<-- MPI communication request handle
-                            ,IERR )
-!          write(0,*)'wrt node, to wrt node=',target_wrttask,'NBDL=',NBDL,'nlat=', &
-!           wrt_int_state%NLAT_TO_WRITE_TASK(N1),'NSTART_R2D=',NSTART_R2D, &
-!           'KOUNT_R2D=',KOUNT_R2D,'tag=',wrt_int_state%NFHOUR*1000+mype+N1*100+NBDL*10,&
-!           'all_data_r2d=',wrt_int_state%ALL_DATA_R2D(NSTART_R2D:NSTART_R2D+2,NBDL)
+              NLAT_R2D   = wrt_int_state%NLAT_TO_WRITE_TASK(N1)*IM*KOUNT_R2D
+              NSTART_R2D = (wrt_int_state%NSTART_TO_WRITE_TASK(N1)-1)*IM*KOUNT_R2D+1
+
+              IF(NLAT_R2D > 0) THEN
+                CALL MPI_ISEND(wrt_int_state%ALL_DATA_R2D(NSTART_R2D,NBDL)  &  !<-- Fcst tasks' string of 2D real history data
+                              ,NLAT_R2D                                     &  !<-- #of words in the data string
+                              ,MPI_REAL                                     &  !<-- The datatype
+                              ,target_wrttask                               &  !<-- The target write task
+                              ,wrt_int_state%NFHOUR*1000+mype+N1*100+NBDL*10 &  !<-- An MPI tag
+                              ,mpi_commun                                   &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                              ,IH_REAL(NBDL)                                &  !<-- MPI communication request handle
+                              ,IERR )
+
 !
-              IF(IERR/=0)WRITE(0,*)' ISend of real data by fcst task 0 has failed.  IERR=',IERR
-            ENDIF
+                IF(IERR/=0)WRITE(0,*)' ISend of real data by fcst task 0 has failed.  IERR=',IERR
+              ENDIF
 !
-        ENDDO
+            ENDDO
 !
 !-----------------------------------------------------------------------
 !
-      ENDIF  ifntasks1
+          ENDIF  ifntasks1
 !
 !-----------------------------------------------------------------------
 !
-      ENDIF fcst_tasks
+        ENDIF fcst_tasks
 !
 !rst-rst ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-     ENDDO file_loop_all
+      ENDDO file_loop_all
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  THE FORECAST TASKS FINISHED SENDING DATA TO WRITE TASKS, THEY
@@ -1298,7 +1304,8 @@
 !***  TASK WILL NEED TO WRITE OUT THE OUTPUT FILE.
 !-----------------------------------------------------------------------
 !
-      IF(MYPE<LEAD_WRITE_TASK ) RETURN
+      IF (MYPE < LEAD_WRITE_TASK ) RETURN
+
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -1310,9 +1317,10 @@
 !-----------------------------------------------------------------------
       file_loop: Do NBDL=1, wrt_int_state%num_file
 !
-      times=timef()
-      KOUNT_I2D=wrt_int_state%KOUNT_I2D(NBDL)
-      KOUNT_R2D=wrt_int_state%KOUNT_R2D(NBDL)
+      times = timef()
+      KOUNT_I2D = wrt_int_state%KOUNT_I2D(NBDL)
+      KOUNT_R2D = wrt_int_state%KOUNT_R2D(NBDL)
+
 !
 !-----------------------------------------------------------------------
 !
@@ -1323,8 +1331,9 @@
 !***  STRINGS OF 2D HISTORY DATA FROM THE APPROPRIATE FCST TASKS.
 !-----------------------------------------------------------------------
 !
-       JSTA_WRITE=wrt_int_state%JSTART_WRITE(MYPE_LOCAL+1)                 !<-- JTS of this write task
-       JEND_WRITE=wrt_int_state%JEND_WRITE(MYPE_LOCAL+1)                   !<-- JTE to this write task
+       JSTA_WRITE = wrt_int_state%JSTART_WRITE(MYPE_LOCAL+1)                 !<-- JTS of this write task
+       JEND_WRITE = wrt_int_state%JEND_WRITE(MYPE_LOCAL+1)                   !<-- JTE to this write task
+
 !     
        ALLOCATE(wrt_int_state%WRITE_SUBSET_I(1:IM,JSTA_WRITE:JEND_WRITE  &
                                   ,wrt_int_state%KOUNT_I2D(NBDL)))
@@ -1332,16 +1341,16 @@
                                   ,wrt_int_state%KOUNT_R2D(NBDL)))
 !
 !-----------------------------------------------------------------------
-       NLAT_I2D=0
-       NLAT_R2D=0
-       JFCST_I2D=0
-       JFCST_R2D=0
+       NLAT_I2D  = 0
+       NLAT_R2D  = 0
+       JFCST_I2D = 0
+       JFCST_R2D = 0
        if(wrt_int_state%quilting) then
-         mpi_commun=MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))
-         NFCST_TASKS_SEND=NFCST_TASKS
+         mpi_commun       = MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))
+         NFCST_TASKS_SEND = NFCST_TASKS
        else
-         mpi_commun=MPI_COMM_COMP
-         NFCST_TASKS_SEND=NFCST_TASKS-1
+         mpi_commun       = MPI_COMM_COMP
+         NFCST_TASKS_SEND = NFCST_TASKS-1
        endif
 !
 !-----------------------------------------------------------------------
@@ -1350,34 +1359,34 @@
 !
        if(.not.wrt_int_state%quilting) then
 !
-          JSTART=wrt_int_state%nstart_from_fcst_task(lead_write_task+1)
+         JSTART=wrt_int_state%nstart_from_fcst_task(lead_write_task+1)
 !
-          IF(KOUNT_I2D>0) THEN
-            NN=0
-            DO J=1,wrt_int_state%nlat_from_fcst_task(lead_write_task+1)
-              JLAT=wrt_int_state%fcst_lat_on_write_task(JSTART+J-1)
-              DO NF=1,KOUNT_I2D                                                 !<-- Loop through all the 2D integer fields
-              DO I=1,IM
-                NN=NN+1
-                wrt_int_state%WRITE_SUBSET_I(I,JLAT,NF)=wrt_int_state%ALL_DATA_I2D(NN,NBDL) !<-- Put data into write task's domain subsection
-              ENDDO
-              ENDDO
-            ENDDO
-          ENDIF
+         IF(KOUNT_I2D>0) THEN
+           NN=0
+           DO J=1,wrt_int_state%nlat_from_fcst_task(lead_write_task+1)
+             JLAT=wrt_int_state%fcst_lat_on_write_task(JSTART+J-1)
+             DO NF=1,KOUNT_I2D                                                 !<-- Loop through all the 2D integer fields
+               DO I=1,IM
+                 NN=NN+1
+                 wrt_int_state%WRITE_SUBSET_I(I,JLAT,NF)=wrt_int_state%ALL_DATA_I2D(NN,NBDL) !<-- Put data into write task's domain subsection
+               ENDDO
+             ENDDO
+           ENDDO
+         ENDIF
 !
-          IF(KOUNT_R2D>0) THEN
-            NN=0
-            DO J=1,wrt_int_state%nlat_from_fcst_task(lead_write_task+1)
+         IF(KOUNT_R2D>0) THEN
+           NN=0
+           DO J=1,wrt_int_state%nlat_from_fcst_task(lead_write_task+1)
              JLAT=wrt_int_state%fcst_lat_on_write_task(JSTART+J-1)
              DO NF=1,KOUNT_R2D                                                 !<-- Loop through all the 2D real fields
-             DO I=1,IM
-              NN=NN+1
-              wrt_int_state%WRITE_SUBSET_R(I,JLAT,NF)=wrt_int_state%ALL_DATA_R2D(NN,NBDL) !<-- Put data into write task's domain subsection
+               DO I=1,IM
+                 NN=NN+1
+                 wrt_int_state%WRITE_SUBSET_R(I,JLAT,NF)=wrt_int_state%ALL_DATA_R2D(NN,NBDL) !<-- Put data into write task's domain subsection
+               ENDDO
              ENDDO
-             ENDDO
-            ENDDO
-          ENDIF
-        endif
+           ENDDO
+         ENDIF
+       endif
 !-----------------------------------------------------------------------
 !*** collect all_data_i/r2d to write pe(s)
 !-----------------------------------------------------------------------
@@ -1389,13 +1398,13 @@
 !***  RECEIVE 2-D INTEGER DATA IF THERE IS ANY.
 !-----------------------------------------------------------------------
 !
-        IF(N==1)THEN
-          NSTART_I2D=1
+        IF(N == 1) THEN
+          NSTART_I2D = 1
         ELSE
-          NSTART_I2D=NSTART_I2D+NLAT_I2D
+          NSTART_I2D = NSTART_I2D + NLAT_I2D
         ENDIF
-        NLAT_I2D=wrt_int_state%nlat_from_fcst_task(N)*IM*KOUNT_I2D
-        IF(NLAT_I2D>0)THEN
+        NLAT_I2D = wrt_int_state%nlat_from_fcst_task(N)*IM*KOUNT_I2D
+        IF (NLAT_I2D > 0) THEN
           CALL MPI_RECV(wrt_int_state%ALL_DATA_I2D(NSTART_I2D,NBDL)     &  !<-- Fcst tasks' string of 2D integer history data
                        ,NLAT_I2D                                        &  !<-- Max #of words in the data string
                        ,MPI_INTEGER                                     &  !<-- The datatype
@@ -1407,18 +1416,18 @@
 !
           IF(IERR/=0)WRITE(0,*)' Recv by write task from fcst task has failed.  IERR=',IERR
 !
-          NN=0
+          NN = 0
 !
-          JSTART=wrt_int_state%nstart_from_fcst_task(N)
+          JSTART = wrt_int_state%nstart_from_fcst_task(N)
           DO J=1,wrt_int_state%nlat_from_fcst_task(N)
 !
-            JFCST_I2D=JFCST_I2D+1
-            JLAT=wrt_int_state%fcst_lat_on_write_task(JSTART+J-1)
+            JFCST_I2D = JFCST_I2D + 1
+            JLAT      = wrt_int_state%fcst_lat_on_write_task(JSTART+J-1)
             DO NF=1,KOUNT_I2D                                                 !<-- Loop through all the 2D integer fields
-            DO I=1,IM
-              NN=NN+1
-              wrt_int_state%WRITE_SUBSET_I(I,JLAT,NF)=wrt_int_state%ALL_DATA_I2D(NN,NBDL) !<-- Put data into write task's domain subsection
-            ENDDO
+              DO I=1,IM
+                NN = NN + 1
+                wrt_int_state%WRITE_SUBSET_I(I,JLAT,NF) = wrt_int_state%ALL_DATA_I2D(NN,NBDL) !<-- Put data into write task's domain subsection
+              ENDDO
             ENDDO
            ENDDO
 !
@@ -1428,8 +1437,8 @@
 !***  RECEIVE 2-D REAL DATA IF THERE IS ANY.
 !-----------------------------------------------------------------------
 !
-        NLAT_R2D=wrt_int_state%nlat_from_fcst_task(N)*IM*KOUNT_R2D
-        IF(NLAT_R2D>0)THEN
+        NLAT_R2D = wrt_int_state%nlat_from_fcst_task(N)*IM*KOUNT_R2D
+        IF (NLAT_R2D > 0) THEN
           CALL MPI_RECV(wrt_int_state%ALL_DATA_R2D(1,NBDL)                &  !<-- Fcst tasks' string of 2D real history data
                        ,NLAT_R2D                                          &  !<-- Max #of words in the data string
                        ,MPI_REAL                                          &  !<-- The datatype
@@ -1453,29 +1462,20 @@
 !***  A GIVEN WRITE TASK.
 !-----------------------------------------------------------------------
 !
-          NN=0
+          NN = 0
 !
-          JSTART=wrt_int_state%nstart_from_fcst_task(N)
-
-!          write(0,*)'wrt node, from fcst node N=',N,'nlat=', &
-!           wrt_int_state%nlat_from_fcst_task(N),'JFCST_R2D=',JFCST_R2D, &
-!           'KOUNT_R2D=',KOUNT_R2D,'nstart=',wrt_int_state%nstart_from_fcst_task(N), &
-!           'tag=',wrt_int_state%NFHOUR*1000+N-1+(mype-nfcst_tasks_send+1)*100+NBDL*10, &
-!           'all_data_r2d=',wrt_int_state%ALL_DATA_R2D(1:3,NBDL),'jlat=', &
-!           wrt_int_state%fcst_lat_on_write_task(JSTART:JSTART+3),  &
-!           'jlat=',wrt_int_state%fcst_lat_on_write_task(JSTART: &
-!           JSTART+wrt_int_state%nlat_from_fcst_task(N)-1)
+          JSTART = wrt_int_state%nstart_from_fcst_task(N)
 
           DO J=1,wrt_int_state%nlat_from_fcst_task(N)
 !
-           JFCST_R2D=JFCST_R2D+1
-           JLAT=wrt_int_state%fcst_lat_on_write_task(JSTART+J-1)
-           DO NF=1,KOUNT_R2D                                                 !<-- Loop through all the 2D real fields
-           DO I=1,IM
-            NN=NN+1
-            wrt_int_state%WRITE_SUBSET_R(I,JLAT,NF)=wrt_int_state%ALL_DATA_R2D(NN,NBDL) !<-- Put data into write task's domain subsection
-           ENDDO
-           ENDDO
+            JFCST_R2D = JFCST_R2D + 1
+            JLAT      = wrt_int_state%fcst_lat_on_write_task(JSTART+J-1)
+            DO NF=1,KOUNT_R2D                                                 !<-- Loop through all the 2D real fields
+              DO I=1,IM
+                NN = NN + 1
+                wrt_int_state%WRITE_SUBSET_R(I,JLAT,NF) = wrt_int_state%ALL_DATA_R2D(NN,NBDL) !<-- Put data into write task's domain subsection
+              ENDDO
+            ENDDO
           ENDDO
 !
         ENDIF  !end NLAT_R2D>0
@@ -1524,7 +1524,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-       MESSAGE_CHECK="Lead Write Task Gets Actual Current Time from Clock"
+       MESSAGE_CHECK = "Lead Write Task Gets Actual Current Time from Clock"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1543,7 +1543,7 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          SECOND_FCST=ISECOND_FCST+REAL(ISECOND_NUM)/REAL(ISECOND_DEN)     !<-- Current forecast seconds (real)
+          SECOND_FCST = ISECOND_FCST+REAL(ISECOND_NUM)/REAL(ISECOND_DEN)     !<-- Current forecast seconds (real)
 !
 !-----------------------------------------------------------------------
 !***  ELAPSED FORECAST TIME.
@@ -1552,7 +1552,7 @@
           wrt_int_state%IO_CURRTIMEDIFF=CURRTIME-wrt_int_state%IO_BASETIME
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Lead Write Task Gets Actual Elapsed Fcst Time"
+          MESSAGE_CHECK = "Lead Write Task Gets Actual Elapsed Fcst Time"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1643,7 +1643,7 @@
 !***  WRITE OUT THE HISTORY FILE AS SELECTED.
 !-----------------------------------------------------------------------
 !
-      IF(MYPE_LOCAL==0)THEN
+      IF(MYPE_LOCAL == 0) THEN
 !
         IF(wrt_int_state%WRITE_NEMSIOFLAG)THEN
 !
@@ -1677,17 +1677,17 @@
           NN=0
 !
           DO J=JSTA_WRITE,JEND_WRITE
-          DO I=1,IM
-            NN=NN+1
-            wrt_int_state%BUFF_INT(NN)=wrt_int_state%WRITE_SUBSET_I(I,J,NFIELD)
-          ENDDO
+            DO I=1,IM
+              NN=NN+1
+              wrt_int_state%BUFF_INT(NN)=wrt_int_state%WRITE_SUBSET_I(I,J,NFIELD)
+            ENDDO
           ENDDO
 !
           allocate(idisp(nwtpg),ircnt(nwtpg))
-          IDISP(1)=0
+          IDISP(1) = 0
           Do I=1,NWTPG
-            IRCNT(I)=IM*(wrt_int_state%JEND_WRITE(I)-wrt_int_state%JSTART_WRITE(I)+1)
-            if(I>1) IDISP(I)=IDISP(I-1)+IRCNT(I-1)
+            IRCNT(I) = IM*(wrt_int_state%JEND_WRITE(I)-wrt_int_state%JSTART_WRITE(I)+1)
+            if(I>1) IDISP(I) = IDISP(I-1) + IRCNT(I-1)
           ENDDO
 !
           CALL MPI_GATHERV(wrt_int_state%BUFF_INT                          &
@@ -1703,14 +1703,14 @@
 
             deallocate(idisp,ircnt)
 !
-            IF(MYPE_LOCAL==0)THEN                                  !<-- The lead write task
+            IF(MYPE_LOCAL == 0) THEN                                  !<-- The lead write task
 !
               NN=0 
               DO J=1,JM
-              DO I=1,IM
-                NN=NN+1
-                wrt_int_state%OUTPUT_ARRAY_I2D(I,J)=wrt_int_state%BUFF_INT_TMP(NN) !<-- Lead write task fills its part of full domain
-              ENDDO
+                DO I=1,IM
+                  NN=NN+1
+                  wrt_int_state%OUTPUT_ARRAY_I2D(I,J)=wrt_int_state%BUFF_INT_TMP(NN) !<-- Lead write task fills its part of full domain
+                ENDDO
               ENDDO
             ENDIF
 !
@@ -1726,7 +1726,7 @@
 !
           ENDIF
 !
-          IF(MYPE_LOCAL==0) THEN                                            !<-- WRite task write out data
+          IF(MYPE_LOCAL == 0) THEN                                            !<-- WRite task write out data
 !
             NPOSN_1=(NFIELD-1)*NAME_MAXSTR+1
             NPOSN_2=NFIELD*NAME_MAXSTR

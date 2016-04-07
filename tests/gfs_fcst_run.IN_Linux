@@ -121,13 +121,6 @@ NST_SPINUP=${NST_SPINUP:-.false.}
 # restart default is coldstart
  export fcst_begin=_FCST_BEGIN_
  export fcst_begin=${fcst_begin:-YES}
- export RESTART=_RESTART_
- export RESTART=${RESTART:-.false.}
- if [ $RESTART = .true. ] ; then
-   if [ $machine = 'theia' ]; then
-    export nemsioget=/home/Weiyu.Yang/bin/nemsio_get
-   fi
- fi
 #read one time step input data
 # export FHROT=_FHROT_
 # restart file output frequency
@@ -261,14 +254,19 @@ export restart_ndays=${restart_ndays:-1}
 if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
  export FHROT=0
+ export RESTART=.false.
 else
  if [[ -s $RUNDIR/grdr1 ]] ; then
    export nhourb=`$nemsioget $RUNDIR/grdr1 nfhour`
    export FHROT=$nhourb
+   export RESTART=.true.
+   if [ $machine = 'theia' ]; then
+    export nemsioget=/home/Weiyu.Yang/bin/nemsio_get
+   fi
  else
    export nhourb=$((restart_ndays*24))
    export FHROT=$nhourb
-   export restart=YES
+   export RESTART=.false.
  fi
 fi
 #

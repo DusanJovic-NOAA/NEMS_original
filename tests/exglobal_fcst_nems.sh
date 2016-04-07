@@ -67,6 +67,7 @@
 #                          height_dependent_g. Add f107_kp_skip_size to skip
 #                          the f10.7 and kp observation data before the start time
 #                          of the forecast run.
+# 2016-03-17 S. Moorthi  - added default values to Weiyu's WAM changes
 #
 # Usage:  global_forecast.sh SIGI/GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -481,6 +482,10 @@ elif [ $machine = WCOSS ] ; then
 # export MP_USE_TOKEN_FLOW_ CONTROL=${MP_USE_TOKEN_FLOW_ CONTROL:-yes}
 # export MP_S_ENABLE_ERR_PRINT=yes
 fi
+if [ $machine = WCOSS_C ] ; then
+ module load iobuf
+ export IOBUF_PARAMS=${IOBUF_PARAMS:-'*:size=8M:verbose'}
+fi
 
 export model=${model:-global}
 #  Command line arguments.
@@ -590,7 +595,7 @@ export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
 export NGPTC=${NGPTC:-30}
 #jw
-export ADIABATIC=${ADIABATIC:-.false.}
+export ADIABATIC=${ADIABATIC:-${ADIAB:-.false.}}
 export nsout=${nsout:-0}
 export LDFI_GRD=${LDFI_GRD:-.false.}
 export LDFIFLTO=${LDFIFLTO:-.false.}
@@ -610,9 +615,8 @@ export NDSLFV=${NDSLFV:-.false.}
 if [ $NDSLFV = .true. ] ; then
  export MASS_DP=.true.
  export PROCESS_SPLIT=.false.
- dp_import=1
+ export dp_import=1
 fi
-dp_import=${dp_import:-0}
 #
 export EXPLICIT=${EXPLICIT:-.false.}
 export MASS_DP=${MASS_DP:-.false.}
@@ -724,7 +728,16 @@ export nhours_dfini=${nhours_dfini:-$FHDFI}
 export GB=${GB:-0}
 export gfsio_in=${gfsio_in:-.false.}
 if [ $gfsio_in = .true. ] ; then export GB=1 ; fi
+
+#        WAM related namelist variables
+#        ------------------------------
 export IDEA=${IDEA:-.false.}
+export WAM_IPE_COUPLING=${WAM_IPE_COUPLING:-.false.}
+export WAM_IPE_COUPLING=${WAM_IPE_COUPLING:-.false.}
+export HEIGHT_DEPENDENT_G=${HEIGHT_DEPENDENT_G:-.false.}
+export F107_KP_SIZE=${F107_KP_SIZE:-56}
+export F107_KP_SKIP_SIZE=${F107_KP_SKIP_SIZE:-0}
+export F107_KP_INTERVAL=${F107_KP_INTERVAL:-10800}
 
 #
 ## for post
@@ -818,6 +831,11 @@ export FILESTYLE=${FILESTYLE:-'L'}
 export PGMOUT=${PGMOUT:-${pgmout:-'&1'}}
 export PGMERR=${PGMERR:-${pgmerr:-'&2'}}
 export MEMBER_NAMES=${MEMBER_NAMES:-''}
+
+export p_import=${p_import:-1}
+export dp_import=${dp_import:-1}
+export dpdt_import=${dpdt_import:-1}
+
 if [ $machine = IBMP6 ] ; then
   export NTHSTACK=${NTHSTACK:-128000000}
   export XLSMPOPTS=${XLSMPOPTS:-"parthds=$NTHREADS:stack=$NTHSTACK"}
@@ -857,11 +875,17 @@ export pgm=$PGM
 $LOGSCRIPT
 ${NCP} $FCSTEXEC $DATA
 #------------------------------------------------------------
-if [ $FHROT -gt 0 ] ; then export RESTART=.true. ; fi
-export RESTART=${RESTART:-.false.}
-if [ $RESTART = .false. ] ; then # when restarting should not remove - Weiyu
-  rm -f NULL
+if [ $FHROT -gt 0 ] ; then
+ if [ $NEMSIO_IN = .false. ] ; then
+   if [ $SIGI2 != NULL ] ; then export RESTART=.true. ; fi
+ else
+   if [ $SIGI2 != NULL -a $GRDI2 != NULL ] ; then export RESTART=.true. ; fi
+ fi
 fi
+export RESTART=${RESTART:-.false.}
+#if [ $RESTART = .false. ] ; then # when restarting should not remove - Weiyu
+#  rm -f NULL
+#fi
 FH=$((10#$FHINI))
 [[ $FH -lt 10 ]]&&FH=0$FH
 if [[ $FHINI -gt 0 ]] ; then
@@ -983,11 +1007,11 @@ if [[ $ENS_NUM -le 1 ]] ; then
     fi
     ln -fs $SFCI  sfc_ini
     ln -fs $NSTI  nst_ini
-    if [ $FHROT -gt 0 ] ; then
-      export RESTART=.true.
-    else
-      export RESTART=.false.
-    fi
+#   if [ $FHROT -gt 0 ] ; then
+#     export RESTART=.true.
+#   else
+#     export RESTART=.false.
+#   fi
   else
     ln -fs $GRDI  grid_ini
     ln -fs $GRDI2 grid_ini2
@@ -1259,7 +1283,6 @@ cat << EOF > atm_namelist.rc
 core: $core
 print_esmf:     ${print_esmf}
 
-
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35
 deltim:                  ${DELTIM}.0
@@ -1332,6 +1355,7 @@ lsoil:                   $LSOIL
 passive_tracer:          $PASSIVE_TRACER
 dfilevs:                 $DFILEVS
 ldfiflto:                $LDFIFLTO
+num_tracers:             $NTRAC
 ldfi_grd:                $LDFI_GRD
 lwrtgrdcmp:              $LWRTGRDCMP
 nemsio_in:               $NEMSIO_IN
@@ -1388,9 +1412,9 @@ u_import:                         1
 v_import:                         1
 temp_import:                      1
 tracer_import:                    1
-p_import:                         0
+p_import:                         $p_import
 dp_import:                        $dp_import
-dpdt_import:                      0
+dpdt_import:                      $dpdt_import
 
 idate1_export:                    1
 z_export:                         1
@@ -1420,9 +1444,9 @@ u_import:                         1
 v_import:                         1
 temp_import:                      1
 tracer_import:                    1
-p_import:                         1
-dp_import:                        1
-dpdt_import:                      1
+p_import:                         $p_import
+dp_import:                        $dp_import
+dpdt_import:                      $dpdt_import
 
 idate1_export:                    1
 z_export:                         1
@@ -1435,7 +1459,7 @@ temp_export:                      1
 tracer_export:                    1
 p_export:                         1
 dp_export:                        1
-dpdt_export:                      0
+dpdt_export:                      1
 
 # Surface state.
 #---------------

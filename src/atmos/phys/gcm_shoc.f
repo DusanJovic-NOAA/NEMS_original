@@ -1375,7 +1375,7 @@ contains
 !               + (1.-om1) * (0.622*esval2_1/max(esval2_1,pval-esval2_1))
 
 !         beta1 = (rgas/rv)*(lstarn1/(rgas*Tl1_1))*(lstarn1/(cp*Tl1_1))
-          beta2 = (lstarn1*lstarn1*onebrvcp) / (Tl1_1*Tl1_1)              ! A.18
+          beta1 = (lstarn1*lstarn1*onebrvcp) / (Tl1_1*Tl1_1)              ! A.18
 
 
 ! Are the two plumes equal?  If so then set qs and beta

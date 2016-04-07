@@ -1139,11 +1139,106 @@
         ENDDO
         ENDIF
 !
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TLMAX(I,J)=-999.
+          int_state%TLMIN(I,J)=999.
+!         int_state%T02MAX(I,J)=-999.
+!         int_state%T02MIN(I,J)=999.
+!         int_state%RH02MAX(I,J)=-999.
+!         int_state%RH02MIN(I,J)=999.
+          int_state%SPD10MAX(I,J)=-999.
+!         int_state%UPHLMAX(I,J)=0.
+!         int_state%U10MAX(I,J)=-999.
+!         int_state%V10MAX(I,J)=-999.
+!         int_state%UPVVELMAX(I,J)=-999.
+!         int_state%DNVVELMAX(I,J)=999.
+!         int_state%T10AVG(I,J)=0.
+!         int_state%T10(I,J)=0.
+!         int_state%PSFCAVG(I,J)=0.
+!         int_state%AKHSAVG(I,J)=0.
+!         int_state%AKMSAVG(I,J)=0.
+!         int_state%SNOAVG(I,J)=0.
+!         int_state%REFDMAX(I,J)=-999.
+!         int_state%UPHLMAX(I,J)=-999.
+        ENDDO
+        ENDDO
+!
         DO N=1,NUM_DOMAINS_MAX
           int_state%NTSCM(N)=-999
         ENDDO
 !
         int_state%BDY_WAS_READ=.FALSE.
+!
+!! End of tracker variables
+!###    Tracker scalar integer
+!rv     int_state%NTRACK=0
+        int_state%TRACK_HAVE_GUESS=0
+        int_state%TRACK_N_OLD=0
+        int_state%TRACKER_HAVEFIX=0
+        int_state%TRACKER_GAVE_UP=0
+!###    Tracker scalar real
+        int_state%TRACK_LAST_HOUR=0.
+        int_state%TRACK_GUESS_LAT=0.
+        int_state%TRACK_GUESS_LON=0.
+        int_state%TRACK_EDGE_DIST=0.
+        int_state%TRACK_STDERR_M1=0.
+        int_state%TRACK_STDERR_M2=0.
+        int_state%TRACK_STDERR_M3=0.
+        int_state%TRACKER_FIXLAT=0.
+        int_state%TRACKER_FIXLON=0.
+        int_state%TRACKER_IFIX=0.
+        int_state%TRACKER_JFIX=0.
+        int_state%TRACKER_RMW=0.
+        int_state%TRACKER_PMIN=0.
+        int_state%TRACKER_VMAX=0.
+!###    Tracker 1D integer
+        DO I=1,TRACK_MAX_OLD
+          int_state%TRACK_OLD_NTSD(I)=0
+        ENDDO
+!###    Tracker 1D real
+        DO I=1,TRACK_MAX_OLD
+          int_state%TRACK_OLD_LAT(I)=0.
+          int_state%TRACK_OLD_LON(I)=0.
+        ENDDO
+!###    Tracker 2D integer
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TRACKER_FIXES(I,J)=-999.
+        ENDDO
+        ENDDO
+!###    Tracker 2D real
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%MEMBRANE_MSLP(I,J)=0.
+          int_state%P850RV(I,J)=0.
+          int_state%P700RV(I,J)=0.
+          int_state%P850WIND(I,J)=0.
+          int_state%P700WIND(I,J)=0.
+          int_state%P500U(I,J)=0.
+          int_state%P500V(I,J)=0.
+          int_state%P700U(I,J)=0.
+          int_state%P700V(I,J)=0.
+          int_state%P850U(I,J)=0.
+          int_state%P850V(I,J)=0.
+          int_state%P850Z(I,J)=0.
+          int_state%P700Z(I,J)=0.
+          int_state%M10WIND(I,J)=0.
+          int_state%M10RV(I,J)=0.
+          int_state%SP850RV(I,J)=0.
+          int_state%SP700RV(I,J)=0.
+          int_state%SP850WIND(I,J)=0.
+          int_state%SP700WIND(I,J)=0.
+          int_state%SP850Z(I,J)=0.
+          int_state%SP700Z(I,J)=0.
+          int_state%SM10WIND(I,J)=0.
+          int_state%SM10RV(I,J)=0.
+          int_state%SMSLP(I,J)=0.
+          int_state%TRACKER_ANGLE(I,J)=0.
+          int_state%TRACKER_DISTSQ(I,J)=0.
+        ENDDO
+        ENDDO
+!! End of tracker variables
 !
 !-----------------------------------------------------------------------
 !***  Initialize the timer variables now.
@@ -4840,6 +4935,7 @@ if_global: IF(GLOBAL)THEN    !-- Global NMMB
           int_state%UPVVELMAX(I,J)=-999.
           int_state%DNVVELMAX(I,J)=999.
           int_state%T10AVG(I,J)=0.
+!rv       int_state%T10(I,J)=0.    !!!! please uncomment this line when changing NMMB results (this is placing Infinity in history file)
           int_state%PSFCAVG(I,J)=0.
           int_state%AKHSAVG(I,J)=0.
           int_state%AKMSAVG(I,J)=0.

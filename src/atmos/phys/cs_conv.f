@@ -7,15 +7,16 @@ module cs_conv
 ! Author: Minoru Chikira
 ! History:
 !     Modified for GFS by Don Dazlich 26 June 2014
-!  Apr 10 2015 : S. Moorthi - check for allocatable arrays and fix argument for cbmfx
+!  Apr 10 2015 : S. Moorthi - check for allocatable arrays and fix argument for cbmfx,
+!                             import max wcb from outside, increase cloud type to 20
 !
 !---------------------------------------------------------------------------------
 !DD adapt to GFS
-  use machine ,   only : r8 => kind_phys
-  use physcons,   only : cp => con_cp, con_fvirt, grav => con_g,           &
-     &                   rair => con_rd, rvap => con_rv,                   &
-     &                   cliq => con_cliq, cvap => con_cvap,               &
-     &                   el => con_hvap, emelt => con_hfus, t0c => con_t0c
+  use machine ,   only : r8   => kind_phys
+  use physcons,   only : cp   => con_cp,   grav  => con_g,                   &
+     &                   rair => con_rd,   rvap  => con_rv,                  &
+     &                   cliq => con_cliq, cvap  => con_cvap,                &
+     &                   el   => con_hvap, emelt => con_hfus, t0c => con_t0c
   use funcphys, only : fpvs ! this is saturation vapor pressure in funcphys.f
 
 !DD  use abortutils,    only: endrun
@@ -75,11 +76,13 @@ module cs_conv
 !DD  integer, save :: ICHNK        ! chunk identifier
 
 !   [INTERNAL PARM]   !DD moved to module scope and allocatable
-  LOGICAL,   SAVE, ALLOCATABLE, DIMENSION(:) :: OTSPT1   ! tracer transport by updraft, downdraft on/off
+  logical, save, dimension(50) :: OTSPT1, OTSPT2
+  integer, save, dimension(50) :: IMFXR
+! LOGICAL,   SAVE, ALLOCATABLE, DIMENSION(:) :: OTSPT1   ! tracer transport by updraft, downdraft on/off
                                                          ! should not include subgrid PDF and turbulence
-   LOGICAL,  SAVE, ALLOCATABLE, DIMENSION(:) :: OTSPT2   ! tracer transport by subsidence on/off
+!  LOGICAL,  SAVE, ALLOCATABLE, DIMENSION(:) :: OTSPT2   ! tracer transport by subsidence on/off
                                                          ! should include subgrid PDF and turbulence
-   INTEGER,  SAVE, ALLOCATABLE, DIMENSION(:) :: IMFXR 
+!  INTEGER,  SAVE, ALLOCATABLE, DIMENSION(:) :: IMFXR 
 !  REAL(r8), SAVE, ALLOCATABLE, DIMENSION(:) :: FSCAV    !DD    split declaration and initialization
 !  REAL(r8), SAVE, ALLOCATABLE, DIMENSION(:) :: FSWTR    !DD    split declaration and initialization
 !
@@ -98,13 +101,13 @@ module cs_conv
 
 !---------------------------------------------------------------------------------
 ! use GFS functions
-   function FQSAT( T, P )   ! calculate saturation water vapor 
+   function FQSAT( T, P )        ! calculate saturation water vapor 
 
    implicit none
   
-   real(r8) :: FQSAT           ! saturation water vapor
-   real(r8), intent(in) :: T   ! temperature [K]
-   real(r8), intent(in) :: P   ! pressure [Pa]
+   real(r8)             :: FQSAT ! saturation water vapor
+   real(r8), intent(in) :: T     ! temperature [K]
+   real(r8), intent(in) :: P     ! pressure [Pa]
    real(r8), parameter  :: one_m10=1.0d-10
   
 !DD  FQSAT = EPSV * ES0 / P &
@@ -113,18 +116,18 @@ module cs_conv
 
    FQSAT = fpvs(T)             !DD this is saturation vapor pressure
 !  FQSAT = EPSV * FQSAT / P    !DD This is saturation mixing ratio
-   FQSAT = EPSV * FQSAT / (max(p+epsvm1*fqsat,ONE_M10))  !DD&Moo This is saturation mixing ratio
+   FQSAT = EPSV * FQSAT / (max(p+epsvm1*fqsat,ONE_M10))  !DD&Moo This is saturation specific humidiry
 
    end function FQSAT
 !---------------------------------------------------------------------------------
 !  following GFS
-   function FDQSAT( T, QS )   ! calculate d(qs)/dT
+   function FDQSAT( T, QS )       ! calculate d(qs)/dT
 
    implicit none
   
-   real(r8) :: FDQSAT           ! d(QSAT)/d(T)
-   real(r8), intent(in) :: T    ! temperature [K]
-   real(r8), intent(in) :: QS   ! saturation water vapor [kg/kg]
+   real(r8)             :: FDQSAT ! d(QSAT)/d(T)
+   real(r8), intent(in) :: T      ! temperature [K]
+   real(r8), intent(in) :: QS     ! saturation water vapor [kg/kg]
    real(r8)             :: wrk
   
    real(r8), parameter :: fact1=(cvap-cliq)/rvap,fact2=el/rvap-fact1*t0c
@@ -132,9 +135,9 @@ module cs_conv
 !DD  FDQSAT = (EL+EMELT/2._r8*(1._r8-SIGN(1._r8,T-TMELT))) &
 !DD         * QS / ( RVAP * T*T )
 
-            wrk      = 1.0 / t
-            FDQSAT   = qs * wrk * (fact1 + fact2*wrk)
-!           FDQSAT   = qs * (fact1 / t + fact2 / (t**2))
+       wrk    = 1.0 / t
+       FDQSAT = qs * wrk * (fact1 + fact2*wrk)
+!      FDQSAT = qs * (fact1 / t + fact2 / (t**2))
 
 
    end function FDQSAT
@@ -336,12 +339,33 @@ module cs_conv
 !     parameter (tf=230.16, tcr=260.16, tcrf=1.0/(tcr-tf))
       parameter (tf=233.16, tcr=263.16, tcrf=1.0/(tcr-tf),tcl=2.0)
       real(r8) :: tem
+      logical, save :: first=.true.
 
 !DD   call mpi_comm_rank( mpi_comm_world, irank, ierror )
 !
 ! convert CAM input variables to MIROC counterparts
 !
  !DD  ICHNK = lchnk
+!
+   if (first) then
+!    if (.not. allocated(OTSPT1)) ALLOCATE (OTSPT1(NTR))
+!    if (.not. allocated(OTSPT2)) ALLOCATE (OTSPT2(NTR))
+!    if (.not. allocated(IMFXR))  ALLOCATE (IMFXR(NTR))
+     do i=1,ntr
+       OTSPT1(i) = .false.
+       OTSPT2(i) = .true.
+       IMFXR(i)  = 0
+     enddo
+     OTSPT2(1)   = .false.
+     OTSPT2(ITL) = .false.
+     OTSPT2(ITI) = .false.
+ 
+     IMFXR( 1  ) = 1
+     IMFXR( ITL) = 1
+     IMFXR( ITI) = 1
+     first = .false.
+   endif
+!
    ISTS = 1
    IENS = IJSDIM
 
@@ -767,13 +791,14 @@ module cs_conv
 !
 !  [ONCE]
    IF ( OFIRST ) THEN
+     OFIRST = .FALSE.
+
 !DD  IF ( mrank == 0 ) &
 !DD  WRITE ( iulog,* ) ' @@@ CHIKIRA-SUGIYAMA CUMULUS SCHEME'
 
-     OFIRST = .FALSE.
-     if (.not. allocated(OTSPT1)) ALLOCATE (OTSPT1(NTR))  !DD made module scope and allocatable
-     if (.not. allocated(OTSPT2)) ALLOCATE (OTSPT2(NTR))  !DD made module scope and allocatable
-     if (.not. allocated(IMFXR))  ALLOCATE (IMFXR(NTR))   !DD made module scope and allocatable
+!    if (.not. allocated(OTSPT1)) ALLOCATE (OTSPT1(NTR))  !DD made module scope and allocatable
+!    if (.not. allocated(OTSPT2)) ALLOCATE (OTSPT2(NTR))  !DD made module scope and allocatable
+!    if (.not. allocated(IMFXR))  ALLOCATE (IMFXR(NTR))   !DD made module scope and allocatable
 
 !    if (.not. allocated(FSCAV))  ALLOCATE (FSCAV(NTR))   !DD made module scope and allocatable
 !    if (.not. allocated(FSWTR))  ALLOCATE (FSWTR(NTR))   !DD made module scope and allocatable
@@ -785,8 +810,8 @@ module cs_conv
 !      FSWTR(n) = 0._r8       !DD    split declaration and initialization
 !    enddo
 
+!DD  IF ( mype == 0 ) WRITE ( iulog,*)' ### PCUMC: OINICB=T - DEFAULT USED: CBMFX', 0.D0
      IF ( OINICB ) THEN
-!DD    IF ( mype == 0 ) WRITE ( iulog,*)' ### PCUMC: OINICB=T - DEFAULT USED: CBMFX', 0.D0
        CBMFX = 0.D0
      END IF
 !
@@ -820,17 +845,17 @@ module cs_conv
 !DD         IF ( mype == 0 ) WRITE( iulog,* )' ### PCUMC: WCB =', ( WCB( CTP ), CTP=1, NCTP)
 !DD#endif
 
-     OTSPT1      = .false.
-     OTSPT2      = .true.
-     OTSPT2(1)   = .false.
-     OTSPT2(ITL) = .false.
-     OTSPT2(ITI) = .false.
+!    OTSPT1      = .false.
+!    OTSPT2      = .true.
+!    OTSPT2(1)   = .false.
+!    OTSPT2(ITL) = .false.
+!    OTSPT2(ITI) = .false.
 
-     IMFXR( :  ) = 0
-     IMFXR( 1  ) = 1
-     IMFXR( ITL) = 1
-     IMFXR( ITI) = 1
-   END IF
+!    IMFXR( :  ) = 0
+!    IMFXR( 1  ) = 1
+!    IMFXR( ITL) = 1
+!    IMFXR( ITI) = 1
+   END IF             ! ofirst if
 !
    kp1 = kmax + 1
    do k=1,kmax
@@ -1638,11 +1663,11 @@ module cs_conv
          GCTM( I,K )  = GDT( I,K ) + DCTM
          GCQM( I,K )  = GDQSM + FDQSM*DCTM
          GCQM( I,K )  = MIN( GCQM( I,K ), GCWM( I,K ) )
-         GCCM          = MAX( GCWM( I,K )-GCQM( I,K ), 0.D0 )
+         GCCM         = MAX( GCWM( I,K )-GCQM( I,K ), 0.D0 )
 !
          GCIM( I,K ) = FRICE( GCTM( I,K ) )*GCCM
          GCLM( I,K ) = MAX( GCCM-GCIM( I,K ), 0.D0 )
-         GCHM( I,K ) = GCHM( I,K )+EMELT*( GCIM( I,K )-GCIB( I ) )
+         GCHM( I,K ) = GCHM( I,K ) + EMELT*( GCIM( I,K )-GCIB( I ) )
          DCTM        = ( GCHM( I,K ) - GDHSM )/( CP+EL*FDQSM )
          GCTM( I,K ) = GDT( I,K ) + DCTM
 !
@@ -1650,7 +1675,8 @@ module cs_conv
          GDCM  = 0.5D0*( GDQ( I,K,ITL )   + GDQI( I,K )                &
                        + GDQ( I,K-1,ITL ) + GDQI( I,K-1 ) )
 !
-         BUOYM( I,K ) = ( DCTM/GDTM( I,K ) + EPSVT*( GCQM(I,K)-GDQM )-GCCM+GDCM )*GRAV
+         BUOYM( I,K ) = ( DCTM/GDTM( I,K )                             &
+                      + EPSVT * (GCQM(I,K)-GDQM) - GCCM + GDCM )*GRAV
 !
 !DD#ifdef OPT_ASMODE
 !DD         ELARM1( I ) = ERMR
@@ -1666,7 +1692,7 @@ module cs_conv
          GCUMZ ( I,K ) = GCUM( I,K )
          GCVMZ ( I,K ) = GCVM( I,K )
          GCIMZ ( I,K ) = GCIM( I,K )
-         WCM_( I )  = WCM( I,K )
+         WCM_( I )     = WCM( I,K )
       END DO
 !
 !     < in-cloud properties >
@@ -1703,19 +1729,19 @@ module cs_conv
                FICE  = FRICE( GDTM( I,K )+DCTM )
                GCIMZ( I,K ) = FICE*GCCMZ
                GSNWIZ( I,K-1 ) = FICE*( GTPRMZ(I,K)-GTPRMZ(I,K-1) )
-               GCHMZ( I,K ) = GCHMZ( I,K ) &
-                 + EMELT*( GCIMZ( I,K   ) + GSNWIZ( I,K-1 ) &
+               GCHMZ( I,K ) = GCHMZ( I,K )                                  &
+                 + EMELT*( GCIMZ( I,K   ) + GSNWIZ( I,K-1 )                 &
                          - GCIMZ( I,K-1 ) - GDQI( I,K-1 )*ELADZ )
                DCTM  = ( GCHMZ( I,K )*wrk - GDHSM )/CPGM
 !
                GDQM  = 0.5D0*( GDQ( I,K,1 ) + GDQ( I,K-1,1 ) )
-               GDCM  = 0.5D0*( GDQ( I,K,ITL )+GDQI( I,K ) &
+               GDCM  = 0.5D0*( GDQ( I,K,ITL )+GDQI( I,K )                   &
                              + GDQ( I,K-1,ITL )+GDQI( I,K-1 ) )
-               GCQM( I,K )  = GCQMZ*wrk
-               GCCM         = GCCMZ*wrk
+               GCQM( I,K ) = GCQMZ*wrk
+               GCCM        = GCCMZ*wrk
 !
-               BUOYM( I,K ) = ( DCTM/GDTM( I,K ) &
-                 + EPSVT*( GCQM(I,K)-GDQM )-GCCM+GDCM )*GRAV
+               BUOYM( I,K )  = ( DCTM/GDTM( I,K )                           &
+                             + EPSVT * (GCQM(I,K)-GDQM) - GCCM + GDCM )*GRAV
                BUOY( I,K-1 ) = 0.5D0*( BUOYM( I,K )+BUOYM( I,K-1 ) )
 !
 !DD#ifdef OPT_ASMODE
@@ -1756,9 +1782,9 @@ module cs_conv
                GCVMZ( I,K )  = GCVMZ( I,K-1 ) + GDV( I,K-1 )*ELADZ
 !
                wrk           = 1.0 / GCYM( I,K )
-               DCTM         = ( GCHMZ( I,K )*wrk - GDHSM )/CPGM
-               GCQMZ        = ( GDQSM+FDQSM*DCTM )*GCYM( I,K )
-               GCQMZ        = MIN( GCQMZ, GCWMZ( I,K ) )
+               DCTM          = ( GCHMZ( I,K )*wrk - GDHSM )/CPGM
+               GCQMZ         = ( GDQSM+FDQSM*DCTM )*GCYM( I,K )
+               GCQMZ         = MIN( GCQMZ, GCWMZ( I,K ) )
                GTPRMZ( I,K ) = PRECR*( GCWMZ( I,K )-GCQMZ )
                GTPRMZ( I,K ) = MAX( GTPRMZ(I,K), GTPRMZ(I,K-1) )
                GCCMZ = GCWMZ( I,K )-GCQMZ-GTPRMZ( I,K )
@@ -1793,7 +1819,7 @@ module cs_conv
                END IF
 !
                ELARM1( I ) = ELARM2
-               WCM_( I ) = WCM( I,K )
+               WCM_( I )   = WCM( I,K )
             END IF
          END DO
       END DO

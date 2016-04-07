@@ -63,26 +63,27 @@ fi
    export MPI_GROUP_MAX=128
    export HOUTASPS=12
    export IGEN=82
-   export FNTSFC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/RTGSST.1982.2012.monthly.clim.grb"
-   export FNAISC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/CFSR.SEAICE.1982.2012.monthly.clim.grb"
-   export FNTG3C="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_tg3clim.2.6x1.5.grb"
-   export FNVEGC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegfrac.0.144.decpercent.grb"
-   export FNVETC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_vegtype.1x1.grb"
-   export FNSOTC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soiltype.1x1.grb"
+   export FIXDIR="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am"
+   export FNTSFC="$FIXDIR/RTGSST.1982.2012.monthly.clim.grb"
+   export FNAISC="$FIXDIR/CFSR.SEAICE.1982.2012.monthly.clim.grb"
+   export FNTG3C="$FIXDIR/global_tg3clim.2.6x1.5.grb"
+   export FNVEGC="$FIXDIR/global_vegfrac.0.144.decpercent.grb"
+   export FNVETC="$FIXDIR/global_vegtype.1x1.grb"
+   export FNSOTC="$FIXDIR/global_soiltype.1x1.grb"
    if [ $wave -eq 62 ]; then
-     export FNSMCC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soilmgldas.t${wave}.192.94.grb"
+     export FNSMCC="$FIXDIR/global_soilmgldas.t${wave}.192.94.grb"
    elif [ $wave -eq 574 ]; then
-     export FNSMCC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_soilmgldas.t${wave}.1152.576.grb"
+     export FNSMCC="$FIXDIR/global_soilmgldas.t${wave}.1152.576.grb"
    fi
 
-   export FNMSKH="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/seaice_newland.grb"
+   export FNMSKH="$FIXDIR/seaice_newland.grb"
    export FNTSFA=""
    export FNACNA=""
    export FNSNOA=""
-   export FNVMNC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_shdmin.0.144x0.144.grb"
-   export FNVMXC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_shdmax.0.144x0.144.grb"
-   export FNSLPC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_slope.1x1.grb"
-   export FNABSC="/global/save/emc.glopara/svn/gfs/trunk/para/fix/fix_am/global_snoalb.1x1.grb"
+   export FNVMNC="$FIXDIR/global_shdmin.0.144x0.144.grb"
+   export FNVMXC="$FIXDIR/global_shdmax.0.144x0.144.grb"
+   export FNSLPC="$FIXDIR/global_slope.1x1.grb"
+   export FNABSC="$FIXDIR/global_snoalb.1x1.grb"
    export FTSFS=90
    export FAISS=99999
    export FSNOL=99999
@@ -167,11 +168,6 @@ NST_SPINUP=${NST_SPINUP:-.false.}
 # restart default is coldstart
  export fcst_begin=_FCST_BEGIN_
  export fcst_begin=${fcst_begin:-YES}
- export RESTART=_RESTART_
- export RESTART=${RESTART:-.false.}
- if [ $RESTART = .true. ] ; then
-    export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
- fi
 #read one time step input data
  export FHROT=_FHROT_
 # restart file output frequency
@@ -305,14 +301,17 @@ export restart_ndays=${restart_ndays:-1}
 if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
  export FHROT=0
+ export RESTART=.false.
 else
  if [[ -s $RUNDIR/grdr1 ]] ; then
    export nhourb=`$nemsioget $RUNDIR/grdr1 nfhour`
    export FHROT=$nhourb
+   export RESTART=.true.
+   export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
  else
    export nhourb=$((restart_ndays*24))
    export FHROT=$nhourb
-   export restart=YES
+   export RESTART=.false.
  fi
 fi
 #

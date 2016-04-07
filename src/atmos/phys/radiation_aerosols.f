@@ -848,9 +848,10 @@
 !  --- ...  define the one wavenumber ir fluxes based on black-body
 !           emission distribution at a predefined temperature
 
-      tmp1 = 2.0 * con_pi * con_plnk * (con_c**2)
+      tmp1 = (con_pi + con_pi) * con_plnk * con_c* con_c
       tmp2 = con_plnk * con_c / (con_boltz * con_t0c)
 
+!$omp parallel do private(nw,tmp3)
       do nw = 1, NWVTIR
         tmp3 = 100.0 * nw
         eirfwv(nw) = (tmp1 * tmp3**3) / (exp(tmp2*tmp3) - 1.0)
@@ -1182,15 +1183,21 @@
 
       if ( laswflg ) then
         solbnd (:)   = f_zero
-        solwaer(:,:) = f_zero
+!$omp parallel do private(i,j)
+        do j=1,naerbnd
+          do i=1,nswbnd
+            solwaer(i,j) = f_zero
+          enddo
+        enddo
 
+!$omp parallel do private(ib,mb,ii,iw1,iw2,iw,nv_aod,sumsol)
         do ib = 1, NSWBND
           mb = ib + NSWSTR - 1
           ii = 1
           iw1 = nint(wvnsw1(mb))
           iw2 = nint(wvnsw2(mb))
 
-          if ( wvnsw2(mb)>=wvn550 .and. wvn550>=wvnsw1(mb) ) then
+          if ( wvnsw2(mb) >= wvn550 .and. wvn550 >= wvnsw1(mb) ) then
             nv_aod = ib                  ! sw band number covering 550nm wavelenth
           endif
 
@@ -1204,7 +1211,7 @@
 
           do iw = iw1, iw2
             solbnd(ib) = solbnd(ib) + solfwv(iw)
-            sumsol = sumsol + solfwv(iw)
+            sumsol     = sumsol     + solfwv(iw)
 
             if ( iw == iendwv(ii) ) then
               solwaer(ib,ii) = sumsol
@@ -1230,8 +1237,14 @@
 
       if ( lalwflg ) then
         eirbnd (:)   = f_zero
-        eirwaer(:,:) = f_zero
+!$omp parallel do private(i,j)
+        do j=1,naerbnd
+          do i=1,nlwbnd
+            eirwaer(i,j) = f_zero
+          enddo
+        enddo
 
+!$omp parallel do private(ib,ii,iw1,iw2,iw,mb,sumir)
         do ib = 1, NLWBND
           ii = 1
           if ( NLWBND == 1 ) then
@@ -1384,12 +1397,14 @@
 
       if ( laswflg ) then
 
+!$omp parallel do private(nb,nc,sumk,sums,sumok,sumokg,sumreft)
+!$omp+private(ni,nh,sp,reft,refb,rsolbd)
         do nb = 1, NSWBND
           rsolbd = f_one / solbnd(nb)
 
 !  ---  for rh independent aerosol species
 
-          do nc = 1, NCM1
+          do nc = 1, NCM1        !  ---  for rh independent aerosol species
             sumk    = f_zero
             sums    = f_zero
             sumok   = f_zero
@@ -1419,9 +1434,8 @@
      &         / ( (f_one+refb)**2 - asyrhi(nc,nb)*(f_one-refb)**2 )
           enddo   ! end do_nc_block for rh-ind aeros
 
-!  ---  for rh dependent aerosols species
 
-          do nc = 1, NCM2
+          do nc = 1, NCM2        !  ---  for rh dependent aerosols species
             do nh = 1, NRHLEV
               sumk    = f_zero
               sums    = f_zero
@@ -1482,14 +1496,14 @@
 
       if ( lalwflg ) then
 
+!$omp parallel do private(nb,ib,nc,rirbd,sumk,sums,sumok,sumokg,sumreft)
+!$omp+private(ni,nh,sp,reft,refb,rsolbd)
         do nb = 1, NLWBND
 
           ib = NSWBND + nb
           rirbd = f_one / eirbnd(nb)
 
-!  ---  for rh independent aerosol species
-
-          do nc = 1, NCM1
+          do nc = 1, NCM1        !  ---  for rh independent aerosol species
             sumk    = f_zero
             sums    = f_zero
             sumok   = f_zero
@@ -1519,9 +1533,7 @@
      &         / ( (f_one+refb)**2 - asyrhi(nc,ib)*(f_one-refb)**2 )
           enddo   ! end do_nc_block for rh-ind aeros
 
-!  ---  for rh dependent aerosols species
-
-          do nc = 1, NCM2
+          do nc = 1, NCM2        !  ---  for rh dependent aerosols species
             do nh = 1, NRHLEV
               sumk    = f_zero
               sums    = f_zero
@@ -1690,9 +1702,9 @@
 !  ---  output: ( none )
 
 !  ---  locals:
-!     real (kind=kind_io8) :: cmix(NXC), denn, tem
+!     real (kind=kind_io8)  :: cmix(NXC), denn, tem
       real (kind=kind_phys) :: cmix(NXC), denn, tem
-      integer              :: idxc(NXC), kprf
+      integer               :: idxc(NXC), kprf
 
       integer :: i, id, j, k, m, nc
       logical :: file_exist
@@ -1721,6 +1733,7 @@
         stop
       endif      ! end if_file_exist_block
 
+!$omp parallel do private(i,j,m)
       do j = 1, JMXAE
         do i = 1, IMXAE
           do m = 1, NXC
@@ -1730,11 +1743,11 @@
         enddo
       enddo
 
+!$omp parallel do private(i,j)
       do j = 1, JMXAE
         do i = 1, IMXAE
-          do m = 1, 2
-            denng(m,i,j) = f_zero
-          enddo
+          denng(1,i,j) = f_zero
+          denng(2,i,j) = f_zero
         enddo
       enddo
 
@@ -1749,35 +1762,36 @@
 !         if ( me == 0 ) print *,'  *** Skipped ',cline
 
           do j = 1, JMXAE
-          do i = 1, IMXAE
-            read(NIAERCM,*) id
-          enddo
+            do i = 1, IMXAE
+              read(NIAERCM,*) id
+            enddo
           enddo
         else
           if ( me == 0 ) print *,'  --- Reading ',cline
 
           do j = 1, JMXAE
-          do i = 1, IMXAE
-            read(NIAERCM,14) (idxc(k),cmix(k),k=1,NXC),kprf,denn,nc,ctyp
-  14        format(5(i2,e11.4),i2,f8.2,i3,1x,a3)
+            do i = 1, IMXAE
+              read(NIAERCM,14) (idxc(k),cmix(k),k=1,NXC),kprf,denn,nc,  &
+     &                         ctyp
+  14          format(5(i2,e11.4),i2,f8.2,i3,1x,a3)
 
-            kprfg(i,j)     = kprf
-            denng(1,i,j)   = denn       ! num density of 1st layer
-            if ( kprf >= 6 ) then
-              denng(2,i,j) = cmix(NXC)  ! num density of 2dn layer
-            else
-              denng(2,i,j) = f_zero
-            endif
+              kprfg(i,j)     = kprf
+              denng(1,i,j)   = denn       ! num density of 1st layer
+              if ( kprf >= 6 ) then
+                denng(2,i,j) = cmix(NXC)  ! num density of 2dn layer
+              else
+                denng(2,i,j) = f_zero
+              endif
 
-            tem = f_one
-            do k = 1, NXC-1
-              idxcg(k,i,j) = idxc(k)    ! component index
-              cmixg(k,i,j) = cmix(k)    ! component mixing ratio
-              tem          = tem - cmix(k)
+              tem = f_one
+              do k = 1, NXC-1
+                idxcg(k,i,j) = idxc(k)    ! component index
+                cmixg(k,i,j) = cmix(k)    ! component mixing ratio
+                tem          = tem - cmix(k)
+              enddo
+              idxcg(NXC,i,j) = idxc(NXC)
+              cmixg(NXC,i,j) = tem        ! to make sure all add to 1.
             enddo
-            idxcg(NXC,i,j) = idxc(NXC)
-            cmixg(NXC,i,j) = tem        ! to make sure all add to 1.
-          enddo
           enddo
 
           close (NIAERCM)

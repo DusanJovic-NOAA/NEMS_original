@@ -1,99 +1,96 @@
-      subroutine rayleigh_damp(im,ix,iy,km,a,b,c,u1,v1,dt,cp,
-     &                         levr,pgr,prsl,prslrd0)
+      SUBROUTINE Rayleigh_damp(IM,IX,IY,KM,A,B,C,U1,V1,DT,CP,
+     &                         LEVR,pgr,PRSL,PRSLRD0,ral_ts)
 !
 !   ********************************************************************
-! ----->  i m p l e m e n t a t i o n    v e r s i o n   <----------
+! ----->  I M P L E M E N T A T I O N    V E R S I O N   <----------
 !
 !          --- rayleigh friction with total energy conservation ---
 !              ----------------     -----------------------
 !
 !------ friction coefficient is based on deldif ----
-!----------------------------------------------------------------------c
-!    use
-!        routine is called from gbphys  (after call to gwdps)
+!----------------------------------------------------------------------C
+!    USE
+!        ROUTINE IS CALLED FROM GBPHYS  (AFTER CALL TO GWDPS)
 !
-!    purpose
-!        using the gwd parameterizations of ps-glas and ph-
-!        gfdl technique.  the time tendencies of u v are 
-!        altered to include/mimic the effect of non-stationary 
-!        gravity wave drag from convection, frontgenosis,
-!        wind shear etc.  loss of kinetic energy form gwd drag
-!        is converted into internal energy.   
+!    PURPOSE
+!        USING THE GWD PARAMETERIZATIONS OF PS-GLAS AND PH-
+!        GFDL TECHNIQUE.  THE TIME TENDENCIES OF U V ARE 
+!        ALTERED TO INCLUDE/MIMIC THE EFFECT OF NON-STATIONARY 
+!        GRAVITY WAVE DRAG FROM CONVECTION, FRONTGENOSIS,
+!        WIND SHEAR ETC.  LOSS OF KINETIC ENERGY FORM GWD DRAG
+!        IS CONVERTED INTO INTERNAL ENERGY.   
 !
-!  input
-!        a(iy,km)  non-lin tendency for v wind component
-!        b(iy,km)  non-lin tendency for u wind component
-!        c(iy,km)  non-lin tendency for temperature
-!        u1(ix,km) zonal wind m/sec  at t0-dt
-!        v1(ix,km) meridional wind m/sec at t0-dt
-!        t1(ix,km) temperature deg k at t0-dt
+!  INPUT
+!        A(IY,KM)  NON-LIN TENDENCY FOR V WIND COMPONENT
+!        B(IY,KM)  NON-LIN TENDENCY FOR U WIND COMPONENT
+!        C(IY,KM)  NON-LIN TENDENCY FOR TEMPERATURE
+!        U1(IX,KM) ZONAL WIND M/SEC  AT T0-DT
+!        V1(IX,KM) MERIDIONAL WIND M/SEC AT T0-DT
+!        T1(IX,KM) TEMPERATURE DEG K AT T0-DT
 !
-!        dt           time step    secs
-!        pgr(ix)      surface pressure (pa)               
-!        prsl(ix,km)  pressure at middle of layer (pa)
+!        DT  TIME STEP    SECS
+!        pgr(im)          surface pressure (Pa)
+!        prsl(IX,KM)      PRESSURE AT MIDDLE OF LAYER (Pa)
+!        prslrd0          pressure level above which to apply Rayleigh damping
+!        ral_ts           timescale in days for Rayleigh damping
 !
-!  output
-!        a, b, c as augmented by tendency due to rayleigh friction
+!  OUTPUT
+!        A, B, C AS AUGMENTED BY TENDENCY DUE TO RAYLEIGH FRICTION
 !   ********************************************************************
-      use machine , only : kind_phys
+      USE MACHINE , ONLY : kind_phys
       implicit none
 !
-      integer,intent(in)  :: im, ix, iy, km,levr
-      real(kind=kind_phys),intent(in)    :: dt, cp, prslrd0
-      real(kind=kind_phys),intent(in)    :: pgr(ix),prsl(ix,km)
-      real(kind=kind_phys),intent(in)    :: u1(ix,km), v1(ix,km)
-      real(kind=kind_phys),intent(inout) :: a(iy,km), b(iy,km), c(iy,km)
+      integer,intent(in)                 :: im, ix, iy, km,levr
+      real(kind=kind_phys),intent(in)    :: DT, CP, PRSLRD0, ral_ts
+      real(kind=kind_phys),intent(in)    :: pgr(im), PRSL(IX,KM)
+      real(kind=kind_phys),intent(in)    :: U1(IX,KM), V1(IX,KM)
+      real(kind=kind_phys),intent(inout) :: A(IY,KM), B(IY,KM), C(IY,KM)
 
 !--- local variables
-      real(kind=kind_phys) rtrd(ix,km),slrd0
       real(kind=kind_phys), parameter :: cons1=1.0, cons2=2.0, half=0.5
-      real(kind=kind_phys) dtaux, dtauy, wrk1, rtrd1, rfactrd
-      real(kind=kind_phys) eng0, eng1, tem1, tem2, dti, hfbcpdt
-      integer i, k
+      real(kind=kind_phys) DTAUX, DTAUY, wrk1, rtrd1, rfactrd, wrk2
+     &,                    ENG0, ENG1, tem1, tem2, dti, hfbcpdt, rtrd
+     &,                    slrd0
+      real(kind=kind_phys) tx1(im)
+      integer              i, k
 !
-! change prslrd0(2mb) to pascal
-!      prslrd0  = 200.
-!-----initialize some arrays
-      slrd0=prslrd0/100000.0
+      if (ral_ts <= 0.0 .or. prslrd0 == 0.0) return
 !
-!     rtrd1 = 1./(5*86400) ! reciprocal of time scale per scale height
-      rtrd1 = 1./(10*86400) ! reciprocal of time scale per scale height
-                            ! above beginning sigma level for rayleigh damping
-!
-! pressure in pascal
-      do i = 1,im
-       do k=1,km
-        if(prsl(i,k)/pgr(i) < slrd0) then
-          wrk1 = log(slrd0*pgr(i)/prsl(i,k))
-          if (k > levr) then
-            rtrd(i,k) = rtrd1 * wrk1 * wrk1
-          else
-            rtrd(i,k) = rtrd1 * wrk1
-          endif
-        else
-          rtrd(i,k) = 0
-        endif
-       enddo
-      enddo
-
+      slrd0 = prslrd0*1.0e-5
+      RTRD1 = 1.0/(ral_ts*86400) ! RECIPROCAL OF TIME SCALE PER SCALE HEIGHT
+                                 ! ABOVE BEGINNING SIGMA LEVEL FOR RAYLEIGH DAMPING
       dti = cons1 / dt
       hfbcpdt = half / (cp*dt)
-
-      do k = 1,km
-        do i = 1,im
-          rfactrd = cons1 / (cons1+dt*rtrd(i,k)) - cons1
-          dtaux  = u1(i,k) * rfactrd
-          dtauy  = v1(i,k) * rfactrd
-          eng0   = u1(i,k)*u1(i,k) + v1(i,k)*v1(i,k)
-          tem1   = u1(i,k) + dtaux
-          tem2   = v1(i,k) + dtauy
-          eng1   = tem1*tem1 + tem2*tem2
-          a(i,k) = a(i,k) + dtauy * dti
-          b(i,k) = b(i,k) + dtaux * dti
-          c(i,k) = c(i,k) + (eng0-eng1) * hfbcpdt
-        enddo
+!
+      do i=1,im
+        tx1(i) = 1.0 / pgr(i)
       enddo
+      DO K=1,km
+        DO I = 1,IM
+          wrk2 = prsl(i,k)*tx1(i)
+          if(wrk2 < slrd0) then
+            wrk1 = log(slrd0/wrk2)
+            if (k > levr) then
+              RTRD = RTRD1 * wrk1 * wrk1
+            else
+              RTRD = RTRD1 * wrk1
+            endif
+          ELSE
+            RTRD = 0
+          ENDIF
+          RFACTRD = CONS1 / (CONS1+DT*RTRD) - cons1
+          DTAUX   = U1(I,k) * RFACTRD
+          DTAUY   = V1(I,k) * RFACTRD
+          ENG0    = U1(I,K)*U1(I,K) + V1(I,K)*V1(I,K)
+          tem1    = U1(I,K) + DTAUX
+          tem2    = V1(I,K) + DTAUY
+          ENG1    = tem1*tem1 + tem2*tem2
+          A(I,K)  = A(I,K) + DTAUY * dti
+          B(I,K)  = B(I,K) + DTAUX * dti
+          C(I,K)  = C(I,K) + max((ENG0-ENG1),0.0) * hfbcpdt
+        ENDDO
+      ENDDO
 
 
-      return
-      end
+      RETURN
+      END

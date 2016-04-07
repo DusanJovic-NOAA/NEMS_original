@@ -12,8 +12,8 @@
 !         ( im,ix,levs,lsoil,lsm,ntrac,ncld,ntoz,ntcw,ntke,             !
 !           nmtvr,nrcm,ko3,lonr,latr,jcap,num_p3d,num_p2d,npdf3d,       !
 !           kdt,lat,me,pl_coeff,nlons,ncw,flgmin,crtrh,cdmbgwd,         !
-!           ccwf,dlqf,ctei_rm,clstp,cgwf,prslrd0,dtp,dtf,fhour,solhr,   !
-!           slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,                 !
+!           ccwf,dlqf,ctei_rm,clstp,cgwf,prslrd0,ral_ts,dtp,dtf,fhour,  !
+!           solhr,slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,           !
 !           tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             !
 !           rann,prdout,poz,dpshc,hprime,xlon,xlat,                     !
 !           slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 !
@@ -141,7 +141,9 @@
 !      Sep  2015  - Xingren Wu  remove oro_cpl & slmsk_cpl              !
 !      Sep  2015  - Xingren Wu  add sfc_cice                            !
 !      Sep  2015  - Xingren Wu  connect CICE output to sfc_cice         !
-!      Jan 2016     P. Tripp    NUOPC/GSM merge                         !
+!      Jan  2016    P. Tripp    NUOPC/GSM merge                         !
+!      Mar  2016    F. Yang     add pgr to rayleigh damping call        !
+!      Mar  2016    S. Moorthi  add ral_ts                              !
 !  ====================  definition of variables  ====================  !
 !                                                                       !
 !  inputs:                                                       size   !
@@ -192,8 +194,9 @@
 !     clstp    - real, index used by cnvc90 (for convective clouds)1    !
 !                      legacy stuff - does not affect forecast          !
 !     cgwf     - real, multiplication factor for convective GWD    2    !
-!     prslrd0  - real, pressure level from which Rayleigh Damping       !
+!     prslrd0  - real, pressure level (Pa) from which Rayleigh Damping  !
 !                      is applied                                  1    !
+!     ral_ts   - real  time scale for Rayleigh damping in days     1    !
 !     dtp      - real, physics time step in seconds                1    !
 !     dtf      - real, dynamics time step in seconds               1    !
 !     fhour    - real, forecast hour                               1    !
@@ -485,8 +488,8 @@
      &    ( im,ix,levs,lsoil,lsm,ntrac,ncld,ntoz,ntcw,ntke,             &
      &      nmtvr,nrcm,ko3,lonr,latr,jcap,num_p3d,num_p2d,npdf3d,       &
      &      kdt,lat,me,pl_coeff,nlons,ncw,flgmin,crtrh,cdmbgwd,         &
-     &      ccwf,dlqf,ctei_rm,clstp,cgwf,prslrd0,dtp,dtf,fhour,solhr,   &
-     &      slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,                 &
+     &      ccwf,dlqf,ctei_rm,clstp,cgwf,prslrd0,ral_ts,dtp,dtf,fhour,  &
+     &      solhr,slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,           &
      &      tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             &
      &      rann,prdout,poz,dpshc,fscav,fswtr,hprime,xlon,xlat,         &
      &      slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 &
@@ -549,7 +552,7 @@
       use physcons,   only : con_cp, con_fvirt, con_g, con_rd, con_rv,  &
      &                       con_hvap, con_hfus, con_rerth, con_pi
      &,                      rhc_max, dxmin, dxinv, pa2mb, rlapse
-      use cs_conv, only : cs_convr
+      use cs_conv,    only : cs_convr
 
       implicit none
 !
@@ -613,20 +616,20 @@
       real(kind=kind_phys), intent(in) ::  hprime(ix,nmtvr),            &
      &      prdout(ix,ko3,pl_coeff),       rann(ix,nrcm), poz(ko3)
 
-      real(kind=kind_phys), intent(in) ::  dtp,     dtf, fhour, solhr,  &
-     &      slag,    sdec,     cdec,       ctei_rm(2), clstp,           &
-     &      ccwf(2), crtrh(3), flgmin(2),  dlqf(2), cdmbgwd(2),         &
-     &      xkzm_m,  xkzm_h, xkzm_s, psautco(2),   prautco(2), evpco,   &
-     &      wminco(2), cgwf(2), prslrd0, sup
+      real(kind=kind_phys), intent(in) ::  dtp,   dtf, fhour, solhr,    &
+     &      slag,    sdec,      cdec,      ctei_rm(2), clstp,           &
+     &      ccwf(2), crtrh(3),  flgmin(2), dlqf(2),    cdmbgwd(2),      &
+     &      xkzm_m,  xkzm_h,    xkzm_s,    psautco(2), prautco(2),      &
+     &      evpco,   wminco(2), cgwf(2),   prslrd0,    sup, ral_ts
 
 !  ---  input/output:
       real(kind=kind_phys), dimension(im),            intent(inout) ::  &
      &      hice,   fice,    tisfc,  tsea,   tprcp,  cv,     cvb,  cvt, &
-     &      srflag, snwdph,  weasd, sncovr, zorl,   canopy, ffmm, ffhh, &
+     &      srflag, snwdph,  weasd,  sncovr, zorl,   canopy, ffmm, ffhh,&
      &      f10m,   srunoff, evbsa,  evcwa,  snohfa, transa, sbsnoa,    &
      &      snowca, soilm,   tmpmin, tmpmax, dusfc,  dvsfc,  dtsfc,     &
      &      dqsfc,  totprcp, gflux,  dlwsfc, ulwsfc, suntim, runoff, ep,&
-     &      cldwrk, dugwd,   dvgwd,  psmean, cnvprcp,spfhmin, spfhmax,  &
+     &      cldwrk, dugwd,   dvgwd,  psmean, cnvprcp,spfhmin,spfhmax,   &
      &      rain,   rainc,   acv,    acvb,   acvt
       real(kind=kind_phys), dimension(im), optional,  intent(inout) ::  &
 ! for A/O/I coupling
@@ -952,18 +955,18 @@
         tice(i) = tisfc(i)
 
         if (lssav_cpl) then
-          islmsk_cice(i)   = nint(slimskin_cpl(i))
-          flag_cice(i) = (islmsk_cice(i) == 4)
+          islmsk_cice(i) = nint(slimskin_cpl(i))
+          flag_cice(i)   = (islmsk_cice(i) == 4)
 
           ulwsfc_cice(i) = ulwsfcin_cpl(i)
-          dusfc_cice(i) = dusfcin_cpl(i)
-          dvsfc_cice(i) = dvsfcin_cpl(i)
-          dtsfc_cice(i) = dtsfcin_cpl(i)
-          dqsfc_cice(i) = dqsfcin_cpl(i)
-          tisfc_cice(i) = tisfc(i)
-          tsea_cice(i) = tsea(i)
-          fice_cice(i) = fice(i)
-          hice_cice(i) = hice(i)
+          dusfc_cice(i)  = dusfcin_cpl(i)
+          dvsfc_cice(i)  = dvsfcin_cpl(i)
+          dtsfc_cice(i)  = dtsfcin_cpl(i)
+          dqsfc_cice(i)  = dqsfcin_cpl(i)
+          tisfc_cice(i)  = tisfc(i)
+          tsea_cice(i)   = tsea(i)
+          fice_cice(i)   = fice(i)
+          hice_cice(i)   = hice(i)
         endif
 
         work1(i)   = (log(coslat(i) / (nlons(i)*latr)) - dxmin) * dxinv
@@ -1134,7 +1137,7 @@
         do i = 1, im
           dlwsfc(i) = dlwsfc(i) + adjsfcdlw(i)*dtf
           if (lssav_cpl) then
-            if (flag_cice(i)) adjsfculw(i)=ulwsfc_cice(i)
+            if (flag_cice(i)) adjsfculw(i) = ulwsfc_cice(i)
           endif
           ulwsfc(i) = ulwsfc(i) + adjsfculw(i)*dtf
           psmean(i) = psmean(i) + pgr(i)*dtf        ! mean surface pressure
@@ -1175,7 +1178,7 @@
 
 !    Only used for old shallow convection with mstrat=.true.
 
-      if (((sashal.eq.0 .and. shal_cnv) .or. old_monin)                 &
+      if (((sashal == 0 .and. shal_cnv) .or. old_monin)                 &
      &                                   .and. mstrat) then
         do i = 1, im
           ctei_rml(i) = ctei_rm(1)*work1(i) + ctei_rm(2)*work2(i)
@@ -1414,7 +1417,7 @@
         if (lssav_cpl) then
           do i = 1, im
             if (flag_cice(i)) then
-               islmsk (i) =islmsk_cice(i)
+               islmsk (i) = islmsk_cice(i)
             endif
           enddo
         endif
@@ -1655,12 +1658,12 @@
       if (lssav_cpl) then
         do i = 1, im
           if (flag_cice(i)) then
-             cice(i)=fice_cice(i)
-             tsea(i)=tsea_cice(i)
-             dusfc1(i)=dusfc_cice(i)
-             dvsfc1(i)=dvsfc_cice(i)
-             dqsfc1(i)=dqsfc_cice(i)
-             dtsfc1(i)=dtsfc_cice(i)
+             cice(i)   = fice_cice(i)
+             tsea(i)   = tsea_cice(i)
+             dusfc1(i) = dusfc_cice(i)
+             dvsfc1(i) = dvsfc_cice(i)
+             dqsfc1(i) = dqsfc_cice(i)
+             dtsfc1(i) = dtsfc_cice(i)
           endif
         enddo
       endif
@@ -1839,12 +1842,13 @@
         endif
       endif
 
-      if( .not. lsidea ) then
+      if( .not. lsidea .and. ral_ts > 0.0) then
 !        call rayleigh_damp_mesopause(im, ix, im, levs, dvdt, dudt, dtdt,
 !     &                   ugrs, vgrs, dtp, con_cp, levr, prsl, prslrd0)
 !      else
         call rayleigh_damp(im, ix, im, levs, dvdt, dudt, dtdt, ugrs,
-     &                     vgrs, dtp, con_cp, levr, pgr, prsl, prslrd0)
+     &                     vgrs, dtp, con_cp, levr, pgr, prsl,
+     &                     prslrd0, ral_ts)
       endif
 
       do  k = 1, levs
@@ -2177,18 +2181,18 @@
 !
       if (.not. ras .and. .not. cscnv) then
 
-        if (newsas .eq. 1) then             ! no random cloud top
+        if (newsas == 1) then             ! no random cloud top
           call sascnvn(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,           &
      &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
      &                rain1,kbot,ktop,kcnv,islmsk,                      &
      &                vvel,ncld,ud_mf,dd_mf,dt_mf,cnvw,cnvc)
-        elseif (newsas .eq. 2) then
+        elseif (newsas == 2) then
           call sascnvn1(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,          &
      &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
      &                rain1,kbot,ktop,kcnv,islmsk,                      &
      &                vvel,ncld,ud_mf,dd_mf,dt_mf,cnvw,cnvc)
 !         if (lprnt) print *,' rain1=',rain1(ipr)
-        elseif (newsas .eq. 0) then         ! random cloud top
+        elseif (newsas == 0) then         ! random cloud top
           call sascnv(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,            &
      &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
      &                rain1,kbot,ktop,kcnv,islmsk,                      &
@@ -2554,7 +2558,7 @@
 
         if (shal_cnv) then               ! Shallow convection parameterization
 !                                        -----------------------------------
-          if (sashal.eq.1) then               ! opr option now at 2014
+          if (sashal == 1) then          ! opr option now at 2014
                                          !-----------------------
             call shalcnv(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,         &
      &                   clw,gq0,gt0,gu0,gv0,                           &
@@ -2582,7 +2586,7 @@
               enddo
             endif
 
-          elseif (sashal .eq. 2) then
+          elseif (sashal == 2) then
             call shalcnv1(im,ix,levs,dtp,del,prsl,pgr,phil,             &
      &                   clw,gq0,gt0,gu0,gv0,                           &
      &                   kbot,ktop,kcnv,islmsk,                         &
@@ -2599,8 +2603,17 @@
                 enddo
               enddo
             endif
+!           do i = 1, im
+!             raincs(i) = frain    * rain1(i)
+!             rainc(i)  = rainc(i) + raincs(i)
+!           enddo
+!           if (lssav) then
+!             do i = 1, im
+!               cnvprcp(i) = cnvprcp(i) + raincs(i)
+!             enddo
+!           endif
 
-          elseif (sashal .eq. 0) then    ! modified Tiedtke Shallow convecton
+          elseif (sashal == 0) then    ! modified Tiedtke Shallow convecton
                                          !-----------------------------------
             do i = 1, im
               levshc(i) = 0
@@ -2791,7 +2804,7 @@
 !                                 ---------------------------
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!       if (me .eq. 0) then
+!       if (me == 0) then
 !         sumq = 0.0
 !         DO K=1,LEVS
 !           do i=1,im
@@ -2859,7 +2872,7 @@
         endif
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!       if (me .eq. 0) then
+!       if (me == 0) then
 !         DO K=1,LEVS
 !           do i=1,im
 !             sumq = sumq + (gq0(i,k,1)+gq0(i,k,ntcw)) * del(i,k)

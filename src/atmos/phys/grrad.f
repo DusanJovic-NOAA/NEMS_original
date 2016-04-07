@@ -566,7 +566,7 @@
 
       if ( month0 /= imon ) then
         lmon_chg = .true.
-        month0 = imon
+        month0   = imon
       else
         lmon_chg = .false.
       endif
@@ -1103,12 +1103,6 @@
 
 !  --- ...  prepare atmospheric profiles for radiation input
 !
-!     if (im > ipt) then
-!       write(0,*)' prsi=',prsi(ipt,1:10)
-!       write(0,*)' prsi=',prsl(ipt,1:10)
-!       write(0,*)' tgrs=',tgrs(ipt,1:10)
-!     endif
-
 !           convert pressure unit from pa to mb
       do k = 1, LM
         k1 = k + kd
