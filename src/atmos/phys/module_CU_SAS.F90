@@ -270,8 +270,8 @@ vloop1:   DO K=1,lm
 !
 !---  CALL CONVECTION
 !
-!          print *,'in module_CU_SAS, sasdriver, call sascnvn1,jcap=',jcap
-          CALL sascnvn1(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,       &
+!          print *,'in module_CU_SAS, sasdriver, call sascnvn,jcap=',jcap
+          CALL sascnvn(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,       &
                q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,islimsk,            &
                VVEL,ncloud,ud_mf,dd_mf,dt_mf,cnvc,cnvw)
           IF(KCNV(1)>0) THEN
@@ -284,7 +284,7 @@ vloop1:   DO K=1,lm
 !
           IF(SHALLOW) THEN
 !            print *,'call shalcnv,jcap=',jcap,'delt=',delt
-            CALL shalcnv1(im,ix,km,delt,delp,prsl,psp,phil,clw,     &
+            CALL shalcnv(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,     &
                 q1,t1,u1,v1,rn,kbot,ktop,kcnv,islimsk,                  &
                 VVEL,ncloud,hpbl,hflx,evap,ud_mf,dt_mf,cnvc,cnvw)
             IF(KTOP(1)<1) SHALLOW=.FALSE.

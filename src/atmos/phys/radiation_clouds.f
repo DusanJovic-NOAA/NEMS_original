@@ -140,7 +140,7 @@
 !........................................!
 !
       use physparam,           only : icldflg, icmphys, iovrsw, iovrlw, &
-     &                                lcrick, lcnorm, lnoprec, lsashal, &
+     &                                lcrick, lcnorm, lnoprec,          &
      &                                ivflip, kind_phys, kind_io4
       use physcons,            only : con_fvirt, con_ttp, con_rocp,     &
      &                                con_t0c, con_pi, con_g, con_rd,   &
@@ -343,8 +343,8 @@
 
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,clw,                    &
-     &       xlat,xlon,slmsk,                                           &
-     &       IX, NLAY, NLP1, shoc_cld, cldcov,                          &
+     &       xlat,xlon,slmsk, IX, NLAY, NLP1,                           &
+     &       shoc_cld, lmfshal, lmfdeep2, cldcov,                       &
 !  ---  outputs:
      &       clouds,clds,mtop,mbot                                      &
      &      )
@@ -408,7 +408,8 @@
 !   ivflip          : control flag of vertical index direction          !
 !                     =0: index from toa to surface                     !
 !                     =1: index from surface to toa                     !
-!   lsashal         : control flag for shallow convection               !
+!   lmfshal         : mass-flux shallow conv scheme flag                !
+!   lmfdeep2        : scale-aware mass-flux deep conv scheme flag       !
 !   lcrick          : control flag for eliminating CRICK                !
 !                     =t: apply layer smoothing to eliminate CRICK      !
 !                     =f: do not apply layer smoothing                  !
@@ -423,7 +424,8 @@
 !  ---  inputs
       integer,  intent(in) :: IX, NLAY, NLP1
 
-      logical, intent(in)  :: shoc_cld
+      logical, intent(in)  :: shoc_cld, lmfshal, lmfdeep2
+
       real (kind=kind_phys), dimension(:,:), intent(in) :: plvl, plyr,  &
      &       tlyr, tvly, qlyr, qstl, rhly, clw, cldcov
 
@@ -554,7 +556,7 @@
       if ( ivflip == 0 ) then              ! input data from toa to sfc
 
         clwmin = 0.0
-        if (.not. lsashal) then
+        if (.not. lmfshal) then
           do k = NLAY, 1, -1
           do i = 1, IX
             clwt = 1.0e-6 * (plyr(i,k)*0.001)
@@ -585,17 +587,14 @@
             if (clwf(i,k) > clwt) then
               onemrh= max( 1.e-10, 1.0-rhly(i,k) )
               clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-
+!
               tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)  !jhan
-              tem1  = 100.0 / tem1
+              if (lmfdeep2) then
+                tem1  = 200.0 / tem1
+              else
+                tem1  = 100.0 / tem1
+              endif
 !
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!
-
               value = max( min( tem1*(clwf(i,k)-clwm), 50.0 ), 0.0 )
               tem2  = sqrt( sqrt(rhly(i,k)) )
               cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
@@ -607,7 +606,7 @@
       else                                 ! input data from sfc to toa
 
         clwmin = 0.0
-        if (.not. lsashal) then
+        if (.not. lmfshal) then
           do k = 1, NLAY
           do i = 1, IX
             clwt = 1.0e-6 * (plyr(i,k)*0.001)
@@ -639,17 +638,14 @@
             if (clwf(i,k) > clwt) then
               onemrh= max( 1.e-10, 1.0-rhly(i,k) )
               clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-
+!
               tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)  !jhan
-              tem1  = 100.0 / tem1
+              if (lmfdeep2) then
+                tem1  = 200.0 / tem1
+              else
+                tem1  = 100.0 / tem1
+              endif
 !
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!
-
               value = max( min( tem1*(clwf(i,k)-clwm), 50.0 ), 0.0 )
               tem2  = sqrt( sqrt(rhly(i,k)) )
 
@@ -759,7 +755,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,clw,                    &
      &       xlat,xlon,slmsk, f_ice,f_rain,r_rime,flgmin,               &
-     &       IX, NLAY, NLP1,                                            &
+     &       IX, NLAY, NLP1, lmfshal, lmfdeep2,                         &
 !  ---  outputs:
      &       clouds,clds,mtop,mbot                                      &
      &      )
@@ -827,7 +823,8 @@
 !   ivflip          : control flag of vertical index direction          !
 !                     =0: index from toa to surface                     !
 !                     =1: index from surface to toa                     !
-!   lsashal         : control flag for shallow convection               !
+!   lmfshal         : mass-flux shallow conv scheme flag                !
+!   lmfdeep2        : scale-aware mass-flux deep conv scheme flag       !
 !   lcrick          : control flag for eliminating CRICK                !
 !                     =t: apply layer smoothing to eliminate CRICK      !
 !                     =f: do not apply layer smoothing                  !
@@ -846,6 +843,8 @@
 
 !  ---  inputs
       integer,  intent(in) :: IX, NLAY, NLP1
+
+      logical, intent(in)  :: lmfshal, lmfdeep2
 
       real (kind=kind_phys), dimension(:,:), intent(in) :: plvl, plyr,  &
      &       tlyr, tvly, qlyr, qstl, rhly, clw, f_ice, f_rain, r_rime
@@ -981,7 +980,7 @@
       if ( ivflip == 0 ) then              ! input data from toa to sfc
 
         clwmin = 0.0
-        if (.not. lsashal) then
+        if (.not. lmfshal) then
           do k = NLAY, 1, -1
           do i = 1, IX
 !           clwt = 1.0e-7 * (plyr(i,k)*0.001)
@@ -1022,22 +1021,14 @@
             if (clw2(i,k) > clwt) then
               onemrh= max( 1.e-10, 1.0-rhly(i,k) )
               clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)    !jhan
-              tem1  = 100.0 / tem1
-
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
 !
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2200.0 / tem1
-!             tem1  = 2400.0 / tem1
-!             tem1  = 2500.0 / tem1
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!             tem1  = 100.0 / tem1
-
+              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)    !jhan
+              if (lmfdeep2) then
+                tem1  = 200.0 / tem1
+              else
+                tem1  = 100.0 / tem1
+              endif
+!
               value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
               tem2  = sqrt( sqrt(rhly(i,k)) )
 
@@ -1050,7 +1041,7 @@
       else                                 ! input data from sfc to toa
 
         clwmin = 0.0e-6
-        if (.not. lsashal) then
+        if (.not. lmfshal) then
           do k = 1, NLAY
           do i = 1, IX
 !           clwt = 1.0e-7 * (plyr(i,k)*0.001)
@@ -1091,22 +1082,14 @@
             if (clw2(i,k) > clwt) then
               onemrh= max( 1.e-10, 1.0-rhly(i,k) )
               clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)   !jhan
-              tem1  = 100.0 / tem1
-
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
 !
-!             tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-!             tem1  = 2200.0 / tem1
-!             tem1  = 2400.0 / tem1
-!             tem1  = 2500.0 / tem1
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!             tem1  = 100.0 / tem1
-
+              tem1  = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)   !jhan
+              if (lmfdeep2) then
+                tem1  = 200.0 / tem1
+              else
+                tem1  = 100.0 / tem1
+              endif
+!
               value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
               tem2  = sqrt( sqrt(rhly(i,k)) )
 

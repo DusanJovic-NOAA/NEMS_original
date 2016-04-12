@@ -180,9 +180,9 @@ crtrh=${crtrh:-'0.90,0.90,0.90'}
 ctei_rm=${ctei_rm:-'0.6,0.6'}  
 flgmin=${flgmin:-'0.200,0.300'}      
 random_clds=${random_clds:-.true.}
-sashal=${sashal:--1}
+imfshalcnv=${imfshalcnv:--1}
 trans_trac=${trans_trac:-.true.}
-newsas=${newsas:--1}
+imfdeepcnv=${imfdeepcnv:--1}
 dlqf=${dlqf:-"0.5, 0.25"}
 bkgd_vdif_m=${bkgd_vdif_m:-"1.0"}
 bkgd_vdif_s=${bkgd_vdif_s:-"1.0"}
@@ -242,7 +242,7 @@ CHGRESVARS=$CHGRESVARS"RI=$RIlist,CPI=$CPIlist"
 #DYNVARS="liope=$liope,ZFLXTVD=$zflxtvd,ntrac=$ntrac"
 #PHYVARS="liope=$liope,grid_aldata=$grid_aldata,NST_FCST=$NST_FCST,NST_SPINUP=$NST_SPINUP,\
 #                ras=$ras,trans_trac=$trans_trac,random_clds=.true.,\
-#                old_monin=$old_monin,sashal=$sashal,newsas=$newsas,\
+#                old_monin=$old_monin,imfshalcnv=$imfshalcnv,imfdeepcnv=$imfdeepcnv,\
 #                bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_s=$bkgd_vdif_s,\
 #                ctei_rm=$ctei_rm,mstrat=$mstrat,\
 #                crtrh=$crtrh,\

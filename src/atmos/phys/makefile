@@ -122,13 +122,13 @@ MODULES_GFSF=                                \
 	           rayleigh_damp_mesopause.o \
 	           sascnv.o                  \
 	           sascnvn.o                 \
-	           sascnvn1.o                \
+	           mfdeepcnv.o               \
 	           cnvc90.o                  \
 		   tridi2t3.o                \
 	           shalcv.o                  \
 	           shalcv_opr.o              \
 	           shalcnv.o                 \
-	           shalcnv1.o                 \
+	           mfshalcnv.o               \
 	           lrgsclr.o                 \
 	           gscond.o                  \
 	           gscondp.o                 \

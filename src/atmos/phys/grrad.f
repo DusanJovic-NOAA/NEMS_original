@@ -332,7 +332,6 @@
 !              =0: with out sub-column cloud approximation              !
 !              =1: mcica sub-col approx. prescribed random seed         !
 !              =2: mcica sub-col approx. provided random seed           !
-!   lsashal  : shallow convection scheme flag                           !
 !   lcrick   : control flag for eliminating CRICK                       !
 !              =t: apply layer smoothing to eliminate CRICK             !
 !              =f: do not apply layer smoothing                         !
@@ -387,8 +386,7 @@
      &    ' ISUBCSW=',isubcsw,' ISUBCLW=',isubclw
 !       write(0,*)' IVFLIP=',ivflip,' IOVRSW=',iovrsw,' IOVRLW=',iovrlw,&
 !    &    ' ISUBCSW=',isubcsw,' ISUBCLW=',isubclw
-        print *,' LSASHAL=',lsashal,' LCRICK=',lcrick,' LCNORM=',lcnorm,&
-     &    ' LNOPREC=',lnoprec
+        print *,' LCRICK=',lcrick,' LCNORM=',lcnorm,' LNOPREC=',lnoprec
         print *,' LTP =',LTP,', add extra top layer =',lextop
 
         if ( ictmflg==0 .or. ictmflg==-2 ) then
@@ -634,7 +632,7 @@
      &       sinlat,coslat,solhr,jdate,solcon,                          &
      &       cv,cvt,cvb,fcice,frain,rrime,flgmin,                       &
      &       icsdsw,icsdlw, ntcw,ncld,ntoz, NTRAC,NFXR,                 &
-     &       dtlw,dtsw, lsswr,lslwr,lssav, shoc_cld,                    &
+     &       dtlw,dtsw, lsswr,lslwr,lssav, shoc_cld,lmfshal,lmfdeep2,   &
      &       IX, IM, LM, me, lprnt, ipt, kdt, deltaq,sup,cnvw,cnvc,     &
 !  ---  outputs:
      &       htrsw,topfsw,sfcfsw,dswcmp,uswcmp,sfalb,coszen,coszdg,     &
@@ -709,6 +707,8 @@
 !           (IM)         radiations. if isubcsw/isubclw (input to init) !
 !                        are set to 2, the arrays contains provided     !
 !                        random seeds for sub-column clouds generators  !
+!      lmfshal         : mass-flux shallow conv scheme flag             !
+!      lmfdeep2        : scale-aware mass-flux deep conv scheme flag    !
 !      ntcw            : =0 no cloud condensate calculated              !
 !                        >0 array index location for cloud condensate   !
 !      ncld            : only used when ntcw .gt. 0                     !
@@ -934,7 +934,8 @@
      &                        ntoz, ntcw, ncld, ipt, kdt
       integer,  intent(in) :: icsdsw(IM), icsdlw(IM), jdate(8)
 
-      logical,  intent(in) :: lsswr, lslwr, lssav, lprnt, shoc_cld
+      logical,  intent(in) :: lsswr, lslwr, lssav, lprnt, shoc_cld,     &
+     &                        lmfshal, lmfdeep2
 
       real (kind=kind_phys), dimension(IX,LM+1), intent(in) ::  prsi
 
@@ -1352,14 +1353,29 @@
             if ( clw(i,k) < EPSQ ) clw(i,k) = 0.0
           enddo
         enddo
+!
+!  --- add suspended convective cloud water to grid-scale cloud water
+!      only for cloud fraction & radiation computation
+!      it is to enhance cloudiness due to suspended convec cloud water
+!      for zhao/moorthi's (icmphys=1) & 
+!          ferrier's (icmphys=2) microphysics schemes
+!
+        if (icmphys == 1 .or. icmphys == 2) then
+          do k = 1, LMK
+            do i = 1, IM
+              clw(i,k) = clw(i,k) + cnvw(i,k)
+            enddo
+          enddo
+        endif
+!
 
         if (icmphys == 1) then           ! zhao/moorthi's prognostic cloud scheme
 
           call progcld1                                                 &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,clw,                    &
-     &       xlat,xlon,slmsk,                                           &
-     &       IM, LMK, LMP, shoc_cld, cldcov(1:im,1:lm),                 &
+     &       xlat,xlon,slmsk, IM, LMK, LMP,                             &
+     &       shoc_cld, lmfshal, lmfdeep2, cldcov(1:im,1:lm),            &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
@@ -1371,7 +1387,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,clw,                    &
      &       xlat,xlon,slmsk, gcice,grain,grime,flgmin,                 &
-     &       IM, LMK, LMP,                                              &
+     &       IM, LMK, LMP, lmfshal, lmfdeep2,                           &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )

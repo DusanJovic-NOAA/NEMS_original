@@ -4,7 +4,8 @@
 !  ---  inputs:
      &     ( si,levr,ictm,isol,ico2,iaer,ialb,iems,ntcw,                &
      &       num_p3d,npdf3d,ntoz,iovr_sw,iovr_lw,isubc_sw,isubc_lw,     &
-     &       sashal,crick_proof,ccnorm,norad_precip,idate,iflip,me )
+     &       crick_proof,ccnorm,norad_precip,                           &
+     &       idate,iflip,me )
 !  ---  outputs: ( none )
 
 ! =================   subprogram documentation block   ================ !
@@ -88,7 +89,6 @@
 !                     =0: with out sub-column cloud approximation       !
 !                     =1: mcica sub-col approx. prescribed random seed  !
 !                     =2: mcica sub-col approx. provided random seed    !
-!   sashal           : shallow convection scheme flag                   !
 !   crick_proof      : control flag for eliminating CRICK               !
 !   ccnorm           : control flag for in-cloud condensate mixing ratio!
 !   norad_precip     : control flag for not using precip in radiation   !
@@ -105,7 +105,7 @@
 !
       use physparam, only : isolar , ictmflg, ico2flg, ioznflg, iaerflg,&
      &             iaermdl, laswflg, lalwflg, lavoflg, icldflg, icmphys,&
-     &             iovrsw , iovrlw , lsashal, lcrick , lcnorm , lnoprec,&
+     &             iovrsw , iovrlw , lcrick , lcnorm , lnoprec,         &
      &             ialbflg, iemsflg, isubcsw, isubclw, ivflip , ipsd0,  &
      &             kind_phys
 
@@ -120,7 +120,7 @@
 
       real (kind=kind_phys), intent(in) :: si(levr+1)
 
-      logical, intent(in) :: sashal, crick_proof, ccnorm, norad_precip
+      logical, intent(in) :: crick_proof, ccnorm, norad_precip
 
 !  ---  output: ( none )
 
@@ -169,7 +169,6 @@
       iovrsw = iovr_sw                  ! cloud overlapping control flag for sw
       iovrlw = iovr_lw                  ! cloud overlapping control flag for lw
 
-      lsashal = sashal                  ! shallow convection scheme flag
       lcrick  = crick_proof             ! control flag for eliminating CRICK 
       lcnorm  = ccnorm                  ! control flag for in-cld condensate 
       lnoprec = norad_precip            ! precip effect on radiation flag (ferrier microphysics)
@@ -195,7 +194,7 @@
         print *,' np3d=',num_p3d,' ntoz=',ntoz,' iovr_sw=',iovr_sw,     &
      &          ' iovr_lw=',iovr_lw,' isubc_sw=',isubc_sw,              &
      &          ' isubc_lw=',isubc_lw,' iflip=',iflip,'  me=',me
-        print *,' sashal=',sashal,' crick_proof=',crick_proof,          &
+        print *,' crick_proof=',crick_proof,                            &
      &          ' ccnorm=',ccnorm,' norad_precip=',norad_precip
       endif
 
