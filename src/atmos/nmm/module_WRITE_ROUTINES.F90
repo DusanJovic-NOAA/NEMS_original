@@ -2814,6 +2814,7 @@
         CALL ESMF_AttributeGet(state=DOMAIN_IMP_STATE                   &  !<-- The Domain component's import state
                               ,name ='Lead Task Domain'                 &  !<-- Name of the Attribute to extract
                               ,value=LEAD_TASK                          &  !<-- Global rank of lead task on this domain
+                              ,defaultValue=0                           &  !<-- The default value
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

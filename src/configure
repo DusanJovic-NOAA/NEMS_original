@@ -85,6 +85,14 @@ elif [[ $1 = 6_nmm_theia ]]; then
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 6.3.0rp1 series library on theia"
+elif [[ $1 = 7_nmm_theia ]]; then
+     set -x
+     cp conf/configure.nems.Theia.intel_ESMF_7_nmm conf/configure.nems
+     touch conf/externals.nems
+     cp conf/modules.nems.Theia_ESMF_7_nmm conf/modules.nems
+     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 7.0.0 series library on theia"
 elif [[ $1 = 6_gsm_theia ]]; then
      set -x
      cp conf/configure.nems.Theia.intel_gsm conf/configure.nems
@@ -187,6 +195,7 @@ else
      echo " 'configure 6.3r_nmm_wcoss'     : ESMF 6.3.0r library on wcoss for nmm"
      echo " 'configure 6.3r_gsm_wcoss'     : ESMF 6.3.0r library on wcoss for gsm"
      echo " 'configure 6_nmm_theia'        : ESMF 6.3.0rp1 series library on theia nmm"
+     echo " 'configure 7_nmm_theia'        : ESMF 7.0.0 series library on theia nmm"
      echo " 'configure 6_gsm_theia'        : ESMF 6.3.0rp1 series library on theia gsm"
      echo " 'configure 6_yellowstone'      : ESMF 6.3.0r series library on yellowstone"
      echo;

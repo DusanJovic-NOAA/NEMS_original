@@ -4913,7 +4913,7 @@
                                         ,LM )
 !
 !-----------------------------------------------------------------------
-!***  Transfer from Solver export state to the DOMAIN export state 
+!***  Transfer from Solver export state to the DOMAIN export state
 !***  the data needed for parent generation of child boundary data
 !***  as well as internal updates and shift decisions in moving
 !***  nests.
@@ -4935,44 +4935,26 @@
 !
       INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE                             &
                            ,IDS,IDE,JDS,JDE                             &
-                           ,I_PAR_STA,J_PAR_STA,J,JM                    &
+                           ,J,JM                                        &
                            ,INDX_CW,INDX_Q                              &
-                           ,LMP1,LNSH,LNSV                              &      
-                           ,N,NHALO,NKOUNT,NUM_DIMS
+                           ,LMP1,LNSH,LNSV                              &
+                           ,N,NHALO,NKOUNT
 !
       INTEGER(kind=KINT) :: RC,RC_TRANS
-!
-      INTEGER(kind=KINT),DIMENSION(1:2) :: LBND_2D,UBND_2D
-!
-      INTEGER(kind=KINT),DIMENSION(1:3) :: LBND_3D,UBND_3D
 !
       REAL(kind=KFPT) :: DLMD,DPHD,DYH,PDTOP,PT
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ARRAY_1D
 !
-      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D
-!
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_3D
-!
-      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: ARRAY_4D
-!
-      TYPE(ESMF_StateItem_Flag) :: STATEITEMTYPE
+      TYPE(ESMF_StateItem_Flag) :: ITEMTYPE
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_Grid) :: GRID_X
-!
       LOGICAL(kind=KLOG) :: RESTART
 !
-      CHARACTER(len=8), DIMENSION(10) :: EXP_FIELD
+      INTEGER(kind=KINT) :: itemCount
 !
-!-----------------------------------------------------------------------
-!***  TEMPORARY FOR PRE-PROCESSING MULTIPLE ESMF VERSIONS BEFORE COMPILE
-!-----------------------------------------------------------------------
-!
-      INTEGER(kind=KINT) :: itemcount
-!
-      CHARACTER(LEN=14),DIMENSION(1:25) :: itemnamelist
+      CHARACTER(LEN=14),DIMENSION(:),ALLOCATABLE :: itemnamelist
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -4999,99 +4981,68 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
-                        ,itemcount   =itemcount                         &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
+      CALL ESMF_StateGet(state       =EXP_STATE_SOLVER                  &  !<-- The Solver export state
+                        ,itemCount   =itemCount                         &  !<-- # of items in the state
+                        ,rc          =RC)
+!
+      ALLOCATE(itemNameList(itemCount))
+!
+      CALL ESMF_StateGet(state       =EXP_STATE_SOLVER                  &  !<-- The Solver export state
+                        ,itemNameList=itemNameList                      &  !<-- List of item names
                         ,rc          =RC)
 !
 !-----------------------------------------------------------------------
 !
-      EXP_FIELD = (/ 'PD      '                                         &
-                    ,'PINT    '                                         &
-                    ,'T       '                                         &
-                    ,'U       '                                         &
-                    ,'V       '                                         &
-                    ,'Z       '                                         &
-                    ,'TRACERS '                                         &
-                    ,'SM      '                                         &
-                    ,'U10     '                                         &
-                    ,'V10     '                                         &
-                               /)
-!
-!-----------------------------------------------------------------------
-!
-      item_loop: DO N=1,SIZE(EXP_FIELD)
-!
-!-----------------------------------------------------------------------
+      item_loop: DO N=1,SIZE(itemNameList)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Test the presence of "//TRIM(EXP_FIELD(N))//" in Solver Export State"
+        MESSAGE_CHECK="Test the presence of "//TRIM(itemNameList(N))//" in Solver Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateGet(              EXP_STATE_SOLVER               &  !<-- The Solver export state
-                          ,              TRIM(EXP_FIELD(N))             &  !<-- Check presence of this Field
-                          ,              STATEITEMTYPE                  &  !<-- ESMF Type of the Field
-                          ,rc           =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Solver Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                    &  !<-- The Solver export state
-                          ,itemName=TRIM(EXP_FIELD(N))                  &  !<-- Extract this Field
-                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
-                          ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Obtain Grid and Dimensions from the Field"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- The ESMF Field we are looking at
-                          ,grid    =GRID_X                              &  !<-- The Field is on this ESMF Grid
-                          ,dimCount=NUM_DIMS                            &  !<-- The Field has this many dimensions
-                          ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert "//TRIM(EXP_FIELD(N))//" into DOMAIN Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateAddReplace(      EXP_STATE_DOMAIN                       &  !<-- Insert PD into DOMAIN export state
-                          , (/HOLD_FIELD/)                     &  !<-- The Field to be inserted
-                          ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                &  !<-- The DOMAIN export state
-                          ,itemcount   =itemcount                       &  !<-- # of items in the state
-                          ,itemnamelist=itemnamelist                    &  !<-- List of item names
+        CALL ESMF_StateGet(state       =EXP_STATE_SOLVER                &  !<-- The Solver export state
+                          ,itemName    =TRIM(itemNameList(N))           &  !<-- Check presence of this Field
+                          ,itemType    =ITEMTYPE                        &  !<-- ESMF Type of the Field
                           ,rc          =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF (ITEMTYPE == ESMF_STATEITEM_FIELD) THEN
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract "//TRIM(itemNameList(N))//" field from Solver Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                  &  !<-- The Solver export state
+                            ,itemName=TRIM(itemNameList(N))             &  !<-- Extract this Field
+                            ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+                            ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert "//TRIM(itemNameList(N))//" field into DOMAIN Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_StateAddReplace(EXP_STATE_DOMAIN                  &  !<-- Insert field into DOMAIN export state
+                                   ,(/HOLD_FIELD/)                    &  !<-- The Field to be inserted
+                                   ,rc=RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        END IF
 !
       END DO  item_loop
 !
 !-----------------------------------------------------------------------
-!
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
-                        ,itemcount   =itemcount                         &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
-                        ,rc          =RC)
 !
 !---------------------
 !***  Transfer INDX_Q
@@ -5152,114 +5103,6 @@
                             ,name ='INDX_CW'                            &  !<-- The name of the Attribute to insert
                             ,value=INDX_CW                              &  !<-- The Attribute to be inserted
                             ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
-                        ,itemcount   =itemcount                         &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
-                        ,rc          =RC)
-!
-!------------------
-!***  Transfer FIS
-!------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract FIS from Solver Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                      &  !<-- The Solver export state
-                        ,itemName='FIS'                                 &  !<-- Extract FIS
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert FIS into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAddReplace(EXP_STATE_DOMAIN                               &  !<-- Insert FIS into DOMAIN export state
-                        ,(/HOLD_FIELD/)                        &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
-                        ,itemcount   =itemcount                         &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
-                        ,rc          =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-------------------
-!***  Transfer GLAT
-!-------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract GLAT from Solver Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                      &  !<-- The Solver export state
-                        ,itemName='GLAT'                                &  !<-- Extract GLAT
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert GLAT into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAddReplace(EXP_STATE_DOMAIN                               &  !<-- Insert GLAT into DOMAIN export state
-                        ,(/HOLD_FIELD/)                        &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Domain export state
-                        ,itemcount   =itemcount                         &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
-                        ,rc          =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-------------------
-!***  Transfer GLON
-!-------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract GLON from Solver Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                      &  !<-- The Solver export state
-                        ,itemName='GLON'                                &  !<-- Extract GLON
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert GLON into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAddReplace(EXP_STATE_DOMAIN                               &  !<-- Insert GLON into DOMAIN export state
-                        ,(/HOLD_FIELD/)                        &  !<-- The Field to be inserted
-                        ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
@@ -5339,7 +5182,7 @@
                             ,rc       =RC)
 !
       CALL ESMF_AttributeGet(state    =EXP_STATE_SOLVER                 &  !<-- The Solver export state
-                            ,name     ='DSG2'                           &  !<-- Extract DSG2   
+                            ,name     ='DSG2'                           &  !<-- Extract DSG2
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
@@ -5585,7 +5428,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !------------------------
-!***  Transfer DX and DY 
+!***  Transfer DX and DY
 !------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -5675,13 +5518,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Domain export state
-                        ,itemcount   =itemcount                         &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
-                        ,rc          =RC)
 !
 !-----------------------------------------------------------------------
 !

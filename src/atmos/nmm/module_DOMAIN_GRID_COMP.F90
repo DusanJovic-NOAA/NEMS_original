@@ -522,6 +522,7 @@
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Domain import state
                             ,name ='NUM_DOMAINS'                        &  !<-- Name of the domain count
                             ,value=NUM_DOMAINS                          &  !<-- The # of domains
+                            ,defaultValue=1                             &  !<-- The default value
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -536,6 +537,7 @@
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Domain import state
                             ,name ='DOMAIN_ID'                          &  !<-- Name of the attribute to extract
                             ,value=MY_DOMAIN_ID                         &  !<-- The ID of this domain
+                            ,defaultValue=1                             &  !<-- The default value
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -546,6 +548,7 @@
 !***  Initialize timers for this domain.
 !-----------------------------------------------------------------------
 !
+      IF(.NOT.ALLOCATED(TIMERS) ) ALLOCATE(TIMERS(1:NUM_DOMAINS))
       timers(my_domain_id)%total_integ_tim=0.
       timers(my_domain_id)%update_interior_from_nest_tim  =0.
       timers(my_domain_id)%update_interior_from_parent_tim=0.
@@ -637,6 +640,7 @@
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Domain import state
                             ,name ='MAX_DOMAINS'                        &  !<-- Name of the attribute to extract
                             ,value=MAX_DOMAINS                          &  !<-- Maximum # of domains
+                            ,defaultValue=1                             &  !<-- The default value
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -658,6 +662,7 @@
                             ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
                             ,itemCount=MAX_DOMAINS                      &  !<-- Name of the attribute to extract
                             ,valueList=DOMAIN_ID_TO_RANK                &  !<-- The ID of this domain
+                            ,defaultvalueList=[1]                       &  !<-- The default valueList
                             ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -856,6 +861,7 @@
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Domain import state
                             ,name ='I-Am-A-Nest Flag'                   &  !<-- Name of the attribute to extract
                             ,value=I_AM_A_NEST                          &  !<-- The flag indicating if this domain is a nest
+                            ,defaultValue=.false.                       &  !<-- The default value
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1357,6 +1363,7 @@
       CALL ESMF_AttributeGet(state=IMP_STATE                      &
                             ,name='PHYSICS_ON'                    &
                             ,value=PHYSICS_ON                     &
+                            ,defaultValue=.true.                  &
                             ,rc    =rc)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2260,6 +2267,7 @@
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Domain import state
                             ,name ='NUM_CHILDREN'                       &  !<-- Name of the attribute to extract
                             ,value=NUM_CHILDREN                         &  !<-- Put the Attribute here
+                            ,defaultValue=0                             &  !<-- The default value
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -3547,6 +3555,7 @@
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Domain import state
                             ,name ='DOMAIN_ID'                          &  !<-- Name of the attribute to extract
                             ,value=MY_DOMAIN_ID                         &  !<-- The ID of this domain
+                            ,defaultValue=1                             &  !<-- The default value
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3671,6 +3680,7 @@
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Domain import state
                               ,name ='HDIFF'                            &  !<-- Name of the attribute to extract
                               ,value=HDIFF_ON                           &  !<-- The ID of this domain
+                              ,defaultValue=1                           &  !<-- The default value
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3704,6 +3714,7 @@
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Domain import state
                               ,name ='Free Forecast'                    &  !<-- Name of the attribute to extract
                               ,value=FREE_FORECAST                      &  !<-- Is this the free forecast?
+                              ,defaultValue=.true.                      &  !<-- The default value
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4200,6 +4211,7 @@
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Domain import state
                               ,name ='Filter_Method'                    &  !<-- Name of the attribute to extract
                               ,value=FILTER_METHOD                      &  !<-- The scalar being extracted from the import state
+                              ,defaultValue=0                           &  !<-- The default value
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
