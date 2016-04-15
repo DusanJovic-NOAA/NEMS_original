@@ -73,6 +73,7 @@
                          ,TBPVS_STATE,TBPVS0_STATE                      &
                          ,SPECIFIED,NESTED                              &
                          ,MICROPHYSICS                                  &
+                         ,RHGRD                                         &
                          ,TP1,QP1,PSP1                                  &
                          ,USE_RADAR                                     &
                          ,DFI_TTEN                                      &
@@ -120,7 +121,7 @@
 !
       INTEGER,INTENT(IN) :: USE_RADAR
 !
-      REAL,INTENT(IN) :: DT,DX,DY,PT
+      REAL,INTENT(IN) :: DT,DX,DY,PT,RHGRD
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,D_SS)  :: MPRATES
 !
@@ -360,7 +361,7 @@
                                                                             )
           CASE ('fer_hires')
             CALL FER_HIRES(                                                   &
-                   ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
+                   ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy,RHgrd=RHGRD            &
                   ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
                   ,Q=Q                                                        &
                   ,QC=QC                                                      &

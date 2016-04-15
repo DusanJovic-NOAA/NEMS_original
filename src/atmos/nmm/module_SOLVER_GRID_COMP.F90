@@ -2841,7 +2841,7 @@
       DYV=int_state%DYV
       EF4T=int_state%EF4T
       GLOBAL=int_state%GLOBAL
-      HYDRO=int_state%HYDRO
+!      HYDRO=int_state%HYDRO
       IDTADT=int_state%IDTADT
       IF(GLOBAL) THEN
         IDTADTQ=IDTADT  !global
@@ -2948,6 +2948,17 @@
 !
       NTIMESTEP=NTIMESTEP_ESMF
       int_state%NTSD=NTIMESTEP
+
+! here
+        if (DT .lt. 0 .and. FILTER_METHOD .ge. 2 .and. &
+           (int(NTIMESTEP*DT) .le. int_state%DFIHR_BOCO/2.)) then
+      HYDRO=.true.
+        else
+      HYDRO=int_state%HYDRO
+        endif
+
+
+
 !     
       FIRST_PASS=int_state%FIRST_PASS
 !
@@ -5834,6 +5845,7 @@ max_hrly: IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
                        ,int_state%TBPVS_STATE,int_state%TBPVS0_STATE       &
                        ,int_state%SPECIFIED,int_state%NESTED               &
                        ,int_state%MICROPHYSICS                             &
+                       ,int_state%RHGRD                                    &  ! fer_hires only
                        ,int_state%TP1                                      &  !gfs mod-brad
                        ,int_state%QP1                                      &  !gfs mod-brad
                        ,int_state%PSP1                                     &  !gfs mod-brad

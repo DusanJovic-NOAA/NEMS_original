@@ -45,6 +45,7 @@
 !       12 May 2011   W. Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !       23 May 2011   J. Wang  - add do post option
 !       27 SEP 2011   W. Yang  - Modified for using the ESMF 5.2.0r library.
+!       26 JAN 2016   J. Carley - Add error checking after calls to nemsio_writerec
 !---------------------------------------------------------------------------------
 !
       USE ESMF
@@ -4095,6 +4096,10 @@
                        ,(/FIELDSIZE/))
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IERR)           !<-- Lead write task writes out the 2D int data!
+            IF(IERR/=0)THEN
+              WRITE(0,*)' Failed to write output to file! Aborting!'
+              CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
+            ENDIF
 !
          ENDIF
 !-----------------------------------------------------------------------
@@ -4297,6 +4302,10 @@
             TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+            IF(IERR/=0)THEN
+              WRITE(0,*)' Failed to write output to file! Aborting!'
+              CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
+            ENDIF
 !
 !           IF(HST_FIRST)THEN
 !             WRITE(0,*)'Wrote ',TRIM(NAME),' to nemsio history file iret=',ierr
@@ -4353,6 +4362,10 @@
             N=N+1
             TMP=RESHAPE(FACT10(1:IM,1:JM),(/FIELDSIZE/))
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+            IF(IERR/=0)THEN
+              WRITE(0,*)' Failed to write output to file! Aborting!'
+              CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
+            ENDIF
 !           write(0,*)'after nemsio_writerec,n=',n,'fact10=',maxval(tmp),minval(tmp),'iret=',ierr
           ENDIF
 !
@@ -4998,6 +5011,10 @@
            TMP=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_I2D(1:IM,1:JM),(/FIELDSIZE/))
 !
            CALL NEMSIO_WRITEREC(NEMSIOFILE,NFIELD,TMP,IRET=IERR)           !<-- Lead write task writes out the 2D int data!
+           IF(IERR/=0)THEN
+             WRITE(0,*)' Failed to write output to file! Aborting!'
+             CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
+           ENDIF
 !
          ENDIF
 !-----------------------------------------------------------------------
@@ -5204,6 +5221,10 @@
             TMP=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
 !
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+            IF(IERR/=0)THEN
+              WRITE(0,*)' Failed to write output to file! Aborting!'
+              CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
+            ENDIF
 !
 !           IF(RST_FIRST)THEN
 !             WRITE(0,*)'Wrote ',TRIM(NAME),' to nemsio restart file iret=',ierr
@@ -5255,6 +5276,10 @@
             N=N+1
             TMP=RESHAPE(FACT10(1:IM,1:JM),(/FIELDSIZE/))
             CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+            IF(IERR/=0)THEN
+              WRITE(0,*)' Failed to write output to file! Aborting!'
+              CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
+            ENDIF
 !           write(0,*)'after nemsio_writerec,n=',n,'fact10=',maxval(tmp),minval(tmp),'iret=',ierr
 !           WRITE(0,*)'Wrote FACT10 to nemsio restart file iret=',ierr
           ENDIF
@@ -5267,6 +5292,10 @@
           N=N+1
           TMP=RESHAPE(HGT(1:IM,1:JM),(/FIELDSIZE/))
           CALL NEMSIO_WRITEREC(NEMSIOFILE,N,TMP,IRET=IERR)
+          IF(IERR/=0)THEN
+            WRITE(0,*)' Failed to write output to file! Aborting!'
+            CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
+          ENDIF
           DEALLOCATE(HGT)
         ENDIF
 !

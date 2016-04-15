@@ -450,8 +450,8 @@
 !***  define local variables
 !-----------------------------------------------------------------------
       logical(kind=klog):: &
-       deep,mmntdeep,mmntshal1,mmntshal2,plume,shallow
-
+       deep,mmntdeep,mmntshal1,mmntshal2,plume,shallow,overshoot   !jun04
+!
       real(kind=kfpt):: &
        dum,dvm,facuv,uvscald,uvscals1,uvscals2,ubar,vbar
 
@@ -508,7 +508,7 @@
       ,tq,tqk,treflo,trfkl,trmlo,trmup,tskl,tsp,tth &
       ,tthk,tup &
       ,capecnv,pspcnv,thbtcnv,capetrigr,cape &
-      ,tlev2,qsat1,qsat2,rhshmax
+      ,tlev2,qsat1,qsat2,rhshmax,rh_deep      !mar11
 !-----------------------------------------------------------------------
 !
       real(kind=kfpt),parameter:: &
@@ -554,6 +554,14 @@
       plume=.false.
       shallow=.false.
 !
+!mar11 changes start
+      if(nodeep) then
+        rh_deep=0.90
+      else
+        rh_deep=0.75
+      endif
+!mar11 changes end
+!
       mmntdeep=.false. !.true. !.false. !.true.
       mmntshal1=.true. !.false.
       mmntshal2=.true. !.false.
@@ -583,6 +591,8 @@
         thescnv(l)=0.
         dudt(l)=0.
         dvdt(l)=0.
+        qsatk(l)=pq0/prsmid(l)*exp(a2*(tk(l)-a3)/(tk(l)-a4))
+        rhk(l)=qk(l)/qsatk(l)
       enddo
 !-----------------------------------------------------------------------
 !----------------search for maximum buoyancy level----------------------
@@ -859,6 +869,7 @@
 !-----------------------------------------------------------------------
 !--- cloud top level (ltop) is located where cape is a maximum
 !--- exit cloud-top search if cape < capetrigr
+!-   Also exit cloud-top search if newswap=T and RH<rh_deep  !jun04
 !-----------------------------------------------------------------------
 !
           do l=kb,1,-1
@@ -868,6 +879,7 @@
               ltp1=l
               cape=cpe(l)
             endif
+            if(newswap .and. rhk(l)<rh_deep) exit   !jun04
           enddo      !-- end do l=kb,1,-1
 !
           ltop=max(min(ltp1,lbot),1)
@@ -1313,9 +1325,11 @@
 !***
 !***  cloud top is the level just below pbtk-psh or just below pshu
 !***
+      if(.not.newswap) then   !jun04
         do l=1,lmh
           if(pk(l)<=ptpk)ltop=l+1
         enddo
+      endif    !jun04
 !
 !        ptpk=pk(ltop)
 !!***
@@ -1367,6 +1381,7 @@
 !-- make shallow cloud top a function of virtual temperature excess (dtv)
 !-----------------------------------------------------------------------
 !
+      if(.not.newswap) then   !jun04
         ltp1=lbot
         do l=lbot-1,ltop,-1
           if (dtv(l) > 0.) then
@@ -1376,6 +1391,7 @@
           endif
         enddo
         ltop=min(ltp1,lbot)
+      endif   !jun04
 !***
 !***  cloud must be at least two layers thick
 !***
@@ -1452,7 +1468,7 @@
       enddo
 !
 !-----------------------------------------------------------------------
-!-- begin: raise cloud top if avg rh>rhshmax and cape>0
+!-- begin: raise cloud top if avg rh>rhshmax and cape>0 (dtv>0 if newswap=T)   !jun04
 !   rhshmax=rh at cloud base associated with a dsp of pone
 !-----------------------------------------------------------------------
 !
@@ -1470,13 +1486,27 @@
 !
       if (rhavg/sumdp > rhshmax) then
         ltsh=ltop
+!-- overshoot: allow cloud top to be 1 level above neutral/positive buoyancy   !apr21
+        if(newswap) overshoot=.true.   !jun04
         do l=ltop-1,1,-1
           rhavg=rhavg+dprs(l)*qk(l)/qsatk(l)
           sumdp=sumdp+dprs(l)
-          if (cpe(l) > 0.) then
-            ltsh=l
-          else
-            exit
+          if(.not.newswap) then   !jun04
+            if (cpe(l) > 0.) then
+              ltsh=l
+            else
+              exit
+            endif
+          else    !jun04 begin
+            if (dtv(l) <= 0.) then   !-- More strict positive buoyancy criterion
+              if (cpe(l) <= 0.) exit
+              if (overshoot) then
+                overshoot=.false.
+              else
+                exit
+              endif
+            endif
+            ltsh=l   !jun04 end
           endif
           if (rhavg/sumdp <= rhshmax) exit
           if (pk(l) <= pshu) exit
@@ -1485,7 +1515,7 @@
 !swapnomoist        iswap=0 ! old cloud for moist clouds
       endif
 !
-!-- end: raise cloud top if avg rh>rhshmax and cape>0
+!-- end: raise cloud top if avg rh>rhshmax and cape>0 (dtv>0 if newswap=T)   !jun04
 !
 !---------------------------shallow cloud top---------------------------
       lbm1=lbot-1
@@ -1671,12 +1701,13 @@
 !zj      if(newupup.and.dst.gt.0.) go to 810 ! new shallow cloud for both heat and moisture up
 
 !zj      if(newupup.and.dst.gt.0..and.sm.lt.0.5) go to 810 ! new shallow cloud for both heat and moisture up
-      if(newupup.and.dst.gt.0..and.plume) go to 810 ! new shallow cloud if plume for both heat and moisture up
+       if(newupup.and.dst.gt.0..and.plume) go to 810 ! new shallow cloud if plume for both heat and moisture up
 !zj      if(newupup.and.dst.gt.0..and.plume.and.sm.lt.0.5) go to 810 ! new shallow cloud for both heat and moisture up
 !-----------------------------------------------------------------------
 !*** otherwise old cloud
 !-----------------------------------------------------------------------
       if(dst.gt.0.) then 
+        if (newswap) go to 810 ! new shallow cloud for both heat and moisture up   !jun04
         lbot=0          
         ltop=lm     
         ptop=pbot   
@@ -1690,6 +1721,7 @@
       den=potsum-psum
 !
       if(-den/psum<5.e-5)then
+        if (newswap) go to 810 ! new shallow cloud for both heat and moisture up   !jun04
         lbot=0
         ltop=lm
         ptop=pbot
@@ -1703,6 +1735,7 @@
 !-------------- humidity does not increase with height------------------
 !
       if(dqref<0.)then
+        if (newswap) go to 810 ! new shallow cloud for both heat and moisture up   !jun04
         lbot=0
         ltop=lm
         ptop=pbot
@@ -1725,6 +1758,7 @@
         qnew=(qrfkl-qk(l))*tauksc+qk(l)
 !
         if(qnew<qsatk(l)*rhlsc)then
+          if (newswap) go to 810 ! new shallow cloud for both heat and moisture up   !jun04
           lbot=0
           ltop=lm
           ptop=pbot
@@ -1734,6 +1768,7 @@
 !-------------too moist clouds not allowed------------------------------
 !
         if(qnew>qsatk(l)*rhhsc)then
+          if (newswap) go to 810 ! new shallow cloud for both heat and moisture up   !jun04
           lbot=0
           ltop=lm
           ptop=pbot
@@ -1762,6 +1797,7 @@
         dtdp=(thvref(l-1)-thvref(l))/(prsmid(l)-prsmid(l-1))
 !
         if(dtdp<epsdt)then
+          if (newswap) go to 810 ! new shallow cloud for both heat and moisture up   !jun04
           lbot=0
           ltop=lm
           ptop=pbot
@@ -1883,6 +1919,12 @@
         wcld(l)=(1.-wdry)*rhref/(1.-wdry*rhref)
         trefk(l)=((1.-wcld(l))*(avm*pk(l)+bvm) &
                  +    wcld(l) *(ama*pk(l)+bma))/rxnerk(l)
+        if (nodeep .and. abs(trefk(l)-tk(l))>5.) then
+          lbot=0
+          ltop=lm
+          ptop=pbot
+          return
+        endif
         qrefk(l)=rhref*(aqs*prsmid(l)+bqs)
       enddo
 !-------------enthalpy conservation-------------------------------------

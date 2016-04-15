@@ -1,5 +1,5 @@
 !
-!-- "Modified" fer_hires microphysics - 19 Jan 2014
+!-- "Modified" fer_hires microphysics starting on 19 Jan 2014
 !
 ! (1) Ice nucleation: Fletcher (1962) replaces Meyers et al. (1992)
 ! (2) Cloud ice is a simple function of the number concentration from (1), and it
@@ -16,12 +16,17 @@
 ! (7) Reduce the fall speeds of rimed ice by making VEL_INC a function of 
 !     VrimeF**1.5 and not VrimeF**2.
 ! (8) RHgrd=0.98 (98% RH) for the onset of condensation, to match what's been
-!     tested for many months in the NAMX.
+!     tested for many months in the NAMX.  Made obsolete with change in (13).
 ! (9) Rime factor is *never* adjusted when NLICE>NLImax.  
 ! (10) Ice deposition does not change the rime factor (RF) when RF>=10 & T>T_ICE.
 ! (11) Limit GAMMAS to <=1.5 (air resistance impact on ice fall speeds)
 ! (12) NSImax is maximum # conc of ice crsytals.  At cold temperature NSImax is
 !      calculated based on assuming 10% of total ice content is due to cloud ice.
+!
+!-- Further modifications starting on 23 July 2015
+! (13) RHgrd is passed in as an input argument so that it can vary for different
+!      domains (RHgrd=0.98 for 12-km parent, 1.0 for 3-km nests)
+! (14) Use the old "PRAUT" cloud water autoconversion *threshold* (QAUT0)
 !-----------------------------------------------------------------------------
 !
      MODULE MODULE_MP_FER_HIRES
@@ -91,7 +96,6 @@ INTEGER, PARAMETER :: MAX_ITERATIONS=10
 !
 ! ======================================================================
 !--- Important tunable parameters that are exported to other modules
-!  * RHgrd - threshold relative humidity for onset of condensation
 !  * T_ICE - temperature (C) threshold at which all remaining liquid water
 !            is glaciated to ice
 !  * T_ICE_init - maximum temperature (C) at which ice nucleation occurs
@@ -106,8 +110,7 @@ INTEGER, PARAMETER :: MAX_ITERATIONS=10
 !  * NCW - number concentrations of cloud droplets (m**-3)
 ! ======================================================================
       REAL, PUBLIC,PARAMETER ::                                         &
-     &  RHgrd=0.98                                                      &
-     & ,T_ICE=-40.                                                      &
+     &  T_ICE=-40.                                                      &
      & ,T_ICEK=T0C+T_ICE                                                &
      & ,T_ICE_init=-12.                                                 &
      & ,NSI_max=250.E3                                                  &
@@ -125,7 +128,7 @@ INTEGER, PARAMETER :: MAX_ITERATIONS=10
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
-      SUBROUTINE FER_HIRES (itimestep,DT,DX,DY,                         &
+      SUBROUTINE FER_HIRES (itimestep,DT,DX,DY,RHgrd,                   &
      &                      dz8w,rho_phy,p_phy,pi_phy,th_phy,q,qt,      &
      &                      LOWLYR,SR,                                  &
      &                      F_ICE_PHY,F_RAIN_PHY,F_RIMEF_PHY,           &
@@ -144,7 +147,7 @@ INTEGER, PARAMETER :: MAX_ITERATIONS=10
      &                     ,IMS,IME,JMS,JME,KMS,KME                     &
      &                     ,ITS,ITE,JTS,JTE,KTS,KTE                     &
      &                     ,ITIMESTEP
-      REAL, INTENT(IN) 	    :: DT,DX,DY
+      REAL, INTENT(IN) 	    :: DT,DX,DY, RHgrd
       REAL, INTENT(IN),     DIMENSION(ims:ime, jms:jme, kms:kme)::      &
      &                      dz8w,p_phy,pi_phy,rho_phy
       REAL, INTENT(INOUT),  DIMENSION(ims:ime, jms:jme, kms:kme)::      &
@@ -397,7 +400,8 @@ ENDIF
 !
           I_index=I
           J_index=J
-       CALL EGCP01COLUMN_hr ( ARAIN, ASNOW, DT, I_index, J_index, LSFC, &
+       CALL EGCP01COLUMN_hr ( ARAIN, ASNOW, DT, RHgrd,                  &
+     & I_index, J_index, LSFC,                                          &
      & P_col, QI_col, QR_col, Q_col, QW_col, RimeF_col, T_col,          &
      & THICK_col, WC_col,KTS,KTE,NSTATS,QMAX,QTOT,pcond1d,pidep1d,      &
      & piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,pimlt1d,       &
@@ -597,8 +601,9 @@ ENDIF
 !###############################################################################
 !###############################################################################
 !
-      SUBROUTINE EGCP01COLUMN_hr ( ARAIN, ASNOW, DTPH, I_index, J_index, &
-     & LSFC, P_col, QI_col, QR_col, Q_col, QW_col, RimeF_col, T_col,     &
+      SUBROUTINE EGCP01COLUMN_hr ( ARAIN, ASNOW, DTPH, RHgrd,            &
+     & I_index, J_index, LSFC,                                           &
+     & P_col, QI_col, QR_col, Q_col, QW_col, RimeF_col, T_col,           &
      & THICK_col, WC_col ,KTS,KTE,NSTATS,QMAX,QTOT,pcond1d,pidep1d,      &
      & piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,pimlt1d,        &
      & praut1d,pracw1d,prevp1d,pisub1d,pevap1d)                          
@@ -630,6 +635,7 @@ ENDIF
 !
 ! INPUT ARGUMENT LIST:
 !   DTPH       - physics time step (s)
+!   RHgrd      - threshold relative humidity (ratio) for onset of condensation
 !   I_index    - I index
 !   J_index    - J index
 !   LSFC       - Eta level of level above surface, ground
@@ -695,6 +701,7 @@ ENDIF
       IMPLICIT NONE
 !    
       INTEGER,INTENT(IN) :: KTS,KTE,I_index, J_index, LSFC
+      REAL,INTENT(IN)    :: DTPH,RHgrd
       REAL,INTENT(INOUT) ::  ARAIN, ASNOW
       REAL,DIMENSION(KTS:KTE),INTENT(INOUT) ::  P_col, QI_col,QR_col    &
      & ,Q_col ,QW_col, RimeF_col, T_col, THICK_col,WC_col,pcond1d       &
@@ -786,7 +793,7 @@ ENDIF
       REAL :: ABI,ABW,AIEVP,ARAINnew,ASNOWnew,BLDTRH,BUDGET,            &
      &        CREVP,DELI,DELR,DELT,DELV,DELW,DENOMF,                    &
      &        DENOMI,DENOMW,DENOMWI,DIDEP,                              &
-     &        DIEVP,DIFFUS,DLI,DTPH,DTRHO,DUM,DUM1,DUM2,DUM3,           &
+     &        DIEVP,DIFFUS,DLI,DTRHO,DUM,DUM1,DUM2,DUM3,                &
      &        DWV0,DWVI,DWVR,DYNVIS,ESI,ESW,FIR,FLARGE,FLIMASS,         &
      &        FSMALL,FWR,FWS,GAMMAR,GAMMAS,                             &
      &        PCOND,PIACR,PIACW,PIACWI,PIACWR,PICND,PIDEP,PIDEP_max,    &
@@ -1182,12 +1189,15 @@ new_size:       IF (XLI<=MASSI(MDImin) ) THEN
 !    water by precipitation ice (PIACW)
 !    
           IF (QW.GT.EPSQ .AND. TC.GE.T_ICE) THEN
-!
+!-- The old autoconversion threshold returns
+            DUM2=RHO*QW
+            IF (DUM2>QAUT0) THEN
 !-- July 2010 version follows Liu & Daum (JAS, 2004) and Liu et al. (JAS, 2006)
-!
-            DUM=BRAUT*RHO*RHO*QW*QW*QW
-            DUM1=ARAUT*RHO*RHO*QW*QW
-            PRAUT=MIN(QW, DUM*(1.-EXP(-DUM1*DUM1)) )
+              DUM2=DUM2*DUM2
+              DUM=BRAUT*DUM2*QW
+              DUM1=ARAUT*DUM2
+              PRAUT=MIN(QW, DUM*(1.-EXP(-DUM1*DUM1)) )
+            ENDIF
             IF (QLICE .GT. EPSQ) THEN
       !
       !--- Collection of cloud water by large ice particles ("snow")
@@ -1225,7 +1235,8 @@ IF (WARN1 .AND. DUM1<XMIN) THEN
               I_index,J_index,L,DUM1-T0C,.01*PP
    WARN1=.FALSE.
 ENDIF
-            IF (DUM2>DUM) PIDEP=DEPOSIT(PP,DUM1,DUM2,I_index,J_index,L)
+            IF (DUM2>DUM)                                               &
+     &          PIDEP=DEPOSIT(PP,DUM1,DUM2,RHgrd,I_index,J_index,L)
 
             DWVi=0.    ! Used only for debugging
    !
@@ -1308,7 +1319,7 @@ ENDIF
 !
           IF (TC.GE.T_ICE .AND. (QW.GT.EPSQ .OR. WV.GT.QSWgrd)) THEN
             IF (PIACWI.EQ.0. .AND. PIDEP.EQ.0.) THEN
-              PCOND=CONDENSE(PP,QW,TK,WV,I_index,J_index,L)    !-- Debug 20120111
+              PCOND=CONDENSE(PP,QW,TK,WV,RHgrd,I_index,J_index,L)    !-- Debug 20120111
             ELSE
    !
    !--- Modify cloud condensation in response to ice processes
@@ -1924,7 +1935,7 @@ ENDIF
 !--------- Produces accurate calculation of cloud condensation ---------
 !#######################################################################
 !
-      REAL FUNCTION CONDENSE (PP,QW,TK,WV,I,J,L)    !-- Debug 20120111
+      REAL FUNCTION CONDENSE (PP,QW,TK,WV,RHgrd,I,J,L)
 !
 !---------------------------------------------------------------------------------
 !------   The Asai (1965) algorithm takes into consideration the release of ------
@@ -1939,7 +1950,7 @@ ENDIF
      & RHLIMIT=.001, RHLIMIT1=-RHLIMIT
       REAL (KIND=HIGH_PRES) :: COND, SSAT, WCdum
 !
-      REAL,INTENT(IN) :: QW,PP,WV,TK
+      REAL,INTENT(IN) :: QW,PP,WV,TK,RHgrd
       REAL WVdum,Tdum,XLV2,DWV,WS,ESW,XLV1,XLV
 
 integer,INTENT(IN) :: I,J,L     !-- Debug 20120111
@@ -2000,7 +2011,7 @@ ENDIF
 !---------------- Calculate ice deposition at T<T_ICE ------------------
 !#######################################################################
 !
-      REAL FUNCTION DEPOSIT (PP,Tdum,WVdum,I,J,L)   !-- Debug 20120111
+      REAL FUNCTION DEPOSIT (PP,Tdum,WVdum,RHgrd,I,J,L)   !-- Debug 20120111
 !
 !--- Also uses the Asai (1965) algorithm, but uses a different target
 !      vapor pressure for the adjustment
@@ -2012,7 +2023,7 @@ ENDIF
      & RHLIMIT1=-RHLIMIT
       REAL (KIND=HIGH_PRES) :: DEP, SSAT
 !    
-      real,INTENT(IN) ::  PP
+      real,INTENT(IN) ::  PP,RHgrd
       real,INTENT(INOUT) ::  WVdum,Tdum
       real ESI,WS,DWV
 

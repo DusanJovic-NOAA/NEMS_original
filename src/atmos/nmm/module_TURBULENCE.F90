@@ -1006,8 +1006,8 @@
 
           IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
 
-              CALL MYJPBL(DT=DT,NPHS=NPHS,HT=SFCZ,DZ=DZ                 &
-                         ,PHMID=PHMID,PHINT=PHINT,TH=TH,T=T,EXNER=EXNER &
+              CALL MYJPBL(DT=DT,NPHS=NPHS,HT=SFCZ,STDH=HSTDV,DZ=DZ      &
+                         ,PMID=PHMID,PINH=PHINT,TH=TH,T=T,EXNER=EXNER &
                          ,Q=Q                                           &
                          ,CWM=QC                                        &
                          ,U=U_PHY,V=V_PHY                               &

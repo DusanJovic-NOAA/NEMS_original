@@ -681,7 +681,8 @@
 !***  Horizontal/Vertical grid
 !-----------------------------------------------------------------------
 !
-        REAL(kind=KFPT) :: FRES,FR,FSL,FSS
+        REAL(kind=KFPT) :: FRES,FR,FSL,FSS       ! BMJ convection only
+        REAL(kind=KFPT) :: RHGRD                 ! fer_hires microphysics only
 !
 !-----------------------------------------------------------------------
 !***  Integration quantities.

@@ -200,6 +200,7 @@ microphysics:  fer_hires    # Microphysics scheme
                                 # tho --> Thompson
                                 # wsm3--> WSM3
 
+rhgrd: 0.98                 # Onset of condensation
 spec_adv:  .false.          # Individual cloud species advected
 lmprate:  .false.           # .true.: 4D array called MPRATES containing
                             # 3D microphysics source/sink terms

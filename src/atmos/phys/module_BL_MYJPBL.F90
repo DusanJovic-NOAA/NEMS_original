@@ -10,7 +10,8 @@
 !
       USE MODULE_INCLUDE
 !
-      USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CP,ELIV,ELWV,EP_1,EPSQ,EPSQ2 &
+      USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CP,ELIV,ELWV,ELIWV &
+                                 ,EP_1,EPSQ,EPSQ2 &
                                  ,G,P608,PI,PQ0,R_D,R_V,RHOWATER        &
                                  ,STBOLT,CAPPA
 !
@@ -22,7 +23,7 @@
 !
       PRIVATE
 !
-      PUBLIC :: MYJPBL_INIT, MYJPBL
+      PUBLIC:: MYJPBL_INIT, MYJPBL
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -30,82 +31,133 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      REAL,PARAMETER :: VKARMAN=0.4
-      REAL,PARAMETER :: XLS=ELIV,XLV=ELWV
-      REAL,PARAMETER :: RLIVWV=XLS/XLV,ELOCP=2.72E6/CP
-      REAL,PARAMETER :: EPS1=1.E-12,EPS2=0.
-      REAL,PARAMETER :: EPSL=0.32,EPSRU=1.E-7,EPSRS=1.E-7               &
-                       ,EPSTRB=1.E-24
-      REAL,PARAMETER :: EPSA=1.E-8,EPSIT=1.E-4  &
-                       ,FH=1.01
-      REAL,PARAMETER :: ALPH=0.30,BETA=1./273.,EL0MAX=1000.,EL0MIN=1.   &
-                       ,ELFC=0.23*0.5,GAM1=0.2222222222222222222        &
-                       ,PRT=1.
-      REAL,PARAMETER :: A1=0.659888514560862645                         &
-                       ,A2x=0.6574209922667784586                       &
-                       ,B1=11.87799326209552761                         &
-                       ,B2=7.226971804046074028                         &
-                       ,C1=0.000830955950095854396
-      REAL,PARAMETER :: ELZ0=0.,ESQ=5.0
+      REAL(KIND=KFPT),PARAMETER:: &
+       ELEVFC=0.6
 !
-      REAL,PARAMETER :: SEAFC=0.98,PQ0SEA=PQ0*SEAFC
+      REAL(KIND=KFPT),PARAMETER:: &
+       VKARMAN=0.4 &
 !
-      REAL,PARAMETER :: BTG=BETA*G                                      &
-                       ,ESQHF=0.5*5.0                                   &
-                       ,RB1=1./B1
+      ,XLS=ELIV,XLV=ELWV &
+      ,RLIVWV=XLS/XLV,ELOCP=2.72E6/CP &
 !
-      REAL,PARAMETER :: ADNH= 9.*A1*A2x*A2x*(12.*A1+3.*B2)*BTG*BTG      &
-                       ,ADNM=18.*A1*A1*A2x*(B2-3.*A2x)*BTG              &
-                       ,ANMH=-9.*A1*A2x*A2x*BTG*BTG                     &
-                       ,ANMM=-3.*A1*A2x*(3.*A2x+3.*B2*C1+18.*A1*C1-B2)  &
-                                      *BTG                              &
-                       ,BDNH= 3.*A2x*(7.*A1+B2)*BTG                     &
-                       ,BDNM= 6.*A1*A1                                  &
-                       ,BEQH= A2x*B1*BTG+3.*A2x*(7.*A1+B2)*BTG          &
-                       ,BEQM=-A1*B1*(1.-3.*C1)+6.*A1*A1                 &
-                       ,BNMH=-A2x*BTG                                   &
-                       ,BNMM=A1*(1.-3.*C1)                              &
-                       ,BSHH=9.*A1*A2x*A2x*BTG                          &
-                       ,BSHM=18.*A1*A1*A2x*C1                           &
-                       ,BSMH=-3.*A1*A2x*(3.*A2x+3.*B2*C1+12.*A1*C1-B2)  &
-                                      *BTG                              &
-                       ,CESH=A2x                                        &
-                       ,CESM=A1*(1.-3.*C1)                              &
-                       ,CNV=EP_1*G/BTG                                  &
-                       ,ELFCS=VKARMAN*BTG
+      ,EPS1=1.E-12,EPS2=0. &
+      ,EPSL=0.10,EPSRU=1.E-7,EPSRS=1.E-7 &
+      ,EPSTRB=1.E-24 &
+      ,FH=1.01 &
+!
+      ,ALPH=0.30,BETA=1./273.,EL0MAX=1000.,EL0MIN=1. &
+!      ,ELFC=0.5,GAM1=0.2222222222222222222 &
+!      ,ELFC=0.23*0.25,GAM1=0.2222222222222222222 &
+      ,ELFC=1.,GAM1=0.2222222222222222222 &
+!
+      ,A1=0.659888514560862645 &
+      ,A2X=0.6574209922667784586 &
+      ,B1=11.87799326209552761 &
+      ,B2=7.226971804046074028 &
+      ,C1=0.000830955950095854396 &
+      ,ELZ0=0.,ESQ=5.0 &
+!
+      ,SEAFC=0.98,PQ0SEA=PQ0*SEAFC &
+!
+      ,BTG=BETA*G &
+      ,ESQHF=0.5*5.0 &
+      ,RB1=1./B1
+!
+      REAL(KIND=KFPT),PARAMETER:: &
+       ADNH= 9.*A1*A2X*A2X*(12.*A1+3.*B2)*BTG*BTG &
+      ,ADNM=18.*A1*A1*A2X*(B2-3.*A2X)*BTG &
+      ,ANMH=-9.*A1*A2X*A2X*BTG*BTG &
+      ,ANMM=-3.*A1*A2X*(3.*A2X+3.*B2*C1+18.*A1*C1-B2)*BTG &
+      ,BDNH= 3.*A2X*(7.*A1+B2)*BTG &
+      ,BDNM= 6.*A1*A1 &
+      ,BEQH= A2X*B1*BTG+3.*A2X*(7.*A1+B2)*BTG &
+      ,BEQM=-A1*B1*(1.-3.*C1)+6.*A1*A1 &
+      ,BNMH=-A2X*BTG &
+      ,BNMM=A1*(1.-3.*C1) &
+      ,BSHH=9.*A1*A2X*A2X*BTG &
+      ,BSHM=18.*A1*A1*A2X*C1 &
+      ,BSMH=-3.*A1*A2X*(3.*A2X+3.*B2*C1+12.*A1*C1-B2)*BTG &
+      ,CESH=A2X &
+      ,CESM=A1*(1.-3.*C1) &
+      ,CNV=EP_1*G/BTG
 !
 !-----------------------------------------------------------------------
 !***  FREE TERM IN THE EQUILIBRIUM EQUATION FOR (L/Q)**2
 !-----------------------------------------------------------------------
 !
-      REAL,PARAMETER :: AEQH=9.*A1*A2x*A2x*B1*BTG*BTG                   &
-                            +9.*A1*A2x*A2x*(12.*A1+3.*B2)*BTG*BTG       &
-                       ,AEQM=3.*A1*A2x*B1*(3.*A2x+3.*B2*C1+18.*A1*C1-B2)&
-                            *BTG+18.*A1*A1*A2x*(B2-3.*A2x)*BTG
+      REAL(KIND=KFPT),PARAMETER:: &
+       AEQH=9.*A1*A2X*A2X*B1*BTG*BTG &
+           +9.*A1*A2X*A2X*(12.*A1+3.*B2)*BTG*BTG &
+      ,AEQM=3.*A1*A2X*B1*(3.*A2X+3.*B2*C1+18.*A1*C1-B2) &
+           *BTG+18.*A1*A1*A2X*(B2-3.*A2X)*BTG
 !
 !-----------------------------------------------------------------------
 !***  FORBIDDEN TURBULENCE AREA
 !-----------------------------------------------------------------------
 !
-      REAL,PARAMETER :: REQU=-AEQH/AEQM                                 &
-                       ,EPSGH=1.E-9,EPSGM=REQU*EPSGH
+      REAL(KIND=KFPT),PARAMETER:: &
+       REQU=-AEQH/AEQM &
+      ,EPSGH=1.E-9,EPSGM=REQU*EPSGH
 !
 !-----------------------------------------------------------------------
 !***  NEAR ISOTROPY FOR SHEAR TURBULENCE, WW/Q2 LOWER LIMIT
 !-----------------------------------------------------------------------
 !
-      REAL,PARAMETER :: UBRYL=(18.*REQU*A1*A1*A2x*B2*C1*BTG             &
-                               +9.*A1*A2x*A2x*B2*BTG*BTG)               &
-                              /(REQU*ADNM+ADNH)                         &
-                       ,UBRY=(1.+EPSRS)*UBRYL,UBRY3=3.*UBRY
+      REAL(KIND=KFPT),PARAMETER:: &
+       UBRYL=(18.*REQU*A1*A1*A2X*B2*C1*BTG &
+             +9.*A1*A2X*A2X*B2*BTG*BTG) &
+            /(REQU*ADNM+ADNH) &
+      ,UBRY=(1.+EPSRS)*UBRYL,UBRY3=3.*UBRY
 !
-      REAL,PARAMETER :: AUBH=27.*A1*A2x*A2x*B2*BTG*BTG-ADNH*UBRY3       &
-                       ,AUBM=54.*A1*A1*A2x*B2*C1*BTG -ADNM*UBRY3        &
-                       ,BUBH=(9.*A1*A2x+3.*A2x*B2)*BTG-BDNH*UBRY3       &
-                       ,BUBM=18.*A1*A1*C1           -BDNM*UBRY3         &
-                       ,CUBR=1.                     -     UBRY3         &
-                       ,RCUBR=1./CUBR
+      REAL(KIND=KFPT),PARAMETER:: &
+       AUBH=27.*A1*A2X*A2X*B2*BTG*BTG-ADNH*UBRY3 &
+      ,AUBM=54.*A1*A1*A2X*B2*C1*BTG  -ADNM*UBRY3 &
+      ,BUBH=(9.*A1*A2X+3.*A2X*B2)*BTG-BDNH*UBRY3 &
+      ,BUBM=18.*A1*A1*C1             -BDNM*UBRY3 &
+      ,CUBR=1.                       -     UBRY3 &
+      ,RCUBR=1./CUBR
 !
+!-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!---LOOK-UP TABLES------------------------------------------------------
+INTEGER(KIND=KINT),PARAMETER:: &
+ ITBL=401 &                  ! CONVECTION TABLES, DIMENSION 1
+,JTBL=1201 &                 ! CONVECTION TABLES, DIMENSION 2
+,KERFM=301 &                 ! SIZE OF ERF HALF TABLE
+,KERFM2=KERFM-2              ! INTERNAL POINTS OF ERF HALF TABLE
+
+REAL(KIND=KFPT),PARAMETER:: &
+ PL=2500. &                  ! LOWER BOUND OF PRESSURE RANGE
+,PH=105000. &                ! UPPER BOUND OF PRESSURE RANGE
+,THL=210. &                  ! LOWER BOUND OF POTENTIAL TEMPERATURE RANGE
+,THH=365. &                  ! UPPER BOUND OF POTENTIAL TEMPERATURE RANGE
+,XEMIN=0. &                  ! LOWER BOUND OF ERF HALF TABLE
+,XEMAX=3.                    ! UPPER BOUND OF ERF HALF TABLE
+
+REAL(KIND=KFPT),PRIVATE,SAVE:: &
+ RDP &                       ! SCALING FACTOR FOR PRESSURE
+,RDQ &                       ! SCALING FACTOR FOR HUMIDITY
+,RDTH &                      ! SCALING FACTOR FOR POTENTIAL TEMPERATURE
+,RDTHE &                     ! SCALING FACTOR FOR EQUIVALENT POT. TEMPERATURE
+,RDXE                        ! ERF HALF TABLE SCALING FACTOR
+
+REAL(KIND=KFPT),DIMENSION(1:ITBL),PRIVATE,SAVE:: &
+ STHE &                      ! RANGE FOR EQUIVALENT POTENTIAL TEMPERATURE
+,THE0                        ! BASE FOR EQUIVALENT POTENTIAL TEMPERATURE           
+
+REAL(KIND=KFPT),DIMENSION(1:JTBL),PRIVATE,SAVE:: &
+ QS0 &                       ! BASE FOR SATURATION SPECIFIC HUMIDITY
+,SQS                         ! RANGE FOR SATURATION SPECIFIC HUMIDITY
+
+REAL(KIND=KFPT),DIMENSION(1:KERFM),PRIVATE,SAVE:: &
+ HERFF                       ! HALF ERF TABLE
+
+REAL(KIND=KFPT),DIMENSION(1:ITBL,1:JTBL),PRIVATE,SAVE:: &
+ PTBL                        ! SATURATION PRESSURE TABLE
+
+REAL(KIND=KFPT),DIMENSION(1:JTBL,1:ITBL),PRIVATE,SAVE:: &
+ TTBL                        ! TEMPERATURE TABLE
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 !
       CONTAINS
@@ -114,108 +166,125 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-! REFERENCES:  Janjic (2001), NCEP Office Note 437
-!              Mellor and Yamada (1982), Rev. Geophys. Space Phys.
+! REFERENCES:  JANJIC (2001), NCEP OFFICE NOTE 437
 !
 ! ABSTRACT:
 !     MYJ UPDATES THE TURBULENT KINETIC ENERGY WITH THE PRODUCTION/
 !     DISSIPATION TERM AND THE VERTICAL DIFFUSION TERM
 !     (USING AN IMPLICIT FORMULATION) FROM MELLOR-YAMADA
 !     LEVEL 2.5 AS EXTENDED BY JANJIC.  EXCHANGE COEFFICIENTS FOR
-!     THE SURFACE AND FOR ALL LAYER INTERFACES ARE COMPUTED FROM
-!     MONIN-OBUKHOV THEORY.
+!     THE SURFACE LAYER ARE COMPUTED FROM THE MONIN-OBUKHOV THEORY.
 !     THE TURBULENT VERTICAL EXCHANGE IS THEN EXECUTED.
 !
 !-----------------------------------------------------------------------
-      SUBROUTINE MYJPBL(DT,NPHS,HT,DZ                                  &
-     &                 ,PHMID,PHINT,TH,T,EXNER,Q,CWM,U,V               &
-     &                 ,TSK,QSFC,CHKLOWQ,THZ0,QZ0,UZ0,VZ0              &
-     &                 ,XLAND,SICE,SNOW                                &
-     &                 ,Q2,EXCH_H,USTAR,Z0,EL_MYJ,PBLH,KPBL,CT         &
-     &                 ,AKHS,AKMS,ELFLX,MIXHT                          &
-     &                 ,RUBLTEN,RVBLTEN,RTHBLTEN,RQBLTEN,RQCBLTEN      &
-     &                 ,IDS,IDE,JDS,JDE                                &
-     &                 ,IMS,IME,JMS,JME                                &
-     &                 ,ITS,ITE,JTS,JTE,LM)
+      SUBROUTINE MYJPBL(DT,NPHS,HT,STDH,DZ &
+                       ,PMID,PINH,TH,T,EXNER,Q,CWM,U,V &
+                       ,TSK,QSFC,CHKLOWQ,THZ0,QZ0,UZ0,VZ0 &
+                       ,XLAND,SICE,SNOW &
+                       ,Q2,EXCH_H,USTAR,Z0,EL_MYJ,PBLH,KPBL,CT &
+                       ,AKHS,AKMS,ELFLX,MIXHT &
+                       ,RUBLTEN,RVBLTEN,RTHBLTEN,RQBLTEN,RQCBLTEN &
+                       ,IDS,IDE,JDS,JDE &
+                       ,IMS,IME,JMS,JME &
+                       ,ITS,ITE,JTS,JTE,LM)
 !----------------------------------------------------------------------
+!
       IMPLICIT NONE
+!
 !----------------------------------------------------------------------
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       IDS,IDE,JDS,JDE &
+      ,IMS,IME,JMS,JME &
+      ,ITS,ITE,JTS,JTE,LM
 !
-!------------------------
-!***  Argument Variables
-!------------------------
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       NPHS
 !
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE                            &
-     &                     ,IMS,IME,JMS,JME                            &
-     &                     ,ITS,ITE,JTS,JTE,LM
+      INTEGER(KIND=KINT),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT):: &
+       KPBL
 !
-      INTEGER,INTENT(IN) :: NPHS
+      REAL(KIND=KFPT),INTENT(IN):: &
+       DT
 !
-      INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: KPBL
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN):: &
+       HT,SICE,SNOW,STDH  &
+      ,TSK,XLAND &
+      ,CHKLOWQ,ELFLX
 !
-      REAL,INTENT(IN) :: DT
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN):: &
+       DZ,EXNER,PMID,Q,CWM,U,V,T,TH
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: HT,SICE,SNOW       &
-     &                                             ,TSK,XLAND
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN):: &
+       PINH
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: DZ,EXNER,PHMID
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT):: &
+       MIXHT &
+      ,PBLH
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PHINT
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT):: &
+       EL_MYJ
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: Q,CWM,U,V,T,TH
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT):: &
+       RQCBLTEN &
+      ,RUBLTEN,RVBLTEN &
+      ,RTHBLTEN,RQBLTEN
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: MIXHT,PBLH
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT):: &
+       AKHS,AKMS
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: AKHS,AKMS
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT):: &
+       CT,QSFC,QZ0     &
+      ,THZ0,USTAR      &
+      ,UZ0,VZ0,Z0
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: EL_MYJ
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT):: &
+       EXCH_H &
+      ,Q2
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: RQCBLTEN     &
-     &                                                   ,RUBLTEN      &
-     &                                                   ,RVBLTEN      &
-     &                                                   ,RTHBLTEN     &
-     &                                                   ,RQBLTEN
+!----------------------------------------------------------------------
+!***
+!***  LOCAL VARIABLES
+!***
+      INTEGER(KIND=KINT):: &
+       I,IQTB,ITTB,J,K,LLOW,LMH,LMXL
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: CT,QSFC,QZ0     &
-     &                                                ,THZ0,USTAR      &
-     &                                                ,UZ0,VZ0,Z0
+      INTEGER(KIND=KINT),DIMENSION(IMS:IME,JMS:JME):: &
+       LPBL
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: EXCH_H,Q2
+      REAL(KIND=KFPT):: &
+       AKHS_DENS,AKMS_DENS,BQ,BQS00K,BQS10K &
+      ,DCDT,DELTAZ,DQDT,DTDIF,DTDT,DTTURBL &
+      ,P00K,P01K,P10K,P11K,PELEVFC,PP1,PSFC,PSP,PTOP &
+      ,QBT,QFC1,QLOW,QQ1,QX &
+      ,RDTTURBL,RG,RSQDT,RXNERS,RXNSFC &
+      ,SEAMASK,SQ,SQS00K,SQS10K &
+      ,THBT,THNEW,THOLD,TQ,TTH &
+      ,ULOW,VLOW,RSTDH,STDFAC,ZSF,ZSX,ZSY,ZUV
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CHKLOWQ,ELFLX
+      REAL(KIND=KFPT),DIMENSION(1:LM):: &
+       CWMK,PK,PSK,Q2K,QK,RHOK,RXNERK,THEK,THK,THVK,TK,UK,VK
 !
-!---------------------
-!***  Local Variables
-!---------------------
+      REAL(KIND=KFPT),DIMENSION(1:LM-1):: &
+       AKHK,AKMK,DCOL,EL,GH,GM
 !
-      INTEGER :: I,J,K,LLOW,LMH,LMXL
+      REAL(KIND=KFPT),DIMENSION(1:LM+1):: &
+       ZHK
 !
-      INTEGER,DIMENSION(ITS:ITE,JTS:JTE) :: LPBL
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME):: &
+       THSK
 !
-      REAL :: AKHS_DENS,AKMS_DENS,DELTAZ,DTDIF                         &
-     &       ,DTTURBL,DUDT,DVDT,EXNSFC,PSFC,PTOP,QFC1,QLOW             &
-     &       ,RDTTURBL,SEAMASK,THNEW,THOLD                             &
-     &       ,ULOW,VLOW
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM):: &
+       RXNER,THV
 !
-      REAL,DIMENSION(1:LM) :: CWMK,PK,Q2K,QK,THEK,TK,UK,VK
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM-1):: &
+       AKH,AKM
 !
-      REAL,DIMENSION(1:LM-1) :: AKHK,AKMK,EL,GH,GM
-!
-      REAL,DIMENSION(1:LM+1) :: ZHK
-!
-      REAL,DIMENSION(ITS:ITE,JTS:JTE) :: THSK
-!
-      REAL,DIMENSION(1:LM) :: RHOK
-!
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM) :: APE,THE
-!
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM-1) :: AKH,AKM
-!
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM+1) :: ZINT
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1):: &
+       ZINT
 !
 !***  Begin debugging
-      REAL :: ZSL_DIAG
-      INTEGER :: IMD,JMD,PRINT_DIAG
+      REAL(KIND=KFPT):: ZSL_DIAG
+      INTEGER(KIND=KINT):: IMD,JMD,PRINT_DIAG
 !***  End debugging
 !
 !----------------------------------------------------------------------
@@ -230,9 +299,13 @@
 !***  MAKE PREPARATIONS
 !
 !----------------------------------------------------------------------
+      STDFAC=1.
+!----------------------------------------------------------------------
       DTTURBL=DT*NPHS
       RDTTURBL=1./DTTURBL
+      RSQDT=SQRT(RDTTURBL)
       DTDIF=DTTURBL
+      RG=1./G
 !
       DO K=1,LM-1
       DO J=JTS,JTE
@@ -252,32 +325,32 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        ZINT(I,J,LM+1)=HT(I,J)     ! Z at bottom of lowest sigma layer
+        ZINT(I,J,LM+1)=HT(I,J)     ! Z AT BOTTOM OF LOWEST SIGMA LAYER
       ENDDO
       ENDDO
 !
       DO K=LM,1,-1
         DO J=JTS,JTE
-        DO I=ITS,ITE
-          ZINT(I,J,K)=ZINT(I,J,K+1)+DZ(I,J,K)
-          APE(I,J,K)=1./EXNER(I,J,K)
-          THE(I,J,K)=(CWM(I,J,K)*(-ELOCP/T(I,J,K))+1.)*TH(I,J,K)
-        ENDDO
+          DO I=ITS,ITE
+            ZINT(I,J,K)=ZINT(I,J,K+1)+DZ(I,J,K)
+            RXNER(I,J,K)=1./EXNER(I,J,K)
+            THV(I,J,K)=(Q(I,J,K)*0.608+(1.-CWM(I,J,K)))*TH(I,J,K)
+          ENDDO
         ENDDO
       ENDDO
 !
       DO J=JTS,JTE
-      DO I=ITS,ITE
-        EL_MYJ(I,J,LM)=0.
-      ENDDO
+        DO I=ITS,ITE
+          EL_MYJ(I,J,LM)=0.
+        ENDDO
       ENDDO
 !
 !----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do &
-!$omp private(j,i,lmh,ptop,psfc,seamask,k,tk,thek,qk,cwmk,       &
-!$omp         pk,uk,vk,q2k,zhk,lmxl,gm,gh,el,akmk,akhk,deltaz),          &
-!$omp         SCHEDULE(dynamic)
+!ZJ$OMP PARALLEL DO &
+!ZJ$OMP PRIVATE(J,I,LMH,PTOP,PSFC,SEAMASK,K,TK,THVK,QK,Q2K,RXNERK,     &
+!ZJ$OMP         PK,UK,VK,Q2K,ZHK,LMXL,GM,GH,EL,AKMK,AKHK,DELTAZ),          &
+!ZJ$OMP         SCHEDULE(DYNAMIC)
 !.......................................................................
 !----------------------------------------------------------------------
       setup_integration:  DO J=JTS,JTE
@@ -285,12 +358,10 @@
 !
         DO I=ITS,ITE
 !
-!***  LOWEST LAYER ABOVE GROUND MUST BE FLIPPED
-!
           LMH=LM
 !
-          PTOP=PHINT(I,J,1)
-          PSFC=PHINT(I,J,LMH+1)
+          PTOP=PINH(I,J,1)
+          PSFC=PINH(I,J,LMH+1)
 !
 !***  CONVERT LAND MASK (1 FOR SEA; 0 FOR LAND)
 !
@@ -299,18 +370,82 @@
 !***  FILL 1-D VERTICAL ARRAYS
 !
           DO K=LM,1,-1
+            PK(K)=PMID(I,J,K)
             TK(K)=T(I,J,K)
-            THEK(K)=THE(I,J,K)
             QK(K)=Q(I,J,K)
-            CWMK(K)=CWM(I,J,K)
-            PK(K)=PHMID(I,J,K)
+            THVK(K)=THV(I,J,K)
+            RXNERK(K)=RXNER(I,J,K)
             UK(K)=U(I,J,K)
             VK(K)=V(I,J,K)
             Q2K(K)=Q2(I,J,K)
+!
+!***  COMPUTE THE HEIGHTS OF THE LAYER INTERFACES
+!
             ZHK(K)=ZINT(I,J,K)
 !
           ENDDO
-          ZHK(LM+1)=HT(I,J)          ! Z at bottom of lowest sigma layer
+          ZHK(LM+1)=HT(I,J)          ! Z AT BOTTOM OF LOWEST SIGMA LAYER
+!
+!***  POTENTIAL INSTABILITY
+!
+          PELEVFC=PMID(I,J,LMH)*ELEVFC
+!
+          DO K=LMH,1,-1
+!-----------------------------------------------------------------------
+            IF(K==LMH .OR. PMID(I,J,K)>PELEVFC) THEN
+!---PREPARATION FOR SEARCH FOR MAX CAPE---------------------------------
+              QBT=QK(K)
+              THBT=TH(I,J,K)
+              TTH=(THBT-THL)*RDTH
+              QQ1=TTH-AINT(TTH)
+              ITTB=INT(TTH)+1
+!---KEEPING INDICES WITHIN THE TABLE------------------------------------
+              IF(ITTB.LT.1)THEN
+                ITTB=1
+                QQ1=0.
+              ELSE IF(ITTB.GE.JTBL)THEN
+                ITTB=JTBL-1
+                QQ1=0.
+              ENDIF
+!---BASE AND SCALING FACTOR FOR SPEC. HUMIDITY--------------------------
+              BQS00K=QS0(ITTB)
+              SQS00K=SQS(ITTB)
+              BQS10K=QS0(ITTB+1)
+              SQS10K=SQS(ITTB+1)
+!--------------SCALING SPEC. HUMIDITY & TABLE INDEX---------------------
+              BQ=(BQS10K-BQS00K)*QQ1+BQS00K
+              SQ=(SQS10K-SQS00K)*QQ1+SQS00K
+              TQ=(QBT-BQ)/SQ*RDQ
+              PP1=TQ-AINT(TQ)
+              IQTB=INT(TQ)+1
+!----------------KEEPING INDICES WITHIN THE TABLE-----------------------
+              IF(IQTB.LT.1)THEN
+                IQTB=1
+                PP1=0.
+              ELSEIF(IQTB.GE.ITBL)THEN
+                IQTB=ITBL-1
+                PP1=0.
+              ENDIF
+!--------------SATURATION PRESSURE AT FOUR SURROUNDING TABLE PTS.-------
+              P00K=PTBL(IQTB  ,ITTB  )
+              P10K=PTBL(IQTB+1,ITTB  )
+              P01K=PTBL(IQTB  ,ITTB+1)
+              P11K=PTBL(IQTB+1,ITTB+1)
+!--------------SATURATION POINT VARIABLES AT THE BOTTOM-----------------
+              PSP=P00K+(P10K-P00K)*PP1+(P01K-P00K)*QQ1 &
+                 +(P00K-P10K-P01K+P11K)*PP1*QQ1
+              RXNERS=(1.E5/PSP)**CAPPA
+              THEK(K)=THBT*EXP(ELOCP*QBT*RXNERS/THBT)
+              PSK (K)=PSP
+!-----------------------------------------------------------------------
+            ELSE
+!-----------------------------------------------------------------------
+              THEK(K)=THEK(K+1)
+              PSK (K)=PINH(I,J,1)
+!-----------------------------------------------------------------------
+            ENDIF
+!-----------------------------------------------------------------------
+          ENDDO
 !
 !***  Begin debugging
 !         IF(I==IMD.AND.J==JMD)THEN
@@ -325,10 +460,10 @@
 !***
 !***  FIND THE MIXING LENGTH
 !***
-          CALL MIXLEN(LMH,UK,VK,TK,THEK,QK,CWMK                        &
-     &               ,Q2K,ZHK,GM,GH,EL                                 &
-     &               ,PBLH(I,J),LPBL(I,J),LMXL,CT(I,J),MIXHT(I,J)      &
-     &               ,LM,I,J)
+          CALL MIXLEN(LMH,RSQDT,UK,VK,THVK,THEK &
+                     ,Q2K,ZHK,PK,PSK,RXNERK,GM,GH,EL &
+                     ,PBLH(I,J),LPBL(I,J),LMXL,CT(I,J),MIXHT(I,J) &
+                     ,I,J,LM)
 !
 !----------------------------------------------------------------------
 !***
@@ -336,8 +471,7 @@
 !***  THE TURBULENT KINETIC ENERGY
 !***
 !
-          CALL PRODQ2(LMH,DTTURBL,USTAR(I,J),GM,GH,EL,Q2K              &
-     &               ,LM,I,J)
+          CALL PRODQ2(LMH,DTTURBL,USTAR(I,J),GM,GH,EL,Q2K,I,J,LM)
 !
 !----------------------------------------------------------------------
 !*** THE MODEL LAYER (COUNTING UPWARD) CONTAINING THE TOP OF THE PBL
@@ -349,8 +483,8 @@
 !***
 !***  FIND THE EXCHANGE COEFFICIENTS IN THE FREE ATMOSPHERE
 !***
-          CALL DIFCOF(LMH,LMXL,GM,GH,EL,TK,Q2K,ZHK,AKMK,AKHK           &
-     &               ,LM,I,J,PRINT_DIAG)   ! debug
+          CALL DIFCOF(LMH,LMXL,GM,GH,EL,TK,Q2K,ZHK,AKMK,AKHK,I,J,LM &
+                     ,PRINT_DIAG)
 !
 !***  COUNTING DOWNWARD FROM THE TOP, THE EXCHANGE COEFFICIENTS AKH
 !***  ARE DEFINED ON THE BOTTOMS OF THE LAYERS 1 TO LM-1.  COUNTING
@@ -370,8 +504,7 @@
 !***  TURBULENT KINETIC ENERGY
 !***
 !
-          CALL VDIFQ(LMH,DTDIF,Q2K,EL,ZHK                              &
-     &              ,LM)
+          CALL VDIFQ(LMH,DTDIF,Q2K,EL,ZHK,I,J,LM)
 !
 !***  SAVE THE NEW Q2 AND MIXING LENGTH.
 !
@@ -388,7 +521,7 @@
       ENDDO setup_integration
 !
 !.......................................................................
-!$omp end parallel do
+!ZJ$OMP END PARALLEL DO
 !.......................................................................
 !----------------------------------------------------------------------
 !
@@ -396,7 +529,7 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        PSFC=PHINT(I,J,LM+1)
+        PSFC=PINH(I,J,LM+1)
         THSK(I,J)=TSK(I,J)*(1.E5/PSFC)**CAPPA
       ENDDO
       ENDDO
@@ -405,11 +538,12 @@
 !
 !----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do  private(i,j,k    &
-!$omp  & ,thek,qk,cwmk,zhk,rhok   &
-!$omp  & ,akhk,seamask,llow,akhs_dens,qfc1,qlow,psfc,exnsfc,lmh &
-!$omp  & ,thold,thnew,zsl_diag,akmk,akms_dens,uk,vk &
-!$omp  & ,dudt,dvdt),SCHEDULE(dynamic)
+!ZJ$OMP PARALLEL DO  PRIVATE(I,J,K &
+!ZJ$OMP  & ,THK,QK,CWMK,ZHK,RHOK &
+!ZJ$OMP  & ,AKHK,SEAMASK,LLOW,AKHS_DENS,QFC1,QLOW,PSFC,RXNSFC,LMH &
+!ZJ$OMP  & ,THOLD,THNEW,DTDT,DQDT,DCDT,ZSL_DIAG,AKMK,AKMS_DENS &
+!ZJ$OMP  & ,UK,VK &
+!ZJ$OMP  & ),SCHEDULE(DYNAMIC)
 !.......................................................................
 !----------------------------------------------------------------------
       main_integration:  DO J=JTS,JTE
@@ -420,11 +554,11 @@
 !***  FILL 1-D VERTICAL ARRAYS
 !
           DO K=LM,1,-1
-            THEK(K)=THE(I,J,K)
+            THK(K)=TH(I,J,K)
             QK(K)=Q(I,J,K)
             CWMK(K)=CWM(I,J,K)
             ZHK(K)=ZINT(I,J,K)
-            RHOK(K)=PHMID(I,J,K)/(R_D*T(I,J,K)*(1.+P608*QK(K)-CWMK(K)))
+            RHOK(K)=PMID(I,J,K)/(R_D*T(I,J,K)*(1.+P608*QK(K)-CWMK(K)))
           ENDDO
 !
 !***  COUNTING DOWNWARD FROM THE TOP, THE EXCHANGE COEFFICIENTS AKH
@@ -453,22 +587,17 @@
             IF(QFC1>0.)THEN
               QLOW=QK(LM)
               QSFC(I,J)=QLOW+ELFLX(I,J)/QFC1
-            ELSE
-!-- Convert back to specific humidity
-              QSFC(I,J)=QSFC(I,J)/(1.+QSFC(I,J))
             ENDIF
 !
           ELSE
-            PSFC=PHINT(I,J,LM+1)
-            EXNSFC=(1.E5/PSFC)**CAPPA
+            PSFC=PINH(I,J,LM+1)
+            RXNSFC=(1.E5/PSFC)**CAPPA
 
             QSFC(I,J)=PQ0SEA/PSFC                                      &
-     &         *EXP(A2*(THSK(I,J)-A3*EXNSFC)/(THSK(I,J)-A4*EXNSFC))
+     &         *EXP(A2*(THSK(I,J)-A3*RXNSFC)/(THSK(I,J)-A4*RXNSFC))
           ENDIF
 !
           QZ0 (I,J)=(1.-SEAMASK)*QSFC(I,J)+SEAMASK*QZ0 (I,J)
-!
-!***  LOWEST LAYER ABOVE GROUND MUST BE FLIPPED
 !
           LMH=LM
 !
@@ -477,18 +606,15 @@
 !***  TEMPERATURE AND WATER VAPOR
 !----------------------------------------------------------------------
 !
-          CALL VDIFH(DTDIF,LMH,THZ0(I,J),QZ0(I,J)                      &
-     &              ,AKHS_DENS,CHKLOWQ(I,J),CT(I,J)                    &
-     &              ,THEK,QK,CWMK,AKHK,ZHK,RHOK                        &
-     &              ,LM,I,J)
+          CALL VDIFH(DTDIF,LMH,THZ0(I,J),QZ0(I,J) &
+                    ,AKHS_DENS,CHKLOWQ(I,J),CT(I,J) &
+                    ,THK,QK,CWMK,AKHK,ZHK,RHOK,I,J,LM)
 !----------------------------------------------------------------------
 !***
 !***  COMPUTE PRIMARY VARIABLE TENDENCIES
 !***
           DO K=1,LM
-            THOLD=TH(I,J,K)
-            THNEW=THEK(K)+CWMK(K)*ELOCP*APE(I,J,K)
-            RTHBLTEN(I,J,K)=(THNEW-THOLD)*RDTTURBL
+            RTHBLTEN(I,J,K)=(THK(K)-TH(I,J,K))*RDTTURBL
             RQBLTEN(I,J,K)=(QK(K)-Q(I,J,K))*RDTTURBL
             RQCBLTEN(I,J,K)=(CWMK(K)-CWM(I,J,K))*RDTTURBL
           ENDDO
@@ -502,51 +628,63 @@
 !         IF(I==227.AND.J==363)PRINT_DIAG=0
 !*** End debugging
 !
-        PSFC=.01*PHINT(I,J,LM+1)
+        PSFC=.01*PINH(I,J,LM+1)
         ZSL_DIAG=0.5*DZ(I,J,LM)
 !
 !*** Begin debugging
 !         IF(PRINT_DIAG==1)THEN
 !
-!           write(6,"(a, 2i5, 2i3, 2f8.2, f6.2, 2f8.2)") &
-!           '{turb4 i,j, Kpbl, Kmxl, Psfc, Zsfc, Zsl, Zpbl, Zmxl = ' &
-!           , i, j, KPBL(i,j), LM-LMXL+1, PSFC, ZHK(LMH+1), ZSL_diag  &
-!           , PBLH(i,j), ZHK(LMXL)-ZHK(LMH+1)
-!           write(6,"(a, 2f7.2, f7.3, 3e11.4)") &
-!           '{turb4 tsk, thsk, qz0, q**2_0, akhs, exch_0 = ' &
-!           , tsk(i,j)-273.15, thsk(i,j), 1000.*qz0(i,j) &
-!           , q2(i,1,j), akhs(i,j), akhs(i,j)*ZSL_diag
-!           write(6,"(a)") &
-!           '{turb5 k, PHmid, PHint_1, Tc, TH, DTH, GH, GM, EL, Q**2, Akh, EXCH_h, Dz, Dp'
-!           do k=1,LM/2
-!             write(6,"(a,i3, 2f8.2, 2f8.3, 3e12.4, 4e11.4, f7.2, f6.2)") &
-!            '{turb5 ', k, .01*phmid(i,k,j),.01*phint(i,k,j), T(i,k,j)-273.15 &
-!            , th(i,k,j), DTTURBL*rthblten(i,k,j), GH(K), GM(K) &
-!            , el_myj(i,K,j), q2(i,k+1,j), akh(i,K,j) &
-!            , exch_h(i,k,j), dz(i,k,j), .01*(phint(i,k,j)-phint(i,k+1,j))
-!           enddo
+!           WRITE(6,"(A, 2I5, 2I3, 2F8.2, F6.2, 2F8.2)") &
+!           '{TURB4 I,J, KPBL, KMXL, PSFC, ZSFC, ZSL, ZPBL, ZMXL = ' &
+!           , I, J, KPBL(I,J), LM-LMXL+1, PSFC, ZHK(LMH+1), ZSL_DIAG  &
+!           , PBLH(I,J), ZHK(LMXL)-ZHK(LMH+1)
+!           WRITE(6,"(A, 2F7.2, F7.3, 3E11.4)") &
+!           '{TURB4 TSK, THSK, QZ0, Q**2_0, AKHS, EXCH_0 = ' &
+!           , TSK(I,J)-273.15, THSK(I,J), 1000.*QZ0(I,J) &
+!           , Q2(I,1,J), AKHS(I,J), AKHS(I,J)*ZSL_DIAG
+!           WRITE(6,"(A)") &
+!           '{TURB5 K, PMID, PINH_1, TC, TH, DTH, GH, GM, EL, Q**2, AKH, EXCH_H, DZ, DP'
+!           DO K=1,LM/2
+!             WRITE(6,"(A,I3, 2F8.2, 2F8.3, 3E12.4, 4E11.4, F7.2, F6.2)") &
+!            '{TURB5 ', K, .01*PMID(I,K,J),.01*PINH(I,K,J), T(I,K,J)-273.15 &
+!            , TH(I,K,J), DTTURBL*RTHBLTEN(I,K,J), GH(K), GM(K) &
+!            , EL_MYJ(I,K,J), Q2(I,K+1,J), AKH(I,K,J) &
+!            , EXCH_H(I,K,J), DZ(I,K,J), .01*(PINH(I,K,J)-PINH(I,K+1,J))
+!           ENDDO
 !
 !         ELSEIF(PRINT_DIAG==2)THEN
 !
-!           write(6,"(a, 2i5, 2i3, 2f8.2, f6.2, 2f8.2)") &
-!           '}turb4 i,j, Kpbl, Kmxl, Psfc, Zsfc, Zsl, Zpbl, Zmxl = ' &
-!           , i, j, KPBL(i,j), LM-LMXL+1, PSFC, ZHK(LMH+1), ZSL_diag  &
-!           , PBLH(i,j), ZHK(LMXL)-ZHK(LMH+1)
-!           write(6,"(a, 2f7.2, f7.3, 3e11.4)") &
-!           '}turb4 tsk, thsk, qz0, q**2_0, akhs, exch_0 = ' &
-!           , tsk(i,j)-273.15, thsk(i,j), 1000.*qz0(i,j) &
-!           , q2(i,1,j), akhs(i,j), akhs(i,j)*ZSL_diag
-!           write(6,"(a)") &
-!           '}turb5 k, PHmid, PHint_1, Tc, TH, DTH, GH, GM, EL, Q**2, Akh, EXCH_h, Dz, Dp'
-!           do k=1,LM/2
-!             write(6,"(a,i3, 2f8.2, 2f8.3, 3e12.4, 4e11.4, f7.2, f6.2)") &
-!            '}turb5 ', k, .01*phmid(i,k,j),.01*phint(i,k,j), T(i,k,j)-273.15 &
-!            , th(i,k,j), DTTURBL*rthblten(i,k,j), GH(K), GM(K) &
-!            , el_myj(i,K,j), q2(i,k+1,j), akh(i,K,j) &
-!            , exch_h(i,k,j), dz(i,k,j), .01*(phint(i,k,j)-phint(i,k+1,j))
-!           enddo
+!           WRITE(6,"(A, 2I5, 2I3, 2F8.2, F6.2, 2F8.2)") &
+!           '}TURB4 I,J, KPBL, KMXL, PSFC, ZSFC, ZSL, ZPBL, ZMXL = ' &
+!           , I, J, KPBL(I,J), LM-LMXL+1, PSFC, ZHK(LMH+1), ZSL_DIAG  &
+!           , PBLH(I,J), ZHK(LMXL)-ZHK(LMH+1)
+!           WRITE(6,"(A, 2F7.2, F7.3, 3E11.4)") &
+!           '}TURB4 TSK, THSK, QZ0, Q**2_0, AKHS, EXCH_0 = ' &
+!           , TSK(I,J)-273.15, THSK(I,J), 1000.*QZ0(I,J) &
+!           , Q2(I,1,J), AKHS(I,J), AKHS(I,J)*ZSL_DIAG
+!           WRITE(6,"(A)") &
+!           '}TURB5 K, PMID, PINH_1, TC, TH, DTH, GH, GM, EL, Q**2, AKH, EXCH_H, DZ, DP'
+!           DO K=1,LM/2
+!             WRITE(6,"(A,I3, 2F8.2, 2F8.3, 3E12.4, 4E11.4, F7.2, F6.2)") &
+!            '}TURB5 ', K, .01*PMID(I,K,J),.01*PINH(I,K,J), T(I,K,J)-273.15 &
+!            , TH(I,K,J), DTTURBL*RTHBLTEN(I,K,J), GH(K), GM(K) &
+!            , EL_MYJ(I,K,J), Q2(I,K+1,J), AKH(I,K,J) &
+!            , EXCH_H(I,K,J), DZ(I,K,J), .01*(PINH(I,K,J)-PINH(I,K+1,J))
+!           ENDDO
 !         ENDIF
 !*** End debugging
+!
+!----------------------------------------------------------------------
+!
+          SEAMASK=XLAND(I,J)-1.
+!
+          IF(SEAMASK.LT.0.5.AND.STDH(I,J).GT.1.) THEN
+            RSTDH=1./STDH(I,J)
+          ELSE
+            RSTDH=0.
+          ENDIF
+          ZHK(LM+1)=ZINT(I,J,LM+1)
+          ZSF=STDH(I,J)*STDFAC+ZHK(LM+1)
 !
 !----------------------------------------------------------------------
 !
@@ -567,13 +705,30 @@
           ZHK(LM+1)=ZINT(I,J,LM+1)
 !
 !----------------------------------------------------------------------
+!
+          DO K=1,LM-1
+            IF(SEAMASK.GT.0.5) THEN
+              DCOL(K)=0.
+            ELSE
+              ZUV=(ZHK(K)+ZHK(K+1))*0.5
+              IF(ZUV.GT.ZSF) THEN
+                DCOL(K)=0.
+              ELSE
+                DCOL(K)=HERF((((ZUV-ZHK(LM+1))*RSTDH)**2)*0.5)
+              ENDIF
+            ENDIF
+!WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+!            DCOL(K)=0. !ZJ
+!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+          ENDDO
+!
+!----------------------------------------------------------------------
 !***  CARRY OUT THE VERTICAL DIFFUSION OF
 !***  VELOCITY COMPONENTS
 !----------------------------------------------------------------------
 !
-          CALL VDIFV(LMH,DTDIF,UZ0(I,J),VZ0(I,J)                       &
-     &              ,AKMS_DENS,UK,VK,AKMK,ZHK,RHOK                     &
-     &              ,LM,I,J)
+          CALL VDIFV(LMH,DTDIF,UZ0(I,J),VZ0(I,J) &
+     &              ,AKMS_DENS,DCOL,UK,VK,AKMK,ZHK,RHOK,I,J,LM)
 !
 !----------------------------------------------------------------------
 !***
@@ -588,7 +743,7 @@
 !----------------------------------------------------------------------
 !
       ENDDO main_integration
-!$omp end parallel do
+!JAA!ZJ$OMP END PARALLEL DO
 !
 !----------------------------------------------------------------------
 !
@@ -605,43 +760,60 @@
 !   *                                                                *
 !   ******************************************************************
 !
-     &(LMH,U,V,T,THE,Q,CWM,Q2,Z,GM,GH,EL,PBLH,LPBL,LMXL,CT,MIXHT       &
-     &,LM,I,J)
+      (LMH,RSQDT,U,V,THV,THE,Q2,Z,P,PS,RXNER &
+      ,GM,GH,EL,PBLH,LPBL,LMXL,CT,MIXHT,I,J,LM)
+!
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
 !----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: LM,I,J
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       LMH,I,J,LM
 !
-      INTEGER,INTENT(IN) :: LMH
+      REAL(KIND=KFPT),INTENT(IN):: &
+       RSQDT
 !
-      INTEGER,INTENT(OUT) :: LMXL,LPBL
+      INTEGER(KIND=KINT),INTENT(OUT):: &
+       LMXL,LPBL
 !
-      REAL,DIMENSION(1:LM),INTENT(IN) :: CWM,Q,Q2,T,THE,U,V
+      REAL(KIND=KFPT),DIMENSION(1:LM),INTENT(IN):: &
+       P,PS,Q2,RXNER,THE,THV,U,V
 !
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
+      REAL(KIND=KFPT),DIMENSION(1:LM+1),INTENT(IN):: &
+       Z
 !
-      REAL,INTENT(OUT) :: MIXHT,PBLH
+      REAL(KIND=KFPT),INTENT(OUT):: &
+       MIXHT &
+      ,PBLH
 !
-      REAL,DIMENSION(1:LM-1),INTENT(OUT) :: EL,GH,GM
+      REAL(KIND=KFPT),DIMENSION(1:LM-1),INTENT(OUT):: &
+       EL,GH,GM
 !
-      REAL,INTENT(INOUT) :: CT
+      REAL(KIND=KFPT),INTENT(INOUT):: CT
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
 !***
-      INTEGER :: K,LPBLM
+      INTEGER(KIND=KINT):: &
+       K,LPBLM
 !
-      REAL :: A,ADEN,B,BDEN,AUBR,BUBR,BLMX,EL0,ELOQ2X,GHL,GML           &
-     &       ,QOL2ST,QOL2UN,QDZL,RDZ,SQ,SREL,SZQ,TEM,THM,VKRMZ
+      REAL(KIND=KFPT):: &
+       ADEN,BDEN,AUBR,BUBR,BLMX,CUBRY,DTHV,DZ &
+      ,EL0,ELOQ2X,GHL,GML &
+      ,QOL2ST,QOL2UN,QDZL &
+      ,RDZ,SQ,SREL,SZQ,VKRMZ,WCON
 !
-      REAL,DIMENSION(1:LM) :: Q1
+      REAL(KIND=KFPT),DIMENSION(1:LM):: &
+       Q1
 !
-      REAL,DIMENSION(1:LM-1) :: DTH,ELM,REL
+      REAL(KIND=KFPT),DIMENSION(1:LM-1):: &
+       ELM,REL
 !
 !----------------------------------------------------------------------
-!**********************************************************************
+!***********************************************************************
+!--------1---------2---------3---------4---------5---------6---------7--
+      CUBRY=UBRY*1.5  !*2.
 !--------------FIND THE HEIGHT OF THE PBL-------------------------------
       LPBL=LMH
 !
@@ -656,44 +828,46 @@
 !
 !--------------THE HEIGHT OF THE PBL------------------------------------
 !
- 110  PBLH=Z(LPBL)-Z(LMH+1)
+ 110  PBLH=Z(LPBL+1)-Z(LMH+1)
 !
 !-----------------------------------------------------------------------
       DO K=1,LMH
         Q1(K)=0.
       ENDDO
-!
+!-----------------------------------------------------------------------
       DO K=1,LMH-1
-        DTH(K)=THE(K)-THE(K+1)
-      ENDDO
-!
-      DO K=LMH-2,1,-1
-        IF(DTH(K)>0..AND.DTH(K+1)<=0.)THEN
-          DTH(K)=DTH(K)+CT
-          EXIT
-        ENDIF
-      ENDDO
-!
-      CT=0.
-!----------------------------------------------------------------------
-      DO K=1,LMH-1
-        RDZ=2./(Z(K)-Z(K+2))
+        DZ=(Z(K)-Z(K+2))*0.5
+        RDZ=1./DZ
         GML=((U(K)-U(K+1))**2+(V(K)-V(K+1))**2)*RDZ*RDZ
         GM(K)=MAX(GML,EPSGM)
 !
-        TEM=(T(K)+T(K+1))*0.5
-        THM=(THE(K)+THE(K+1))*0.5
+        DTHV=THV(K)-THV(K+1)
+!----------------------------------------------------------------------
+        IF(DTHV.GT.0.) THEN
+          IF(THE(K+1).GT.THE(K)) THEN
+            IF(PS(K+1).GT.P(K)) THEN                                       !>12KM
 !
-        A=THM*P608
-        B=(ELOCP/TEM-1.-P608)*THM
+              WCON=(P(K+1)-PS(K+1))/(P(K+1)-P(K))
 !
-        GHL=(DTH(K)*((Q(K)+Q(K+1)+CWM(K)+CWM(K+1))*(0.5*P608)+1.)      &
-     &     +(Q(K)-Q(K+1)+CWM(K)-CWM(K+1))*A                            &
-     &     +(CWM(K)-CWM(K+1))*B)*RDZ
+              IF( &
+                 Q2(K)*CUBRY.GT.(DZ*WCON*RSQDT)**2.AND. & !>12KM
+                 Q2(K).GT.EPSQ2 &
+                ) THEN
 !
+                DTHV=(THE(K)-THE(K+1))+DTHV
+!
+              ENDIF
+            ENDIF
+          ENDIF
+        ENDIF
+!--------------------------------------------------------------------------
+!
+        GHL=DTHV*RDZ
         IF(ABS(GHL)<=EPSGH)GHL=EPSGH
         GH(K)=GHL
       ENDDO
+!
+      CT=0.
 !
 !----------------------------------------------------------------------
 !***  FIND MAXIMUM MIXING LENGTHS AND THE LEVEL OF THE PBL TOP
@@ -708,7 +882,7 @@
         IF(GHL>=EPSGH)THEN
           IF(GML/GHL<=REQU)THEN
             ELM(K)=EPSL
-            LMXL=K
+            LMXL=K+1
           ELSE
             AUBR=(AUBM*GML+AUBH*GHL)*GHL
             BUBR= BUBM*GML+BUBH*GHL
@@ -720,7 +894,7 @@
           ADEN=(ADNM*GML+ADNH*GHL)*GHL
           BDEN= BDNM*GML+BDNH*GHL
           QOL2UN=-0.5*BDEN+SQRT(BDEN*BDEN*0.25-ADEN)
-          ELOQ2X=1./(QOL2UN+EPSRU)       ! repsr1/qol2un
+          ELOQ2X=1./(QOL2UN+EPSRU)       ! REPSR1/QOL2UN
           ELM(K)=MAX(SQRT(ELOQ2X*Q2(K)),EPSL)
         ENDIF
       ENDDO
@@ -796,33 +970,38 @@
 !   *                                                                *
 !   ******************************************************************
 !
-     &(LMH,DTTURBL,USTAR,GM,GH,EL,Q2                                   &
-     &,LM,I,J)
+      (LMH,DTTURBL,USTAR,GM,GH,EL,Q2,I,J,LM)
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
 !----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: LM,I,J
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       LMH,I,J,LM
 !
-      INTEGER,INTENT(IN) :: LMH
+      REAL(KIND=KFPT),INTENT(IN):: &
+       DTTURBL,USTAR
 !
-      REAL,INTENT(IN) :: DTTURBL,USTAR
+      REAL(KIND=KFPT),DIMENSION(1:LM-1),INTENT(IN):: &
+       GH,GM
 !
-      REAL,DIMENSION(1:LM-1),INTENT(IN) :: GH,GM
-      REAL,DIMENSION(1:LM-1),INTENT(INOUT) :: EL
+      REAL(KIND=KFPT),DIMENSION(1:LM-1),INTENT(INOUT):: &
+       EL
 !
-      REAL,DIMENSION(1:LM),INTENT(INOUT) :: Q2
+      REAL(KIND=KFPT),DIMENSION(1:LM),INTENT(INOUT):: &
+       Q2
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
 !***
-      INTEGER :: K
+      INTEGER(KIND=KINT):: &
+       K
 !
-      REAL :: ADEN,AEQU,ANUM,ARHS,BDEN,BEQU,BNUM,BRHS,CDEN,CRHS        &
-     &       ,DLOQ1,ELOQ11,ELOQ12,ELOQ13,ELOQ21,ELOQ22,ELOQ31,ELOQ32   &
-     &       ,ELOQ41,ELOQ42,ELOQ51,ELOQ52,ELOQN,EQOL2,GHL,GML          &
-     &       ,RDEN1,RDEN2,RHS2,RHSP1,RHSP2,RHST2
+      REAL(KIND=KFPT):: &
+       ADEN,AEQU,ANUM,ARHS,BDEN,BEQU,BNUM,BRHS,CDEN,CRHS &
+      ,DLOQ1,ELOQ11,ELOQ12,ELOQ13,ELOQ21,ELOQ22,ELOQ31,ELOQ32 &
+      ,ELOQ41,ELOQ42,ELOQ51,ELOQ52,ELOQN,EQOL2,GHL,GML &
+      ,RDEN1,RDEN2,RHS2,RHSP1,RHSP2,RHST2
 !
 !----------------------------------------------------------------------
 !**********************************************************************
@@ -995,34 +1174,40 @@
 !   *                LEVEL 2.5 DIFFUSION COEFFICIENTS                *
 !   *                                                                *
 !   ******************************************************************
-     &(LMH,LMXL,GM,GH,EL,T,Q2,Z,AKM,AKH                                &
-     &,LM,I,J,PRINT_DIAG)   ! debug
+      (LMH,LMXL,GM,GH,EL,T,Q2,Z,AKM,AKH,I,J,LM,PRINT_DIAG)
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
 !----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: LM,I,J
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       LMH,LMXL,I,J,LM
 !
-      INTEGER,INTENT(IN) :: LMH,LMXL
+      REAL(KIND=KFPT),DIMENSION(1:LM),INTENT(IN):: &
+       Q2,T
 !
-      REAL,DIMENSION(1:LM),INTENT(IN) :: Q2,T
-      REAL,DIMENSION(1:LM-1),INTENT(IN) :: EL,GH,GM
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
+      REAL(KIND=KFPT),DIMENSION(1:LM-1),INTENT(IN):: &
+       EL,GH,GM
 !
-      REAL,DIMENSION(1:LM-1),INTENT(OUT) :: AKH,AKM
+      REAL(KIND=KFPT),DIMENSION(1:LM+1),INTENT(IN):: &
+       Z
+!
+      REAL(KIND=KFPT),DIMENSION(1:LM-1),INTENT(OUT):: &
+       AKH,AKM
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
 !***
-      INTEGER :: K,KINV
+      INTEGER(KIND=KINT):: &
+       K,KINV
 !
-      REAL :: ADEN,AKMIN,BDEN,BESH,BESM,CDEN,D2T,ELL,ELOQ2,ELOQ4,ELQDZ &
-     &       ,ESH,ESM,GHL,GML,Q1L,RDEN,RDZ
+      REAL(KIND=KFPT):: &
+       ADEN,AKMIN,BDEN,BESH,BESM,CDEN,D2T,ELL,ELOQ2,ELOQ4,ELQDZ &
+      ,ESH,ESM,GHL,GML,Q1L,RDEN,RDZ
 !
 !*** Begin debugging
-      INTEGER,INTENT(IN) :: PRINT_DIAG
-!     REAL :: D2Tmin
+      INTEGER(KIND=KINT),INTENT(IN):: PRINT_DIAG
+!     REAL(KIND=KFPT):: D2TMIN
 !*** End debugging
 !
 !----------------------------------------------------------------------
@@ -1080,6 +1265,10 @@
         ELQDZ=ELL*Q1L*RDZ
         AKM(K)=ELQDZ*ESM
         AKH(K)=ELQDZ*ESH
+!WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+!        AKM(K)=MAX(AKM(K),RDZ*3.)
+!        AKH(K)=MAX(AKH(K),RDZ*3.)
+!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 !----------------------------------------------------------------------
       ENDDO
 !----------------------------------------------------------------------
@@ -1090,12 +1279,12 @@
 !
 !     IF(LMXL==LMH)THEN
 !       KINV=LMH
-!       D2Tmin=0.
+!       D2TMIN=0.
 !
 !       DO K=LMH/2,LMH-1
 !         D2T=T(K-1)-2.*T(K)+T(K+1)
-!         IF(D2T<D2Tmin)THEN
-!           D2Tmin=D2T
+!         IF(D2T<D2TMIN)THEN
+!           D2TMIN=D2T
 !           IF(D2T<0)KINV=K
 !         ENDIF
 !       ENDDO
@@ -1110,28 +1299,28 @@
 !
 !*** Begin debugging
 !         IF(PRINT_DIAG>0)THEN
-!           write(6,"(a,3i3)") '{turb1 lmxl,lmh,kinv=',lmxl,lmh,kinv
-!           write(6,"(a,3i3)") '}turb1 lmxl,lmh,kinv=',lmxl,lmh,kinv
+!           WRITE(6,"(A,3I3)") '{TURB1 LMXL,LMH,KINV=',LMXL,LMH,KINV
+!           WRITE(6,"(A,3I3)") '}TURB1 LMXL,LMH,KINV=',LMXL,LMH,KINV
 !           IF(PRINT_DIAG==1)THEN
-!             write(6,"(a)") &
-!               '{turb3 k, t, d2t, rdz, z(k), z(k+2), akmin, akh '
+!             WRITE(6,"(A)") &
+!               '{TURB3 K, T, D2T, RDZ, Z(K), Z(K+2), AKMIN, AKH '
 !           ELSE
-!             write(6,"(a)") &
-!               '}turb3 k, t, d2t, rdz, z(k), z(k+2), akmin, akh '
+!             WRITE(6,"(A)") &
+!               '}TURB3 K, T, D2T, RDZ, Z(K), Z(K+2), AKMIN, AKH '
 !           ENDIF
 !           DO K=LMH-1,KINV-1,-1
 !             D2T=T(K-1)-2.*T(K)+T(K+1)
 !             RDZ=2./(Z(K)-Z(K+2))
 !             AKMIN=0.5*RDZ
 !             IF(PRINT_DIAG==1)THEN
-!               write(6,"(a,i3,f8.3,2e12.5,2f9.2,2e12.5)") '{turb3 ' &
-!               ,k,t(k)-273.15,d2t,rdz,z(k),z(k+2),akmin,akh(k)
+!               WRITE(6,"(A,I3,F8.3,2E12.5,2F9.2,2E12.5)") '{TURB3 ' &
+!               ,K,T(K)-273.15,D2T,RDZ,Z(K),Z(K+2),AKMIN,AKH(K)
 !             ELSE
-!               write(6,"(a,i3,f8.3,2e12.5,2f9.2,2e12.5)") '}turb3 ' &
-!               ,k,t(k)-273.15,d2t,rdz,z(k),z(k+2),akmin,akh(k)
+!               WRITE(6,"(A,I3,F8.3,2E12.5,2F9.2,2E12.5)") '}TURB3 ' &
+!               ,K,T(K)-273.15,D2T,RDZ,Z(K),Z(K+2),AKMIN,AKH(K)
 !             ENDIF
 !           ENDDO
-!         ENDIF     !- IF (print_diag > 0) THEN
+!         ENDIF     !- IF (PRINT_DIAG > 0) THEN
 !       ENDIF       !- IF(KINV<LMH)THEN
 !*** End debugging
 !
@@ -1149,33 +1338,39 @@
 !   *               VERTICAL DIFFUSION OF Q2 (TKE)                   *
 !   *                                                                *
 !   ******************************************************************
-     &(LMH,DTDIF,Q2,EL,Z                                               &
-     &,LM)
+      (LMH,DTDIF,Q2,EL,Z,I,J,LM)
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
 !----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: LM
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       LMH,I,J,LM
 !
-      INTEGER,INTENT(IN) :: LMH
+      REAL(KIND=KFPT),INTENT(IN):: &
+       DTDIF
 !
-      REAL,INTENT(IN) :: DTDIF
+      REAL(KIND=KFPT),DIMENSION(1:LM-1),INTENT(IN):: &
+       EL
 !
-      REAL,DIMENSION(1:LM-1),INTENT(IN) :: EL
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
+      REAL(KIND=KFPT),DIMENSION(1:LM+1),INTENT(IN):: &
+       Z
 !
-      REAL,DIMENSION(1:LM),INTENT(INOUT) :: Q2
+      REAL(KIND=KFPT),DIMENSION(1:LM),INTENT(INOUT):: &
+       Q2
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
 !***
-      INTEGER :: K
+      INTEGER(KIND=KINT):: &
+       K
 !
-      REAL :: ADEN,AKQS,BDEN,BESH,BESM,CDEN,CF,DTOZS,ELL,ELOQ2,ELOQ4   &
-     &       ,ELQDZ,ESH,ESM,ESQHF,GHL,GML,Q1L,RDEN,RDZ
+      REAL(KIND=KFPT):: &
+       ADEN,AKQS,BDEN,BESH,BESM,CDEN,CF,DTOZS,ELL,ELOQ2,ELOQ4 &
+      ,ELQDZ,ESH,ESM,ESQHF,GHL,GML,Q1L,RDEN,RDZ
 !
-      REAL,DIMENSION(1:LM-2) :: AKQ,CM,CR,DTOZ,RSQ2
+      REAL(KIND=KFPT),DIMENSION(1:LM-2):: &
+       AKQ,CM,CR,DTOZ,RSQ2
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -1220,9 +1415,8 @@
 !----------------------------------------------------------------------
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 !---------------------------------------------------------------------
-      SUBROUTINE VDIFH(DTDIF,LMH,THZ0,QZ0,RKHS,CHKLOWQ,CT             &
-     &                ,THE,Q,CWM,RKH,Z,RHO                            &
-     &                ,LM,I,J)
+      SUBROUTINE VDIFH(DTDIF,LMH,THZ0,QZ0,RKHS,CHKLOWQ,CT &
+                      ,TH,Q,CWM,RKH,Z,RHO,I,J,LM)
 !     ***************************************************************
 !     *                                                             *
 !     *         VERTICAL DIFFUSION OF MASS VARIABLES                *
@@ -1233,27 +1427,37 @@
       IMPLICIT NONE
 !
 !---------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: LM,I,J
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       LMH,I,J,LM
 !
-      INTEGER,INTENT(IN) :: LMH
+      REAL(KIND=KFPT),INTENT(IN):: &
+       CHKLOWQ,CT,DTDIF,QZ0,RKHS,THZ0
 !
-      REAL,INTENT(IN) :: CHKLOWQ,CT,DTDIF,QZ0,RKHS,THZ0
+      REAL(KIND=KFPT),DIMENSION(1:LM-1),INTENT(IN):: &
+       RKH
 !
-      REAL,DIMENSION(1:LM-1),INTENT(IN) :: RKH
-      REAL,DIMENSION(1:LM),INTENT(IN) :: RHO
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
-      REAL,DIMENSION(1:LM),INTENT(INOUT) :: CWM,Q,THE
+      REAL(KIND=KFPT),DIMENSION(1:LM),INTENT(IN):: &
+       RHO
+!
+      REAL(KIND=KFPT),DIMENSION(1:LM+1),INTENT(IN):: &
+       Z
+!
+      REAL(KIND=KFPT),DIMENSION(1:LM),INTENT(INOUT):: &
+       CWM,Q,TH
 !
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
 !***
-      INTEGER :: K
+      INTEGER(KIND=KINT):: &
+       K
 !
-      REAL :: CF,CMB,CMCB,CMQB,CMTB,CTHF,DTOZL,DTOZS                   &
-     &       ,RCML,RKHH,RKQS,RSCB,RSQB,RSTB
+      REAL(KIND=KFPT):: &
+       CF,CMB,CMCB,CMQB,CMTB,CTHF,DTOZL,DTOZS &
+      ,RCML,RKHH,RKQS,RSCB,RSQB,RSTB
 !
-      REAL,DIMENSION(1:LM-1) :: CM,CR,DTOZ,RKCT,RSC,RSQ,RST
+      REAL(KIND=KFPT),DIMENSION(1:LM-1):: &
+       CM,CR,DTOZ,RKCT,RSC,RSQ,RST
 !
 !----------------------------------------------------------------------
 !**********************************************************************
@@ -1268,16 +1472,15 @@
 !
       CM(1)=DTOZ(1)*RKH(1)+RHO(1)
 !----------------------------------------------------------------------
-      RST(1)=-RKCT(1)*DTOZ(1)                                    &
-     &         +THE(1)*RHO(1)
-      RSQ(1)=Q(1)  *RHO(1)
+      RST(1)=TH (1)*RHO(1)-RKCT(1)*DTOZ(1)
+      RSQ(1)=Q  (1)*RHO(1)
       RSC(1)=CWM(1)*RHO(1)
 !----------------------------------------------------------------------
       DO K=1+1,LMH-1
         DTOZL=DTOZ(K)
         CF=-DTOZL*RKH(K-1)/CM(K-1)
         CM(K)=-CR(K-1)*CF+(RKH(K-1)+RKH(K))*DTOZL+RHO(K)
-        RST(K)=-RST(K-1)*CF+(RKCT(K-1)-RKCT(K))*DTOZL+THE(K)*RHO(K)
+        RST(K)=-RST(K-1)*CF+(RKCT(K-1)-RKCT(K))*DTOZL+TH(K)*RHO(K)
         RSQ(K)=-RSQ(K-1)*CF+Q(K)  *RHO(K)
         RSC(K)=-RSC(K-1)*CF+CWM(K)*RHO(K)
       ENDDO
@@ -1293,17 +1496,17 @@
       CMQB=-CMB+(RKHH+RKQS)*DTOZS+RHO(LMH)
       CMCB=-CMB+(RKHH     )*DTOZS+RHO(LMH)
 !
-      RSTB=-RST(LMH-1)*CF+RKCT(LMH-1)*DTOZS+THE(LMH)*RHO(LMH)
+      RSTB=-RST(LMH-1)*CF+RKCT(LMH-1)*DTOZS+TH(LMH)*RHO(LMH)
       RSQB=-RSQ(LMH-1)*CF+Q(LMH)  *RHO(LMH)
       RSCB=-RSC(LMH-1)*CF+CWM(LMH)*RHO(LMH)
 !----------------------------------------------------------------------
-      THE(LMH)=(DTOZS*RKHS*THZ0+RSTB)/CMTB
+      TH(LMH) =(DTOZS*RKHS*THZ0+RSTB)/CMTB
       Q(LMH)  =(DTOZS*RKQS*QZ0 +RSQB)/CMQB
       CWM(LMH)=(                RSCB)/CMCB
 !----------------------------------------------------------------------
       DO K=LMH-1,1,-1
         RCML=1./CM(K)
-        THE(K)=(-CR(K)*THE(K+1)+RST(K))*RCML
+        TH(K) =(-CR(K)* TH(K+1)+RST(K))*RCML
         Q(K)  =(-CR(K)*  Q(K+1)+RSQ(K))*RCML
         CWM(K)=(-CR(K)*CWM(K+1)+RSC(K))*RCML
       ENDDO
@@ -1314,8 +1517,7 @@
 !---------------------------------------------------------------------
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 !---------------------------------------------------------------------
-      SUBROUTINE VDIFV(LMH,DTDIF,UZ0,VZ0,RKMS,U,V,RKM,Z,RHO           &
-                      ,LM,I,J)
+      SUBROUTINE VDIFV(LMH,DTDIF,UZ0,VZ0,RKMS,D,U,V,RKM,Z,RHO,I,J,LM)
 !     ***************************************************************
 !     *                                                             *
 !     *        VERTICAL DIFFUSION OF VELOCITY COMPONENTS            *
@@ -1326,26 +1528,35 @@
       IMPLICIT NONE
 !
 !---------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: LM,I,J
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       LMH,I,J,LM
 !
-      INTEGER,INTENT(IN) :: LMH
+      REAL(KIND=KFPT),INTENT(IN):: &
+       RKMS,DTDIF,UZ0,VZ0
 !
-      REAL,INTENT(IN) :: RKMS,DTDIF,UZ0,VZ0
+      REAL(KIND=KFPT),DIMENSION(1:LM-1),INTENT(IN):: &
+       D,RKM
 !
-      REAL,DIMENSION(1:LM-1),INTENT(IN) :: RKM
-      REAL,DIMENSION(1:LM),INTENT(IN) :: RHO
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
+      REAL(KIND=KFPT),DIMENSION(1:LM),INTENT(IN):: &
+       RHO
 !
-      REAL,DIMENSION(1:LM),INTENT(INOUT) :: U,V
+      REAL(KIND=KFPT),DIMENSION(1:LM+1),INTENT(IN):: &
+       Z
+!
+      REAL(KIND=KFPT),DIMENSION(1:LM),INTENT(INOUT):: &
+       U,V
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
 !***
-      INTEGER :: K
+      INTEGER(KIND=KINT):: &
+       K
 !
-      REAL :: CF,DTOZAK,DTOZL,DTOZS,RCML,RCMVB,RHOK,RKMH
+      REAL(KIND=KFPT):: &
+       CF,DTOZAK,DTOZL,DTOZS,RCML,RCMVB,RHOK,RKMH
 !
-      REAL,DIMENSION(1:LM-1) :: CM,CR,DTOZ,RSU,RSV
+      REAL(KIND=KFPT),DIMENSION(1:LM-1):: &
+       CM,CR,DTOZ,RSU,RSV
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -1363,7 +1574,7 @@
         DTOZL=DTOZ(K)
         CF=-DTOZL*RKM(K-1)/CM(K-1)
         RHOK=RHO(K)
-        CM(K)=-CR(K-1)*CF+(RKM(K-1)+RKM(K))*DTOZL+RHOK
+        CM(K)=-CR(K-1)*CF+(RKM(K-1)+RKM(K)+D(K)*RKMS)*DTOZL+RHOK
         RSU(K)=-RSU(K-1)*CF+U(K)*RHOK
         RSV(K)=-RSV(K-1)*CF+V(K)*RHOK
       ENDDO
@@ -1391,21 +1602,27 @@
 !-----------------------------------------------------------------------
 !
 !=======================================================================
-      SUBROUTINE MYJPBL_INIT(EXCH_H,RESTART                             &
+      SUBROUTINE MYJPBL_INIT(EXCH_H                                     &
+     &                      ,RESTART                                    &
      &                      ,IDS,IDE,JDS,JDE,LM                         &
      &                      ,IMS,IME,JMS,JME                            &
      &                      ,ITS,ITE,JTS,JTE                         )
 !-----------------------------------------------------------------------
       IMPLICIT NONE
 !-----------------------------------------------------------------------
-      LOGICAL,INTENT(IN) :: RESTART
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
-     &                     ,IMS,IME,JMS,JME                             &
-     &                     ,ITS,ITE,JTS,JTE
+      LOGICAL(KIND=KLOG),INTENT(IN):: &
+       RESTART
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) ::    EXCH_H
+      INTEGER(KIND=KINT),INTENT(IN):: &
+       IDS,IDE,JDS,JDE,LM &
+      ,IMS,IME,JMS,JME &
+      ,ITS,ITE,JTS,JTE
+
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT):: &
+       EXCH_H
 !
-      INTEGER :: I,J,K,ITF,JTF,KTF
+      INTEGER(KIND=KINT):: &
+       I,J,K,ITF,JTF,KTF
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
@@ -1417,10 +1634,6 @@
         DO K=1,KTF
         DO J=JTS,JTF
         DO I=ITS,ITF
-!         RUBLTEN(I,J,K)=0.
-!         RVBLTEN(I,J,K)=0.
-!         RTHBLTEN(I,J,K)=0.
-!         RQBLTEN(I,J,K)=0.
           EXCH_H(I,J,K)=0.
         ENDDO
         ENDDO
@@ -1428,8 +1641,386 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
+      CALL HERFTBL
+!-----------------------------------------------------------------------
+      CALL TABLEPT
+      CALL TABLETT
+!-----------------------------------------------------------------------
 !
       END SUBROUTINE MYJPBL_INIT
+!
+!-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        SUBROUTINE HERFTBL
+!     ******************************************************************
+!     *                                                                *
+!     *               POSITIVE HALF OF ERF FUNCTION TABLE              *
+!     *               RESPONSIBLE PERSON: Z.JANJIC                     *
+!     *                                                                *
+!     ******************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+IMPLICIT NONE
+
+!--LOCAL VARIABLES------------------------------------------------------
+INTEGER(KIND=KINT):: &
+ K                           ! INDEX
+
+REAL(KIND=KFPT):: &
+ DXE &                       ! ARGUMENT INCREMENT
+,DXH &                       !
+,RDEN &                      !
+,X &                         ! ARGUMENT
+,XGMIN                       !
+
+REAL(KIND=KFPT),DIMENSION(1:KERFM+1):: &
+ GAUSS                       !
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+      DXE=(XEMAX-XEMIN)/FLOAT(KERFM-1)
+      DXH=DXE*0.5
+      XGMIN=XEMIN-DXH
+!
+      RDXE=1./DXE
+!
+      DO K=1,KERFM+1
+        X=(K-1)*DXE+XGMIN
+        GAUSS(K)=EXP(-X*X*0.5)
+      ENDDO
+!
+      RDEN=1./SQRT(PI+PI)
+      HERFF(1)=0.
+      DO K=2,KERFM
+        HERFF(K)=((GAUSS(K)+GAUSS(K+1))*DXH)*RDEN+HERFF(K-1)
+      ENDDO
+!
+      DO K=1,KERFM
+        HERFF(K)=0.5-HERFF(K)
+      ENDDO
+!-----------------------------------------------------------------------
+                        ENDSUBROUTINE HERFTBL
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        FUNCTION HERF(X)
+!     ******************************************************************
+!     *                                                                *
+!     *               ERF FUNCTION HALF-TABLE                          *
+!     *               RESPONSIBLE PERSON: Z.JANJIC                     *
+!     *                                                                *
+!     ******************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+IMPLICIT NONE
+
+!-----------------------------------------------------------------------
+REAL(KIND=KFPT):: &
+ HERF
+
+!--LOCAL VARIABLES------------------------------------------------------
+INTEGER(KIND=KINT):: &
+ K                           ! INDEX
+
+REAL(KIND=KFPT):: &
+ AK &                        ! POSITION IN TABLE
+,X                           ! ARGUMENT
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+      AK=(X-XEMIN)*RDXE
+      K=INT(AK)
+      K=MAX(K,0)
+      K=MIN(K,KERFM2)
+!
+      HERF=(HERFF(K+2)-HERFF(K+1))*(AK-REAL(K))+HERFF(K+1)
+!-----------------------------------------------------------------------
+                        ENDFUNCTION HERF
+!-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        SUBROUTINE TABLEPT
+!     ******************************************************************
+!     *                                                                *
+!     *    GENERATES THE TABLE FOR FINDING PRESSURE FROM               *
+!     *    SATURATION SPECIFIC HUMIDITY AND POTENTIAL TEMPERATURE      *
+!     *                                                                *
+!     ******************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+IMPLICIT NONE
+
+!-----------------------------------------------------------------------
+REAL(KIND=KFPT),PARAMETER:: &
+ EPS=1.E-10
+!--LOCAL VARIABLES------------------------------------------------------
+INTEGER(KIND=KINT):: &
+ KTH &                       ! INDEX
+,KP                          ! INDEX
+
+REAL(KIND=KFPT):: &
+ RXNER &                     ! 1./EXNER FUNCTION
+,DTH &                       ! POTENTIAL TEMPERATURE STEP
+,DP &                        ! PRESSURE STEP
+,DQS &                       ! SATURATION SPECIFIC HUMIDITY STEP
+,P &                         ! PRESSURE
+,QS0K &                      ! BASE VALUE FOR SATURATION HUMIDITY
+,SQSK &                      ! SATURATION SPEC. HUMIDITY RANGE
+,TH                          ! POTENTIAL TEMPERATURE
+
+REAL(KIND=KFPT),DIMENSION(1:ITBL):: &
+ APP &                       ! TEMPORARY
+,AQP &                       ! TEMPORARY
+,PNEW &                      ! NEW PRESSURES
+,POLD &                      ! OLD PRESSURE
+,QSNEW &                     ! NEW SATURATION SPEC. HUMIDITY
+,QSOLD &                     ! OLD SATURATION SPEC. HUMIDITY
+,Y2P                         ! TEMPORARY
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+      DTH=(THH-THL)/REAL(JTBL-1)
+      DP=(PH-PL)/REAL(ITBL-1)
+      RDTH=1./DTH
+!-----------------------------------------------------------------------
+      TH=THL-DTH
+      DO KTH=1,JTBL
+        TH=TH+DTH
+        P=PL-DP
+        DO KP=1,ITBL
+          P=P+DP
+          RXNER=(100000./P)**CAPPA
+          QSOLD(KP)=PQ0/P*EXP(A2*(TH-A3*RXNER)/(TH-A4*RXNER))
+          POLD(KP)=P
+        ENDDO
+!
+        QS0K=QSOLD(1)
+        SQSK=QSOLD(ITBL)-QSOLD(1)
+        QSOLD(1)=0.
+        QSOLD(ITBL)=1.
+!
+        DO KP=2,ITBL-1
+          QSOLD(KP)=(QSOLD(KP)-QS0K)/SQSK
+!WWWWWWWWWWWWWW FIX DUE TO 32 BIT PRECISION LIMITATION WWWWWWWWWWWWWWWWW
+          IF((QSOLD(KP)-QSOLD(KP-1)).LT.EPS) THEN
+            QSOLD(KP)=QSOLD(KP-1)+EPS
+          ENDIF
+!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+        ENDDO
+!
+        QS0(KTH)=QS0K
+        SQS(KTH)=SQSK
+!
+        QSNEW(1)=0.
+        QSNEW(ITBL)=1.
+        DQS=1./REAL(ITBL-1)
+        RDQ=1./DQS
+!
+        DO KP=2,ITBL-1
+          QSNEW(KP)=QSNEW(KP-1)+DQS
+        ENDDO
+!
+        Y2P(1)=0.
+        Y2P(ITBL)=0.
+!
+        CALL SPLINE(JTBL,ITBL,QSOLD,POLD,Y2P,ITBL,QSNEW,PNEW,APP,AQP)
+!
+        DO KP=1,ITBL
+          PTBL(KP,KTH)=PNEW(KP)
+        ENDDO
+!-----------------------------------------------------------------------
+      ENDDO
+!-----------------------------------------------------------------------
+                        ENDSUBROUTINE TABLEPT
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                        SUBROUTINE TABLETT
+!     ******************************************************************
+!     *                                                                *
+!     *    GENERATES THE TABLE FOR FINDING TEMPERATURE FROM            *
+!     *    PRESSURE AND EQUIVALENT POTENTIAL TEMPERATURE               *
+!     *                                                                *
+!     ******************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+IMPLICIT NONE
+
+!-----------------------------------------------------------------------
+REAL(KIND=KFPT),PARAMETER:: &
+ EPS=1.E-10
+!--LOCAL VARIABLES------------------------------------------------------
+INTEGER(KIND=KINT):: &
+ KTH &                       ! INDEX
+,KP                          ! INDEX
+
+REAL(KIND=KFPT):: &
+ RXNER &                     ! 1./EXNER FUNCTION
+,DTH &                       ! POTENTIAL TEMPERATURE STEP
+,DP &                        ! PRESSURE STEP
+,DTHE &                      ! EQUIVALENT POT. TEMPERATURE STEP
+,P &                         ! PRESSURE
+,QS &                        ! SATURATION SPECIFIC HUMIDITY
+,THE0K &                     ! BASE VALUE FOR EQUIVALENT POT. TEMPERATURE
+,STHEK &                     ! EQUIVALENT POT. TEMPERATURE RANGE
+,TH                          ! POTENTIAL TEMPERATURE
+
+REAL(KIND=KFPT),DIMENSION(1:JTBL):: &
+ APT &                       ! TEMPORARY
+,AQT &                       ! TEMPORARY
+,TNEW &                      ! NEW TEMPERATURE
+,TOLD &                      ! OLD TEMPERATURE
+,THENEW &                    ! NEW EQUIVALENT POTENTIAL TEMPERATURE
+,THEOLD &                    ! OLD EQUIVALENT POTENTIAL TEMPERATURE
+,Y2T                         ! TEMPORARY
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+      DTH=(THH-THL)/REAL(JTBL-1)
+      DP=(PH-PL)/REAL(ITBL-1)
+      RDP=1./DP
+!-----------------------------------------------------------------------
+      P=PL-DP
+      DO KP=1,ITBL
+        P=P+DP
+        TH=THL-DTH
+        DO KTH=1,JTBL
+          TH=TH+DTH
+          RXNER=(100000./P)**CAPPA
+          QS=PQ0/P*EXP(A2*(TH-A3*RXNER)/(TH-A4*RXNER))
+          TOLD(KTH)=TH/RXNER
+          THEOLD(KTH)=TH*EXP(ELIWV*QS/(CP*TOLD(KTH)))
+        ENDDO
+!
+        THE0K=THEOLD(1)
+        STHEK=THEOLD(JTBL)-THEOLD(1)
+        THEOLD(1)=0.
+        THEOLD(JTBL)=1.
+!
+        DO KTH=2,JTBL-1
+          THEOLD(KTH)=(THEOLD(KTH)-THE0K)/STHEK
+!WWWWWWWWWWWWWW FIX DUE TO 32 BIT PRECISION LIMITATION WWWWWWWWWWWWWWWWW
+          IF((THEOLD(KTH)-THEOLD(KTH-1)).LT.EPS) THEN
+            THEOLD(KTH)=THEOLD(KTH-1)+EPS
+          ENDIF
+!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+        ENDDO
+!
+        THE0(KP)=THE0K
+        STHE(KP)=STHEK
+!
+        THENEW(1)=0.
+        THENEW(JTBL)=1.
+        DTHE=1./REAL(JTBL-1)
+        RDTHE=1./DTHE
+!
+        DO KTH=2,JTBL-1
+          THENEW(KTH)=THENEW(KTH-1)+DTHE
+        ENDDO
+!
+        Y2T(1)=0.
+        Y2T(JTBL)=0.
+!
+        CALL SPLINE(JTBL,JTBL,THEOLD,TOLD,Y2T,JTBL,THENEW,TNEW,APT,AQT)
+!
+        DO KTH=1,JTBL
+          TTBL(KTH,KP)=TNEW(KTH)
+        ENDDO
+!-----------------------------------------------------------------------
+      ENDDO
+!-----------------------------------------------------------------------
+                        ENDSUBROUTINE TABLETT
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      SUBROUTINE SPLINE(JTBL,NOLD,XOLD,YOLD,Y2,NNEW,XNEW,YNEW,P,Q)           
+!     ******************************************************************
+!     *                                                                *
+!     *  THIS IS A ONE-DIMENSIONAL CUBIC SPLINE FITTING ROUTINE        *
+!     *  PROGRAMED FOR A SMALL SCALAR MACHINE.                         *
+!     *                                                                *
+!     *  PROGRAMER: Z. JANJIC, YUGOSLAV FED. HYDROMET. INST., BEOGRAD  *
+!     *                                                                *
+!     *                                                                *
+!     *                                                                *
+!     *  NOLD - NUMBER OF GIVEN VALUES OF THE FUNCTION.  MUST BE GE 3. *
+!     *  XOLD - LOCATIONS OF THE POINTS AT WHICH THE VALUES OF THE     *
+!     *         FUNCTION ARE GIVEN.  MUST BE IN ASCENDING ORDER.       *
+!     *  YOLD - THE GIVEN VALUES OF THE FUNCTION AT THE POINTS XOLD.   *
+!     *  Y2   - THE SECOND DERIVATIVES AT THE POINTS XOLD.  IF NATURAL *
+!     *         SPLINE IS FITTED Y2(1)=0. AND Y2(NOLD)=0. MUST BE      *
+!     *         SPECIFIED.                                             *
+!     *  NNEW - NUMBER OF VALUES OF THE FUNCTION TO BE CALCULATED.     *
+!     *  XNEW - LOCATIONS OF THE POINTS AT WHICH THE VALUES OF THE     *
+!     *         FUNCTION ARE CALCULATED.  XNEW(K) MUST BE GE XOLD(1)   *
+!     *         AND LE XOLD(NOLD).                                     *
+!     *  YNEW - THE VALUES OF THE FUNCTION TO BE CALCULATED.           *
+!     *  P, Q - AUXILIARY VECTORS OF THE LENGTH NOLD-2.                *
+!     *                                                                *
+!     ******************************************************************
+      IMPLICIT REAL(A-H,O-Z),INTEGER(I-N)
+!-----------------------------------------------------------------------
+      DIMENSION &                      
+       XOLD(JTBL),YOLD(JTBL),Y2(JTBL),P(JTBL),Q(JTBL) &                        
+      ,XNEW(JTBL),YNEW(JTBL)                                              
+!-----------------------------------------------------------------------
+      NOLDM1=NOLD-1                                                     
+!                                                                       
+      DXL=XOLD(2)-XOLD(1)                                               
+      DXR=XOLD(3)-XOLD(2)                                               
+      DYDXL=(YOLD(2)-YOLD(1))/DXL                                       
+      DYDXR=(YOLD(3)-YOLD(2))/DXR                                       
+      RTDXC=.5/(DXL+DXR)                                                
+!                                                                       
+      P(1)= RTDXC*(6.*(DYDXR-DYDXL)-DXL*Y2(1))                          
+      Q(1)=-RTDXC*DXR                                                   
+!                                                                       
+      IF(NOLD.EQ.3) GO TO 700                                           
+!-----------------------------------------------------------------------
+      K=3                                                               
+!                                                                       
+ 100  DXL=DXR                                                           
+      DYDXL=DYDXR                                                       
+      DXR=XOLD(K+1)-XOLD(K)                                             
+      DYDXR=(YOLD(K+1)-YOLD(K))/DXR                                     
+      DXC=DXL+DXR                                                       
+      DEN=1./(DXL*Q(K-2)+DXC+DXC)                                       
+!                                                                       
+      P(K-1)= DEN*(6.*(DYDXR-DYDXL)-DXL*P(K-2))                         
+      Q(K-1)=-DEN*DXR                                                   
+!                                                                       
+      K=K+1                                                             
+      IF(K.LT.NOLD) GO TO 100                                           
+!-----------------------------------------------------------------------
+ 700  K=NOLDM1                                                          
+!                                                                       
+ 200  Y2(K)=P(K-1)+Q(K-1)*Y2(K+1)                                       
+!                                                                       
+      K=K-1                                                             
+      IF(K.GT.1) GO TO 200                                              
+!-----------------------------------------------------------------------
+      K1=1                                                              
+!                                                                       
+ 300  XK=XNEW(K1)                                                       
+!                                                                       
+      DO 400 K2=2,NOLD                                                  
+      IF(XOLD(K2).LE.XK) GO TO 400                                      
+      KOLD=K2-1                                                         
+      GO TO 450                                                         
+ 400  CONTINUE                                                          
+      YNEW(K1)=YOLD(NOLD)                                               
+      GO TO 600                                                         
+!                                                                       
+ 450  IF(K1.EQ.1)   GO TO 500                                           
+      IF(K.EQ.KOLD) GO TO 550                                           
+!                                                                       
+ 500  K=KOLD                                                            
+!                                                                       
+      Y2K=Y2(K)                                                         
+      Y2KP1=Y2(K+1)                                                     
+      DX=XOLD(K+1)-XOLD(K)                                              
+      RDX=1./DX                                                         
+!                                                                       
+      AK=.1666667*RDX*(Y2KP1-Y2K)                                       
+      BK=.5*Y2K                                                         
+      CK=RDX*(YOLD(K+1)-YOLD(K))-.1666667*DX*(Y2KP1+Y2K+Y2K)            
+!                                                                       
+ 550  X=XK-XOLD(K)                                                      
+      XSQ=X*X                                                           
+!                                                                       
+      YNEW(K1)=AK*XSQ*X+BK*XSQ+CK*X+YOLD(K)                             
+!                                                                       
+ 600  K1=K1+1                                                           
+      IF(K1.LE.NNEW) GO TO 300                                          
+!-----------------------------------------------------------------------
+                        ENDSUBROUTINE SPLINE 
+!-----------------------------------------------------------------------
 !
       END MODULE MODULE_BL_MYJPBL
 !

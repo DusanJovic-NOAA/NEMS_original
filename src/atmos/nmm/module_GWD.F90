@@ -74,7 +74,7 @@
 !
       REAL, PARAMETER :: POS1=1.,NEG1=-1.                               &
                        , DPHD0=0.108      !-- Nominal 12-km grid resolution
-      REAL :: DTR,LAT0,LoN0,CLAT0,SLAT0,CLAT,DLON,X,Y,TLON,ROT,DGRID
+      REAL :: DTR,RTD,TPH0,TLM0,CTPH0,STPH0,RELM,SRLM,CRLM,SPH,CPH,TPH,RCTPH
       INTEGER :: I,J
 !
 !---------------------------------------------------------------------
@@ -83,35 +83,34 @@
       DELTIM=DTPHS
       RDELTIM=1./DTPHS
 !
-!-- Calculate angle of rotation (ROT) between Earth and model coordinates,
+!-- Calculate angle of rotation between Earth and model coordinates,
 !   but pass back out cosine (CROT) and sine (SROT) of this angle
 !
       DTR=ACOS(-1.)/180. !-- convert from degrees to radians
-      LAT0=DTR*CEN_LON   !-- central latitude of grid in radians
-      LoN0=DTR*CEN_LAT   !-- central longitude of grid in radians
-      DTR=1./DTR         !-- convert from radians to degrees
-      CLAT0=COS(LAT0)
-      SLAT0=SIN(LAT0)
+      TPH0=CEN_LAT*DTR
+      TLM0=CEN_LON*DTR
+      CTPH0=COS(TPH0)
+      STPH0=SIN(TPH0)
       DO J=JTS,JTE
         DO I=ITS,ITE
-          CLAT=COS(GLAT(I,J))
-          DLON=GLON(I,J)-LoN0
-          X=CLAT0*CLAT*COS(DLON)+SLAT0*SIN(GLAT(I,J))
-          Y=-CLAT*SIN(DLON)
-          TLON=ATAN(Y/X)              !-- model longitude
-          X=SLAT0*SIN(TLON)/CLAT
-          Y=MIN(POS1, MAX(NEG1, X) )
-          ROT=ASIN(Y)                 !-- angle between geodetic & model coordinates
-          CROT(I,J)=COS(ROT)
-          SROT(I,J)=SIN(ROT)
+          RELM=GLON(I,J)-TLM0
+          SRLM=SIN(RELM)
+          CRLM=COS(RELM)
+          SPH=SIN(GLAT(I,J))
+          CPH=COS(GLAT(I,J))
+          TPH=ASIN(CTPH0*SPH-STPH0*CPH*CRLM)
+          RCTPH=1.0/COS(TPH)
+          SROT(I,J)=STPH0*SRLM*RCTPH
+          CROT(I,J)=(CTPH0*CPH+STPH0*SPH*CRLM)*RCTPH
         ENDDO    !-- I
       ENDDO      !-- J
 !-- Convert from radians to degrees
-        DO J=JTS,JTE
-          DO I=ITS,ITE
-            HANGL(I,J)=DTR*HANGL(I,J)  !-- convert to degrees (+/-90 deg)
-          ENDDO    !-- I
-        ENDDO      !-- J
+      RTD=1./DTR         !-- convert from radians to degrees
+      DO J=JTS,JTE
+        DO I=ITS,ITE
+          HANGL(I,J)=RTD*HANGL(I,J)  !-- convert to degrees (+/-90 deg)
+        ENDDO    !-- I
+      ENDDO      !-- J
 !
 !-- Scale cleff to be w/r/t a nominal value of 1e-5 for 12-km grid Launcher runs
 !     * Launcher 12-km runs used cleff=0.5e-5*SQRT(IMX/192), where IMX=IDE-1=705

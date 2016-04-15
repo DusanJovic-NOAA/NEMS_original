@@ -1,10 +1,9 @@
 !-- Modifications:
-!   1) recwat_def=15 microns
-!   2) Corrected comments concerning cloud fractions
-!   3) Assumed TNW varies from 200 cm^-3 at 20C to 50 cm^-3 at 0C
-!   4) Assumed recwmin varies from 15 microns at 20C to 10 microns at 0C
-!   5) Effectively treat all ice as cloud ice, eliminate snow in rsipath_tmp
-!   6) Parameterize effective radius of (cloud) ice following eq. (5) from
+!   1) recwat_def=5 microns
+!   2) Assumed TNW=200 cm^-3 is fixed
+!   3) Corrected comments concerning cloud fractions
+!   4) Effectively treat all ice as cloud ice, eliminate snow in rsipath_tmp
+!   5) Parameterize effective radius of (cloud) ice following eq. (5) from
 !      McFarquhar & Heymsfield (1996), discussion concerning area cross
 !      section of ice particles (Ac) on p. 2437, and eqs. (3.10) and (3.12)
 !      in Fu (1996).
@@ -178,7 +177,7 @@
 !--- set default quantities for new version of progcld2
 
       real (kind=kind_phys), parameter :: cclimit = 0.001, cclimit2=0.05
-      real (kind=kind_phys), parameter :: recwat_def = 15.0   ! default liq radius to 15 microns at <0C
+      real (kind=kind_phys), parameter :: recwat_def = 5.0    ! default liq radius to 5 microns at <0C
       real (kind=kind_phys), parameter :: recice_def = 10.0   ! default ice radius to 10 microns
       real (kind=kind_phys), parameter :: rerain_def = 100.0  ! default rain radius to 100 microns
       real (kind=kind_phys), parameter :: resnow_def = 50.0   ! default snow radius to 50 microns
@@ -2849,17 +2848,18 @@
 !
 !-- Cloud droplet distribution:
 !     Reff=0.5*Deff, (1)
-!       Deff=0.75*Dmean (monodisperse) or 3*Dmean (exponential), (2)
-!       Reff=(3/8)*Dmean (monodisperse) or 1.5*Dmean (exponential), (3)
+!       Deff=Dmean (monodisperse) or 3*Dmean (exponential), (2)
+!       Reff=0.5*Dmean (monodisperse) or 1.5*Dmean (exponential), (3)
+!
+!     Assume monodisperse below ....
 !       Dmean=mean diameter=1.e6*(6*rho*Qcw/(pi*TNW*RHOL))**(1/3) in microns (4)
 !     Combining (1)-(4),
-!       Reff=0.375e6*(6*rho*Qcw/(pi*Ncw*RHOL))**(1/3) in microns (monodisperse), (5)
+!       Reff=0.5e6*(6*rho*Qcw/(pi*Ncw*RHOL))**(1/3) in microns, (5)
 !       where rho*Qcw in kg/m**3, Ncw in m^-3
 !     RHOL=1000 kg m^-3, Ncw=1.e6*TNW, TNW in cm^-3 (6)
 !     Substitute (6) into (5),
-!       Reff=465.26*(Qcw/TNW)**(1/3) for rho*Qcw in kg/m**3, TNW in cm^-3 (monodisperse) (7)
-!      real, parameter :: TNW=200.                    !--  Droplet # cm^-3
-!      real, parameter :: recwmin=recwat_def
+!       Reff=620.35*(Qcw/TNW)**(1/3) for rho*Qcw in kg/m**3, TNW in cm^-3 (monodisperse) (7)
+      real, parameter :: TNW=200.                    !--  Droplet # cm^-3
 !  ---  inputs:
       real, dimension(:,:), intent(in) ::                               &
      &       plyr, plvl, tlyr, qlyr, qcwat, qcice, qrain, rrime
@@ -2877,12 +2877,14 @@
 
       real    :: dsnow, qsnow, qclice, fsmall, xsimass, pfac,           &
      &           nlice, xli, nlimax, dum, tem,                          &
-     &           rho, cpath, rc, totcnd, tc, recw1, TNW, recwmin
+     &           rho, cpath, rc, totcnd, tc, recw1
 
       integer :: i, k, indexs, ksfc, k1
 !
 !===>  ...  begin here
 !
+      recw1=620.35/TNW**CEXP    !-- Monodisperse
+
       do k = 1, LEVS
         do i = 1, IM
                                            !--- hydrometeor's optical path
@@ -2928,19 +2930,11 @@
 !! cloud water
 !
 !  ---  effective radius (recwat) & total water path (cwatp):
-!       assume monodisperse distribution of droplets (no factor of 1.5)
+!       assume monodisperse distribution of droplets (see above)
 
             if (qcwat(i,k) > 0.0) then
-!-- TNW varies from 50 to 200 cm^-3 from 0C to 20C, respectively
-               TEM=MIN(20., MAX(0.,TC) )
-               TNW=50.+7.5*TEM
-               recw1=465.26/TNW**CEXP    !-- Monodisperse
-!              recw1=1861.052/TNW**CEXP   !-- Exponential
-!-- recwmin varies from 15 to 10 microns from 0C to 20C, respectively
-               recwmin=recwat_def-0.25*TEM
-!
               tem         = recw1*(rho*qcwat(i,k))**CEXP
-              recwat(i,k) = MAX(recwmin, tem)
+              recwat(i,k) = MAX(recwat_def, tem)
               cwatp (i,k) = cpath * qcwat(i,k)           ! cloud water path
             endif
 

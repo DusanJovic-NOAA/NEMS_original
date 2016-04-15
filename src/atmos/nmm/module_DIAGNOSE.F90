@@ -2168,7 +2168,7 @@ vloop3:   IF (ZCTOP >= Z1KM) THEN
       USE MODULE_MP_FER_HIRES, ONLY : FPVS                              &
      & ,CN0R0,CN0r_DMRmin,CN0r_DMRmax,RQR_DRmin,RQR_DRmax,MDRmin        &
      & ,MDRmax,N0rmin,N0r0,  MDImin,MDImax,XMImax,XMIexp,MASSI,NLImin   &
-     & ,RFmax, RHgrd,T_ICE
+     & ,RFmax, T_ICE
 
       IMPLICIT NONE
 

@@ -1839,7 +1839,15 @@
              PSISAT = 200.0/(SMCWLT/(SMCMAX*(1.0-SMLOW)))**(-BEXP)
              DWSAT  = BEXP*DKSAT*(PSISAT/SMCMAX)
              F1 = ALOG10(PSISAT) + BEXP*ALOG10(SMCMAX) + 2.0
+!!          ELSE
+!! !
+!! !-- Limit top-layer soil moisture to 80% of SMCREF (soil moisture threshold below
+!! !   which transpiration begins to stress), based on launcher experiment apr24d
+!! !
+!!              SMC(1)=MIN(SMC(1), 0.8*SMCREF)
+!!              SH2O(1)=MIN(SH2O(1), 0.8*SMCREF)
          ENDIF
+         SMCREF = SMCREF + (SMC(1)-SH2O(1))      !2015
                                                                                  
 ! ----------------------------------------------------------------------         
 !  INITIALIZE PRECIPITATION LOGICALS.                                            
@@ -1948,6 +1956,12 @@
 ! DETERMINE SNOW FRACTIONAL COVERAGE.                                            
 ! DETERMINE SURFACE ALBEDO MODIFICATION DUE TO SNOWDEPTH STATE.                  
 ! ----------------------------------------------------------------------         
+!
+!-- Threshold snow depth (in water equivalent m) that implies 100% snow 
+!   coverage is increased by 4x, based on early 2015 NAMX runs (BSF)
+!
+              SNUP=4.*SNUP   !- was 7.*SNUP
+!
               CALL SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)                         
 ! limit snow cover fraction to maximum of 0.98
               SNCOVR = MIN(SNCOVR,0.98)
@@ -2288,7 +2302,7 @@
   END SUBROUTINE ALCALC                                                          
 ! ----------------------------------------------------------------------         
                                                                                  
-      SUBROUTINE CANRES (SOLAR,CH,SFCTMP,Q2,SFCPRS,SMC,ZSOIL,NSOIL,       &     
+      SUBROUTINE CANRES (SOLAR,CH,SFCTMP,Q2,SFCPRS,SH2O,ZSOIL,NSOIL,       &     
                          SMCWLT,SMCREF,RSMIN,RC,PC,NROOT,Q2SAT,DQSDT2,    &     
                          TOPT,RSMAX,RGL,HS,XLAI,                          &     
                          RCS,RCT,RCQ,RCSOIL,EMISSI)                                    
@@ -2335,7 +2349,7 @@
       REAL,    INTENT(IN) :: CH,DQSDT2,HS,Q2,Q2SAT,RSMIN,RGL,RSMAX,        &
                              SFCPRS,SFCTMP,SMCREF,SMCWLT, SOLAR,TOPT,XLAI, &
                              EMISSI                                        
-      REAL,DIMENSION(1:NSOIL), INTENT(IN) :: SMC,ZSOIL
+      REAL,DIMENSION(1:NSOIL), INTENT(IN) :: SH2O,ZSOIL
       REAL,    INTENT(OUT):: PC,RC,RCQ,RCS,RCSOIL,RCT
       REAL                :: DELTA,FF,GX,P,RR
       REAL, DIMENSION(1:NSOIL) ::  PART
@@ -2376,7 +2390,8 @@
 ! DETERMINE CONTRIBUTION FROM EACH SOIL LAYER, THEN ADD THEM UP.                 
 ! ----------------------------------------------------------------------         
       RCQ = MAX (RCQ,0.01)                                                       
-      GX = (SMC (1) - SMCWLT) / (SMCREF - SMCWLT)                                
+!      GX = (SMC (1) - SMCWLT) / (SMCREF - SMCWLT)                                
+      GX = (SH2O (1) - SMCWLT) / (SMCREF - SMCWLT)      !2015
       IF (GX  >  1.) GX = 1.                                                    
       IF (GX  <  0.) GX = 0.                                                    
                                                                                  
@@ -2389,7 +2404,8 @@
 ! ----------------------------------------------------------------------         
       PART (1) = (ZSOIL (1)/ ZSOIL (NROOT)) * GX                                 
       DO K = 2,NROOT                                                             
-         GX = (SMC (K) - SMCWLT) / (SMCREF - SMCWLT)                             
+!         GX = (SMC (K) - SMCWLT) / (SMCREF - SMCWLT)                             
+         GX = (SH2O (K) - SMCWLT) / (SMCREF - SMCWLT)    !2015
          IF (GX >  1.) GX = 1.                                                 
          IF (GX <  0.) GX = 0.                                                 
 ! ----------------------------------------------------------------------         
@@ -2469,7 +2485,7 @@
   END SUBROUTINE CSNOW                                                           
 ! ----------------------------------------------------------------------         
                                                                                  
-      SUBROUTINE DEVAP (EDIR,ETP1,SMC,ZSOIL,SHDFAC,SMCMAX,BEXP,         &        
+      SUBROUTINE DEVAP (EDIR,ETP1,SH2O,ZSOIL,SHDFAC,SMCMAX,BEXP,         &        
                         DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP)               
                                                                                  
 ! ----------------------------------------------------------------------         
@@ -2479,7 +2495,7 @@
 ! CALCULATE DIRECT SOIL EVAPORATION                                              
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
-      REAL, INTENT(IN) :: ETP1,SMC,BEXP,DKSAT,DWSAT,FXEXP,              &
+      REAL, INTENT(IN) :: ETP1,SH2O,BEXP,DKSAT,DWSAT,FXEXP,              &
                           SHDFAC,SMCDRY,SMCMAX,ZSOIL,SMCREF,SMCWLT
       REAL, INTENT(OUT):: EDIR
       REAL             :: FX, SRATIO
@@ -2494,7 +2510,8 @@
 ! FX < 1 REPRESENTS FLUX CONTROL                                                 
 ! ----------------------------------------------------------------------         
 
-      SRATIO = (SMC - SMCDRY) / (SMCMAX - SMCDRY)                                
+!      SRATIO = (SMC - SMCDRY) / (SMCMAX - SMCDRY)                                
+      SRATIO = (SH2O - SMCDRY) / (SMCMAX - SMCDRY)     !2015
       IF (SRATIO > 0.) THEN                                                   
         FX = SRATIO**FXEXP                                                       
         FX = MAX ( MIN ( FX, 1. ) ,0. )                                          
@@ -2558,7 +2575,7 @@
 ! ----------------------------------------------------------------------         
       IF (ETP1 > 0.0) THEN                                                    
          IF (SHDFAC <  1.) THEN                                                
-             CALL DEVAP (EDIR,ETP1,SMC (1),ZSOIL (1),SHDFAC,SMCMAX,      &       
+             CALL DEVAP (EDIR,ETP1,SH2O(1),ZSOIL (1),SHDFAC,SMCMAX,      &       
                          BEXP,DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP)            
          END IF                                                                  
 ! ----------------------------------------------------------------------         

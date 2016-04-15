@@ -4310,6 +4310,10 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:kse),intent(inout):: &
 ,tcs                         ! timechange of s
 
 !--local variables------------------------------------------------------
+real(kind=kfpt),parameter:: &
+ wb=1.0 &                    ! weighting factor
+,wa=(1.0-wb)*0.25            ! weighting factor
+
 integer(kind=kint):: &
  i &                         !
 ,iap &                       !
@@ -4338,8 +4342,9 @@ real(kind=kfpt):: &
 
 real(kind=kfpt),dimension(ims:ime,jms:jme):: &
  pdop &                      ! hydrostatic pressure difference at v points
+,pdops &                     ! smoothed hydrostatic pressure difference at h points
 ,pvvlo &                     ! vertical mass flux, lower interface
-,ss1 &                       ! extrapolated species between time levels 
+,ss1 &                       ! extrapolated species between time levels
 ,ssne &                      ! flux, ne direction
 ,ssnw &                      ! flux, nw direction
 ,ssx &                       ! flux, x direction
@@ -4423,6 +4428,11 @@ q2_check: if (kss<=indx_q2 .and. indx_q2<=kse) then
 #endif
 !-----------------
 !-----------------------------------------------------------------------
+      do j=jts_h1,jte_h1
+        do i=its_h1,ite_h1
+          pdop(i,j)=(pd(i,j)+pdo(i,j))*0.5
+        enddo
+      enddo
 !-----------------
 #ifdef ENABLE_SMP
 !-----------------
@@ -4441,19 +4451,23 @@ q2_check: if (kss<=indx_q2 .and. indx_q2<=kse) then
 !-----------------
 #endif
 !-----------------
-      do j=jstart,jstop
-        do i=its_b1,ite_b1
-          pdop(i,j)=(pd(i,j)+pdo(i,j))*0.5
-        enddo
-      enddo
 !-----------------------------------------------------------------------
 !---crank-nicholson vertical advection----------------------------------
 !-----------------------------------------------------------------------
       dtq=dt*0.25*idtadt
       do j=jstart,jstop
         do i=its_b1,ite_b1
-          pvvlo(i,j)=psgdt(i,j,1)*dtq
-          vvlo=pvvlo(i,j)/(dsg2(1)*pdop(i,j)+pdsg1(1))
+          pdops(i,j)=(pdop(i,j-1)+pdop(i-1,j) &
+                    +pdop(i+1,j)+pdop(i,j+1))*wa &
+                    +pdop(i,j)*wb
+        enddo
+      enddo
+      do j=jstart,jstop
+        do i=its_b1,ite_b1
+          pvvlo(i,j)=((psgdt(i,j-1,1)+psgdt(i-1,j,1) &
+                      +psgdt(i+1,j,1)+psgdt(i,j+1,1))*wa + &
+                      psgdt(i,j,1)*wb)*dtq
+          vvlo=pvvlo(i,j)/(dsg2(1)*pdops(i,j)+pdsg1(1))
           cms=-vvlo*w2+1.
           rcms(i,j,1)=1./cms
           crs(i,j,1)=vvlo*w2
@@ -4468,9 +4482,11 @@ q2_check: if (kss<=indx_q2 .and. indx_q2<=kse) then
       do l=2,lm-1
         do j=jstart,jstop
           do i=its_b1,ite_b1
-            rdp=1./(dsg2(l)*pdop(i,j)+pdsg1(l))
+            rdp=1./(dsg2(l)*pdops(i,j)+pdsg1(l))
             pvvup=pvvlo(i,j)
-            pvvlo(i,j)=psgdt(i,j,l)*dtq
+            pvvlo(i,j)=((psgdt(i,j-1,l)+psgdt(i-1,j,l) &
+                        +psgdt(i+1,j,l)+psgdt(i,j+1,l))*wa + &
+                        psgdt(i,j,l)*wb)*dtq
 !
             vvup=pvvup*rdp
             vvlo=pvvlo(i,j)*rdp
@@ -4491,7 +4507,7 @@ q2_check: if (kss<=indx_q2 .and. indx_q2<=kse) then
       do j=jstart,jstop
         do i=its_b1,ite_b1
           pvvup=pvvlo(i,j)
-          vvup=pvvup/(dsg2(lm)*pdop(i,j)+pdsg1(lm))
+          vvup=pvvup/(dsg2(lm)*pdops(i,j)+pdsg1(lm))
 !
           cf=-vvup*w2*rcms(i,j,lm-1)
           cms=-crs(i,j,lm-1)*cf+(vvup*w2+1.)
