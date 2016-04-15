@@ -30,8 +30,23 @@ fi
  export EXPLICIT=.false.
 
  export ADIABATIC=_ADIABATIC_
- export NST_FCST=_NSTFCST_   #0(AM), 1(am,nst) and 2(cpld nstnst)
+
+ export NST_FCST=_NSTFCST_           # 0 (am), 1(am,nst) and 2(cpld nstnst)
+ export NST_SPINUP=_NSTSPINUP_       # 0 (nst_ini availabe); 1 ( generate nst_ini)
+ export NST_RESERVED=_NSTREV_        # 0 (no nst anal)     ; 1 (nstanl exists)
+ export ZSEA1=_ZSEA1_                # The lower depth for T-mean
+ export ZSEA2=_ZSEA2_                # The upper depth for T-mean
+
  export NST_FCST=${NST_FCST:-0}
+ export NST_SPINUP=${NST_SPINUP:-0}
+ export NST_RESERVED=${NST_RESERVED:-0}
+ export ZSEA1=${ZSEA1:-0}
+ export ZSEA2=${ZSEA2:-0}
+
+ export nstf_name="$NST_FCST,$NST_SPINUP,$NST_RESERVED,$ZSEA1,$ZSEA2"
+
+ export nst_anl=${nst_anl:-.false.}
+
 ## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
 
  export IAER=_IAER_
@@ -121,6 +136,7 @@ fi
  export SIGIO_IN=_SIGIOIN_
  export SIGIO_OUT=_SIGIOOUT_
  export SFCIO_OUT=_SFCIOOUT_
+ export NSTIO_OUT=_NSTIOOUT_
 
  export MACHINE_ID=_MACHINE_ID_
  export SCHEDULER=_SCHEDULER_
@@ -130,6 +146,7 @@ fi
  export SIGIO_IN=${SIGIO_IN:-.true.}
  export SIGIO_OUT=${SIGIO_OUT:-.true.}
  export SFCIO_OUT=${SFCIO_OUT:-.true.}
+ export NSTIO_OUT=${NSTIO_OUT:-.true.}
 # 
  export MACHINE_ID=${MACHINE_ID:-WCOSS}
  export SCHEDULER=${SCHEDULER:-lsf}
@@ -150,10 +167,6 @@ fi
       export FILE_IO_FORM=${FILE_IO_FORM}" 'bin4'"
       NUM_FILE=`expr $NUM_FILE + 1`
       export NUM_FILE
-      if [ $NST_FCST -eq 1 ]; then
-#testing
-          NST_SPINUP=.true.
-      fi
     fi
     if [ $GOCART == 1 ] ; then
       export FILENAME_BASE=${FILENAME_BASE}" 'AER.F'"
@@ -161,9 +174,8 @@ fi
       NUM_FILE=`expr $NUM_FILE + 1`
       export NUM_FILE
     fi
-    echo "NUM_FILE=$NUM_FILE,GOCART=$GOCART,NST_FCST=$NST_FCST,FILENAME_BASE=$FILENAME_BASE"
+    echo "NUM_FILE=$NUM_FILE,GOCART=$GOCART,nstf_name=$nstf_name,nst_anl=$nst_anl,FILENAME_BASE=$FILENAME_BASE"
  fi
-NST_SPINUP=${NST_SPINUP:-.false.}
 
 # restart default is coldstart
  export fcst_begin=_FCST_BEGIN_
@@ -439,6 +451,9 @@ fi
     export SIGI=$RUNDIR/sigr1
     export SIGI2=$RUNDIR/sigr2
     export SFCI=$RUNDIR/sfcr
+    if [ $NST_FCST -gt 0 ] ; then
+      export NSTI=$RUNDIR/nstr
+    fi
     export FHINI=`$nemsioget $GRDI nfhour |grep -i "nfhour"|awk -F" " '{print $2}'`
   else
     if [[ ${fcst_begin} = YES ]] then
@@ -449,12 +464,20 @@ fi
       else
         export SFCI=$RUNDIR/sfcanl.$CDATE
       fi
+      if [ $NST_FCST -gt 0 ] ; then
+        if [[ $NEMSIO_IN = .true. ]] ; then
+          export NSTI=$RUNDIR/nsnanl.$CDATE
+        else
+          export NSTI=$RUNDIR/nstanl.$CDATE
+        fi
+      fi
       export FHINI=00
     else
       if [[ -s $RUNDIR/../$DATAICDIR/sigf${nhourb} ]]; then
         export GRDI=$RUNDIR/../$DATAICDIR/sigf${nhourb}
         export SIGI=$RUNDIR/../$DATAICDIR/sigf${nhourb}
         export SFCI=$RUNDIR/../$DATAICDIR/sfcf${nhourb}
+        export NSTI=$RUNDIR/../$DATAICDIR/nstf${nhourb}
       fi
     fi
   fi

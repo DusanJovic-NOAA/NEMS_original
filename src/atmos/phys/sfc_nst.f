@@ -4,8 +4,9 @@
 !  ---  inputs:
      &     ( im, km, ps, u1, v1, t1, q1, tref, cm, ch,                  &
      &       prsl1, prslki, islimsk, xlon, sinlat, stress,              &
-     &       sfcemis, dlwflx, sfcnsw, rain, timestep, kdt,              &
-     &       ddvel, flag_iter, flag_guess, nst_fcst, lprnt, ipr,        &
+     &       sfcemis, dlwflx, sfcnsw, rain, timestep, kdt, solhr,xcosz, &
+     &       ddvel, flag_iter, flag_guess, nstf_name,                    &
+     &       lprnt, ipr,                                                &
 !  --- input/output
      &       tskin, tsurf, xt, xs, xu, xv, xz, zm, xtts, xzts, dt_cool, &
      &       z_c,   c_0,   c_d,   w_0, w_d, d_conv, ifd, qrain,         &
@@ -23,8 +24,9 @@
 !       inputs:                                                         !
 !          ( im, km, ps, u1, v1, t1, q1, tref, cm, ch,                  !
 !            prsl1, prslki, islimsk, xlon, sinlat, stress,              !
-!            sfcemis, dlwflx, sfcnsw, rain, timestep, kdt,              !
-!            ddvel, flag_iter, flag_guess, nst_fcst, lprnt, ipr,        !
+!            sfcemis, dlwflx, sfcnsw, rain, timestep, kdt,solhr,xcosz,  !
+!            ddvel, flag_iter, flag_guess, nstf_name,                    !
+!            lprnt, ipr,                                                !
 !       input/outputs:                                                  !
 !            tskin, tsurf, xt, xs, xu, xv, xz, zm, xtts, xzts, dt_cool, !
 !            z_c, c_0,   c_d,   w_0, w_d, d_conv, ifd, qrain,           !
@@ -75,18 +77,33 @@
 !     rain     - real, rainfall rate     (kg/m**2/s)               im   !
 !     timestep - real, timestep interval (second)                  1    !
 !     kdt      - integer, time step counter                        1    !
+!     solhr    - real, fcst hour at the end of prev time step      1    !
+!     xcosz    - real, consine of solar zenith angle               1    !
 !     ddvel    - real, wind enhancement due to convection (m/s)    im   !
-!     flag_iter- logical,                                          im   !
-!     flag_guess-logical,                                          im   !
-!     nst_fcst  -integer, flag 0 for no nst, 1 for uncoupled nst        !
-!                          and 2 for coupled nst                   1    !
+!     flag_iter- logical, execution or not                         im   !
+!                when iter = 1, flag_iter = .true. for all grids   im   !
+!                when iter = 2, flag_iter = .true. when wind < 2   im   !
+!                for both land and ocean (when nstf_name(1) > 0)   im   !
+!     flag_guess-logical, .true.=  guess step to get CD et al      im   !
+!                when iter = 1, flag_guess = .true. when wind < 2  im   !
+!                when iter = 2, flag_guess = .false. for all grids im   !
+!     nstf_name   -integer array, NSST related flag parameters     1    !
+!                nstf_name(1) : 0 = NSSTM off                      1    !
+!                               1 = NSSTM on but uncoupled         1    !
+!                               2 = NSSTM on and coupled           1    !
+!                nstf_name(2) : 1 = NSSTM spin up on               1    !
+!                               0 = NSSTM spin up off              1    !
+!                nstf_name(3) : 1 = NSST analysis on               1    !
+!                               0 = NSSTM analysis off             1    !
+!                nstf_name(4) : zsea1 in mm                        1    !
+!                nstf_name(5) : zsea2 in mm                        1    !
 !     lprnt    - logical, control flag for check print out         1    !
 !     ipr      - integer, grid index for check print out           1    !
 !                                                                       !
 !  input/outputs:
 ! li added for oceanic components
 !     tskin    - real, ocean surface skin temperature ( k )        im   !
-!     tsurf    - real, ocean surface skin temperature ( k )??      im   !
+!     tsurf    - real, the same as tskin ( k ) but for guess run   im   !
 !     xt       - real, heat content in dtl                         im   !
 !     xs       - real, salinity  content in dtl                    im   !
 !     xu       - real, u-current content in dtl                    im   !
@@ -102,7 +119,7 @@
 !     c_d      - coefficient2 to calculate d(tz)/d(ts)             im   !
 !     w_0      - coefficient3 to calculate d(tz)/d(ts)             im   !
 !     w_d      - coefficient4 to calculate d(tz)/d(ts)             im   !
-!     ifd      - real, index to start dtm run or not               im   !
+!     ifd      - real, index to start dtlm run or not              im   !
 !     qrain    - real, sensible heat flux due to rainfall (watts)  im   !
 
 !  outputs:                                                             !
@@ -124,6 +141,7 @@
      &,             rvrdm1 => con_fvirt, rd => con_rd                   &
      &,             rhw0 => con_rhw0,sbc => con_sbc,pi => con_pi
       use date_def, only: idate
+      use module_nst_water_prop, only: get_dtzm_point
       use module_nst_parameters, only : t0k,cp_w,omg_m,omg_sh,          &
      &    sigma_r,solar_time_6am,ri_c,z_w_max,delz,wd_max,              &
      &    rad2deg,const_rot,tau_min,tw_max,sst_max
@@ -141,14 +159,17 @@
       real (kind=kind_phys), parameter :: cpinv=1.0/cp, hvapi=1.0/hvap
       real (kind=kind_phys), parameter :: f24   = 24.0     ! hours/day
       real (kind=kind_phys), parameter :: f1440 = 1440.0   ! minutes/day
+      real (kind=kind_phys), parameter :: czmin = 0.0001   ! cos(89.994)
+
 
 !  ---  inputs:
-      integer, intent(in) :: im, km, kdt, ipr, nst_fcst
+      integer, intent(in) :: im, km, kdt, ipr,nstf_name(5)
       real (kind=kind_phys), dimension(im), intent(in) :: ps, u1, v1,   &
-     &       t1, q1, tref, cm, ch, prsl1, prslki, xlon,                 &
+     &       t1, q1, tref, cm, ch, prsl1, prslki, xlon,xcosz,           &
      &       sinlat, stress, sfcemis, dlwflx, sfcnsw, rain, ddvel
       integer, intent(in), dimension(im):: islimsk
       real (kind=kind_phys), intent(in) :: timestep
+      real (kind=kind_phys), intent(in) :: solhr
 
       logical, intent(in) :: flag_iter(im), flag_guess(im), lprnt
 
@@ -183,20 +204,14 @@
 !     real(kind=kind_phys) rig(im),
 !    &                     ulwflx(im),dlwflx(im),
 !    &                     slrad(im),nswsfc(im)
-      real(kind=kind_phys) alpha,beta,rho_w,f_nsol,sss,sep,soltim,
+      real(kind=kind_phys) alpha,beta,rho_w,f_nsol,sss,sep,
      &                     cosa,sina,taux,tauy,grav,dz,t0,ttop0,ttop
-
-      integer :: iyear,imon,iday,ihr,imin
-      integer :: idat(8),jdat(8)
 
       real(kind=kind_phys) le,fc,dwat,dtmp,wetc,alfac,ustar_a,rich
       real(kind=kind_phys) rnl_ts,hs_ts,hl_ts,rf_ts,q_ts
-      real(kind=kind_phys) jday,fw,q_warm
-      real(kind=kind_phys) t12,alon,tsea,sstc,dta
-      real(kind=kind_phys) fjd1,jd1,jd0
-      real(kind=kind_phys) rinc(5) 
-      real(kind=4) rinc4(5)
-      integer w3kindreal,w3kindint
+      real(kind=kind_phys) fw,q_warm
+      real(kind=kind_phys) t12,alon,tsea,sstc,dta,dtz
+      real(kind=kind_phys) zsea1,zsea2,soltim,soltim0,solhr0
 
 !  external functions called: iw3jdn
       integer :: iw3jdn
@@ -205,56 +220,12 @@ cc
       parameter (elocp=hvap/cp)
 
       sss = 34.0             ! temporarily, when sea surface salinity data is not ready
-
-      idat(1) = idate(4)
-      idat(2) = idate(2)
-      idat(3) = idate(3)
-      idat(4) = 0
-      idat(5) = idate(1)
-      idat(6) = 0
-      idat(7) = 0
-      idat(8) = 0
-
-      rinc(1) = 0.
-      rinc(2) = 0.
-      rinc(3) = float(kdt)*timestep/60.0
-      rinc(4) = 0.
-      rinc(5) = 0.
-      call w3kind(w3kindreal,w3kindint)
-      if(w3kindreal==4) then
-        rinc4=rinc
-        call w3movdat(rinc4,idat,jdat)
-      else
-        call w3movdat(rinc,idat,jdat)
-      endif
-
-      iyear = jdat(1)
-      imon  = jdat(2)
-      iday  = jdat(3)
-      ihr   = jdat(5)
-      imin  = jdat(6)
-
-!  --- ...  calculate forecast julian day and fraction of julian day
-
-      jd0 = iw3jdn(1899,12,31)
-      jd1 = iw3jdn(iyear,imon,iday)
-
-!  --- ...  unlike in normal applications, where day starts from 0 hr,
-!           in astronomy applications, day stats from noon.
-      if (ihr < 12) then
-        jd1 = jd1 - 1
-        fjd1= 0.5 + float(ihr)/f24 + float(imin)/f1440
-      else
-        fjd1= float(ihr - 12)/f24 + float(imin)/f1440
-      endif
-      jday  = jd1 - jd0 + fjd1 
 !
-! flag for open water
+! flag for open water and where the iteration is on
 !
       do i = 1, im
          flag(i) = islimsk(i) == 0 .and. flag_iter(i)
       enddo
-
 !
 !  save nst-related prognostic fields for guess run
 !
@@ -274,6 +245,7 @@ cc
           z_c_old(i)     = z_c(i)
         endif
       enddo
+
 
 !  --- ...  initialize variables. all units are m.k.s. unless specified.
 !           ps is in pascals, wind is wind speed, theta1 is surface air
@@ -320,6 +292,10 @@ cc
 
 ! run nst model: dtm + slm   
 ! 
+      solhr0 = solhr - timestep/3600.0
+      if ( solhr0 < 0.0 ) solhr0 = solhr0 + 24.0
+      zsea1 = 0.001*real(nstf_name(4))
+      zsea2 = 0.001*real(nstf_name(5))
       do i = 1, im
         if ( flag(i) ) then
           tsea      = tsurf(i)
@@ -327,7 +303,8 @@ cc
           ulwflx(i) = sfcemis(i) * sbc * t12 * t12
           alon      = xlon(i)*rad2deg
           grav      = grv(sinlat(i))
-          call solar_time_from_julian(jday,alon,soltim)
+          soltim  = mod(alon/15.0 + solhr, 24.0)*3600.0
+          soltim0 = mod(alon/15.0 + solhr0,24.0)*3600.0
           call density(tsea,sss,rho_w)                     ! sea water density
           call rhocoef(tsea,sss,rho_w,alpha,beta)          ! alpha & beta
 !
@@ -356,7 +333,7 @@ cc
 !
 !  sensitivities of heat flux components to ts
 !
-          rnl_ts = 4.0*sfcemis(i)*sigma_r*tsea*tsea*tsea     ! d(rnl)/d(ts)
+          rnl_ts = 4.0*sfcemis(i)*sbc*tsea*tsea*tsea     ! d(rnl)/d(ts)
           hs_ts  = rch(i)
           hl_ts  = rch(i)*elocp*eps*hvap*qss(i)/(rd*t12)
           rf_ts  = (1000.*rain(i)/rho_w)*alfac*cp_w*(1.0+rch(i)*hl_ts)
@@ -484,7 +461,8 @@ cc
 !     if (lprnt .and. i == ipr) print *,' beg xz6=',xz(i)
 
 !  apply mta
-              sstc = tref(i) + (xt(i)+xt(i))/xz(i) - dt_cool(i)
+       sstc = tref(i) + (xt(i)+xt(i))/xz(i) - dt_cool(i)
+
               if ( sstc > sst_max ) then
                 dta = sstc - sst_max
                 call  dtm_1p_mta(dta,xt(i),xtts(i),xz(i),xzts(i))
@@ -497,8 +475,8 @@ cc
               endif
 !
             endif             ! if ( xt(i) > 0.0 ) then
-!           reset dtl at mignight
-            if ( abs(soltim) < 2.0*timestep ) then
+!           reset dtl at midnight and when solar zenith angle > 89.994 degree
+            if ( soltim < soltim0 .and. xcosz(i) < czmin ) then
               call dtl_reset
      &           (xt(i),xs(i),xu(i),xv(i),xz(i),xzts(i),xtts(i))
             endif
@@ -507,10 +485,13 @@ cc
 
 !     if (lprnt .and. i == ipr) print *,' beg xz7=',xz(i)
 
-          tsurf(i) = max(271.0, tref(i)+(xt(i)+xt(i))/xz(i)-dt_cool(i))
+!     update tsurf  (when flag(i) .eqv. .true. )
+          call get_dtzm_point(xt(i),xz(i),dt_cool(i),z_c(i),
+     &                        zsea1,zsea2,dtz)
+          tsurf(i) = max(271.2, tref(i) + dtz )
 
-!     if (lprnt .and. i == ipr) print *,' tsurf=',tsurf(i),' tref=',
-!    &tref(i),' xz=',xz(i),' dt_cool=',dt_cool(i)
+      if (lprnt .and. i == ipr) print *,' tsurf=',tsurf(i),' tref=',
+     &tref(i),' xz=',xz(i),' dt_cool=',dt_cool(i)
 
           if ( xt(i) > 0.0 ) then
             call cal_w(kdt,xz(i),xt(i),xzts(i),xtts(i),w_0(i),w_d(i))
@@ -535,7 +516,7 @@ cc
 ! restore nst-related prognostic fields for guess run
       do i=1, im
         if((islimsk(i) == 0) ) then
-          if(flag_guess(i)) then
+          if(flag_guess(i)) then    ! when it is guess of 
             xt(i)      = xt_old(i)
             xs(i)      = xs_old(i)
             xu(i)      = xu_old(i)
@@ -549,17 +530,22 @@ cc
             dt_cool(i) = dt_cool_old(i)
             z_c(i)     = z_c_old(i)
           else
-            if ( nst_fcst > 1 ) then
+!
+!         update tskin when coupled and not guess run
+!         (all other NSST variables have been updated in this case)
+!
+            if ( nstf_name(1) > 1 ) then
               tskin(i) = tsurf(i)
-            endif                  ! if ( nst_fcst > 1 ) then
-          endif                    ! if(flag_guess(i)) then
-        endif                      ! if((islimsk(i).eq. 0.) ) then
+            endif               ! if ( nstf_name(1) > 1  then
+          endif                 ! if(flag_guess(i)) then
+        endif                   ! if((islimsk(i).eq. 0.) ) then
       enddo
 
 !     if (lprnt .and. i == ipr) print *,' beg xz8=',xz(i)
 
-      if ( nst_fcst > 1 ) then
+      if ( nstf_name(1) > 1 ) then
 !  --- ...  latent and sensible heat flux over open water with updated tskin
+!      for the grids of open water and the iteration is on
         do i = 1, im
           if ( flag(i) ) then
             qss(i)   = fpvs( tskin(i) )
@@ -569,7 +555,7 @@ cc
             hflx(i)  = rch(i) * (tskin(i) - theta1(i))
           endif
         enddo
-      endif                   ! if ( nst_fcst > 1 ) then
+      endif                   ! if ( nstf_name(1) > 1 ) then
 
 !
       do i=1,im

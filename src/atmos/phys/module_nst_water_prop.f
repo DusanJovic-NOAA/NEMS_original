@@ -4,7 +4,7 @@ module module_nst_water_prop
   !
   private
   public :: rhocoef,density,sw_rad,sw_rad_aw,sw_rad_sum,sw_rad_upper,sw_rad_upper_aw,sw_rad_skin,grv,solar_time_from_julian,compjd, &
-            sw_ps_9b,sw_ps_9b_aw
+            sw_ps_9b,sw_ps_9b_aw,get_dtzm_point,get_dtzm_2d
       
   !
   interface sw_ps_9b
@@ -516,5 +516,188 @@ end subroutine solar_time_from_julian
         fjd=(jhr-12)/24.+jmn/1440.
       endif
       end subroutine compjd
+
+ subroutine get_dtzm_point(xt,xz,dt_cool,zc,z1,z2,dtm)
+! ===================================================================== !
+!                                                                       !
+!  description:  get dtm = mean of dT(z) (z1 - z2) with NSST dT(z)      !
+!                dT(z) = (1-z/xz)*dt_warm - (1-z/zc)*dt_cool            !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!    call get_dtm12                                                     !
+!                                                                       !
+!       inputs:                                                         !
+!          (xt,xz,dt_cool,zc,z1,z2,                                     !
+!       outputs:                                                        !
+!          dtm)                                                         !
+!                                                                       !
+!  program history log:                                                 !
+!                                                                       !
+!         2015  -- xu li       createad original code                   !
+!  inputs:                                                              !
+!     xt      - real, heat content in dtl                            1  !
+!     xz      - real, dtl thickness                                  1  !
+!     dt_cool - real, sub-layer cooling amount                       1  !
+!     zc      - sub-layer cooling thickness                          1  !
+!     z1      - lower bound of depth of sea temperature              1  !
+!     z2      - upper bound of depth of sea temperature              1  !
+!  outputs:                                                             !
+!     dtm   - mean of dT(z)  (z1 to z2)                              1  !
+!
+  use machine , only : kind_phys
+
+  implicit none
+
+  real (kind=kind_phys), intent(in)  :: xt,xz,dt_cool,zc,z1,z2
+  real (kind=kind_phys), intent(out) :: dtm
+! Local variables
+  real (kind=kind_phys) :: dt_warm,dtw,dtc
+
+!
+! get the mean warming in the range of z=z1 to z=z2
+!
+  dtw = 0.0
+  if ( xt > 0.0 ) then
+    dt_warm = (xt+xt)/xz      ! Tw(0)
+    if ( z1 < z2) then
+      if ( z2 < xz ) then
+        dtw = dt_warm*(1.0-(z1+z2)/(xz+xz))
+      elseif ( z1 < xz .and. z2 >= xz ) then
+        dtw = 0.5*(1.0-z1/xz)*dt_warm*(xz-z1)/(z2-z1)
+      endif
+    elseif ( z1 == z2 ) then
+      if ( z1 < xz ) then
+        dtw = dt_warm*(1.0-z1/xz)
+      endif
+    endif
+  endif
+!
+! get the mean cooling in the range of z=z1 to z=z2
+!
+  dtc = 0.0
+  if ( zc > 0.0 ) then
+    if ( z1 < z2) then
+      if ( z2 < zc ) then
+        dtc = dt_cool*(1.0-(z1+z2)/(zc+zc))
+      elseif ( z1 < zc .and. z2 >= zc ) then
+        dtc = 0.5*(1.0-z1/zc)*dt_cool*(zc-z1)/(z2-z1)
+      endif
+    elseif ( z1 == z2 ) then
+      if ( z1 < zc ) then
+        dtc = dt_cool*(1.0-z1/zc)
+      endif
+    endif
+  endif
+
+!
+! get the mean T departure from Tf in the range of z=z1 to z=z2
+!
+  dtm = dtw - dtc
+
+ end subroutine get_dtzm_point
+
+ subroutine get_dtzm_2d(xt,xz,dt_cool,zc,slmsk,z1,z2,nx,ny,dtm)
+! ===================================================================== !
+!                                                                       !
+!  description:  get dtm = mean of dT(z) (z1 - z2) with NSST dT(z)      !
+!                dT(z) = (1-z/xz)*dt_warm - (1-z/zc)*dt_cool            !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!    call get_dtzm_2d                                                     !
+!                                                                       !
+!       inputs:                                                         !
+!          (xt,xz,dt_cool,zc,z1,z2,                                     !
+!       outputs:                                                        !
+!          dtm)                                                         !
+!                                                                       !
+!  program history log:                                                 !
+!                                                                       !
+!         2015  -- xu li       createad original code                   !
+!  inputs:                                                              !
+!     xt      - real, heat content in dtl                            1  !
+!     xz      - real, dtl thickness                                  1  !
+!     dt_cool - real, sub-layer cooling amount                       1  !
+!     zc      - sub-layer cooling thickness                          1  !
+!     nx      - integer, dimension in x-direction (zonal)            1  !
+!     ny      - integer, dimension in y-direction (meridional)       1  !
+!     z1      - lower bound of depth of sea temperature              1  !
+!     z2      - upper bound of depth of sea temperature              1  !
+!  outputs:                                                             !
+!     dtm   - mean of dT(z)  (z1 to z2)                              1  !
+!
+  use machine , only : kind_phys
+
+  implicit none
+
+  real (kind=kind_phys), dimension(nx,ny), intent(in)  :: xt,xz,dt_cool,zc,slmsk
+  real (kind=kind_phys), intent(in)  :: z1,z2
+  integer, intent(in) :: nx,ny
+  real (kind=kind_phys), dimension(nx,ny), intent(out) :: dtm                    
+! Local variables
+  integer :: i,j
+  real (kind=kind_phys), dimension(nx,ny) :: dtw,dtc
+  real (kind=kind_phys) :: dt_warm
+
+
+!$omp parallel do private(j,i)
+  do j = 1, ny
+    do i= 1, nx
+!
+!     initialize dtw & dtc as zeros
+!
+      dtw(i,j) = 0.0      
+      dtc(i,j) = 0.0      
+      if ( slmsk(i,j) == 0.0 ) then
+!
+!       get the mean warming in the range of z=z1 to z=z2
+!
+        if ( xt(i,j) > 0.0 ) then
+          dt_warm = (xt(i,j)+xt(i,j))/xz(i,j)      ! Tw(0)
+          if ( z1 < z2) then
+            if ( z2 < xz(i,j) ) then
+              dtw(i,j) = dt_warm*(1.0-(z1+z2)/(xz(i,j)+xz(i,j)))
+            elseif ( z1 < xz(i,j) .and. z2 >= xz(i,j) ) then
+              dtw(i,j) = 0.5*(1.0-z1/xz(i,j))*dt_warm*(xz(i,j)-z1)/(z2-z1)
+            endif
+          elseif ( z1 == z2 ) then
+            if ( z1 < xz(i,j) ) then
+              dtw(i,j) = dt_warm*(1.0-z1/xz(i,j))
+            endif
+          endif
+        endif
+!
+!       get the mean cooling in the range of z=0 to z=zsea
+!
+        if ( zc(i,j) > 0.0 ) then
+          if ( z1 < z2) then
+            if ( z2 < zc(i,j) ) then
+              dtc(i,j) = dt_cool(i,j)*(1.0-(z1+z2)/(zc(i,j)+zc(i,j)))
+            elseif ( z1 < zc(i,j) .and. z2 >= zc(i,j) ) then
+              dtc(i,j) = 0.5*(1.0-z1/zc(i,j))*dt_cool(i,j)*(zc(i,j)-z1)/(z2-z1)
+            endif
+          elseif ( z1 == z2 ) then
+            if ( z1 < zc(i,j) ) then
+              dtc(i,j) = dt_cool(i,j)*(1.0-z1/zc(i,j))
+            endif
+          endif
+        endif
+      endif        ! if ( slmsk(i,j) == 0 ) then
+    enddo
+  enddo 
+!
+! get the mean T departure from Tf in the range of z=z1 to z=z2
+
+!$omp parallel do private(j,i)
+  do j = 1, ny
+    do i= 1, nx
+      if ( slmsk(i,j) == 0.0 ) then
+        dtm(i,j) = dtw(i,j) - dtc(i,j)
+      endif
+    enddo
+  enddo
+
+ end subroutine get_dtzm_2d
 
 end module module_nst_water_prop

@@ -106,6 +106,10 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g       \
                      | sed s:_ADIABATIC_:${ADIABATIC}:g                   \
                      | sed s:_NSTFCST_:${NST_FCST}:g              \
+                     | sed s:_NSTSPINUP_:${NST_SPINUP}:g          \
+                     | sed s:_NSTREV_:${NST_RESERVED}:g           \
+                     | sed s:_ZSEA1_:${ZSEA1}:g                   \
+                     | sed s:_ZSEA2_:${ZSEA2}:g                   \
                      | sed s:_GOCART_:${GOCART}:g                 \
                      | sed s:_TRACER_:${TRACER}:g                 \
                      | sed s:_SFCPRESSID_:${SFCPRESS_ID}:g        \
@@ -207,10 +211,20 @@ fi
   if [ $fcst_begin = YES ]; then
     cp $IC_DIR/gfsanl.$CDATE $RUNDIR
     cp $IC_DIR/sfnanl.$CDATE $RUNDIR
+    cp $IC_DIR/nsnanl.$CDATE $RUNDIR
   else
     cp $IC_DIR/sigf${nhourb} $RUNDIR
     cp $IC_DIR/sfcf${nhourb} $RUNDIR
+    cp $IC_DIR/nstf${nhourb} $RUNDIR
   fi
+
+# These gfsanl and sfnanl data were copy from Moorthi's directory at
+# /global/noscrub/Shrinivas.Moorthi/data on Surge machine. Weiyu.
+#-------------------------------------------------------------------
+# cp ${RTPWD}/GFS_SLG_NEMSIO_READ/gfsanl.$CDATE $RUNDIR
+# cp ${RTPWD}/GFS_SLG_NEMSIO_READ/sfnanl.$CDATE $RUNDIR
+#  cp $IC_DIR/gfsanl.$CDATE $RUNDIR
+#  cp $IC_DIR/sfnanl.$CDATE $RUNDIR
 
 #                     NO NEMSIO INPUT
 #                     ---------------
@@ -228,6 +242,7 @@ fi
        cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.
 #??    cp $IC_DIR/siganl.$CDATE ${RUNDIR}/sig_ini2
        cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
+       cp $IC_DIR/nstanl.$CDATE ${RUNDIR}/.
      fi
    fi
  fi

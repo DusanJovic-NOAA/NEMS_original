@@ -29,7 +29,7 @@
 !           pdfcld,shcnvcw,sup,redrag,hybedmf,dspheat,                  !
 !           flipv,old_monin,cnvgwd,shal_cnv,                            !
 !           imfshalcnv,imfdeepcnv,cal_pre,                              !
-!           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,               !
+!           mom4ice,mstrat,trans_trac,nstf_name,moist_adj,               !
 !           thermodyn_id, sfcpress_id, gen_coord_hybrid,levr,adjtrc,nnp,!
 !           cscnv,nctp,do_shoc,shocaftcnv,ntot3d,ntot2d,                !
 !       input/outputs:                                                  !
@@ -136,10 +136,14 @@
 !      Sep  2014  - Sarah Lu    disable the option to compute tracer    !
 !                               scavenging in GFS phys (set fscav=0.)   !
 !      Dec  2014  - Jun Wang    add cnvqc_v for gocart                  !
+
+!  ====================  defination of variables  ====================  !
 !      ---  2014  - D. Dazlich  Added Chikira-Sugiyama (CS) convection  !
 !                               as an option in opr GFS.                !
 !      Apr  2015    S. Moorthi  Added CS scheme to NEMS/GSM             !
 !      Jun  2015    S. Moorthi  Added SHOC  to NEMS/GSM                 !
+!      Aug  2015  - Xu  Li      change nst_fcst to be nstf_name         !
+!                               and introduce depth mean SST            !
 !      Sep  2015  - Xingren Wu  remove oro_cpl & slmsk_cpl              !
 !      Sep  2015  - Xingren Wu  add sfc_cice                            !
 !      Sep  2015  - Xingren Wu  connect CICE output to sfc_cice         !
@@ -312,8 +316,16 @@
 !     mom4ice  - logical, flag controls mom4 sea-ice               1    !
 !     mstrat   - logical, flag for moorthi approach for stratus    1    !
 !     trans_trac-logical, flag for convective transport of tracers 1    !
-!     nst_fcst  -integer, flag 0 for no nst, 1 for uncoupled nst        !
-!                          and 2 for coupled NST                   1    !
+!     nstf_name   -integer array, NSST related flag parameters     1    !
+!                nstf_name(1) : 0 = NSSTM off                      1    !
+!                               1 = NSSTM on but uncoupled         1    !
+!                               2 = NSSTM on and coupled           1    !
+!                nstf_name(2) : 1 = NSSTM spin up on               1    !
+!                               0 = NSSTM spin up off              1    !
+!                nstf_name(3) : 1 = NSST analysis on               1    !
+!                               0 = NSSTM analysis off             1    !
+!                nstf_name(4) : zsea1 in mm                        1    !
+!                nstf_name(5) : zsea2 in mm                        1    !
 !     moist_adj- logical, flag for moist convective adjustment     1    !
 !     thermodyn_id - integer, valid for GFS only for get_prs/phi   1    !
 !     sfcpress_id  - integer, valid for GFS only for get_prs/phi   1    !
@@ -520,7 +532,7 @@
      &      pdfcld,shcnvcw,sup,redrag,hybedmf,dspheat,                  &
      &      flipv,old_monin,cnvgwd,shal_cnv,                            &
      &      imfshalcnv,imfdeepcnv,cal_pre,                              &
-     &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,               &
+     &      mom4ice,mstrat,trans_trac,nstf_name,moist_adj,               &
      &      thermodyn_id, sfcpress_id, gen_coord_hybrid,levr,adjtrc,nnp,&
      &      cscnv,nctp,do_shoc,shocaftcnv,ntot3d,ntot2d,                &
 !  ---  input/outputs:
@@ -559,7 +571,6 @@
      &      nnirbmi_cpl, nnirdfi_cpl, nvisbmi_cpl, nvisdfi_cpl,         &
      &      t2mi_cpl,    q2mi_cpl,    u10mi_cpl,   v10mi_cpl,           &
      &      tseai_cpl,   psurfi_cpl,                                    &
-
      &      tref, z_c, c_0, c_d, w_0, w_d                               &
      &      )
 !
@@ -567,7 +578,8 @@
       use physcons,   only : con_cp, con_fvirt, con_g, con_rd, con_rv,  &
      &                       con_hvap, con_hfus, con_rerth, con_pi
      &,                      rhc_max, dxmin, dxinv, pa2mb, rlapse
-      use cs_conv,    only : cs_convr
+      use module_nst_water_prop, only: get_dtzm_2d
+      use cs_conv, only : cs_convr
 
       implicit none
 !
@@ -593,7 +605,8 @@
      &                       ntke, ntot3d, ntot2d
 
 
-      integer, intent(in) :: nlons(im), ncw(2), nst_fcst
+      integer, intent(in) :: nlons(im), ncw(2)
+      integer, intent(in) :: nstf_name(5)
       integer, intent(in) :: imfshalcnv, imfdeepcnv
 
       logical, intent(in) :: ras,        pre_rad,   ldiag3d, flipv,     &
@@ -656,6 +669,7 @@
 ! for nst
      &      xt, xs, xu, xv, xz, zm, xtts, xzts, d_conv, ifd, dt_cool,
      &      Qrain
+!    &      Qrain, tref, z_c, c_0, c_d, w_0, w_d
 
 !
       real(kind=kind_phys), dimension(ix,lsoil),      intent(inout) ::  &
@@ -690,7 +704,7 @@
      &      nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            &
      &      t2mi_cpl,q2mi_cpl,                                          &
      &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,                   &
-
+!    &      rqtk
      &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk
 
       real(kind=kind_phys), dimension(ix,levs),       intent(out) ::    &
@@ -739,6 +753,9 @@
 
       real(kind=kind_phys), dimension(im,lsoil)    :: smsoil, stsoil,   &
      &      ai, bi, cci, rhsmc, zsoil, slsoil
+
+      real(kind=kind_phys) :: zsea1,zsea2
+      real(kind=kind_phys), dimension(im) :: dtzm
 
       real(kind=kind_phys) :: rhbbot, rhbtop, rhpbl, frain, f_rain,     &
      &      f_ice, qi, qw, qr, wc, tem, tem1, tem2,  sume,  sumr, sumq, &
@@ -795,11 +812,10 @@
 !  --- ...  set up check print point (for debugging)
 !
 !*************************************************************************
-!     lprnt = .true.
       lprnt = .false.
 !     lprnt = me == 0 .and. kdt < 10
 !     lprnt = kdt >= 19
-      ipr = 1
+!     ipr = 1
 !     lprnt = kdt >= 19
 
 !     if (me == 0 .and. kdt < 5)
@@ -1300,9 +1316,7 @@
           endif
         enddo
 
-!  --- ...  surface energy balance over ocean
-
-        if ( nst_fcst > 0 ) then
+        if ( nstf_name(1) > 0 ) then
 
           do i = 1, im
             if ( islmsk(i) == 0 ) then
@@ -1311,32 +1325,18 @@
               tsurf(i) = tsurf(i) + tem
             endif
           enddo
-!
-!         if ( nst_fcst > 1 ) then
-!           do i = 1, im
-!             if ( islmsk(i) == 0 ) then
-!               tref(i)  = tseal(i) - (xt(i)+xt(i))/xz(i) + dt_cool(i)
-!             endif
-!           enddo
-!         else
-!           do i = 1, im
-!             if ( islmsk(i) == 0 ) then
-!               tref(i)  = tseal(i)
-!             endif
-!           enddo
-!         endif
 
-!         if (lprnt) write(0,*)' tseaz1=',tsea(ipr),' tref=',tref(ipr), &
-!    &      ' dt_cool=',dt_cool(ipr),' dt_warm=',2.0*(xt(ipr)/xz(ipr)   &
-!    &      ' dt_cool=',dt_cool(ipr),' dt_warm=',dt_warm(ipr)           &
-!    &,     ' tgrs=',tgrs(ipr,1),' prsl=',prsl(ipr,1)
-!    &,     ' work3=',work3(ipr),' kdt=',kdt
+!       if (lprnt) write(0,*)' tseaz1=',tsea(ipr),' tref=',tref(ipr)  
+!    &,   ' dt_cool=',dt_cool(ipr),' dt_warm=',2.0*(xt(ipr)/xz(ipr)    
+!    &,   ' kdt=',kdt
+!    &,   ' tgrs=',tgrs(ipr,1),' prsl=',prsl(ipr,1)
+!    &,   ' work3=',work3(ipr),' kdt=',kdt
 
           call sfc_nst                                                  &
      &       ( im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,tref,cd,cdq,            &
      &         prsl(1,1),work3,islmsk,xlon,sinlat,stress,               &
-     &         sfcemis,gabsbdlw,adjsfcnsw,tprcp,dtf,kdt,                &
-     &         phy_f2d(1,num_p2d),flag_iter,flag_guess,nst_fcst,        &
+     &         sfcemis,gabsbdlw,adjsfcnsw,tprcp,dtf,kdt,solhr,xcosz,    &
+     &         phy_f2d(1,num_p2d),flag_iter,flag_guess,nstf_name,       &
      &         lprnt,ipr,                                               &
 !  --- Input/output
      &         tseal,tsurf,xt,xs,xu,xv,xz,zm,xtts,xzts,dt_cool,         &
@@ -1344,22 +1344,27 @@
 !  ---  outputs:
      &         qss, gflx, cmm, chh, evap, hflx, ep1d)
 
-!         if (lprnt) print *,' tseaz2=',tseal(ipr),' tref=',tref(ipr),  &
-!    &     ' dt_cool=',dt_cool(ipr),' dt_warm=',2.0*xt(ipr)/xz(ipr),    &
+!         if (lprnt) print *,' tseaz2=',tseal(ipr),' tref=',tref(ipr),   
+!    &     ' dt_cool=',dt_cool(ipr),' dt_warm=',2.0*xt(ipr)/xz(ipr),     
 !    &     ' kdt=',kdt
-!    &     ' dt_cool=',dt_cool(ipr),' dt_warm=',dt_warm(ipr),' kdt=',kdt
 
           do i = 1, im
             if ( islmsk(i) == 0 ) then
               tsurf(i) = tsurf(i) - (oro(i)-oro_uf(i)) * rlapse
             endif
           enddo
-          if ( nst_fcst > 1 ) then
+
+!  --- ...  run nsst model  ... ---
+
+          if ( nstf_name(1) > 1 ) then
+            zsea1 = 0.001*real(nstf_name(4))
+            zsea2 = 0.001*real(nstf_name(5))
+            call get_dtzm_2d(xt,xz,dt_cool,z_c,real(islmsk(:)),
+     &           zsea1,zsea2,im,1,dtzm)
             do i = 1, im
               if ( islmsk(i) == 0 ) then
-                tsea(i) = max(271.0, tref(i) + (xt(i)+xt(i))/xz(i)
-     &                                       - dt_cool(i))              &
-     &                                       - (oro(i)-oro_uf(i))*rlapse
+              tsea(i) = max(271.2,tref(i) + dtzm(i))
+     &                      -(oro(i)-oro_uf(i))*rlapse
               endif
             enddo
           endif
@@ -1369,6 +1374,8 @@
 
         else
 
+!  --- ...  surface energy balance over ocean
+
           call sfc_ocean                                                &
 !  ---  inputs:
      &     ( im,pgr,ugrs,vgrs,tgrs,qgrs,tsea,cd,cdq,                    &
@@ -1376,9 +1383,9 @@
 !  ---  outputs:
      &       qss,cmm,chh,gflx,evap,hflx,ep1d                            &
      &     )
-
-        endif
  
+        endif       ! if ( nstf_name(1) > 0 ) then
+
 !       if (lprnt) write(0,*)' sfalb=',sfalb(ipr),' ipr=',ipr           &
 !    &,   ' weasd=',weasd(ipr),' snwdph=',snwdph(ipr)                   &
 !    &,   ' tprcp=',tprcp(ipr),' kdt=',kdt,' iter=',iter
@@ -1476,7 +1483,7 @@
           if(islmsk(i) == 1 .and. iter == 1) then
             if (wind(i) < 2.0) flag_iter(i) = .true.
           elseif (islmsk(i) == 0 .and. iter == 1                        &
-     &                           .and. nst_fcst > 0) then
+     &                           .and. nstf_name(1) > 0) then
             if (wind(i) < 2.0) flag_iter(i) = .true.
           endif
         enddo

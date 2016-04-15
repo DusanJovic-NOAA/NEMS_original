@@ -572,7 +572,16 @@ export QUILTING=${QUILTING:-.true.}
 export REDUCED_GRID=${REDUCED_GRID:-.true.}
 export nemsioget=${nemsioget:-$SIGHDR}
 export PASSIVE_TRACER=${PASSIVE_TRACER:-.false.}
+
 export NST_FCST=${NST_FCST:-0}
+export NST_SPINUP=${NST_SPINUP:-0}
+export NST_RESERVED=${NST_RESERVED:-0}
+export ZSEA1=${ZSEA1:-0}
+export ZSEA2=${ZSEA2:-0}
+
+export nstf_name="$NST_FCST,$NST_SPINUP,$NST_RESERVED,$ZSEA1,$ZSEA2"
+export nst_anl=${nst_anl:-.false.}
+
 export IAER=${IAER:-0}
 export GOCART=${GOCART:-0}
 #export NGRID_A2OI=${NGRID_A2OI:-48}
@@ -736,18 +745,14 @@ else
     export FILENAME_BASE=${FILENAME_BASE}" 'NST.F'"
     export FILE_IO_FORM=${FILE_IO_FORM}" 'bin4'"
     export NUM_FILE=$((NUM_FILE+1))
-    if [ $NST_FCST -eq 1 ]; then
-      NST_SPINUP=.true.
-    fi
   fi
   if [ $GOCART == 1 ] ; then
     export FILENAME_BASE=${FILENAME_BASE}" 'AER.F'"
     export FILE_IO_FORM=${FILE_IO_FORM}" 'grib'"
     export NUM_FILE=$((NUM_FILE+1))
   fi
-  echo "NUM_FILE=$NUM_FILE,GOCART=$GOCART,NST_FCST=$NST_FCST,FILENAME_BASE=$FILENAME_BASE"
+  echo "NUM_FILE=$NUM_FILE,GOCART=$GOCART,nstf_name=$nstf_name,nst_anl=$nst_anl,FILENAME_BASE=$FILENAME_BASE"
  fi
-NST_SPINUP=${NST_SPINUP:-.false.}
 #
 if [ $IDVC = 1 ] ; then
  export HYBRID=.false.

@@ -144,8 +144,15 @@ ISUBC_SW=${ISUBC_SW:-0}
 RUN_ENTHALPY=${RUN_ENTHALPY:-.false.}
 THERMODYN_ID=${THERMODYN_ID:-0}        
 SFCPRESS_ID=${SFCPRESS_ID:-0}          
-NST_FCST=${NST_FCST:-0}
-NST_SPINUP=${NST_SPINUP:-.false.}
+
+export NST_FCST=${NST_FCST:-0}
+export NST_SPINUP=${NST_SPINUP:-0}
+export NST_RESERVED=${NST_RESERVED:-0}
+export ZSEA1=${ZSEA1:-0}
+export ZSEA2=${ZSEA2:-0}
+
+export nstf_name="$NST_FCST,$NST_SPINUP,$NST_RESERVED,$ZSEA1,$ZSEA2"
+export nst_anl=${nst_anl:-.false.}
 
 if [ $ldiag3d = .true. ] ; then FCSTVARS="LDIAG3D=$ldiag3d,$FCSTVARS" ; fi
 ## NGAC:: NEMS does not support the LGOC3D option

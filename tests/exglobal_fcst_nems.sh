@@ -60,6 +60,15 @@
 # 2014-10-11  S. Moorthi - Clean up, unify gloabl and ngac scripts remove scheduler etc
 # 2015-01-06  S. Moorthi - Added THEIA option ; turned off ESMF Compliance check etc
 # 2015 02-26  S. Moorthi - added MICRO_PHY_DATA
+# 2015 08-21  Xu Li      - change nst_fcst to be nstf_name, define nstf_name and nst_anl
+#                          nstf_name contains the NSST related parameters
+#                          nstf_name(1) : 0 = NSSTM off, 1 = NSSTM on but uncoupled, 2 = NSSTM on and coupled
+#                          nstf_name(2) : 1 = NSSTM spin up on, 0 = NSSTM spin up off
+#                          nstf_name(3) : 1 = NSST analysis on, 0 = NSSTM analysis off
+#                          nstf_name(4) : zsea1 in mm
+#                          nstf_name(5) : zsea2 in mm
+#                          nst_anl      : .true. = NSST analysis on, .false. = NSSTM analysis off
+
 # 2015-10-19 Weiyu Yang  - add the f107_kp_size, f107_kp_interval.
 #                          number of inputted f10.7 and kp data and the time
 #                          interval of them.
@@ -605,7 +614,16 @@ export QUILTING=${QUILTING:-.true.}
 export REDUCED_GRID=${REDUCED_GRID:-.true.}
 export nemsioget=${nemsioget:-$SIGHDR}
 export PASSIVE_TRACER=${PASSIVE_TRACER:-.false.}
+
 export NST_FCST=${NST_FCST:-0}
+export NST_SPINUP=${NST_SPINUP:-0}
+export NST_RESERVED=${NST_RESERVED:-0}
+export ZSEA1=${ZSEA1:-0}
+export ZSEA2=${ZSEA2:-0}
+
+export nstf_name="$NST_FCST,$NST_SPINUP,$NST_RESERVED,$ZSEA1,$ZSEA2"
+export nst_anl=${nst_anl:-.false.}
+
 export IAER=${IAER:-0}
 export GOCART=${GOCART:-0}
 export NGRID_A2OI=${NGRID_A2OI:-48}
@@ -792,18 +810,14 @@ else
     export FILENAME_BASE=${FILENAME_BASE}" 'NST.F'"
     export FILE_IO_FORM=${FILE_IO_FORM}" 'bin4'"
     export NUM_FILE=$((NUM_FILE+1))
-    if [ $NST_FCST -eq 1 ]; then
-      NST_SPINUP=.true.
-    fi
   fi
   if [ $GOCART == 1 ] ; then
     export FILENAME_BASE=${FILENAME_BASE}" 'AER.F'"
     export FILE_IO_FORM=${FILE_IO_FORM}" 'bin4'"
     export NUM_FILE=$((NUM_FILE+1))
   fi
-  echo "NUM_FILE=$NUM_FILE,GOCART=$GOCART,NST_FCST=$NST_FCST,FILENAME_BASE=$FILENAME_BASE"
+  echo "NUM_FILE=$NUM_FILE,GOCART=$GOCART,nstf_name=$nstf_name,nst_anl=$nst_anl,FILENAME_BASE=$FILENAME_BASE"
  fi
-NST_SPINUP=${NST_SPINUP:-.false.}
 #
 if [ $IDVC = 1 ] ; then
  export HYBRID=.false.    ; export GEN_COORD_HYBRID=.false.
@@ -1579,6 +1593,7 @@ cat  > atm_namelist <<EOF
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
+  nstf_name=${nstf_name},nst_anl=${nst_anl},
   $PHYVARS /
  &TRACER_CONSTANT
   $TRACERVARS /
