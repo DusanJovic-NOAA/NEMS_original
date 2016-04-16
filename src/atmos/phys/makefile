@@ -159,19 +159,25 @@ MODULES_TRAC=      gocart_tracer_config.o
 
 MODULES_TRAC_stub= gocart_tracer_config_stub.o
 
+OBJS_PHYSDRV    =  nuopc_physics.o
+
 MODULES_ALL =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
-		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
+		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS) \
+		$(OBJS_PHYSDRV)
 MODULES_GOCART =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
-			$(MODULES_GFSF) $(MODULES_TRAC) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
+			$(MODULES_GFSF) $(MODULES_TRAC) $(MODULES_NMM_RRTM) $(MODULE_FGFS) \
+			$(OBJS_PHYSDRV)
 
 #			$(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
 
 ifeq ($(GOCART_MODE),full)
 	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} \
-			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F}
+			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F} \
+			${OBJS_PHYSDRV:.o=.F90}
 else
 	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} \
-			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F}
+			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F} \
+			${OBJS_PHYSDRV:.o=.F90}
 endif
 
 all default: depend
@@ -209,6 +215,9 @@ $(MODULES_TRAC_stub): %.o: %.f
 
 $(MODULES_GFSF): %.o: %.f
 	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(FPP) $(CPPFLAGS) $(R8) -c $*.f
+
+$(OBJS_PHYSDRV): %.o: %.f90
+	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(R8) -c $*.f90
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend

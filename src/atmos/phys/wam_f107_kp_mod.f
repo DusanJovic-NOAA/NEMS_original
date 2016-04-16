@@ -41,11 +41,17 @@
       END DO
       
       f107_kp_read_in_size = f107_kp_size - f107_kp_skip_size
+      if(f107_kp_size > 56) f107_kp_read_in_size = 56 - f107_kp_skip_size
       DO i = 1, f107_kp_read_in_size
           READ(79, *) realdate(i), f107(i), kp(i),             &
                f107_flag(i), kp_flag(i)
       END DO
       CLOSE(79)
+      DO i = f107_kp_read_in_size + 1, f107_kp_size
+          f107(i) = f107(f107_kp_read_in_size)
+          kp  (i) = kp  (f107_kp_read_in_size)
+      END DO
+
 1000  FORMAT(20x, a20)
 1001  FORMAT(20x, f3.0)
       PRINT*, 'issuedate=', issuedate
