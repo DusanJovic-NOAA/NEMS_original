@@ -1,0 +1,46 @@
+###############################################################################
+#
+# TEST   - LIS + WRFHydro block coupled
+#        - 1h intervals for both LIS and WRF-Hydro
+#        - Starting at 2009120100, running for 4 hours
+#
+###############################################################################
+
+export TEST_DESCR="NUOPC: Test LIS + WRF-Hydro concurrent coupled with 1h intervals"
+
+# -
+export CNTL_DIR=2009_blocked_lis_wrfhydro
+export LIST_FILES=" "
+
+# - gsm configuration ---
+export_gsm
+export TASKS=44
+export WLCLK=30
+export CDATE=2009120100
+export NHOURS=4
+
+# - nems.configure ---
+export_nems
+export nems_configure=blocked_lnd_hyd
+export lnd_model=lis
+export lnd_petlist_bounds="0 11"
+export hyd_model=wrfhydro
+export hyd_petlist_bounds="12 43"
+export coupling_interval_sec=3600.0
+
+# - component specific setup calls ---
+if [ $MACHINE_ID = theia ] ; then
+  setup_lis "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_lis_t126/lis.config.gdas"
+  setup_wrfhydro "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro/hydro.namelist" \
+    "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro" \
+    "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro/namelist.hrldas"
+elif [ $MACHINE_ID = yellowstone ] ; then
+  setup_lis "/glade/p/work/dunlap/NEMS-DATA/2009_lis_t126/lis.config.gdas"
+  setup_wrfhydro "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro/hydro.namelist" \
+    "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro" \
+    "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro/namelist.hrldas"
+fi
+
+# -
+RUN_SCRIPT=rt_gfs.sh
+

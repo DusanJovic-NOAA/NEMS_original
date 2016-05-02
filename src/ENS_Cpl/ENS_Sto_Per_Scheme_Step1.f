@@ -1,13 +1,5 @@
 #include "../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
-
  SUBROUTINE ENS_Sto_Per_Scheme_Step1(cst)
 
 ! March    2009 Weiyu Yang Modified for the NEMS model.
@@ -267,7 +259,7 @@
 ! number of the processors.
 !---------------------------------------------------------------
 
- USE esmf_mod
+ USE ESMF
  USE ENS_Cpl_InternalState_ESMFMod
  USE Lib_ESMFStateAddGetMod
 
@@ -289,11 +281,7 @@
 
  CALL GetF90ArrayFromState(impENS, 'pps', cst%work1, 0, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- PS.")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- PS.")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- PS, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -307,11 +295,7 @@
 
  CALL GetF90ArrayFromState(impENS, 'psm', cst%work1, 0, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- PS(-DT).")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- PS(-DT).")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- PS(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -325,11 +309,7 @@
 
  CALL GetF90ArrayFromState(impENS, 'tt', cst%work2, 0, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- T.")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- T.")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- T, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -345,11 +325,7 @@
 
  CALL GetF90ArrayFromState(impENS, 'tm', cst%work2, 0, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- T(-DT).")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- T(-DT).")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- T(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -365,11 +341,7 @@
 
  CALL GetF90ArrayFromState(impENS, 'uu', cst%work2, 0, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- U.")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- U.")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- U, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -385,11 +357,7 @@
 
  CALL GetF90ArrayFromState(impENS, 'um', cst%work2, 0, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- U(-DT).")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- U(-DT).")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- U(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -405,11 +373,7 @@
 
  CALL GetF90ArrayFromState(impENS, 'vv', cst%work2, 0, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- V.")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- V.")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- V, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -425,11 +389,7 @@
 
  CALL GetF90ArrayFromState(impENS, 'vm', cst%work2, 0, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get From impENS to the Cpl Internal State -- V(-DT).")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get From impENS to the Cpl Internal State -- V(-DT).")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting From impENS to the Cpl Internal State -- V(-DT), rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -445,11 +405,7 @@
 
  CALL ESMF_StateGet(impENS, 'tracers', Bundle, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Retrieve Bundle from impENS in ENS Cpl.")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Retrieve Bundle from impENS in ENS Cpl.")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Retrieving Bundle from impENS in ENS Cpl, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -459,18 +415,10 @@
      DO i1 = 1, cst%ntrac
          CALL ESMF_FieldBundleGet(Bundle,                    &
                                   cst%vname(i1, j1),         &
-#ifdef ESMF_520r
                                   field = Field,             &
-#else
-                                  Field,                     &
-#endif
                                   rc = rc1)
 
-#ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Retrieve Field from Bundle in ENS Cpl.")) THEN
-#else
-         IF(ESMF_LogFoundError(rc1,     "Retrieve Field from Bundle in ENS Cpl.")) THEN
-#endif
              rc = ESMF_FAILURE
              PRINT*, 'Error Happened When Retrieving Field from Bundle in ENS Cpl, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -478,11 +426,7 @@
 
          NULLIFY(cst%work2)
          CALL ESMF_FieldGet(Field, farrayPtr = cst%work2, localDE = 0, rc = rc1)
-#ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Retrieve FArray from Field in ENS Cpl.")) THEN
-#else
-         IF(ESMF_LogFoundError(rc1,     "Retrieve FArray from Field in ENS Cpl.")) THEN
-#endif
              rc = ESMF_FAILURE
              PRINT*, 'Error Happened When Retrieving FArray from Field in ENS Cpl, rc = ', rc1
              rc1 = ESMF_SUCCESS
@@ -507,11 +451,7 @@
                  END DO
          END SELECT
 
-#ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Distribute for the Step1 Scheme -- tracer.")) THEN
-#else
-         IF(ESMF_LogFoundError(rc1,     "Distribute for the Step1 Scheme -- tracer.")) THEN
-#endif
              rc = ESMF_FAILURE
              PRINT*, 'Error Happened When Distributing for the Step1 Scheme -- tracer, rc = ', rc1
              rc1 = ESMF_SUCCESS

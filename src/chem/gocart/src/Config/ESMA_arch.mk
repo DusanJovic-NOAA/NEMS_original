@@ -664,8 +664,7 @@ echo SITE= ${SITE}
   endif
 
   ifeq (${SITE},theia)
-     ESMF_ROOT = /apps/esmf/6.3.0rp1/intel/intelmpi
-     include $(ESMF_ROOT)/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+     include $(ESMFMKFILE)
 #     DIR_NETCDF = /apps/netcdf/4.3.3-rc2-intel-impi
      DIR_NETCDF = /apps/netcdf/4.3.0-intel
      DIR_ESMF   = ${ESMF_DIR}
@@ -676,8 +675,8 @@ echo SITE= ${SITE}
      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /apps/hdf5/1.8.14-intel/lib/libhdf5_hl.a /apps/hdf5/1.8.14-intel/lib/libhdf5.a /apps/szip/2.1/lib/libsz.a -lz
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)
-     INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/modO/Linux.intel.64.intelmpi.default
-      LIB_ESMF =  $(ESMF_ROOT)/lib/libO/Linux.intel.64.intelmpi.default/libesmf.a
+     INC_ESMF = 
+     LIB_ESMF =
      INC_MPI =  ${MPI_ROOT}/include
 
      EXTENDED_SOURCE = -extend_source
@@ -696,9 +695,7 @@ echo SITE= ${SITE}
      ACG_FLAGS += -P # enforce native precision in specs
   endif
   ifeq (${SITE},gaea)
-     ESMF_ROOT = /ncrc/home2/Gerhard.Theurich/ESMF-INSTALLS/630rp1/Intel12
-#    include $(ESMF_ROOT)/lib/libO/Linux.intel.64.mpi.default/esmf.mk
-     include $(ESMF_ROOT)/lib/esmf.mk
+     include $(ESMFMKFILE)
      DIR_NETCDF = /opt/cray/netcdf/4.2.0/intel/120
 ##   DIR_NETCDF = /apps/netcdf/3.6.3/intel
      DIR_ESMF   = ${ESMF_DIR}
@@ -710,12 +707,8 @@ echo SITE= ${SITE}
      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /opt/cray/hdf5/1.8.8/intel/120/lib/libhdf5_hl.a /opt/cray/hdf5/1.8.8/intel/120/lib/libhdf5.a /lustre/f1/unswept/ncep/Shrinivas.Moorthi/nceplibs/nwprod/lib/libz.a
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)
-#    INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/modO/Linux.intel.64.mpi.default
-#    LIB_ESMF =  $(ESMF_ROOT)/lib/libO/Linux.intel.64.mpi.default/libesmf.a
-#    INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/Linux.intel.64.mpi.default
-     INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod
-#    LIB_ESMF =  $(ESMF_ROOT)/lib/Linux.intel.64.mpi.default/libesmf.a
-     LIB_ESMF =  $(ESMF_ROOT)/lib/libesmf.a
+     INC_ESMF = 
+     LIB_ESMF = 
      INC_MPI =  ${MPI_ROOT}/include
 
      EXTENDED_SOURCE = -extend_source
@@ -735,9 +728,8 @@ echo SITE= ${SITE}
   endif
 
   ifeq ($(SITE),wcoss)
-     include /usrx/local/esmf-6.3.0rp1/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+     include $(ESMFMKFILE)
      DIR_NETCDF = /usrx/local/NetCDF/4.2/serial
-     DIR_ESMF = /usrx/local/esmf-6.3.0rp1
      DEF_SDF =
      ESMA_SDF = netcdf
      INC_NETCDF = $(DIR_NETCDF)/include
@@ -745,8 +737,8 @@ echo SITE= ${SITE}
      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a /usrx/local/HDF5/1.8.9/serial/lib/libhdf5_hl.a /usrx/local/HDF5/1.8.9/serial/lib/libhdf5.a /usrx/local/zlib-1.2.7/lib/libz.a
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)
-     INC_ESMF = $(DIR_ESMF)/include $(DIR_ESMF)/mod/modO/Linux.intel.64.intelmpi.default/
-     LIB_ESMF  = $(DIR_ESMF)/lib/libO/Linux.intel.64.intelmpi.default/libesmf.a
+     INC_ESMF = 
+     LIB_ESMF = 
      INC_MPI = /usrx/local/intel/impi/4.0.3.008/include
 
      EXTENDED_SOURCE = -extend_source

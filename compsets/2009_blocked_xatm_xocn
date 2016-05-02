@@ -45,3 +45,30 @@ export coupling_interval_sec=21600.0
 # -
 RUN_SCRIPT=rt_gfs.sh
 
+# - validation
+export CNTL_DIR=2009_blocked_xatm_xocn_V0001
+export LIST_FILES=" \
+  field_atm_export_inst_pres_height_surface.nc \
+  field_atm_export_mean_fprec_rate.nc \
+  field_atm_export_mean_merid_moment_flx.nc \
+  field_atm_export_mean_net_lw_flx.nc \
+  field_atm_export_mean_net_sw_ir_dif_flx.nc \
+  field_atm_export_mean_net_sw_ir_dir_flx.nc \
+  field_atm_export_mean_net_sw_vis_dif_flx.nc \
+  field_atm_export_mean_net_sw_vis_dir_flx.nc \
+  field_atm_export_mean_prec_rate.nc \
+  field_atm_export_mean_sensi_heat_flx.nc \
+  field_atm_export_mean_zonal_moment_flx.nc \
+  field_atm_import_sea_surface_temperature.nc \
+  field_ocn_export_sea_surface_temperature.nc \
+  field_ocn_import_inst_pres_height_surface.nc \
+  field_ocn_import_mean_fprec_rate.nc \
+  field_ocn_import_mean_merid_moment_flx.nc \
+  field_ocn_import_mean_net_lw_flx.nc \
+  field_ocn_import_mean_net_sw_ir_dif_flx.nc \
+  field_ocn_import_mean_net_sw_ir_dir_flx.nc \
+  field_ocn_import_mean_net_sw_vis_dif_flx.nc \
+  field_ocn_import_mean_net_sw_vis_dir_flx.nc \
+  field_ocn_import_mean_prec_rate.nc \
+  field_ocn_import_mean_sensi_heat_flx.nc \
+  field_ocn_import_mean_zonal_moment_flx.nc "

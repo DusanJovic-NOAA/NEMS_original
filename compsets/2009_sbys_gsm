@@ -9,13 +9,6 @@
 
 export TEST_DESCR="NUOPC: GSM stand-alone from data with 6h intervals"
 
-# -
-export CNTL_DIR=2009_sbys_gsm
-export LIST_FILES=" \
-    sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
-    sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
-    flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48 "
-
 # - gsm configuration ---
 export_gsm
 export TASKS=32
@@ -34,3 +27,9 @@ export coupling_interval_sec=21600.0
 # -
 RUN_SCRIPT=rt_gfs.sh
 
+# - validation
+export CNTL_DIR=2009_sbys_gsm_V0001
+export LIST_FILES=" \
+  sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
+  sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
+  flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48 "

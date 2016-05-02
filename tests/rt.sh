@@ -28,13 +28,12 @@ export MACHINE_ID=${MACHINE_ID:-wcoss}
 if [ $MACHINE_ID = wcoss ]; then
   source /usrx/local/Modules/default/init/sh
   export DISKNM=/meso
-  export pex=1           # for wcoss phase1
-  export pex=${pex:-2}   # default - phase2
-  export CLASS=debug # dev
+  # export pex=1           # for wcoss phase1
+  # export pex=${pex:-2}   # default - phase2
+  export QUEUE=debug # dev
   export ACCNR=dev
   if [ $pex -eq 2 ] ; then
-#   export CLASS=dev$pex
-   export CLASS=debug$pex
+   export QUEUE=debug$pex
    export ACCNR=dev$pex
   fi
 # export STMP=/stmp$pex
@@ -42,11 +41,14 @@ if [ $MACHINE_ID = wcoss ]; then
   export PTMP=/ptmpp$pex
   export SCHEDULER=lsf
   export SIGHDR=/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
+  cp gfs_fcst_run.IN_IBM gfs_fcst_run.IN
+  cp gfs_bsub.IN_wcoss gfs_bsub.IN
 elif [ $MACHINE_ID = gaea ]; then
   export DISKNM=/lustre/f1/unswept/ncep/Ratko.Vasic
   export STMP=/lustre/f1/ncep
   export PTMP=/lustre/f1/ncep
   export SCHEDULER=moab
+  cp gfs_fcst_run.IN_Linux gfs_fcst_run.IN
 elif [ $MACHINE_ID = theia ]; then
   source /apps/lmod/lmod/init/sh
   export ACCNR
@@ -55,24 +57,36 @@ elif [ $MACHINE_ID = theia ]; then
   export STMP=$dprefix/stmp4
   export PTMP=$dprefix/stmp3
   export SCHEDULER=pbs
+  export MPIEXEC=mpirun
   export SIGHDR=$dprefix/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
   export SLG=.false.
+  cp gfs_fcst_run.IN_Linux gfs_fcst_run.IN
+elif [ $MACHINE_ID = yellowstone ]; then
+  export ACCNR=P35071400
+  # export ACCNR=UCUB0024
+  export QUEUE=small
+  export STMP=/glade/scratch
+  export PTMP=/glade/scratch
+  export SCHEDULER=lsf
+  export MPIEXEC=mpirun
+  export SIGHDR=/glade/p/work/theurich/para/global_sighdr.fd/global_sighdr
+  export SLG=.false.
+  cp gfs_fcst_run.IN_Linux gfs_fcst_run.IN
+  cp gfs_bsub.IN_yellowstone gfs_bsub.IN
+  cp nmm_conf/nmm_bsub.IN_yellowstone nmm_conf/nmm_bsub.IN
 else
   die "Unknown machine ID, please edit detect_machine.sh file"
 fi
 export pex=${pex:-""}
-
-if [ $MACHINE_ID = wcoss ]; then
- cp gfs_fcst_run.IN_IBM gfs_fcst_run.IN
-else
- cp gfs_fcst_run.IN_Linux gfs_fcst_run.IN
-fi
 
 ############################################################
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 #export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_new
+
+
+
 
 export CREATE_BASELINE=false
 CB_arg=''
@@ -271,6 +285,7 @@ rm -f err out nmm_msub nmm_bsub nmm_qsub nmm_run gfs_fcst_run \
 nems.configure gfs_qsub gfs_fcst_run.IN ngac_qsub ngac_bsub gfs_bsub \
 configure_file_01 configure_file_02 configure_file_03 configure_file_04 \
 atmos.configure fail_test
+# atmos.configure fail_test
 
 date >> ${REGRESSIONTEST_LOG}
 

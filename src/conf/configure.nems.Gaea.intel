@@ -13,7 +13,7 @@ include         $(TOP)/conf/configure.nems.NUOPC
 ################################################################################
 ## Other settings
 
-NETCDF_LIB   = /opt/cray/netcdf/4.2.0/intel/120/lib/libnetcdf.a
+NETCDF_LIB   = ${NETCDF_DIR}/lib/libnetcdf.a
 
 #LIBDIR=/lustre/f1/unswept/ncep/Shrinivas.Moorthi/nceplibs/nwprod/lib
 LIBDIR=/ncrc/home1/Shrinivas.Moorthi/nceplibs/nwprod/lib

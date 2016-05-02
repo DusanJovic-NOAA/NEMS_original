@@ -774,7 +774,7 @@
             inquire (file=volcano_file, exist=file_exist)
             if ( file_exist ) then
               open (unit=NIAERCM,file=volcano_file,status='OLD',        &
-     &              form='FORMATTED')
+     &              action='read',form='FORMATTED')
 
               read(NIAERCM,62) cline
   62          format(a80)
@@ -1475,7 +1475,7 @@
 
       if ( file_exist ) then
         open (unit=NIAERCM,file=aerosol_file,status='OLD',              &
-     &        form='FORMATTED')
+     &        action='read',form='FORMATTED')
         rewind (NIAERCM)
 
         if ( me == 0 ) then
@@ -3437,7 +3437,7 @@
         if(me==0 .and. lckprnt) print *,'RAD -open :',aerosol_file
         close (NIAERCM)
         open (unit=NIAERCM,file=aerosol_file,status='OLD',              &
-     &        form='UNFORMATTED')
+     &        action='read',form='UNFORMATTED')
       else
         print *,'    Requested aerosol data file "',aerosol_file,       &
      &          '" not found!', me
@@ -3894,7 +3894,7 @@
        if ( gocart_climo == 'ver3' ) then
         nrecl = 4 * (IMXG * JMXG)
         open(NIAERCM, file=trim(aerosol_file),                          &
-     &       access='direct',recl=nrecl)
+     &       action='read',access='direct',recl=nrecl)
         read(NIAERCM, rec=1) ps
         do j = 1, JMXG
           do i = 1, IMXG
@@ -3907,7 +3907,7 @@
 
        elseif ( gocart_climo == 'ver4' ) then
          open(NIAERCM, file=trim(aerosol_file),                         &
-     &        status='old', form='unformatted')
+     &        action='read',status='old', form='unformatted')
          read(NIAERCM) ps(:,:)
          do j = 1, JMXG
            do i = 1, IMXG
@@ -3962,12 +3962,12 @@
           if ( gocart_climo == 'ver3' ) then
           nrecl = 4 * numspci * (IMXG * JMXG * KMXG + 3)
           open (NIAERCM, file=trim(aerosol_file),                       &
-     &         access='direct', recl=nrecl)
+     &         action='read',access='direct', recl=nrecl)
           read(NIAERCM,rec=1)(nt1,nt2,nn(i),buff(:,:,:,i),i=1,numspci)
 
           elseif ( gocart_climo == 'ver4' ) then
            open (NIAERCM, file=trim(aerosol_file),                      &
-     &           status='old', form='unformatted')
+     &           action='read',status='old', form='unformatted')
            do i = 1, numspci
              do k = 1, KMXG
               read(NIAERCM) temp(:,:,k)

@@ -1,6 +1,8 @@
 #!/bin/sh
 #set -eu
 
+mkdir -p ${RUNDIR}
+
 ####################################################################################################
 # Make configure and run files
 ####################################################################################################
@@ -37,8 +39,11 @@ cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g                  \
                                  | sed s:_MODE_:${MODE}:g                    \
                                  | sed s:_WGT_:${WGT}:g  >  configure_file_01
 
-if [ ${nems_configure}"x" != "x" ]; then
- cat nems.configure.${nems_configure}.IN   \
+if [ ${nems_configure}"x" == "x" ]; then
+  nems_configure=atm_nostep
+  atm_model=nmm
+fi
+cat nems.configure.${nems_configure}.IN   \
                          | sed s:_atm_model_:${atm_model}:g                    \
                          | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
                          | sed s:_lnd_model_:${lnd_model}:g                    \
@@ -62,9 +67,6 @@ if [ ${nems_configure}"x" != "x" ]; then
                          | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
                          >  nems.configure
 
- cp nems.configure ${RUNDIR}
-fi
-
 cat atmos.configure_nmm | sed s:_atm_model_:${atm_model}:g  \
                         | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
                         >  atmos.configure
@@ -84,11 +86,14 @@ cat nmm_conf/nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
                                  | sed s:_SRCD_:${PATHTR}:g   \
                                  | sed s:_WLCLK_:${WLCLK}:g   \
                                  | sed s:_TASKS_:${TASKS}:g   \
-                                 | sed s:_THRD_:${THRD}:g     >  nmm_qsub
+                                 | sed s:_THRD_:${THRD}:g     \
+                                 | sed s:_MPIEXEC_:${MPIEXEC}:g \
+                                 | sed s:_MPIEXECOPTS_:"${MPIEXECOPTS}":g >  nmm_qsub
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
 cat nmm_conf/nmm_bsub.IN         | sed s:_JBNME_:${JBNME}:g   \
+                                 | sed s:_QUEUE_:${QUEUE}:g   \
                                  | sed s:_QUEUE_:${QUEUE}:g   \
                                  | sed s:_SRCD_:${PATHTR}:g   \
                                  | sed s:_WLCLK_:${WLCLK}:g   \
@@ -236,7 +241,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
-  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep $QUEUE | awk '{print $3}'` ; status=${status:--}
+  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${QUEUE} | awk '{print $3}'` ; status=${status:--}
 #  if [ $status != '-' -a $status != 'PEND' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $10 }'` ; fi
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
   FnshHrs=${FnshHrs:-0}
@@ -310,10 +315,16 @@ else
   d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
-    echo ".......NOT OK" >> ${REGRESSIONTEST_LOG}
-    echo ".......NOT OK"
-    test_status='FAIL'
-
+#  (echo " ......***NOT OK***" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
+#   echo " ......***NOT OK***" ; echo ; echo "   $i differ!   " ; exit 2
+    echo ".......***NOT OK***" >> ${REGRESSIONTEST_LOG} 
+    echo ".......***NOT OK***" 
+    test_status='FAIL' 
+    if [ ${BAIL_CONDITION}"x" = FILE"x" ]; then 
+      echo "BAIL_CONDITION=FILE, Abort testing on failure" 
+      exit 2 
+    fi
+     
   else
 
     echo "....OK" >> ${REGRESSIONTEST_LOG}

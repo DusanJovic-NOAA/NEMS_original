@@ -1,0 +1,47 @@
+Starting :
+Fri Dec 11 18:11:30 EST 2015
+======================================================================
+Setting up to run NEMS on compset: '2009_sbys_gsm'.
+RUNDIR: '/lustre/f1/ncep/Gerhard.Theurich/ptmp/Gerhard.Theurich/rt_57717/2009_sbys_gsm'.
+Test 
+NUOPC: GSM stand-alone from data with 6h intervals
+GFS, 32 proc, 1 thread
+
+
+
+
+baseline dir = /lustre/f1/unswept/ncep/Gerhard.Theurich/REGRESSION_TEST_NUOPC_development_v0019/2009_sbys_gsm
+Checking test  results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12............***NOT OK***
+ Comparing sigf18............***NOT OK***
+ Comparing sigf24............***NOT OK***
+ Comparing sigf30............***NOT OK***
+ Comparing sigf36............***NOT OK***
+ Comparing sigf42............***NOT OK***
+ Comparing sigf48............***NOT OK***
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf18............***NOT OK***
+ Comparing sfcf24............***NOT OK***
+ Comparing sfcf30............***NOT OK***
+ Comparing sfcf36............***NOT OK***
+ Comparing sfcf42............***NOT OK***
+ Comparing sfcf48............***NOT OK***
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf18............***NOT OK***
+ Comparing flxf24............***NOT OK***
+ Comparing flxf30............***NOT OK***
+ Comparing flxf36............***NOT OK***
+ Comparing flxf42............***NOT OK***
+ Comparing flxf48............***NOT OK***
+ Test  FAIL 
+======================================================================
+Fri Dec 11 18:28:07 EST 2015

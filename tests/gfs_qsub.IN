@@ -11,8 +11,13 @@
 
 set -aeux
 export MPI_GROUP_MAX=96
+# ulimit -n 16000
+# Enable Fortran RTL core dumps for severe run time failures
+# export decfort_dump_flag=y
 
 export SCHEDULER=_SCHED_
+
+export FIXGLOBAL=_FIXGLOBAL_
 
 cd _RUND_
 

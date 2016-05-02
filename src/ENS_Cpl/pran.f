@@ -135,7 +135,7 @@ call plant(seed)
 end subroutine promptseed
 
 subroutine plant
-integer,parameter :: nn=2
+integer,parameter :: nn=12
 integer,dimension(nn):: jseed
 integer:: iran,jran
 print '('' input positive integer seed for random number generator'')'
@@ -148,7 +148,7 @@ end subroutine plant
 
 subroutine plant1(iran)
 integer,intent(IN):: iran
-integer,parameter :: nn=2
+integer,parameter :: nn=12
 integer,dimension(nn):: jseed
 integer:: jran
 jran=mod(iran,32778)

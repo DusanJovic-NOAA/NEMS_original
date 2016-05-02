@@ -28,7 +28,7 @@
 !       07 Nov 2012:  J. Wang  - generalize io for atmosphere
 !--------------------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE MODULE_WRITE_INTERNAL_STATE_GFS
 !
@@ -135,15 +135,11 @@
 !
       CHARACTER(ESMF_MAXSTR)       :: ATTRIB_NAME
 !
-      TYPE(ESMF_TypeKind)          :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag)     :: DATATYPE
 !
       TYPE(ESMF_Field)             :: FIELD_WORK1
  
-#ifdef ESMF_3
-      TYPE(ESMF_Logical)              :: WORK_LOGICAL
-#else
       LOGICAL                         :: WORK_LOGICAL
-#endif
 
       TYPE(ESMF_Logical),DIMENSION(1) :: NO_FIELDS
 !
@@ -224,17 +220,11 @@
 !
 !        CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE                   &  !<-- The Bundle of history data
 !                              ,name        ='lonf'                        &  !<-- Name of the Attribute to extract
-#ifdef ESMF_3
-!                              ,count       =1                             &  !<-- Length of Attribute
-#endif
 !                              ,valueList   =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
 !                              ,rc          =RC)
 !
         CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE                   &  !<-- The Bundle of history data
                               ,name        ='levs'                        &  !<-- Name of the Attribute to extract
-#ifdef ESMF_3
-                              ,count       =1                             &  !<-- Length of Attribute
-#endif
                               ,valueList   =wrt_int_state%LM              &  !<-- Extract this Attribute from History Bundle
                               ,rc          =RC)
 
@@ -873,15 +863,11 @@
                                                                            !    Note that each name is being given
                                                                            !    EMSF_MAXSTR total spaces
 !
-#ifdef ESMF_3
-            wrt_int_state%ALL_DATA_LOG(KOUNT_LOG,NBDL) = WORK_LOGICAL      !<-- String together the logical data
-#else
             IF(WORK_LOGICAL) THEN
                 wrt_int_state%ALL_DATA_LOG(KOUNT_LOG,NBDL) = ESMF_TRUE
             ELSE
                 wrt_int_state%ALL_DATA_LOG(KOUNT_LOG,NBDL) = ESMF_FALSE
             END IF
-#endif
 
 !
             LENGTH_SUM_LOG = LENGTH_SUM_LOG + 1                            !<-- Total length of all logical data variables

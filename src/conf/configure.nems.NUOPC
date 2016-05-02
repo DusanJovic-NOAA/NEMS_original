@@ -21,6 +21,7 @@ gfs=gsm
 gfsdir=atmos/$(gfs)
 satm_mk       = $(SATM_DIR)/satm.mk
 xatm_mk       = $(XATM_DIR)/xatm.mk
+datawam_mk    = $(DATAWAM_DIR)/datawam.mk
 
 ################################################################################
 ## OCN settings
@@ -46,7 +47,7 @@ cice_mk	      = $(CICE_DIR)/cice.mk
 
 swav_mk       = $(SWAV_DIR)/swav.mk
 xwav_mk       = $(XWAV_DIR)/xwav.mk
-ww3_mk        = $(WW3_DIR)/ww3.mk
+ww3_mk        = $(WW3_DIR)/nuopc.mk
 
 ################################################################################
 ## LND settings
@@ -54,7 +55,9 @@ ww3_mk        = $(WW3_DIR)/ww3.mk
 
 slnd_mk       = $(SLND_DIR)/slnd.mk
 xlnd_mk       = $(XLND_DIR)/xlnd.mk
-lis_mk        = $(LIS_DIR)/lis.mk
+noah_mk       = $(NOAH_DIR)/noah.mk
+noahmp_mk     = $(NOAHMP_DIR)/noahmp.mk
+lis_mk	      = $(LIS_DIR)/lis.mk
 
 ################################################################################
 ## IPM settings
@@ -63,6 +66,7 @@ lis_mk        = $(LIS_DIR)/lis.mk
 sipm_mk       = $(SIPM_DIR)/sipm.mk
 xipm_mk       = $(XIPM_DIR)/xipm.mk
 ipe_mk        = $(IPE_DIR)/ipe.mk
+dataipe_mk    = $(DATAIPE_DIR)/dataipe.mk
 
 ################################################################################
 ## HYD settings

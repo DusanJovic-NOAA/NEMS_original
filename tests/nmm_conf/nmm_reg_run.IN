@@ -23,6 +23,7 @@ if [ $SPEC_ADV = true -a $RSTRT = true ]; then
   cp _RTPWD_/NMMB_reg_spec_adv/nmmb_rst_01_nio_0012h_00m_00.00s  restart_file_01_nemsio
 fi
 
+cp $SRCDIR/tests/nems.configure nems.configure
 cp $SRCDIR/tests/atmos.configure atmos.configure
 cp $SRCDIR/tests/configure_file_01 .
 cp configure_file_01 model_configure

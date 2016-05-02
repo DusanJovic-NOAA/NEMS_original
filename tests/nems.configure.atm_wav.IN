@@ -1,0 +1,31 @@
+#############################################
+####  NEMS Run-Time Configuration File  #####
+#############################################
+
+# EARTH #
+EARTH_component_list: ATM WAV
+EARTH_attributes::
+  Verbosity = max
+::
+
+# ATM #
+ATM_model:                      _atm_model_
+ATM_petlist_bounds:             _atm_petlist_bounds_
+ATM_attributes::
+  Verbosity = max
+::
+
+# WAV #
+WAV_model:                      _wav_model_
+WAV_petlist_bounds:             _wav_petlist_bounds_
+WAV_attributes::
+  Verbosity = max
+::
+
+# Run Sequence #
+runSeq::
+  @_coupling_interval_sec_
+    WAV
+    ATM
+  @
+::

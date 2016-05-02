@@ -28,7 +28,11 @@ if [[ $wave -eq 62 ]] ; then
 elif [[ $wave -eq 126 ]] ; then
   export LONF=384 ; export LATG=190 ; export LONR=384 ; export LATR=190
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-600}
+  if [ $SLG = .true. ]; then
+    export DELTIM=${DELTIM:-900}
+  else
+    export DELTIM=${DELTIM:-600}
+  fi
 
 elif [[ $wave -eq 170 ]] ; then
   export LONF=512 ; export LATG=256 ; export LONR=512 ; export LATR=256

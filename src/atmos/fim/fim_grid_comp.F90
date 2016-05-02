@@ -1,6 +1,6 @@
       MODULE module_FIM_GRID_COMP
 
-      USE ESMF_MOD
+      USE ESMF
       USE MODULE_FIM_INTERNAL_STATE ,ONLY: FIM_INTERNAL_STATE            &
                                           ,WRAP_FIM_INTERNAL_STATE
       USE MODULE_FIM_INTEGRATE      ,ONLY: FIM_INTEGRATE
@@ -106,7 +106,7 @@
       IF (ppp__status.NE.0) THEN
         ! Follow NMM template from Tom Black for non-ESMF error-abort
         write(0,*) "ERROR IN FIM_INITIALIZE:  sms_start FAILED"
-        CALL ESMF_Finalize(RC=RC,terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(RC=RC,endflag=ESMF_END_ABORT)
       ENDIF
 !
 !-----------------------------------------------------------------------

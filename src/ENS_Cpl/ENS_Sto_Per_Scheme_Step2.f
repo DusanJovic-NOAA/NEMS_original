@@ -26,7 +26,7 @@
 !  Sep 2011       Weiyu Yang Modified for using the ESMF 5.2.0r library.
 !--------------------------------------------------------
 
-      USE esmf_mod
+      USE ESMF
  USE ENS_Cpl_InternalState_ESMFMod
  USE machine,  ONLY: kind_evod, kind_phys, kind_rad
 

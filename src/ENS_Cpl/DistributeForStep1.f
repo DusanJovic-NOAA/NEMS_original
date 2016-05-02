@@ -5,14 +5,6 @@
 
 #include "../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520rbs
-#endif
-
-
  USE machine, ONLY: KIND_EVOD
  USE ENS_Cpl_InternalState_ESMFMod
 
@@ -46,11 +38,7 @@
                    Array,               Cpl_Int_State%ARRAY_ONE_SIZ2, Cpl_Int_State%MPI_R_MPI_R, &
                    MPI_COMM_WORLD, rc)
 
-#ifdef ESMF_520rbs
  IF(ESMF_LogFoundError(rc, msg="Distribute 1-D State in Cpl")) THEN
-#else
- IF(ESMF_LogFoundError(rc,     "Distribute 1-D State in Cpl")) THEN
-#endif
      PRINT*, 'Error Happened When Distributing 1-D State in Cpl, rc = ', rc
  END IF
 
@@ -104,11 +92,7 @@
                    Array,               Cpl_Int_State%ARRAY_TOT_SIZ2, Cpl_Int_State%MPI_R_MPI_R, &
                    MPI_COMM_WORLD, rc)
 
-#ifdef ESMF_520rbs
  IF(ESMF_LogFoundError(rc, msg="Distribute Multi_Level State in Cpl")) THEN
-#else
- IF(ESMF_LogFoundError(rc,     "Distribute Multi_Level State in Cpl")) THEN
-#endif
      PRINT*, 'Error Happened When Distributing Multi_level State in Cpl, Name, rc = ', TRIM(Name), rc
  END IF
 
@@ -144,11 +128,7 @@
                    Cpl_Int_State%work3, Cpl_Int_State%ARRAY_ONE_SIZ2, Cpl_Int_State%MPI_R_MPI_R, &
                    MPI_COMM_WORLD, rc)
 
-#ifdef ESMF_520rbs
  IF(ESMF_LogFoundError(rc, msg="Alltoall Back From Step1 -- PS in Cpl")) THEN
-#else
- IF(ESMF_LogFoundError(rc,     "Alltoall Back From Step1 -- PS in Cpl")) THEN
-#endif
      PRINT*, 'Error Happened When Alltoalling Back From Step1 -- PS in Cpl, rc = ', rc
  END IF
 
@@ -189,11 +169,7 @@
                    Cpl_Int_State%work5, Cpl_Int_State%ARRAY_TOT_SIZ2, Cpl_Int_State%MPI_R_MPI_R, &
                    MPI_COMM_WORLD, rc)
 
-#ifdef ESMF_520rbs
  IF(ESMF_LogFoundError(rc, msg="Alltoall Multi_Level State Back From Step1 in Cpl")) THEN
-#else
- IF(ESMF_LogFoundError(rc,     "Alltoall Multi_Level State Back From Step1 in Cpl")) THEN
-#endif
      PRINT*, 'Error Happened When Alltoalling Multi_Level State Back From Step1 in Cpl, Name, rc = ', TRIM(Name), rc
  END IF
 

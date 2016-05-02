@@ -198,7 +198,7 @@ LIB_THIS = $(ESMALIB)/lib$(DIR_THIS).a
 #                     -----------------------
 
 CDEFS     = -Dsys$(ARCH) -DESMA$(BPREC) $(USER_CDEFS)
-CINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_CINCS)
+CINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_CINCS) $(ESMF_F90COMPILEPATHS)
 
 COPT0 = -O0
 COPT1 = -O1
@@ -261,8 +261,8 @@ ifdef FDEF1
 endif
 
 FDEFS     = $(D)sys$(ARCH) $(D)ESMA$(BPREC) $(DEF_SDF) $(USER_FDEFS)
-FINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_FINCS)
-FMODS     = $(foreach dir,$(INC_ESMF), $(M)$(dir)) $(USER_FMODS)
+FINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_FINCS) $(ESMF_F90COMPILEPATHS)
+FMODS     = $(foreach dir,$(INC_ESMF), $(M)$(dir)) $(USER_FMODS) $(ESMF_F90COMPILEPATHS)
 XFLAGS    = 
 
 FC        = f90

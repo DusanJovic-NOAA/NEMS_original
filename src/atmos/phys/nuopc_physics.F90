@@ -194,7 +194,7 @@
          real (kind=kind_phys), pointer :: fswtr(:) => null() 
 
          contains
-           procedure set => tbd_set
+           procedure :: set => tbd_set
 
        end type
 !******************************************
@@ -216,9 +216,9 @@
 !         type (model_data_inout) :: data_inout
 !
 !         contains
-!           procedure setin => set_model_in
-!           procedure setout => set_model_out
-!           procedure setinout => set_model_inout 
+!           procedure :: setin => set_model_in
+!           procedure :: setout => set_model_out
+!           procedure :: setinout => set_model_inout 
 !
 !       end type
 
@@ -264,9 +264,9 @@
          real (kind=kind_phys), pointer :: adjtrc(:)     => null()  ! dynamics adjustments to tracers
 
          contains
-           procedure setrad  => state_fld_setrad_in
-           procedure setphys => state_fld_setphys_in
-           procedure print   => state_fld_in_print
+           procedure :: setrad  => state_fld_setrad_in
+           procedure :: setphys => state_fld_setphys_in
+           procedure :: print   => state_fld_in_print
        end type
 !******************************************
 
@@ -288,8 +288,8 @@
          real (kind=kind_phys), pointer :: gv0 (:,:)   => null()  ! updated meridional wind
 
          contains
-           procedure setphys => state_fld_setphys_out
-           procedure print => state_fld_out_print
+           procedure :: setphys => state_fld_setphys_out
+           procedure :: print => state_fld_out_print
        end type
 !******************************************
 
@@ -350,9 +350,9 @@
          real (kind=kind_phys), pointer :: q2m(:) => null()   ! 2 meter humidity 
 
          contains
-           procedure setrad  => sfc_prop_setrad
-           procedure setphys => sfc_prop_setphys
-           !procedure print => sfc_prop_print
+           procedure :: setrad  => sfc_prop_setrad
+           procedure :: setphys => sfc_prop_setphys
+           !procedure :: print => sfc_prop_print
        end type
 !******************************************
 
@@ -452,9 +452,9 @@
          real (kind=kind_phys), pointer :: sr     (:) => null()  ! flx_fld%sr       snow ratio : ratio of snow to total precipitation
 
          contains
-           procedure setrad => diagnostics_setrad
-           procedure setphys => diagnostics_setphys
-           !procedure print => diagnostics_print
+           procedure :: setrad => diagnostics_setrad
+           procedure :: setphys => diagnostics_setphys
+           !procedure :: print => diagnostics_print
        end type
 
 
@@ -575,8 +575,8 @@
          real (kind=kind_phys), pointer :: slmsk_cpl  (:) => null()  ! aoi_fld%slimsk   Land/Sea/Ice AOI cpl                     
 
        contains
-         procedure setrad => interface_fld_setrad
-         procedure setphys => interface_fld_setphys
+         procedure :: setrad => interface_fld_setrad
+         procedure :: setphys => interface_fld_setphys
 
        end type
 
@@ -623,9 +623,9 @@
 
 
          contains
-           procedure setrad => cld_prop_setrad
-           procedure setphys => cld_prop_setphys
-           !procedure print => cld_prop_print
+           procedure :: setrad => cld_prop_setrad
+           procedure :: setphys => cld_prop_setphys
+           !procedure :: print => cld_prop_print
        end type
 
 !******************************************
@@ -664,8 +664,8 @@
          real (kind=kind_phys), pointer :: hlwc (:,:)   => null()  ! clear sky lw heating rates ( k/s ) 
 
          contains
-           procedure set => rad_tend_set
-           !procedure print => rad_tend_print
+           procedure :: set => rad_tend_set
+           !procedure :: print => rad_tend_print
        end type
 
 

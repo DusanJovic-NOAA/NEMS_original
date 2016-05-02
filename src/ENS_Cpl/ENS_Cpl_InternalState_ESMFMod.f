@@ -24,7 +24,7 @@
 
 !!USES:
 !------
-      USE esmf_mod
+      USE ESMF
  USE machine, ONLY: KIND_EVOD, KIND_PHYS
 
  IMPLICIT none

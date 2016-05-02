@@ -1,9 +1,5 @@
 #include "../../ESMFVersionDefine.h"
 
-! !REVISION HISTORY:
-!
-!  Jan 2016      Patrick Tripp - NUOPC/GSM merge: export/importFieldsList used always
-
 module module_CPLFIELDS
 
   !-----------------------------------------------------------------------------
@@ -11,31 +7,44 @@ module module_CPLFIELDS
   !
   !-----------------------------------------------------------------------------
 
+  use ESMF
 #ifdef WITH_NUOPC
   use NUOPC
 #endif
-
-  use ESMF
   
   implicit none
   
   private
- 
-  integer, public, parameter :: NimportFields = 14
-  integer, public, parameter :: NexportFields = 48
- 
+  
 #ifdef WITH_NUOPC
+  integer, parameter :: MAXNAMELEN = 128
+
+  ! private internal state to keep instance data
+  type InternalStateStruct
+    integer(ESMF_KIND_I4), pointer :: numPerRow(:)
+    real(ESMF_KIND_R8), pointer :: lons(:,:), lats(:,:)
+    integer, pointer :: rowinds(:), indList(:)
+    integer :: dims(2)
+    integer :: myrows
+    integer :: wamtotalnodes, localnodes
+    integer :: PetNo, PetCnt
+  end type
+
+  type InternalState
+    type(InternalStateStruct), pointer :: wamgrid_wrap
+  end type
+
   real(kind=ESMF_KIND_R8),parameter :: Rearth=6376000.  ! copied from atmos/share/module_CONSTANTS.F90
 
   ! Regular (non-reduced) Gaussian Grid ---------------
-  public            :: gauss2d
+  public            :: gauss2d, wam2dmesh, wamlevels
   type(ESMF_Grid)   :: gauss2d
-#endif 
-
-! PT: these are needed in non NUOPC 
-! #ifdef WITH_NUOPC
-
+  type(ESMF_Mesh)   :: wam2dmesh
+  integer           :: wamlevels
+#endif
+  
   ! Export Fields ----------------------------------------
+  integer, public, parameter :: NexportFields = 56
   type(ESMF_Field), public   :: exportFields(NexportFields)
   character(len=40), public, parameter :: exportFieldsList(NexportFields) = (/ &
       "mean_zonal_moment_flx                  ", &
@@ -89,10 +98,21 @@ module module_CPLFIELDS
       "inst_merid_wind_height_lowest          ", &
       "inst_pres_height_lowest                ", &
       "inst_height_lowest                     ", &
-      "mean_fprec_rate                        "  /)
-  
+      "mean_fprec_rate                        ", &
+      "northward_wind_neutral                 ", &
+      "eastward_wind_neutral                  ", &
+      "upward_wind_neutral                    ", &
+      "temp_neutral                           ", &
+      "O_Density                              ", &
+      "O2_Density                             ", &
+      "N2_Density                             ", &
+      "height                                 "  &
+  /)
+
   ! Import Fields ----------------------------------------
+  integer, public, parameter :: NimportFields = 16
   type(ESMF_Field), public   :: importFields(NimportFields)
+  logical, public            :: importFieldsValid(NimportFields)
   character(len=40), public, parameter :: importFieldsList(NimportFields) = (/ &
       "land_mask                              ", &
       "surface_temperature                    ", &
@@ -107,7 +127,9 @@ module module_CPLFIELDS
       "mean_sensi_heat_flx                    ", &
       "mean_evap_rate                         ", &
       "mean_zonal_moment_flx                  ", &
-      "mean_merid_moment_flx                  "  /)
+      "mean_merid_moment_flx                  ", &
+      "mean_ice_volume                        ", &
+      "mean_snow_volume                       "  /)
   
   ! Utility GSM members ----------------------------------
   public            :: global_lats_ptr
@@ -119,6 +141,8 @@ module module_CPLFIELDS
   public fillExportFields
   public queryFieldList
   public setupGauss2d
+  public createWAMGrid
+  public fillWAMFields
   
   !-----------------------------------------------------------------------------
   contains
@@ -310,6 +334,144 @@ module module_CPLFIELDS
   end subroutine
 #endif
 
+#ifdef WITH_NUOPC
+  ! Create 2D WAM as a ESMF_Mesh with only distgrid (no coordinates)
+  subroutine createWAMGrid(long, latg, levs, ipt_lats_node_a, lats_node_a, global_lats_a, lonsperlat, rc)
+
+     integer                        :: long, latg, levs ! grid dimension (192x94x150)
+     integer                        :: ipt_lats_node_a  ! starting lat index for the local processor
+     integer                        :: lats_node_a      ! number of latitues in the local processor
+     integer(ESMF_KIND_I4), target  :: global_lats_a(:) ! array holds the random shuffle order of latitude index
+     integer(ESMF_KIND_I4), target  :: lonsperlat(:)    ! number of longitude points per lat 
+     integer, optional              :: rc
+
+     integer             :: i, j, k, ind1
+     integer(ESMF_KIND_I4), pointer :: indList(:)
+     type(ESMF_DistGrid) :: distgrid
+     integer             :: localnodes, ind
+
+
+      ! find the total number of nodes in each processor and create local index table
+      localnodes=0
+      ind1 = 0
+      do i=1,lats_node_a
+         ind=global_lats_a(ipt_lats_node_a+i-1)
+         localnodes=localnodes + lonsperlat(ind)
+      enddo
+
+      ! Create a distgrid using a collapsed 1D index array based on the local row index
+      allocate(indList(localnodes))
+      k=1
+      do i=1,lats_node_a
+        ind=global_lats_a(ipt_lats_node_a+i-1)
+        do j=1,lonsperlat(ind)
+           indList(k)=long*(ind-1)+j
+           k=k+1
+        enddo
+      enddo
+      distgrid = ESMF_DistGridCreate(indList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+      ! Create mesh using the distgrid as the nodaldistgrid,  no elemdistgrid available
+      ! just use nodeldistgrid for both
+      wam2dmesh = ESMF_MeshCreate(distgrid,distgrid,rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+      wamlevels = levs
+
+      ESMF_ERR_RETURN(rc,rc)
+
+  end subroutine
+
+#else
+  subroutine createWAMGrid(long, latg, levs, ipt_lats_node_a, lats_node_a, &
+                           global_lats_a, lonsperlat, rc)
+     integer                        :: long, latg, levs ! grid dimension (192x94x150)
+     integer                        :: ipt_lats_node_a  ! starting lat index for the local processor
+     integer                        :: lats_node_a      ! number of latitues in the local processor
+     integer(ESMF_KIND_I4), target  :: global_lats_a(:) ! array holds the random shuffle order of latitude index
+     integer(ESMF_KIND_I4), target  :: lonsperlat(:)    ! number of longitude points per lat 
+     integer, optional              :: rc
+
+  end subroutine
+#endif
+
+#ifdef WITH_NUOPC
+  ! Create analytical fields for the 2D WAM built on a ESMF_Mesh
+  subroutine fillWAMFields(uug, vvg, wwg, ttg, zzg, n2g, rqg, rc)
+    
+    real(ESMF_KIND_R8), intent(in) :: uug(:,:,:)
+    real(ESMF_KIND_R8), intent(in) :: vvg(:,:,:)
+    real(ESMF_KIND_R8), intent(in) :: wwg(:,:,:)
+    real(ESMF_KIND_R8), intent(in) :: ttg(:,:,:)
+    real(ESMF_KIND_R8), intent(in) :: zzg(:,:,:)
+    real(ESMF_KIND_R8), intent(in) :: n2g(:,:,:)
+    real(ESMF_KIND_R8), intent(in) :: rqg(:,:,:)
+    integer, optional :: rc
+
+    real(ESMF_KIND_R8), pointer   :: fptr(:,:,:)
+    integer :: i, n
+    character(len=128):: fieldName
+
+    if (present(rc)) rc=ESMF_SUCCESS
+
+    do n=1, NexportFields
+       if (ESMF_FieldIsCreated(exportFields(n))) then
+         call ESMF_FieldGet(exportFields(n), name=fieldName, rc=rc)
+         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+         call ESMF_FieldGet(exportFields(n), farrayPtr=fptr)
+         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+         ! check if the dimension of fptr matches with any input arrays
+         if (size(wwg,1) /= size(fptr,1) .or. &
+            size(wwg,2) /= size(fptr,2) .or. & 
+            size(wwg,3) /= size(fptr,3)) then
+            call ESMF_LogSetError(ESMF_RC_VAL_ERRBOUND, &
+                 msg="field array size does not match with WAM array", &
+                 line=__LINE__, file=__FILE__, rcToReturn=rc)
+            return
+         endif
+         if (trim(fieldName) == "northward_wind_neutral") then
+            fptr=wwg
+         elseif (trim(fieldName) == "eastward_wind_neutral") then
+            fptr=uug
+         elseif (trim(fieldName) == "upward_wind_neutral") then
+            fptr=vvg
+         elseif (trim(fieldName) == "temp_neutral") then
+            fptr=ttg
+         elseif (trim(fieldName) == "N2_Density") then
+            fptr=n2g
+         elseif (trim(fieldName) == "height") then
+            fptr=zzg
+         endif
+      endif
+   enddo
+
+  end subroutine
+#else
+  subroutine fillWAMFields(uug, vvg, wwg, ttg, zzg, n2g, rqg, rc)
+    real(ESMF_KIND_R8), pointer :: uug(:,:,:)
+    real(ESMF_KIND_R8), pointer :: vvg(:,:,:)
+    real(ESMF_KIND_R8), pointer :: wwg(:,:,:)
+    real(ESMF_KIND_R8), pointer :: ttg(:,:,:)
+    real(ESMF_KIND_R8), pointer :: zzg(:,:,:)
+    real(ESMF_KIND_R8), pointer :: n2g(:,:,:)
+    real(ESMF_KIND_R8), pointer :: rqg(:,:,:)
+    integer, optional :: rc
+
+  end subroutine 
+
+#endif
+
   integer function queryFieldList(fieldlist, fieldname, abortflag, rc)
     ! returns integer index of first found fieldname in fieldlist
     ! by default, will abort if field not found, set abortflag to false 
@@ -339,10 +501,10 @@ module module_CPLFIELDS
     enddo
 
     if (labort .and. queryFieldList < 1) then
-! #ifdef WITH_NUOPC
+#ifdef WITH_NUOPC
      call ESMF_LogWrite('queryFieldList ABORT on fieldname '//trim(fieldname), ESMF_LOGMSG_INFO, line=__LINE__, file=__FILE__, rc=rc)
       CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
-! #endif
+#endif
     endif
   end function queryFieldList
   !-----------------------------------------------------------------------------

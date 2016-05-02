@@ -33,7 +33,7 @@
 !  2013-07     Theurich - Macro based ESMF error handling
 !-----------------------------------------------------------------------
 !
-      USE ESMF_Mod
+      USE ESMF
 !
       USE module_NEMS_INTERNAL_STATE,ONLY: NEMS_INTERNAL_STATE          &
                                           ,WRAP_NEMS_INTERNAL_STATE
@@ -549,7 +549,7 @@
 !
       DO I = 1,TOTAL_MEMBER
         EARTH_IMP_STATE(I) = ESMF_StateCreate(                          &
-                                         STATENAME = IMP_EARTH_NAME(I)  &
+                                         name = IMP_EARTH_NAME(I)  &
                                         ,stateintent = ESMF_STATEINTENT_IMPORT  &
                                         ,rc        = RC)
         ESMF_ERR_RETURN(RC,RC_INIT)
@@ -564,7 +564,7 @@
 !
       DO I = 1,TOTAL_MEMBER
         EARTH_EXP_STATE(I) = ESMF_StateCreate(                                 &
-                                         STATENAME   = EXP_EARTH_NAME(I)       &
+                                         name   = EXP_EARTH_NAME(I)       &
                                         ,stateintent = ESMF_STATEINTENT_EXPORT &
                                         ,rc          = RC)
         ESMF_ERR_RETURN(RC,RC_INIT)
@@ -581,7 +581,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        ENS_CPL_IMP_STATE=ESMF_StateCreate(STATENAME   = "ENS_CPL_Import"         &
+        ENS_CPL_IMP_STATE=ESMF_StateCreate(name   = "ENS_CPL_Import"         &
                                           ,stateintent = ESMF_STATEINTENT_IMPORT  &
                                           ,rc          = RC)
         ESMF_ERR_RETURN(RC,RC_INIT)
@@ -593,7 +593,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        ENS_CPL_EXP_STATE=ESMF_StateCreate(STATENAME = "ENS_CPL_Export"           &
+        ENS_CPL_EXP_STATE=ESMF_StateCreate(name = "ENS_CPL_Export"           &
                                           ,stateintent = ESMF_STATEINTENT_EXPORT  &
                                           ,rc        = RC)
         ESMF_ERR_RETURN(RC,RC_INIT)
@@ -610,9 +610,9 @@
 ! 
         DO I = 1, TOTAL_MEMBER
           IF(MEMBER_ID == I) THEN
-            CALL ESMF_StateAdd(ENS_CPL_IMP_STATE,LISTWRAPPER(EARTH_EXP_STATE(I)), rc = RC)
+            CALL ESMF_StateAddReplace(ENS_CPL_IMP_STATE,(/EARTH_EXP_STATE(I)/), rc = RC)
             ESMF_ERR_RETURN(RC,RC_INIT)
-            CALL ESMF_StateAdd(ENS_CPL_EXP_STATE,LISTWRAPPER(EARTH_IMP_STATE(I)), rc = RC)
+            CALL ESMF_StateAddReplace(ENS_CPL_EXP_STATE,(/EARTH_IMP_STATE(I)/), rc = RC)
             ESMF_ERR_RETURN(RC,RC_INIT)
           END IF
         END DO
@@ -637,14 +637,10 @@
                                       ,exportState = EARTH_EXP_STATE(I)  &
                                       ,clock       = CLOCK_NEMS          &
                                       ,phase       = 1                   &
-#ifndef ESMF_3
                                       ,userRc      = RC_USER             &
-#endif
                                       ,rc          = RC)
           ESMF_ERR_RETURN(RC,RC_INIT)
-#ifndef ESMF_3
           ESMF_ERR_RETURN(RC_USER,RC_INIT)
-#endif
         END IF
 !
       END DO
@@ -665,14 +661,10 @@
                                    ,exportState=ENS_CPL_EXP_STATE       &
                                    ,clock      =CLOCK_NEMS              &
                                    ,phase      =1                       &
-#ifndef ESMF_3
                                    ,userRc     =RC_USER                 &
-#endif
                                    ,rc         =RC)
         ESMF_ERR_RETURN(RC,RC_INIT)
-#ifndef ESMF_3
         ESMF_ERR_RETURN(RC_USER,RC_INIT)
-#endif
 !
       END IF
 !
@@ -746,14 +738,10 @@
                                ,exportState = EARTH_EXP_STATE(I)        &
                                ,clock       = CLOCK_NEMS                &
                                ,phase       = 1                         &
-#ifndef ESMF_3
                                ,userRc      = RC_USER                   &
-#endif
                                ,rc          = RC)
           ESMF_ERR_RETURN(RC,RC_RUN)
-#ifndef ESMF_3
           ESMF_ERR_RETURN(RC_USER,RC_RUN)
-#endif
         END IF
 !
       END DO
@@ -778,14 +766,10 @@
                               ,exportState=ENS_CPL_EXP_STATE            &
                               ,clock      =CLOCK_NEMS                   &
                               ,phase      =1                            &
-#ifndef ESMF_3
                               ,userRc     =RC_USER                      &
-#endif
                               ,rc         =RC)
           ESMF_ERR_RETURN(RC,RC_RUN)
-#ifndef ESMF_3
           ESMF_ERR_RETURN(RC_USER,RC_RUN)
-#endif
 !
           CALL ESMF_VMBarrier(vm = VM_GLOBAL, rc = RC)
           ESMF_ERR_RETURN(RC,RC_RUN)
@@ -851,14 +835,10 @@
                                      ,exportState = EARTH_EXP_STATE(J)  &
                                      ,clock       = CLOCK_NEMS          &
                                      ,phase       = 1                   &
-#ifndef ESMF_3
                                      ,userRc      = RC_USER             &
-#endif
                                      ,rc          = RC)
                 ESMF_ERR_RETURN(RC,RC_RUN)
-#ifndef ESMF_3
                 ESMF_ERR_RETURN(RC_USER,RC_RUN)
-#endif
             END IF
 !
           END DO
@@ -938,14 +918,10 @@
                                     ,exportState = EARTH_EXP_STATE(I)   &
                                     ,clock       = CLOCK_NEMS           &
                                     ,phase       = 1                    &
-#ifndef ESMF_3
                                     ,userRc      = RC_USER              &
-#endif
                                     ,rc          = RC)
           ESMF_ERR_RETURN(RC,RC_FINALIZE)
-#ifndef ESMF_3
           ESMF_ERR_RETURN(RC_USER,RC_FINALIZE)
-#endif
         END IF
 !
       END DO
@@ -964,14 +940,10 @@
                                  ,exportState=ENS_CPL_EXP_STATE         &
                                  ,clock      =CLOCK_NEMS                &
                                  ,phase      =1                         &
-#ifndef ESMF_3
                                  ,userRc     =RC_USER                   &
-#endif
                                  ,rc         =RC)
         ESMF_ERR_RETURN(RC,RC_FINALIZE)
-#ifndef ESMF_3
         ESMF_ERR_RETURN(RC_USER,RC_FINALIZE)
-#endif
 !
       END IF
 !

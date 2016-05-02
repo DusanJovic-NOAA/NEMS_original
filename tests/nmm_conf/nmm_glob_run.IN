@@ -14,6 +14,7 @@ cp _RTPWD_/NMMB_glob/nmmb_rst_01_bin_0024h_00m_00.00s  restart_file_01
 cp _RTPWD_/NMMB_glob/nmmb_rst_01_nio_0024h_00m_00.00s  restart_file_01_nemsio
 cp _RTPWD_/NMMB_glob/GWD_bin_01 .
 
+cp $SRCDIR/tests/nems.configure nems.configure
 cp $SRCDIR/tests/atmos.configure atmos.configure
 cp $SRCDIR/tests/configure_file_01 .
 cp configure_file_01 model_configure

@@ -1,0 +1,23 @@
+#############################################
+####  NEMS Run-Time Configuration File  #####
+#############################################
+
+# EARTH #
+EARTH_component_list: IPM
+EARTH_attributes::
+  Verbosity = max
+::
+
+# IPM #
+IPM_model:                      _ipm_model_
+IPM_petlist_bounds:             _ipm_petlist_bounds_
+IPM_attributes::
+  Verbosity = max
+::
+
+# Run Sequence #
+runSeq::
+  @_coupling_interval_sec_
+    IPM
+  @
+::

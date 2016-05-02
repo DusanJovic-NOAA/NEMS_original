@@ -798,6 +798,8 @@ else
   export REDOUT=${REDOUT:-'1>'}
   export REDERR=${REDERR:-'2>'}
 fi
+print_esmf=.true.      # print each PET output to file
+export print_esmf=${print_esmf:-.false.}
 
 ################################################################################
 #  Preprocessing
@@ -1153,13 +1155,14 @@ ioform_flx=${ioform_flx:-grib}
 # jw: generate configure file
 #
 core=${core:-gfs}
-cat << EOF > $DATA/atmos.configure
-core: $core
-EOF
+# gjt: already generated
+#cat << EOF > $DATA/atmos.configure
+#core: $core
+#EOF
 
 cat << EOF > atm_namelist.rc
 core: $core
-print_esmf:     .false.
+print_esmf:     ${print_esmf}
 
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35

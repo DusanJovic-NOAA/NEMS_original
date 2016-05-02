@@ -1,6 +1,6 @@
 #!/bin/ksh
 #set -eu
-set -x
+#set -x
 
 export GEFS_ENSEMBLE=${GEFS_ENSEMBLE:-0}
 echo "GEFS_ENSEMBLE=" $GEFS_ENSEMBLE
@@ -28,6 +28,7 @@ export fcst_begin=${fcst_begin:-YES}
 export SCHEDULER=${SCHEDULER:-lsf}
 export SHOWQ=${SHOWQ:-/opt/moab/default/bin/showq}
 export MSUB=${MSUB:-/opt/moab/default/bin/msub}
+export pex=${pex:-1}
 
 export IALB=0
 export IEMS=0
@@ -128,24 +129,29 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_IAER_:${IAER}:g                     \
                      | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
                      | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
+                     | sed s:_CPLFLX_:${CPLFLX}:g                 \
                      | sed s:_SIGHDR_:${SIGHDR}:g                 \
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
                      | sed s:_RTPWD_:${RTPWD}:g                   \
                      | sed s:_DATAICDIR_:${DATAICDIR}:g           \
                      | sed s:_SCHEDULER_:${SCHEDULER}:g           \
                      | sed s:_SLG_:${SLG}:g                       \
-                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
-                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
                      | sed s:_F107_KP_SIZE_:${F107_KP_SIZE}:g         \
                      | sed s:_F107_KP_INTERVAL_:${F107_KP_INTERVAL}:g \
+                     | sed s:_MPIEXEC_:${MPIEXEC}:g               \
+                     | sed s:_NHRS_:${NHRS}:g                     \
                      | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
-
 
  chmod 755 gfs_fcst_run
 
+ # | sed s:_LDFI_SPECT_:${LDFI_SPECT}:g               \
+
  cp gfs_fcst_run ${RUNDIR}
 
-if [ ${nems_configure}"x" != "x" ]; then
+if [ ${nems_configure}"x" == "x" ]; then
+  nems_configure=atm_nostep
+  atm_model=gsm
+fi
  cat nems.configure.${nems_configure}.IN   \
                          | sed s:_atm_model_:${atm_model}:g                    \
                          | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
@@ -171,7 +177,6 @@ if [ ${nems_configure}"x" != "x" ]; then
                          >  nems.configure
                          
  cp nems.configure ${RUNDIR}
-fi
 
 ################################################################################
 # Copy init files
@@ -211,11 +216,9 @@ fi
   if [ $fcst_begin = YES ]; then
     cp $IC_DIR/gfsanl.$CDATE $RUNDIR
     cp $IC_DIR/sfnanl.$CDATE $RUNDIR
-    cp $IC_DIR/nsnanl.$CDATE $RUNDIR
-  else
-    cp $IC_DIR/sigf${nhourb} $RUNDIR
-    cp $IC_DIR/sfcf${nhourb} $RUNDIR
-    cp $IC_DIR/nstf${nhourb} $RUNDIR
+    if [ $NST_FCST -gt 0 ] ; then
+      cp $IC_DIR/nsnanl.$CDATE $RUNDIR
+    fi
   fi
 
 # These gfsanl and sfnanl data were copy from Moorthi's directory at
@@ -239,10 +242,11 @@ fi
        elif [ $MACHINE_ID = theia ] ; then
          IC_DIR=${IC_DIR:-$dprefix/global/noscrub/Shrinivas.Moorthi/data}
        fi
-       cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.
-#??    cp $IC_DIR/siganl.$CDATE ${RUNDIR}/sig_ini2
-       cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
-       cp $IC_DIR/nstanl.$CDATE ${RUNDIR}/.
+          cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.
+          cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
+          if [ $NST_FCST -gt 0 ] ; then
+            cp $IC_DIR/nstanl.$CDATE ${RUNDIR}/.
+          fi
      fi
    fi
  fi
@@ -256,8 +260,6 @@ else
  cd $PATHRT
 
  cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
-# cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/GEFS_data_2008082500/gfsanl* $RUNDIR
-# cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/GEFS_data_2008082500/sfcanl* $RUNDIR
 
  cat gfs_fcst_run_GEFS.IN \
                      | sed s:_SRCDIR_:${PATHTR}:g \
@@ -295,6 +297,7 @@ if [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
 
  export TPN=$((24/THRD))
+ export QUEUE=${QUEUE:-batch}
  cat gfs_qsub.IN     | sed s:_JBNME_:${JBNME}:g   \
                      | sed s:_ACCNR_:${ACCNR}:g   \
                      | sed s:_QUEUE_:${QUEUE}:g   \
@@ -302,26 +305,31 @@ elif [ $SCHEDULER = 'pbs' ]; then
                      | sed s:_TASKS_:${TASKS}:g   \
                      | sed s:_THRD_:${THRD}:g     \
                      | sed s:_RUND_:${RUNDIR}:g   \
+                     | sed s:_FIXGLOBAL_:${FIXGLOBAL}:g   \
                      | sed s:_SCHED_:${SCHEDULER}:g   >  gfs_qsub
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
- export pex=${pex:-1}
- if [ $pex -eq 2 ] ; then
-   export TPN=${TPN:-$((24/THRD))}
-   export CLASS=${CLASS:-dev$pex}
- else
-   export TPN=${TPN:-$((16/THRD))}
+ if [ $MACHINE_ID = wcoss ] ; then
+   export pex=${pex:-1}
+   export QUEUE=${QUEUE:-dev}
+   if [ $pex = 2 ] ; then
+     export TPN=${TPN:-$((24/THRD))}
+     export QUEUE=${QUEUE:-dev$pex}
+   else
+     export TPN=${TPN:-$((16/THRD))}
+   fi
  fi
- export CLASS=${CLASS:-dev}
  cat gfs_bsub.IN     | sed s:_JBNME_:${JBNME}:g   \
-                     | sed s:_CLASS_:${CLASS}:g   \
+                     | sed s:_ACCNR_:${ACCNR}:g   \
+                     | sed s:_QUEUE_:${QUEUE}:g   \
                      | sed s:_WLCLK_:${WLCLK}:g   \
                      | sed s:_TPN_:${TPN}:g       \
                      | sed s:_TASKS_:${TASKS}:g   \
                      | sed s:_RUND_:${RUNDIR}:g   \
                      | sed s:_THRDS_:${THRD}:g    \
                      | sed s:_CDATE_:${CDATE}:g   \
+                     | sed s:_FIXGLOBAL_:${FIXGLOBAL}:g   \
                      | sed s:_SCHED_:${SCHEDULER}:g   >  gfs_bsub
 fi
 
@@ -349,7 +357,7 @@ echo ${TEST_DESCR}
 
 # wait for the job to enter the queue
 job_running=0
-echo ' CLASS= ' $CLASS
+
 until [ $job_running -eq 1 ] ; do
  echo "TEST is waiting to enter the queue"
  if [ $SCHEDULER = 'moab' ]; then
@@ -357,7 +365,7 @@ until [ $job_running -eq 1 ] ; do
  elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
  elif [ $SCHEDULER = 'lsf' ]; then
-  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${CLASS} | wc -l`;sleep 5
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${QUEUE} | wc -l`;sleep 5
  fi
 done
 
@@ -396,7 +404,7 @@ until [ $job_running -eq 0 ] ; do
 
  elif [ $SCHEDULER = 'lsf' ] ; then
 
-  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${CLASS} | awk '{print $3}'` ; status=${status:--}
+  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${QUEUE} | awk '{print $3}'` ; status=${status:--}
 #  if [ $status != '-' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $9 }'` ; fi
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $9 }'` ; fi
   FnshHrs=${FnshHrs:-0}
@@ -410,7 +418,7 @@ until [ $job_running -eq 0 ] ; do
  if [ $SCHEDULER = 'moab' ]; then
   job_running=`$SHOWQ -u ${USER} -n | grep ${JBNME} | wc -l`
  elif [ $SCHEDULER = 'lsf' ] ; then
-  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${CLASS} | wc -l`
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep ${QUEUE} | wc -l`
  fi
   (( n=n+1 ))
 done

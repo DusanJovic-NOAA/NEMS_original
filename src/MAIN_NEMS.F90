@@ -32,7 +32,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
 !-----------------------------------------------------------------------
 !***  USE the NEMS gridded component module.  Although it
@@ -167,22 +167,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       IF(PRINT_ESMF) THEN
-#ifdef ESMF_3
-        CALL ESMF_LogSet(verbose    =ESMF_TRUE                          &
-                        ,flush      =ESMF_TRUE                          &
-                        ,rootOnly   =ESMF_FALSE                         &
-                        ,halt       =ESMF_LOG_HALTERROR                 &  !<-- The job will stop automatically
-                                                                           !    when an ESMF error occurs.
-                        ,maxElements=1                                  &  !<-- Maximum number of elements in the log
-                                                                           !    before printing them to the log file.
-                        ,rc         =RC)
-#else
         CALL ESMF_LogSet(flush      =.true.                             &
                         ,trace      =.false.                            &
 ! --> do not abort inside of ESMF, or else no ESMF backtrace will be in Log!!!!
 !                        ,logmsgAbort=(/ ESMF_LOGMSG_ERROR /)            &
                         ,rc         =RC)
-#endif
         ESMF_ERR_ABORT(RC)
       ENDIF
 
@@ -421,11 +410,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      NEMS_IMP_STATE=ESMF_StateCreate(STATENAME='NEMS Import State'     &
+      NEMS_IMP_STATE=ESMF_StateCreate(name='NEMS Import State'     &
                                      ,rc       =RC)
       ESMF_ERR_ABORT(RC)
 !
-      NEMS_EXP_STATE=ESMF_StateCreate(STATENAME='NEMS Export State'     &
+      NEMS_EXP_STATE=ESMF_StateCreate(name='NEMS Export State'     &
                                      ,rc       =RC)
       ESMF_ERR_ABORT(RC)
 !      
@@ -448,14 +437,10 @@
                                   ,exportState=NEMS_EXP_STATE           &  !<-- The NEMS export state
                                   ,clock      =CLOCK_MAIN               &  !<-- The ESMF clock
                                   ,phase      =1                        &
-#ifndef ESMF_3
                                   ,userRc     =RC_USER                  &
-#endif
                                   ,rc         =RC)
       ESMF_ERR_ABORT(RC)
-#ifndef ESMF_3
       ESMF_ERR_ABORT(RC_USER)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -472,14 +457,10 @@
                            ,exportState=NEMS_EXP_STATE                  &  !<-- The NEMS export state
                            ,clock      =CLOCK_MAIN                      &  !<-- The ESMF clock
                            ,phase      =1                               &
-#ifndef ESMF_3
                            ,userRc     =RC_USER                         &
-#endif
                            ,rc         =RC)
       ESMF_ERR_ABORT(RC)
-#ifndef ESMF_3
       ESMF_ERR_ABORT(RC_USER)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -566,14 +547,10 @@
                                 ,exportState=NEMS_EXP_STATE             &  !<-- The NEMS component export state
                                 ,clock      =CLOCK_MAIN                 &  !<-- The Main ESMF clock
                                 ,phase      =1                          &
-#ifndef ESMF_3
                                 ,userRc     =RC_USER                    &
-#endif
                                 ,rc         =RC)
       ESMF_ERR_ABORT(RC)
-#ifndef ESMF_3
       ESMF_ERR_ABORT(RC_USER)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -641,3 +618,15 @@
       END PROGRAM MAIN_NEMS
 !
 !-----------------------------------------------------------------------
+
+
+#ifndef IBM
+        REAL(8) FUNCTION RTC()
+          RTC = 0.d0
+        END FUNCTION
+
+        REAL(8) FUNCTION TIMEF()
+          TIMEF = 0.d0
+        END FUNCTION
+#endif
+

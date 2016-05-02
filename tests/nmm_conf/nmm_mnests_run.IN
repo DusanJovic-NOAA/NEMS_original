@@ -29,6 +29,7 @@ cp IGBP_VEGPARM.TBL VEGPARM.TBL
 cp IGBP_LANDUSE.TBL LANDUSE.TBL
 cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
 
+cp $SRCDIR/tests/nems.configure nems.configure
 cp $SRCDIR/tests/atmos.configure atmos.configure
 cp $SRCDIR/tests/configure_file_0* .
 cp configure_file_01 model_configure

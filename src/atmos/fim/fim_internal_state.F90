@@ -1,6 +1,6 @@
       MODULE module_FIM_INTERNAL_STATE
 
-      USE ESMF_MOD
+      USE ESMF
 
       IMPLICIT NONE
 

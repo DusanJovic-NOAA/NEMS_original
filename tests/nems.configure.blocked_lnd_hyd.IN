@@ -1,0 +1,32 @@
+#############################################
+####  NEMS Run-Time Configuration File  #####
+#############################################
+# EARTH #
+EARTH_component_list: LND HYD
+EARTH_attributes::
+  Verbosity = max
+::
+
+# LND #
+LND_model:                      _lnd_model_
+LND_petlist_bounds:             _lnd_petlist_bounds_
+LND_attributes::
+  Verbosity = max
+::
+
+# HYD #
+HYD_model:                      _hyd_model_
+HYD_petlist_bounds:             _hyd_petlist_bounds_
+HYD_attributes::
+  Verbosity = max
+::
+
+# Run Sequence #
+runSeq::
+  @_coupling_interval_sec_
+    LND -> HYD :remapMethod=bilinear
+    HYD -> LND :remapMethod=bilinear
+    LND
+    HYD
+  @
+::

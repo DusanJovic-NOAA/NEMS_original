@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# This script is responsible for loading modules that are compatible with
+# the NUOPC Layer version used in NEMS.
+
+# Yellostone does not have recent enough ESMF modules officially installed,
+# and the default ESMF module conflicts with a custom ESMF module directory
+
+source /etc/profile
+module purge
+module load ncarenv/1.0 ncarbinlibs/1.1 intel/15.0.0 ncarcompilers/1.0 netcdf/4.3.0 mkl/11.1.2 impi/4.0.3.008 subversion/1.8.9
+module use /glade/p/work/drosen/modulefiles/yellowstone
+module load esmf_drosen/7.0.0
+module load jasper/1.900.1 gribapi/1.12.3

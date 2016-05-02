@@ -1,0 +1,39 @@
+###############################################################################
+#
+# TEST   - stand-alone HYCOM
+#        - 6h intervals
+#        - Starting at 0, running for 6 days and 6h
+#
+###############################################################################
+
+export TEST_DESCR="NUOPC: HYCOM stand-alone from data with 6h intervals"
+
+# - gsm configuration ---
+export_gsm
+export TASKS=40
+export WLCLK=30
+export NHRS=150
+
+# - nems.configure ---
+export_nems
+export nems_configure=ocn
+export ocn_model=hycom
+export ocn_petlist_bounds="0 39"
+export coupling_interval_sec=21600.0
+
+# - component specific setup calls ---
+setup_hycom_Core2-0.72
+ln -s ${RUNDIR}/patch.input_040 ${RUNDIR}/patch.input
+
+# -
+if [ $MACHINE_ID = linux_gnu ] ; then  
+  RUN_SCRIPT=run.sh
+else
+  RUN_SCRIPT=rt_gfs.sh
+fi
+
+# - validation
+export CNTL_DIR=adhoc_sbys_hycom%core2%0.72_V0001
+export LIST_FILES="summary_out \
+  archv.0001_001_00.a archv.0001_001_00.b archv.0001_001_00.txt \
+  archv.0001_006_00.a archv.0001_006_00.b archv.0001_006_00.txt "

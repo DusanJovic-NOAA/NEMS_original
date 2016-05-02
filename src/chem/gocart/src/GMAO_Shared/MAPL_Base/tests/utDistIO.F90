@@ -6,7 +6,7 @@
 
    Program utDistIO
 
-   use ESMF_Mod
+   use ESMF
 
    use GEOS_BaseMod
    use GEOS_CommsMod

@@ -110,7 +110,7 @@ fi
  export NGRID_A2OI=${NGRID_A2OI:-48}
  export A2OI_OUT=_A2OI_OUT_
  export A2OI_OUT=${A2OI_OUT:-.false.}
- # export CPLFLX=.true.
+ export CPLFLX=_CPLFLX_
  export CPLFLX=${CPLFLX:-.false.}
 
  export CLIMATE=${CLIMATE:-.false.}
@@ -181,7 +181,7 @@ fi
  export fcst_begin=_FCST_BEGIN_
  export fcst_begin=${fcst_begin:-YES}
 #read one time step input data
- export FHROT=_FHROT_
+# export FHROT=_FHROT_
 # restart file output frequency
  export FHRES=_FHRES_
  export FHOUT=_FHOUT_
@@ -267,7 +267,6 @@ export WRITE_DOPOST=_wrtdopost_
 export POST_GRIBVERSION=_postgrbvs_
 export GOCART_AER2POST=_aer2post_
 export liope=.false.
-if [[ $QUILTING = .true. ]] ; then export liope=.true. ; fi
 export NTHREADS=_THRDS_
 export MP_STDOUTMODE=ordered
 export MP_LABELIO=yes
@@ -308,7 +307,9 @@ fi
 #    needs to be specified. ndays is the Length of #orecast in days
 #    begining from nhourb
 #
-export ndays=_NDAYS_
+NDAYS=_NDAYS_
+ndays=${NDAYS:-0}
+NHRS=_NHRS_
 export restart_ndays=${restart_ndays:-1}
 if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
@@ -335,7 +336,7 @@ export nhours=`expr $ndays \* 24`
 export ntrc=3  ; export varid=21  ; export numcld=1
 #
 #
-export fmax=$nhours
+export fmax=${NHRS:-$nhours}
 export fout=3
 export fzer=6
 export fcyc=_fcyc_
@@ -400,7 +401,6 @@ fi
 srcdir=_PATHTR_
 export FCSTSCRIPT=$srcdir/tests/exglobal_fcst_nems.sh
 export FCSTEXEC=$srcdir/exe/NEMS.x
-#jw export FCSTEXEC=/ptmpp2/Jun.Wang/test/trunk/exe/NEMS.x
 
 export CONFIG=${GSM_CONFIG:-$srcdir/tests/gsm_config}
 set -a;. $CONFIG;set +a
@@ -528,7 +528,7 @@ if [[ $nhourb -lt $nhours ]] ; then
   export FHDFI=$fdfi
   export FHLWR=${FHLWR:-3600}
   export FHSWR=${FHSWR:-3600}
-  export FHMAX=$nhours
+  export FHMAX=${NHRS:-$nhours}
   export FHRES=${FHRES:-$FHMAX}
   export FHROT=${FHROT:-0}
   export FHOUT_HF=_FHOUTHF_

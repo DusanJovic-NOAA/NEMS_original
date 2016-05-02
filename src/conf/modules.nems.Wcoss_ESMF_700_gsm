@@ -1,0 +1,4 @@
+module purge
+module load EnvVars/1.0.0 ibmpe lsf ics/14.0.1 NetCDF/4.2/serial
+module use /nems/save/Patrick.Tripp/modulefiles
+module load esmf/7.0.0

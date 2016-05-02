@@ -662,7 +662,7 @@
       real(kind=kind_phys), dimension(im), optional,  intent(inout) ::  &
 ! for A/O/I coupling
      &      dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 &
-     &      dlwsfc_cpl,dswsfc_cpl,rain_cpl,snow_cpl,                    &
+     &      dlwsfc_cpl,dswsfc_cpl,rain_cpl,  snow_cpl,                  &
      &      dnirbm_cpl,dnirdf_cpl,dvisbm_cpl,dvisdf_cpl,                &
      &      nlwsfc_cpl,nswsfc_cpl,                                      &
      &      nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,                &
@@ -807,7 +807,8 @@
 !     do i=1, ntrac-ncld-1
 !       fscav(i) = 0.
 !     enddo
- 
+
+
 
 !  --- ...  set up check print point (for debugging)
 !
@@ -2197,7 +2198,6 @@
 !     write(0,*)' aft shoc gu0=',gu0(1,:),' lat=',lat
 !
       endif   ! if(do_shoc)
-      
 
 !  --- ...  calling convective parameterization
 !
@@ -2228,7 +2228,7 @@
 !    &,                     ' lprnt=',lprnt
 
         if(cscnv) then    ! Chikira-Sugiyama                            !DD
-           
+
 !         fscav(:) = 0.0
 !         fswtr(:) = 0.0
           call cs_convr(                                                & !DD
@@ -2262,7 +2262,7 @@
 !         if  (lprnt) write(0,*) ' calling ras for kdt=',kdt,' me=',me    &
 !    &,                       ' lprnt=',lprnt,' ccwfac=',ccwfac(ipr)
 
-          call rascnv(im,    ix,    levs,   dtp, dtf, rann                &
+          call rascnv(im,     ix,    levs,   dtp, dtf, rann               &
      &,               gt0,    gq0,   gu0,    gv0, clw, tottracer, fscav   &
      &,               prsi,   prsl,   prsik,  prslk, phil,  phii          &
      &,               kpbl,   cd,     rain1,  kbot,  ktop,  kcnv          &

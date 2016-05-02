@@ -16,7 +16,9 @@
 . /usrx/local/Modules/3.2.9/init/bash
  module purge
  module load ibmpe lsf
- module load ics/14.0.1 NetCDF/4.2/serial ESMF/630rp1
+ module load ics/14.0.1 NetCDF/4.2/serial
+ module use /nems/save/Patrick.Tripp/modulefiles
+ module load esmf/7.0.0
  export FCST_LAUNCHER=mpirun.lsf
  export OMP_NUM_THREADS=_THRDS_
  export MP_MPILIB=mpich2

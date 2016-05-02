@@ -3,31 +3,33 @@
 HOSTNAME='hostname -f'
 export ACCNR=${ACCNR:-nems}
 
+MACHINE_ID=linux_gnu  ## default
+
 case `$HOSTNAME` in
 
-  g10a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre 1
-  g10a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre 2
-  g14a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre 3
-  g14a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre 4
+  g10a1.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=1;; ### gyre 1
+  g10a2.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=1;; ### gyre 2
+  g14a1.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=1;; ### gyre 3
+  g14a2.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=1;; ### gyre 4
 
-  t10a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide 1
-  t10a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide 2
-  t14a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide 3
-  t14a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide 4
+  t10a1.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=1;; ### tide 1
+  t10a2.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=1;; ### tide 2
+  t14a1.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=1;; ### tide 3
+  t14a2.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=1;; ### tide 4
 
-  g20a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
-  g20a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
-  g20a3.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
-  g21a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
-  g21a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
-  g21a3.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### gyre phase2
+  g20a1.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### gyre phase2
+  g20a2.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### gyre phase2
+  g20a3.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### gyre phase2
+  g21a1.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### gyre phase2
+  g21a2.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### gyre phase2
+  g21a3.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### gyre phase2
 
-  t20a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
-  t20a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
-  t20a3.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
-  t21a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
-  t21a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
-  t21a3.ncep.noaa.gov)               MACHINE_ID=wcoss ;; ### tide phase2
+  t20a1.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### tide phase2
+  t20a2.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### tide phase2
+  t20a3.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### tide phase2
+  t21a1.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### tide phase2
+  t21a2.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### tide phase2
+  t21a3.ncep.noaa.gov)               MACHINE_ID=wcoss ; export pex=2;; ### tide phase2
 
   gaea1.ncrc.gov)                    MACHINE_ID=gaea ;; ### gaea1
   gaea2.ncrc.gov)                    MACHINE_ID=gaea ;; ### gaea2
@@ -50,6 +52,17 @@ case `$HOSTNAME` in
   tfe08) MACHINE_ID=theia ;; ### theia08
   tfe09) MACHINE_ID=theia ;; ### theia09
   tfe10) MACHINE_ID=theia ;; ### theia10
+
+  yslogin1)                          MACHINE_ID=yellowstone ;;
+  yslogin2)                          MACHINE_ID=yellowstone ;; 
+  yslogin3)                          MACHINE_ID=yellowstone ;;
+  yslogin4)                          MACHINE_ID=yellowstone ;;
+  yslogin5)                          MACHINE_ID=yellowstone ;;
+  yslogin6)                          MACHINE_ID=yellowstone ;;
+  yslogin7)                          MACHINE_ID=yellowstone ;;
+  yslogin8)                          MACHINE_ID=yellowstone ;;
+  yslogin9)                          MACHINE_ID=yellowstone ;;
+  yslogin10)                         MACHINE_ID=yellowstone ;;
 
 esac
 

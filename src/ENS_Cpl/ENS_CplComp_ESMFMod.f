@@ -1,13 +1,5 @@
 #include "../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#define ESMF_LogFoundAllocError ESMF_LogMsgFoundAllocError
-#else
-#define ESMF_520r
-#endif
-
 !----------------------------------------------------------------------
 ! !MODULE: ENS_CplComp_ESMFMod
 !        --- ESMF coupler gridded component of the EARTH Ensemble 
@@ -100,21 +92,9 @@
      CALL ESMF_LogWrite("Set Entry Point for Cpl Initialize",             &
                         ESMF_LOGMSG_INFO, rc = rc1)
  CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_INITIALIZE, Cpl_Initialize,   &
-#ifdef ESMF_3
-                                 ESMF_SINGLEPHASE,rc1)
-#else
-#ifdef ESMF_520r
-                                 phase = 1, rc = rc1)
-#else
-                                 phase=ESMF_SINGLEPHASE,rc= rc1)
-#endif
-#endif
+                                 rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Set Entry Point for Cpl Initialize")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Set Entry Point for Cpl Initialize")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Setting the Entry Point for Cpl Initialize, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -124,21 +104,9 @@
                         ESMF_LOGMSG_INFO, rc = rc1)
 
  CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_RUN, Cpl_Run,        &
-#ifdef ESMF_3
-                                 ESMF_SINGLEPHASE,rc1)
-#else
-#ifdef ESMF_520r
-                                 phase = 1, rc = rc1)
-#else
-                                 phase=ESMF_SINGLEPHASE,rc= rc1)
-#endif
-#endif
+                                 rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Set Entry Point for Cpl Run")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Set Entry Point for Cpl Run")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Setting the Entry Point for Cpl Run, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -148,21 +116,9 @@
                         ESMF_LOGMSG_INFO, rc = rc1)
 
  CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_FINALIZE, Cpl_Finalize,&
-#ifdef ESMF_3
-                                 ESMF_SINGLEPHASE,rc1)
-#else
-#ifdef ESMF_520r
-                                 phase = 1, rc = rc1)
-#else
-                                 phase=ESMF_SINGLEPHASE,rc= rc1)
-#endif
-#endif
+                                 rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Set Entry Point for Cpl Finalize")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Set Entry Point for Cpl Finalize")) THEN
-#endif
          rc = ESMF_FAILURE
          PRINT*, 'Error Happened When Setting the Entry Point for Cpl Finalize, rc = ', rc1
      END IF
@@ -239,11 +195,7 @@
 
  ALLOCATE(Cpl_Int_State, stat = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundAllocError(rc1, msg=" - Allocate the Cpl Internal State")) THEN
-#else
-     IF(ESMF_LogFoundAllocError(rc1,     " - Allocate the Cpl Internal State")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Allocating the Cpl Internal State, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -258,11 +210,7 @@
 
  CALL ESMF_CplCompSetInternalState(CplENS, wrap, rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Set Up the  EARTH Ensemble coupler Internal State")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Set Up the  EARTH Ensemble coupler Internal State")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Setting Up the  EARTH Ensemble coupler Internal State, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -274,11 +222,7 @@
 
  CALL ESMF_VMGetGlobal(vm, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get the VM")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get the VM")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting the VM, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -294,11 +238,7 @@
                      rc       = rc1)
  Cpl_Int_State%mm1 = Cpl_Int_State%me + 1
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get me and NODES from VM")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get me and NODES from VM")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting me and NODES from VM, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -340,11 +280,7 @@
 
  CALL ESMF_ConfigDestroy(Cf, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get parameters from the configure file")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get parameters from the configure file")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting parameters from the configure file, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -388,11 +324,7 @@
              CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
              CALL ESMF_StateGet(exp_gfs,   "GFS dynamics export", exp_ENS_dyn, rc = rc1)
 
-#ifdef ESMF_520r
              IF(ESMF_LogFoundError(rc1, msg="Get the nested state from the import ESMF state.")) THEN
-#else
-             IF(ESMF_LogFoundError(rc1,     "Get the nested state from the import ESMF state.")) THEN
-#endif
                  rcfinal = ESMF_FAILURE
                  PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
              END IF
@@ -402,11 +334,7 @@
              CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
              CALL ESMF_StateGet(imp_gfs,   "GFS dynamics import", imp_ENS_dyn, rc = rc1)
 
-#ifdef ESMF_520r
              IF(ESMF_LogFoundError(rc1, msg="Get the nested state from the export ESMF state.")) THEN
-#else
-             IF(ESMF_LogFoundError(rc1,     "Get the nested state from the export ESMF state.")) THEN
-#endif
                  rcfinal = ESMF_FAILURE
                  PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
              END IF
@@ -421,11 +349,7 @@
              CALL ESMF_StateGet(exp_EARTH, "ATM Export",          exp_atmos,   rc = rc1)
              CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
 
-#ifdef ESMF_520r
              IF(ESMF_LogFoundError(rc1, msg="Get the nested state from the import ESMF state.")) THEN
-#else
-             IF(ESMF_LogFoundError(rc1,     "Get the nested state from the import ESMF state.")) THEN
-#endif
                  rcfinal = ESMF_FAILURE
                  PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
              END IF
@@ -434,11 +358,7 @@
              CALL ESMF_StateGet(imp_EARTH, "ATM Import",          imp_atmos,   rc = rc1)
              CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
 
-#ifdef ESMF_520r
              IF(ESMF_LogFoundError(rc1, msg="Get the nested state from the export ESMF state.")) THEN
-#else
-             IF(ESMF_LogFoundError(rc1,     "Get the nested state from the export ESMF state.")) THEN
-#endif
                  rcfinal = ESMF_FAILURE
                  PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
              END IF
@@ -496,11 +416,7 @@
 
  CALL ENS_GetParameterFromState(exp_ENS_dyn, Cpl_Int_State, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get the parameters from the ESMF state.")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get the parameters from the ESMF state.")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting the parameters from the ESMF state, rc = ', rc1
      END IF
@@ -530,11 +446,7 @@
 
  CALL ENS_Cpl_InternalState2ESMFExportState(exp_ENS_dyn, imp_ENS_dyn, Cpl_Int_State, rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Cpl Internal State to ESMF Export State")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Cpl Internal State to ESMF Export State")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Cpl Setting up the ESMF Export State, rc = ', rc1
      END IF
@@ -684,12 +596,7 @@
                         ESMF_LOGMSG_INFO, rc = rc1)
  CALL ESMF_CplCompGetInternalState(CplENS, wrap, rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get the Internal State in the Cpl Run Routine")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Get the Internal State in the Cpl Run Routine")) THEN
-#endif
-
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Getting the Internal State in Cpl Run Routine, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -711,11 +618,7 @@
              CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
              CALL ESMF_StateGet(exp_gfs,   "GFS dynamics export", exp_ENS_dyn, rc = rc1)
 
-#ifdef ESMF_520r
              IF(ESMF_LogFoundError(rc1, msg="Get the nested state from the import ESMF state.")) THEN
-#else
-             IF(ESMF_LogFoundError(rc1,     "Get the nested state from the import ESMF state.")) THEN
-#endif
                  rcfinal = ESMF_FAILURE
                  PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
              END IF
@@ -725,11 +628,7 @@
              CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
              CALL ESMF_StateGet(imp_gfs,   "GFS dynamics import", imp_ENS_dyn, rc = rc1)
 
-#ifdef ESMF_520r
              IF(ESMF_LogFoundError(rc1, msg="Get the nested state from the export ESMF state.")) THEN
-#else
-             IF(ESMF_LogFoundError(rc1,     "Get the nested state from the export ESMF state.")) THEN
-#endif
                  rcfinal = ESMF_FAILURE
                  PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
              END IF
@@ -744,11 +643,7 @@
              CALL ESMF_StateGet(exp_EARTH, "ATM Export",          exp_atmos,   rc = rc1)
              CALL ESMF_StateGet(exp_atmos, "CORE Export",         exp_gfs,     rc = rc1)
 
-#ifdef ESMF_520r
              IF(ESMF_LogFoundError(rc1, msg="Get the nested state from the import ESMF state.")) THEN
-#else
-             IF(ESMF_LogFoundError(rc1,     "Get the nested state from the import ESMF state.")) THEN
-#endif
                  rcfinal = ESMF_FAILURE
                  PRINT*, 'Error Happened When Getting the nested state from the import ESMF state, rc = ', rc1
              END IF
@@ -757,11 +652,7 @@
              CALL ESMF_StateGet(imp_EARTH, "ATM Import",          imp_atmos,   rc = rc1)
              CALL ESMF_StateGet(imp_atmos, "CORE Import",         imp_gfs,     rc = rc1)
 
-#ifdef ESMF_520r
              IF(ESMF_LogFoundError(rc1, msg="Get the nested state from the export ESMF state.")) THEN
-#else
-             IF(ESMF_LogFoundError(rc1,     "Get the nested state from the export ESMF state.")) THEN
-#endif
                  rcfinal = ESMF_FAILURE
                  PRINT*, 'Error Happened When Getting the nested state from the export ESMF state, rc = ', rc1
              END IF
@@ -782,11 +673,7 @@
 
  CALL ENS_Cpl_ESMFImportState2InternalState(exp_ENS_dyn, Cpl_Int_State, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="ESMF import State to the Cpl Internal State")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "ESMF import State to the Cpl Internal State")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Moving the ESMF import State to the Cpl Internal State, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -799,11 +686,7 @@
  CALL ESMF_VMBarrier(vm, rc = rc1)
  CALL ENS_Cpl_Run(exp_ENS_dyn, clock, Cpl_Int_State,  rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Run the ENS_Cpl_Run")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Run the ENS_Cpl_Run")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Running the ENS_Cpl_Run, rc = ', rc1
          rc1 = ESMF_SUCCESS
@@ -821,11 +704,7 @@
  CALL ESMF_VMBarrier(vm, rc = rc1)
  CALL ENS_Cpl_InternalState2ESMFExportState(exp_ENS_dyn, imp_ENS_dyn, Cpl_Int_State, rc = rc1)
 
-#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Cpl Internal State to ESMF Export State")) THEN
-#else
-     IF(ESMF_LogFoundError(rc1,     "Cpl Internal State to ESMF Export State")) THEN
-#endif
          rcfinal = ESMF_FAILURE
          PRINT*, 'Error Happened When Cpl Setting up the ESMF Export State, rc = ', rc1
      END IF
@@ -897,11 +776,7 @@
 
 !CALL ESMF_CplCompGetInternalState(CplENS, wrap, rc1)
 
-!#ifdef ESMF_520r
 !    IF(ESMF_LogFoundError(rc1, msg="Get the Internal State in the Cpl Finalize Routine")) THEN
-!#else
-!    IF(ESMF_LogFoundError(rc1,     "Get the Internal State in the Cpl Finalize Routine")) THEN
-!#endif
 !        rcfinal = ESMF_FAILURE
 !        PRINT*, 'Error Happened When Getting the Internal State in Cpl FInalize Routine, rc = ', rc1
 !    END IF

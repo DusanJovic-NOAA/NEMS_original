@@ -1,11 +1,5 @@
 #include "../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_GFS_WRITE
@@ -28,7 +22,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE MODULE_IO_MPI_DEF, ONLY :   MPI_COMM_INTER_ARRAY,   &
                                       N_GROUP,                &
@@ -136,9 +130,6 @@
                                         ,importstate=IMP_STATE_WRITE  &  !<-- The Write import state
                                         ,exportstate=EXP_STATE_WRITE  &  !<-- The Write export state
                                         ,clock      =CLOCK_GFS                      &  !<-- The ESMF clock of the ATM component
-#ifndef ESMF_520r
-                                        ,phase      =ESMF_SINGLEPHASE               &
-#endif
                                         ,rc         =RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -280,9 +271,6 @@
                                ,importState=IMP_STATE_WRITE &  !<-- Its import state
                                ,exportState=EXP_STATE_WRITE &  !<-- Its export state
                                ,clock      =CLOCK_GFS                     &  !<-- The ATM Clock
-#ifndef ESMF_520r
-                               ,phase      =ESMF_SINGLEPHASE              &
-#endif
                                ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -484,11 +472,7 @@
 !
         CALL ESMF_GridCompSetServices(WRT_COMPS(I)         &  !<-- The Write gridded components
                                      ,WRITE_REGISTER_GFS   &  !<-- The user's subroutine name
-#ifdef ESMF_3
-                                     ,RC)
-#else
                                      ,rc=RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -505,11 +489,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IMP_STATE_WRITE=ESMF_StateCreate(STATENAME   = 'Write Import State'    &  !<-- Import state name for writes
+      IMP_STATE_WRITE=ESMF_StateCreate(name   = 'Write Import State'    &  !<-- Import state name for writes
                                       ,stateintent = ESMF_STATEINTENT_IMPORT &
                                       ,rc          = RC)
 !
-      EXP_STATE_WRITE=ESMF_StateCreate(STATENAME   = 'Write Export State'    &  !<-- Export state names for writes
+      EXP_STATE_WRITE=ESMF_StateCreate(name   = 'Write Export State'    &  !<-- Export state names for writes
                                       ,stateintent = ESMF_STATEINTENT_EXPORT &
                                       ,rc          = RC)
 !
@@ -528,9 +512,9 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(            EXP_STATE_DYN        & !<-- Dynamics export state receives a state
-                        ,   LISTWRAPPER(IMP_STATE_WRITE)  & !<-- Add the write components' import state
-                        ,rc         =RC)
+      CALL ESMF_StateAddReplace(EXP_STATE_DYN        & !<-- Dynamics export state receives a state
+                               ,(/IMP_STATE_WRITE/)  & !<-- Add the write components' import state
+                               ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -543,9 +527,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(            EXP_STATE_PHY        & !<-- Physics export state receives a state
-                          ,LISTWRAPPER(IMP_STATE_WRITE)     & !<-- Add the write components' import state
-                          ,rc         =RC)
+        CALL ESMF_StateAddReplace(EXP_STATE_PHY        & !<-- Physics export state receives a state
+                                 ,(/IMP_STATE_WRITE/)  & !<-- Add the write components' import state
+                                 ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -640,9 +624,6 @@
                                      ,importstate=IMP_STATE_WRITE &
                                      ,exportstate=EXP_STATE_WRITE &
                                      ,clock      =CLOCK_GFS       &
-#ifndef ESMF_520r
-                                     ,phase      =ESMF_SINGLEPHASE &
-#endif
                                      ,rc         =RC)
         ENDIF
       ENDDO

@@ -1,0 +1,41 @@
+#############################################
+####  NEMS Run-Time Configuration File  #####
+#############################################
+
+# EARTH #
+EARTH_component_list: ATM OCN ICE
+EARTH_attributes::
+  Verbosity = max
+::
+
+# ATM #
+ATM_model:                      _atm_model_
+ATM_petlist_bounds:             _atm_petlist_bounds_
+ATM_attributes::
+  Verbosity = max
+::
+
+# OCN #
+OCN_model:                      _ocn_model_
+OCN_petlist_bounds:             _ocn_petlist_bounds_
+OCN_attributes::
+  Verbosity = max
+::
+
+# ICE #
+ICE_model:                      _ice_model_
+ICE_petlist_bounds:             _ice_petlist_bounds_
+ICE_attributes::
+  Verbosity = max
+::
+
+# Run Sequence #
+runSeq::
+  @_coupling_interval_slow_sec_
+    OCN
+    @_coupling_interval_fast_sec_
+      ATM
+      ICE
+    @
+  @
+::

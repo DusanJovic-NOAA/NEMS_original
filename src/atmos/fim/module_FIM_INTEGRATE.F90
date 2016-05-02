@@ -1,5 +1,5 @@
 module module_FIM_INTEGRATE
-  use esmf_mod
+  use ESMF
   use module_err_msg
 
   ! TODO:  move this to internal state

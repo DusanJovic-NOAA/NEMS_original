@@ -1,11 +1,5 @@
 #include "../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_GRID_COMP_GFS
@@ -45,7 +39,7 @@
 !
 !---------------------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
       USE MODULE_WRITE_INTERNAL_STATE_GFS
       USE MODULE_WRITE_ROUTINES_GFS,ONLY : FIRST_PASS_GFS               &
                                           ,WRITE_NEMSIO_OPEN 
@@ -152,18 +146,7 @@
       CALL ESMF_GridCompSetEntryPoint(WRT_COMP                          &  !<-- The write component
                                      ,ESMF_METHOD_INITIALIZE            &  !<-- Predefined subroutine type (INIT)
                                      ,WRT_INITIALIZE_GFS                &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
-                                     ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -179,18 +162,7 @@
       CALL ESMF_GridCompSetEntryPoint(WRT_COMP                          &  !<-- The write component
                                      ,ESMF_METHOD_RUN                   &  !<-- Predefined subroutine type (INIT)
                                      ,WRT_RUN_GFS                       &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
-                                     ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -206,18 +178,7 @@
       CALL ESMF_GridCompSetEntryPoint(WRT_COMP                          &  !<-- The write component
                                      ,ESMF_METHOD_FINALIZE              &  !<-- Predefined subroutine type (INIT)
                                      ,WRT_FINALIZE_GFS                       &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,ESMF_SINGLEPHASE                   &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
-                                     ,phase=1                           &
                                      ,rc=RC)
-#else
-                                    ,phase=ESMF_SINGLEPHASE             &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -673,7 +634,7 @@
       TYPE(ESMF_LOGICAL),DIMENSION(:),POINTER :: FIRST_IO_PE
       TYPE(ESMF_Time)                         :: CURRTIME
 !
-      TYPE(ESMF_TypeKind)      :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag)                :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !

@@ -1,0 +1,77 @@
+#############################################
+####  NEMS Run-Time Configuration File  #####
+#############################################
+
+# EARTH #
+EARTH_component_list: MED ATM LND ICE OCN HYD
+EARTH_attributes::
+  Verbosity = max
+::
+
+# MED #
+MED_model:                      _med_model_
+MED_petlist_bounds:             _med_petlist_bounds_
+MED_attributes::
+  Verbosity = 0
+  DumpFields = false
+  DumpRHs = false
+::
+
+# ATM #
+ATM_model:                      _atm_model_
+ATM_petlist_bounds:             _atm_petlist_bounds_
+ATM_attributes::
+  Verbosity = max
+::
+
+# LND #
+LND_model:                      _lnd_model_
+LND_petlist_bounds:             _lnd_petlist_bounds_
+LND_attributes::
+  Verbosity = max
+::
+
+# ICE #
+ICE_model:                      _ice_model_
+ICE_petlist_bounds:             _ice_petlist_bounds_
+ICE_attributes::
+  Verbosity = max
+::
+
+# OCN #
+OCN_model:                      _ocn_model_
+OCN_petlist_bounds:             _ocn_petlist_bounds_
+OCN_attributes::
+  Verbosity = max
+::
+
+# HYD #
+HYD_model:                      _hyd_model_
+HYD_petlist_bounds:             _hyd_petlist_bounds_
+HYD_attributes::
+  Verbosity = max
+::
+
+# Run Sequence #
+runSeq::
+  @_coupling_interval_slow_sec_
+    OCN -> MED :remapMethod=redist
+    MED MedPhase_slow
+    MED -> OCN :remapMethod=redist
+    OCN
+    @_coupling_interval_fast_sec_
+      MED MedPhase_fast_before
+      MED -> ATM :remapMethod=redist
+      MED -> ICE :remapMethod=redist
+      MED -> HYD :remapMethod=redist
+      ATM
+      LND
+      HYD
+      ICE
+      ATM -> MED :remapMethod=redist
+      ICE -> MED :remapMethod=redist
+      HYD -> MED :remapMethod=redist
+      MED MedPhase_fast_after
+    @
+  @
+::

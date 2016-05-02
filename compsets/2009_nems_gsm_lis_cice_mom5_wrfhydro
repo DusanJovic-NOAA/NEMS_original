@@ -1,0 +1,156 @@
+###############################################################################
+#                   CICE  
+#                     | 1h 
+# TEST   - GSM <-> Mediator <-> MOM5
+#        -     1h   |    |  2h    coupling interval
+#        -       1h |    | 1h
+#        -         LIS  WRFHYDRO
+#        - Starting at 2009120100, running for 4 hours
+#
+###############################################################################
+
+###################
+# Display Message #
+###################
+export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> LIS <-1h-> MED <-1h-> CICE <-1h-> MED <-1h-> WRFHYDRO <-1h-> MED <-2h-> MOM5...4 hours" 
+
+#################################
+# Compset Environment Variables #
+#################################
+export_gsm
+export TASKS=110
+export WLCLK=30
+export CDATE=2009120100
+#export NDAYS=1
+export NHRS=4
+export wave=126 ; export lm=64 ; export lsoil=4
+export CPLFLX=.true.
+export A2OI_OUT=.false.
+export FHZER=1
+export FHOUT=1
+export NEMS_GRID='T126_nx1'
+
+########################################################
+# Modify NEMS Configuration: NEMS/tests/nems.configure #
+########################################################
+export_nems
+export nems_configure=med_atm_lnd_ice_ocn_hyd
+export med_model=nems
+export med_petlist_bounds="0 5"       #06
+export atm_model=gsm
+export atm_petlist_bounds="6 37"      #32
+export ocn_model=mom5
+export ocn_petlist_bounds="38 61"     #24
+export ice_model=cice
+export ice_petlist_bounds="62 65"     #04
+export lnd_model=lis
+export lnd_petlist_bounds="66 77"     #12
+export hyd_model=wrfhydro
+export hyd_petlist_bounds="78 109"    #32
+export coupling_interval_slow_sec=7200.0
+export coupling_interval_fast_sec=3600.0
+
+##################################
+# Component Specific Setup Calls #
+##################################
+setup_cice_regional(){
+  icegrid="nx1"
+  inpversion=""
+  echo "NEMS_GRID = $NEMS_GRID"
+  if [ -n "$NEMS_GRID" ] ; then
+    if [[ $NEMS_GRID = *nx1* ]] ; then
+      icegrid="nx1"
+    elif [[ $NEMS_GRID = *mx5* ]] ; then
+      icegrid="mx5"
+      inpversion="B"
+    fi
+  fi
+  echo "NEMSCompsetRun icegrid = ${icegrid}"
+  echo "NEMSCompsetRun ice inpversion = ${inpversion}"
+
+  if [ $MACHINE_ID = gaea ] ; then
+    ICE_INPUT=/lustre/f1/unswept/ncep/Gerhard.Theurich/lanl_cice_data
+  elif [ $MACHINE_ID = theia ] ; then
+    ICE_INPUT=/scratch4/NCEPDEV/nems/noscrub/Anthony.Craig/lanl_cice_data/${icegrid}${inpversion}
+  elif [ $MACHINE_ID = yellowstone ] ; then
+    ICE_INPUT=/glade/p/cgd/cseg/people/tcraig/NEMS_DATA/cice/${icegrid}${inpversion}
+  elif [ $MACHINE_ID = wcoss ] ; then
+    ICE_INPUT=/climate/noscrub/emc.climpara/Patrick/lanl_cice_data/${icegrid}${inpversion}
+  fi
+
+  dst_dir="${RUNDIR}"
+  cp -f ${ICE_INPUT}/* ${dst_dir}
+  cp -f ${ICE_INPUT}/ice_in_${icegrid} ${dst_dir}/ice_in
+
+  mkdir ${dst_dir}/restart
+  mkdir ${dst_dir}/history
+}
+
+setup_cice_regional
+setup_mom5
+if [ $MACHINE_ID = theia ] ; then
+  setup_lis "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_lis_t126/lis.config.gdas"
+  setup_wrfhydro "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro/hydro.namelist" \
+    "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro" \
+    "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro/namelist.hrldas"
+elif [ $MACHINE_ID = yellowstone ] ; then
+  setup_lis "/glade/p/work/dunlap/NEMS-DATA/2009_lis_t126/lis.config.gdas"
+  setup_wrfhydro "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro/hydro.namelist" \
+    "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro" \
+    "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro/namelist.hrldas"
+fi
+
+###########################################
+# Select Run Script: NEMS/tests/rt_gfs.sh #
+###########################################
+RUN_SCRIPT=rt_gfs.sh
+
+#####################
+# Compset Direcotry #
+#####################
+export CNTL_DIR=2009_nems_gsm_lis_cice_mom5_wrfhydro
+
+####################
+# Validation Files #
+####################
+export LIST_FILES=" \
+ array_med_hyd_grid_area.nc    \
+ array_med_hyd_grid_coord1.nc  \
+ array_med_hyd_grid_coord2.nc  \
+ array_med_hyd_grid_corner1.nc \
+ array_med_hyd_grid_corner2.nc \
+ array_med_lnd_grid_area.nc    \
+ array_med_lnd_grid_coord1.nc  \
+ array_med_lnd_grid_coord2.nc  \
+ array_med_lnd_grid_corner1.nc \
+ array_med_lnd_grid_corner2.nc "
+LIST_FILES+=" \
+ field_lis_export_mean_laten_heat_flx_atm_into_lnd.nc     \
+ field_lis_export_mean_sensi_heat_flx_atm_into_lnd.nc     \
+ field_lis_export_temperature_of_soil_layer_1.nc          \
+ field_lis_export_temperature_of_soil_layer_2.nc          \
+ field_lis_export_temperature_of_soil_layer_3.nc          \
+ field_lis_export_temperature_of_soil_layer_4.nc          \
+ field_lis_import_inst_down_lw_flx.nc                     \
+ field_lis_import_inst_down_sw_flx.nc                     \
+ field_lis_import_inst_merid_wind_height_lowest.nc        \
+ field_lis_import_inst_pres_height_surface.nc             \
+ field_lis_import_inst_spec_humid_height_lowest.nc        \
+ field_lis_import_inst_temp_height_lowest.nc              \
+ field_lis_import_inst_zonal_wind_height_lowest.nc        \
+ field_lis_import_liquid_water_content_of_soil_layer_1.nc \
+ field_lis_import_liquid_water_content_of_soil_layer_2.nc \
+ field_lis_import_liquid_water_content_of_soil_layer_3.nc \
+ field_lis_import_liquid_water_content_of_soil_layer_4.nc \
+ field_lis_import_mean_prec_rate.nc                       "
+LIST_FILES+=" \
+ field_wrfhydro_export_liquid_water_content_of_soil_layer_1.nc \
+ field_wrfhydro_export_liquid_water_content_of_soil_layer_2.nc \
+ field_wrfhydro_export_liquid_water_content_of_soil_layer_3.nc \
+ field_wrfhydro_export_liquid_water_content_of_soil_layer_4.nc \
+ field_wrfhydro_import_inst_down_lw_flx.nc                     \
+ field_wrfhydro_import_inst_down_sw_flx.nc                     \
+ field_wrfhydro_import_temperature_of_soil_layer_1.nc          \
+ field_wrfhydro_import_temperature_of_soil_layer_2.nc          \
+ field_wrfhydro_import_temperature_of_soil_layer_3.nc          \
+ field_wrfhydro_import_temperature_of_soil_layer_4.nc          "

@@ -1,0 +1,56 @@
+###############################################################################
+#
+# TEST   - LIS <-> Mediator <-> WRFHYDRO
+#        -     1h           2h    coupling interval
+#
+#        - Starting at 2009120100, running for 4 hours
+#
+###############################################################################
+
+export TEST_DESCR="NUOPC: LIS <-1h-> MED <-1h> WRFHYDRO ...4 hours" 
+
+# - configuration ---
+export_gsm
+export TASKS=50
+export WLCLK=30
+export CDATE=2009120100
+#export NDAYS=1
+export NHRS=4
+export wave=126 ; export lm=64 ; export lsoil=4
+export CPLFLX=.true.
+export A2OI_OUT=.true.
+export FHZER=1
+export FHOUT=1
+
+
+# - nems.configure ---
+export_nems
+export nems_configure=med_lnd_hyd
+export lnd_model=lis
+export lnd_petlist_bounds="0 11"
+export hyd_model=wrfhydro
+export hyd_petlist_bounds="18 49"
+export med_model=nems
+export med_petlist_bounds="12 17"
+export coupling_interval_slow_sec=7200.0
+export coupling_interval_fast_sec=3600.0
+
+# - component specific setup calls ---
+if [ $MACHINE_ID = theia ] ; then
+  setup_lis "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_lis_t126/lis.config.gdas"
+  setup_wrfhydro "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro/hydro.namelist" \
+    "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro" \
+    "/scratch4/NCEPDEV/nems/noscrub/Daniel.Rosen/2009_wrfhydro/namelist.hrldas"
+elif [ $MACHINE_ID = yellowstone ] ; then
+  setup_lis "/glade/p/work/dunlap/NEMS-DATA/2009_lis_t126/lis.config.gdas"
+  setup_wrfhydro "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro/hydro.namelist" \
+    "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro" \
+    "/glade/p/work/dunlap/NEMS-DATA/2009_wrfhydro/namelist.hrldas"
+fi
+
+# - 
+RUN_SCRIPT=rt_gfs.sh
+
+# - validation
+export CNTL_DIR=2009_nems_gsm_cice_mom5
+export LIST_FILES=" "

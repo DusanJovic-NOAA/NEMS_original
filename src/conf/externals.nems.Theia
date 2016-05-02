@@ -1,10 +1,11 @@
-# Location of external components on Gaea
+# Location of external components on Theia
 
 SATM_DIR=
 XATM_DIR=
 SLND_DIR=
 XLND_DIR=
-LIS_DIR=
+NOAH_DIR=
+NOAHMP_DIR=
 SICE_DIR=
 XICE_DIR=
 CICE_DIR=
@@ -22,3 +23,4 @@ IPE_DIR=
 SHYD_DIR=
 XHYD_DIR=
 WRFHYDRO_DIR=
+LIS_DIR=

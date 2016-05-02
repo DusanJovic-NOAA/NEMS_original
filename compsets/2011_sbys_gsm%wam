@@ -7,12 +7,6 @@
 
 export TEST_DESCR="NUOPC: GSM%WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting"
 
-# -
-export CNTL_DIR=2011_sbys_gsm%wam
-export LIST_FILES="sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-                   sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-                   flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-
 # - gsm configuration ---
 export_gsm
 export CDATE=2011092300
@@ -38,3 +32,9 @@ export coupling_interval_sec=43200.0
 
 # -
 RUN_SCRIPT=rt_gfs.sh
+
+# - validation
+export CNTL_DIR=2011_sbys_gsm%wam_V0001
+export LIST_FILES="sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+                   sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+                   flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"

@@ -33,7 +33,7 @@ export ocn_petlist_bounds="32 55"
 export coupling_interval_sec=7200.0
 
 # - component specific setup calls ---
-setup_mom5cice
+setup_mom5
 
 # -
 RUN_SCRIPT=rt_gfs.sh

@@ -24,6 +24,7 @@ fi
  export EXPLICIT=.false.
 
  export ADIABATIC=_ADIABATIC_
+ export ADIABATIC=${ADIABATIC:-.false.}
 
  export NST_FCST=_NSTFCST_           # 0 (am), 1(am,nst) and 2(cpld nstnst)
  export NST_SPINUP=_NSTSPINUP_       # 0 (nst_ini availabe); 1 ( generate nst_ini)
@@ -62,7 +63,7 @@ fi
  export NGRID_A2OI=${NGRID_A2OI:-48}
  export A2OI_OUT=_A2OI_OUT_
  export A2OI_OUT=${A2OI_OUT:-.false.}
-#export CPLFLX=.true.
+ export CPLFLX=_CPLFLX_
  export CPLFLX=${CPLFLX:-.false.}
 
  export CLIMATE=${CLIMATE:-.false.}
@@ -261,7 +262,9 @@ fi
 #    needs to be specified. ndays is the Length of #orecast in days
 #    begining from nhourb
 #
-export ndays=_NDAYS_
+NDAYS=_NDAYS_
+ndays=${NDAYS:-0}
+NHRS=_NHRS_
 export restart_ndays=${restart_ndays:-1}
 if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
@@ -290,7 +293,7 @@ export nhours=`expr $ndays \* 24`
 export ntrc=3  ; export varid=21  ; export numcld=1
 #
 #
-export fmax=$nhours
+export fmax=${NHRS:-$nhours}
 export fout=3
 export fzer=6
 export fcyc=0
@@ -348,7 +351,7 @@ else
 fi
 
 #
-#     Forecaset script and executable name
+#     Forecast script and executable name
 #
 srcdir=_PATHTR_
 export FCSTSCRIPT=$srcdir/tests/exglobal_fcst_nems.sh
@@ -387,6 +390,7 @@ elif [ $SCHEDULER = 'lsf' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am}
    export FCST_LAUNCHER=mpirun.lsf
 fi
+
 #export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
  export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
  export FIX_IDEA=${FIX_IDEA:-${RTPWD}/WAM_gh_l150}
@@ -398,6 +402,8 @@ fi
  export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
  export POSTGPEXEC=$POSTGPDIR/global_postgp
  export POSTGPSH=/nwprod/ush/global_postgp.sh
+
+# export OROGRAPHY_UF=${OROGRAPHY_UF:-${FIXGLOBAL}/global_orography_uf.t${wave}.${LONR}.${LATR}.grb}
 #
 #
 # ------------------------ initial condition ----------------
@@ -485,7 +491,7 @@ if [[ $nhourb -lt $nhours ]] ; then
   export FHDFI=$fdfi
   export FHLWR=${FHLWR:-3600}
   export FHSWR=${FHSWR:-3600}
-  export FHMAX=$nhours
+  export FHMAX=${NHRS:-$nhours}
   export FHRES=${FHRES:-$FHMAX}
   export FHROT=${FHROT:-0}
 #

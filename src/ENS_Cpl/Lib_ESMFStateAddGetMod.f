@@ -1,12 +1,5 @@
 #include "../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
 !BOP
 !
 ! !MODULE: Lib_ESMFStateAddGetMod --- a class attaching a F90 array to an 
@@ -19,10 +12,10 @@
  MODULE Lib_ESMFStateAddGetMod
 
 !USES:
-  USE ESMF_Mod, ONLY :                          &
+  USE ESMF, ONLY :                              &
       ESMF_Grid,                                &
       ESMF_State,                               &
-      ESMF_StateAdd,                            &
+      ESMF_StateAddReplace,                     &
       ESMF_StateGet,                            &
       ESMF_SUCCESS,                             &
       ESMF_Field,                               &
@@ -172,7 +165,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -263,7 +256,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -354,7 +347,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -445,7 +438,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -536,7 +529,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -627,7 +620,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -716,7 +709,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -805,7 +798,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -894,7 +887,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -983,7 +976,7 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
+      CALL ESMF_StateAddReplace(state, (/ESMFField/), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -1072,15 +1065,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1092,11 +1080,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1189,15 +1173,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1209,11 +1188,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1306,15 +1281,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1326,11 +1296,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1423,15 +1389,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1443,11 +1404,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1540,15 +1497,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1560,11 +1512,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1657,15 +1605,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1677,11 +1620,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1774,15 +1713,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1794,11 +1728,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -1891,15 +1821,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1911,11 +1836,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -2008,15 +1929,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -2028,11 +1944,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2
@@ -2125,15 +2037,10 @@ CONTAINS
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
-#ifdef ESMF_520r
      CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
          rc = status)
      CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
          rc = status)
-#else
-     CALL ESMF_StateGet(state, name, ESMFField,           &
-         nestedStateName = nestedStateName, rc = status)
-#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -2145,11 +2052,7 @@ CONTAINS
 
  IF(ASSOCIATED(F90Array)) NULLIFY(F90Array)
 
-#ifdef ESMF_3
- CALL ESMF_FieldGet(ESMFField, FArray = F90Array, localDE = localDE, rc = status)
-#else
  CALL ESMF_FieldGet(ESMFField, FArrayPtr = F90Array, localDE = localDE, rc = status)
-#endif
 
  IF(status /= ESMF_SUCCESS ) THEN
      IF(PRESENT(rc)) rc = 2

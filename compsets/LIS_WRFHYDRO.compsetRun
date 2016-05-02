@@ -1,0 +1,5 @@
+### List of compsets ###
+########################
+
+2009_blocked_lis_wrfhydro               ! LIS directly connected to WRF Hydro Test. 
+#2009_nems_gsm_lis_cice_mom5_wrfhydro    ! Regional App through Mediator Test

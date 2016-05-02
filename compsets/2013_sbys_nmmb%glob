@@ -32,7 +32,7 @@ export GBRG=glob
 
 # - nems.configure ---
 export_nems
-export nems_configure=atm_nostep
+export nems_configure=atm_step
 export atm_model=nmm
 export atm_petlist_bounds="0 47"
 

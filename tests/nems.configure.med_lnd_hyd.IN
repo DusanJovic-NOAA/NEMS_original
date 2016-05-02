@@ -1,0 +1,49 @@
+#############################################
+####  NEMS Run-Time Configuration File  #####
+#############################################
+
+# EARTH #
+EARTH_component_list: MED LND HYD
+EARTH_attributes::
+  Verbosity = max
+::
+
+# MED #
+MED_model:                      _med_model_
+MED_petlist_bounds:             _med_petlist_bounds_
+MED_attributes::
+  Verbosity = 0
+  DumpFields = false
+  DumpRHs = false
+::
+
+# LND #
+LND_model:                      _lnd_model_
+LND_petlist_bounds:             _lnd_petlist_bounds_
+LND_attributes::
+  Verbosity = max
+::
+
+# HYD #
+HYD_model:                      _hyd_model_
+HYD_petlist_bounds:             _hyd_petlist_bounds_
+HYD_attributes::
+  Verbosity = max
+::
+
+# Run Sequence #
+runSeq::
+  @_coupling_interval_slow_sec_
+    MED MedPhase_slow
+    @_coupling_interval_fast_sec_
+      MED MedPhase_fast_before
+      MED -> LND :remapMethod=redist
+      MED -> HYD :remapMethod=redist
+      LND
+      HYD
+      LND -> MED :remapMethod=redist
+      HYD -> MED :remapMethod=redist
+      MED MedPhase_fast_after
+    @
+  @
+::

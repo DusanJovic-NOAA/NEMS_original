@@ -1,0 +1,33 @@
+###############################################################################
+#
+# TEST   - SATM + SICE + SOCN side-by-side
+#        - Starting at 2009120100, running for 2 days
+#
+###############################################################################
+
+export TEST_DESCR="NUOPC: SATM <-1h-> SICE <-2h-> SOCN ... 2 days"
+
+# - model_configure ---
+export TASKS=6
+export CDATE=2009120100
+export NHRS=2
+
+# - nems.configure ---
+export_nems
+export nems_configure=atm_ocn_ice
+export atm_model=satm
+export atm_petlist_bounds="0 1"
+export ocn_model=socn
+export ocn_petlist_bounds="2 3"
+export ice_model=sice
+export ice_petlist_bounds="4 5"
+export coupling_interval_slow_sec=7200.0
+export coupling_interval_fast_sec=3600.0
+
+# - run script
+RUN_SCRIPT=rt_gfs.sh
+
+# - validation
+export CNTL_DIR=testApp_sbys_satm_sice_socn
+export LIST_FILES=""
+

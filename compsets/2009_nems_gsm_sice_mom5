@@ -189,7 +189,6 @@ export CDATE=2009120100
 export NDAYS=1
 export wave=126 ; export lm=64 ; export lsoil=4
 export A2OI_OUT=.true.
-export NGRID_A2OI=41
 export FHZER=1
 export FHOUT=1
 
@@ -208,7 +207,7 @@ export coupling_interval_slow_sec=7200.0
 export coupling_interval_fast_sec=3600.0
 
 # - component specific setup calls ---
-setup_mom5cice
+setup_mom5
 
 # -
 RUN_SCRIPT=rt_gfs.sh

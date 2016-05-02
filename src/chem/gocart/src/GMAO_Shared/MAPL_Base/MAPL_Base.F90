@@ -2019,7 +2019,7 @@ and so on.
    if ( LM_World_>0 .AND. IM_World_>0 .AND. JM_World_>0 ) then 
 !ALT creat actually 2-d grid the SAME way MAPL_GridCreate
 #if 0
-        Grid = ESMF_GridCreateShapeTile (     &
+        Grid = ESMF_GridCreate (              &
                name=Name,                     &
                countsPerDEDim1=IMs,           &
                countsPerDEDim2=JMs,           &

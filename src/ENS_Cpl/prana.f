@@ -27,12 +27,12 @@ real(4),dimension(:,:),intent(OUT)    :: a
 !-----------------------------------------------------------------------------
 integer                            :: n,i,j,nrank,flip
 real(4),dimension(size(a,1),size(a,1)):: as
-real(4)                               :: det,xran
+real(4)                               :: deter,xran
 !=============================================================================
 n=size(a,1); if(size(a,2)/=n)stop 'In ranrot; incompatible dimensions'
 4 do j=1,n; do i=1,n; call gauss(as(i,j)); enddo; enddo
 print'(t5,10f7.4)',as
-call gram(as,a,nrank,det); if(nrank/=n)goto 4
+call gram(as,a,nrank,deter); if(nrank/=n)goto 4
 print *, 'nrank=',nrank
 print'(t5,10f7.4)',a
 flip=1; do j=1,n-1
@@ -48,7 +48,7 @@ real(8),dimension(:,:),intent(OUT)    :: a
 !-----------------------------------------------------------------------------
 integer                               :: n,i,j,nrank,flip,k
 real(8),dimension(size(a,1),size(a,1)):: as
-real(8)                               :: det,xran
+real(8)                               :: deter,xran
 !=============================================================================
 n=size(a,1); if(size(a,2)/=n)stop 'In ranrot; incompatible dimensions'
 4 do j=1,n; do i=1,n; call gauss(as(i,j)); enddo; enddo
@@ -59,7 +59,7 @@ n=size(a,1); if(size(a,2)/=n)stop 'In ranrot; incompatible dimensions'
 !print *,'raw variance)'
 !print'(t5,10f7.4)',a
 !a=0.0
-call gram(as,a,nrank,det); if(nrank/=n)goto 4
+call gram(as,a,nrank,deter); if(nrank/=n)goto 4
 !as=0.0
 !do j=1,n; do i=1,n; do k=1,n; as(i,j)=as(i,j)+a(k,i)*a(k,j); enddo; enddo; enddo
 !print *, 'nrank=',nrank

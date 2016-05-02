@@ -1,0 +1,75 @@
+#############################################
+####  NEMS Run-Time Configuration File  #####
+#############################################
+
+# EARTH #
+EARTH_component_list: MED ATM OCN ICE WAV
+EARTH_attributes::
+  Verbosity = max
+::
+
+# MED #
+MED_model:                      _med_model_
+MED_petlist_bounds:             _med_petlist_bounds_
+MED_attributes::
+  Verbosity = 0
+  DumpFields = true
+  DumpRHs = false
+  coldstart = false
+::
+
+# ATM #
+ATM_model:                      _atm_model_
+ATM_petlist_bounds:             _atm_petlist_bounds_
+ATM_attributes::
+  Verbosity = max
+  DumpFields = true
+::
+
+# OCN #
+OCN_model:                      _ocn_model_
+OCN_petlist_bounds:             _ocn_petlist_bounds_
+OCN_attributes::
+  Verbosity = max
+  DumpFields = true
+::
+
+# ICE #
+ICE_model:                      _ice_model_
+ICE_petlist_bounds:             _ice_petlist_bounds_
+ICE_attributes::
+  Verbosity = max
+  DumpFields = true
+::
+
+# WAV #
+WAV_model:                      _wav_model_
+WAV_petlist_bounds:             _wav_petlist_bounds_
+WAV_attributes::
+  Verbosity = max
+  DumpFields = true
+::
+
+# Run Sequence #
+runSeq::
+  @_coupling_interval_slow_sec_
+    MED MedPhase_prep_ocn
+    MED -> OCN :remapMethod=redist
+    OCN
+    @_coupling_interval_fast_sec_
+      MED MedPhase_prep_ice
+      MED MedPhase_prep_atm
+      MED -> ATM :remapMethod=redist
+      MED -> ICE :remapMethod=redist
+      ATM
+      ICE
+      ATM -> MED :remapMethod=redist
+      ICE -> MED :remapMethod=redist
+      MED MedPhase_atm_ocn_flux
+      MED MedPhase_accum_fast
+    @
+    ATM -> WAV
+    WAV
+    OCN -> MED :remapMethod=redist
+  @
+::

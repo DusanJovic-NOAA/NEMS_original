@@ -25,8 +25,9 @@ endif
 # Need a variable that contains only a comma for some of the operations below
 COMMA := ,
 
-# external ATM dependencies ####################################################
-ifneq (,$(findstring satm,$(ATM)))
+# external COMP dependencies ###################################################
+# ATMs
+ifneq (,$(findstring $(COMMA)satm$(COMMA),$(COMP)))
   include $(satm_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SATM=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -35,7 +36,7 @@ ifneq (,$(findstring satm,$(ATM)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring xatm,$(ATM)))
+ifneq (,$(findstring $(COMMA)xatm$(COMMA),$(COMP)))
   include $(xatm_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XATM=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -44,9 +45,17 @@ ifneq (,$(findstring xatm,$(ATM)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-
-# external OCN dependencies ####################################################
-ifneq (,$(findstring socn,$(OCN)))
+ifneq (,$(findstring $(COMMA)datawam$(COMMA),$(COMP)))
+  include $(datawam_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_DATAWAM=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+# OCNs
+ifneq (,$(findstring $(COMMA)socn$(COMMA),$(COMP)))
   include $(socn_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SOCN=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -55,7 +64,7 @@ ifneq (,$(findstring socn,$(OCN)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring xocn,$(OCN)))
+ifneq (,$(findstring $(COMMA)xocn$(COMMA),$(COMP)))
   include $(xocn_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XOCN=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -64,7 +73,7 @@ ifneq (,$(findstring xocn,$(OCN)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring hycom,$(OCN)))
+ifneq (,$(findstring $(COMMA)hycom$(COMMA),$(COMP)))
   include $(hycom_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_HYCOM=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -73,7 +82,7 @@ ifneq (,$(findstring hycom,$(OCN)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring mom5,$(OCN)))
+ifneq (,$(findstring $(COMMA)mom5$(COMMA),$(COMP)))
   include $(mom5_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_MOM5=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -82,7 +91,7 @@ ifneq (,$(findstring mom5,$(OCN)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring pom,$(OCN)))
+ifneq (,$(findstring $(COMMA)pom$(COMMA),$(COMP)))
   include $(pom_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_POM=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -91,10 +100,8 @@ ifneq (,$(findstring pom,$(OCN)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-################################################################################
-
-# external SEAICE dependencies #################################################
-ifneq (,$(findstring sice,$(ICE)))
+# SEAICEs
+ifneq (,$(findstring $(COMMA)sice$(COMMA),$(COMP)))
   include $(sice_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SICE=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -103,7 +110,7 @@ ifneq (,$(findstring sice,$(ICE)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring xice,$(ICE)))
+ifneq (,$(findstring $(COMMA)xice$(COMMA),$(COMP)))
   include $(xice_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XICE=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -112,7 +119,7 @@ ifneq (,$(findstring xice,$(ICE)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring cice,$(ICE)))
+ifneq (,$(findstring $(COMMA)cice$(COMMA),$(COMP)))
   include $(cice_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_CICE=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -121,10 +128,8 @@ ifneq (,$(findstring cice,$(ICE)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-################################################################################
-
-# external WAV dependencies ####################################################
-ifneq (,$(findstring swav,$(WAV)))
+# WAVs
+ifneq (,$(findstring $(COMMA)swav$(COMMA),$(COMP)))
   include $(swav_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SWAV=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -133,7 +138,7 @@ ifneq (,$(findstring swav,$(WAV)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring xwav,$(WAV)))
+ifneq (,$(findstring $(COMMA)xwav$(COMMA),$(COMP)))
   include $(xwav_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XWAV=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -142,7 +147,7 @@ ifneq (,$(findstring xwav,$(WAV)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring ww3,$(WAV)))
+ifneq (,$(findstring $(COMMA)ww3$(COMMA),$(COMP)))
   include $(ww3_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_WW3=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -151,10 +156,8 @@ ifneq (,$(findstring ww3,$(WAV)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-################################################################################
-
-# external LND dependencies ####################################################
-ifneq (,$(findstring slnd,$(LND)))
+# LNDs
+ifneq (,$(findstring $(COMMA)slnd$(COMMA),$(COMP)))
   include $(slnd_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SLND=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -163,7 +166,7 @@ ifneq (,$(findstring slnd,$(LND)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring xlnd,$(LND)))
+ifneq (,$(findstring $(COMMA)xlnd$(COMMA),$(COMP)))
   include $(xlnd_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XLND=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -172,7 +175,25 @@ ifneq (,$(findstring xlnd,$(LND)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring lis,$(LND)))
+ifneq (,$(findstring $(COMMA)noah$(COMMA),$(COMP)))
+  include $(noah_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_NOAH=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring $(COMMA)noahmp$(COMMA),$(COMP)))
+  include $(noahmp_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_NOAHMP=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring $(COMMA)lis$(COMMA),$(COMP)))
   include $(lis_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_LIS=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -181,10 +202,8 @@ ifneq (,$(findstring lis,$(LND)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-################################################################################
-
-# external IPM dependencies ####################################################
-ifneq (,$(findstring sipm,$(IPM)))
+# IPMs
+ifneq (,$(findstring $(COMMA)sipm$(COMMA),$(COMP)))
   include $(sipm_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SIPM=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -193,7 +212,7 @@ ifneq (,$(findstring sipm,$(IPM)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring xipm,$(IPM)))
+ifneq (,$(findstring $(COMMA)xipm$(COMMA),$(COMP)))
   include $(xipm_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XIPM=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -202,7 +221,7 @@ ifneq (,$(findstring xipm,$(IPM)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring ipe,$(IPM)))
+ifneq (,$(findstring $(COMMA)ipe$(COMMA),$(COMP)))
   include $(ipe_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_IPE=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -211,10 +230,17 @@ ifneq (,$(findstring ipe,$(IPM)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-################################################################################
-
-# external HYD dependencies ####################################################
-ifneq (,$(findstring shyd,$(HYD)))
+ifneq (,$(findstring $(COMMA)dataipe$(COMMA),$(COMP)))
+  include $(dataipe_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_DATAIPE=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+# HYDs
+ifneq (,$(findstring $(COMMA)shyd$(COMMA),$(COMP)))
   include $(shyd_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_SHYD=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -223,7 +249,7 @@ ifneq (,$(findstring shyd,$(HYD)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring xhyd,$(HYD)))
+ifneq (,$(findstring $(COMMA)xhyd$(COMMA),$(COMP)))
   include $(xhyd_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_XHYD=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -232,7 +258,7 @@ ifneq (,$(findstring xhyd,$(HYD)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
-ifneq (,$(findstring wrfhydro,$(HYD)))
+ifneq (,$(findstring $(COMMA)wrfhydro$(COMMA),$(COMP)))
   include $(wrfhydro_mk)
   DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_WRFHYDRO=$(ESMF_DEP_FRONT)
   DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
@@ -260,7 +286,8 @@ INCS = -Iatmos \
 
 MAIN = MAIN_NEMS.o
 
-OBJS = module_MEDIATOR.o \
+OBJS = module_MEDIATOR_methods.o \
+       module_MEDIATOR.o \
        module_MEDIATOR_SpaceWeather.o \
        module_EARTH_INTERNAL_STATE.o \
        module_EARTH_GRID_COMP.o \
@@ -282,7 +309,9 @@ LIBS = atmos/libatmos.a                 \
        atmos/share/libshare.a           \
        atmos/post/libpost.a             \
        $(DEP_LINK_OBJS)                 \
-       ENS_Cpl/ENS_Cpl.a
+       ENS_Cpl/ENS_Cpl.a		\
+       $(DEP_SHRD_PATH)	                \
+       $(DEP_SHRD_LIBS)
 
 LIBS_NMM = atmos/libatmos.a             \
            atmos/nmm/libnmm.a           \
@@ -392,29 +421,17 @@ all:
 #	@echo " gmake fim_gsm ----------------------------- FIM and GSM - without the GOCART"
 #	@echo " gmake fim_gsm GOCART_MODE=full ------------ FIM and GSM - with the GOCART"
 	@echo
-	@echo "In order to build NEMS with external atmosphere components, all of the above targets support"
-	@echo "the optional ATM variable. Currently supported values are: \"satm\", \"xatm\"."
+	@echo "In order to build NEMS with external components, all of the above targets support"
+	@echo "the optional COMP variable. Currently supported values are: 
+	@echo "\"satm\", \"xatm\";"
+	@echo "\"socn\", \"xocn\", \"mom5\", \"hycom\", \"pom\";"
+	@echo "\"sice\", \"xice\", \"cice\";"
+	@echo "\"swav\", \"xwav\", \"ww3\";"
+	@echo "\"slnd\", \"xlnd\", \"noah\", \"noahmp\";"
+	@echo "\"sipm\", \"xipm\", \"ipe\";"
+	@echo "\"shyd\", \"xhyd\", \"wrfhydro\"."
 	@echo
-	@echo "In order to build NEMS with ocean components, all of the above targets support"
-	@echo "the optional OCN variable. Currently supported values are: \"socn\", \"xocn\", \"mom5\", \"hycom\", \"pom\"."
-	@echo
-	@echo "In order to build NEMS with sea-ice components, all of the above targets support"
-	@echo "the optional ICE variable. Currently supported values are: \"sice\", \"xice\", \"cice\"."
-	@echo
-	@echo "In order to build NEMS with wave components, all of the above targets support"
-	@echo "the optional WAV variable. Currently supported values are: \"swav\", \"xwav\", \"ww3\"."
-	@echo
-	@echo "In order to build NEMS with land components, all of the above targets support"
-	@echo "the optional LND variable. Currently supported values are: \"slnd\", \"xlnd\", \"lis\"."
-	@echo
-	@echo "In order to build NEMS with ionosphere-plasmasphere components, all of the above targets support"
-	@echo "the optional IPM variable. Currently supported values are: \"sipm\", \"xipm\", \"ipe\"."
-	@echo
-	@echo "In order to build NEMS with hydrology components, all of the above targets support"
-	@echo "the optional HYD variable. Currently supported values are: \"shyd\", \"xhyd\", \"wrfhydro\"."
-	@echo
-	@echo "Specifying multiple values is supported!"
-	@echo "E.g. \"gmake nmm_gsm ATM=satm,xatm OCN=socn,xocn,mom5,hycom ICE=sice,xice,cice WAV=swav,xwav LND=slnd,xlnd IPM=sipm,xipm HYD=shyd,xhyd\"."
+	@echo "E.g. \"gmake nmm_gsm COMP=satm,xatm,socn,xocn,mom5,hycom,sice,xice,cice,swav,xwav,slnd,xlnd,sipm,xipm,shyd,xhyd\"."
 	@echo
 
 ################################################################################

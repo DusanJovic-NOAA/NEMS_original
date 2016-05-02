@@ -56,7 +56,7 @@
 !
 ! !USES:
 !
-   USE ESMF_Mod
+   USE ESMF
    USE MAPL_Mod
 
    use MAPL_ExtDataGridCompMod, only: ExtData_SetServices => SetServices

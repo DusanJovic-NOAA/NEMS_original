@@ -225,6 +225,7 @@ sub write_output {
         print OUTFL " $dep" unless ( $mstring =~ /\b$dep\b/ 
                                      or  $dep ~~ @stdcinc       # Is the dep a standard C library?
                                      or  $dep =~ /^sys\//       # Is the dep in the sys/ folder?
+                                     or  $dep =~ /^esmf.mod/    # Is the dep on ESMF
                                      or  $dep =~ /^mpif.*h$/ ); # Is the dep an included mpif-/_ file?
     }
     print OUTFL "\n";

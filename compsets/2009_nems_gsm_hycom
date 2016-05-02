@@ -25,7 +25,6 @@ export NDAYS=2
 export wave=126 ; export lm=64 ; export lsoil=4
 export CPLFLX=.true.
 export A2OI_OUT=.true.
-export NGRID_A2OI=41
 
 # - nems.configure ---
 export_nems

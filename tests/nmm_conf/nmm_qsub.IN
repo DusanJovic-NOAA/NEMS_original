@@ -12,16 +12,19 @@ set -eux
 
 export MPI_TYPE_DEPTH=20
 export OMP_NUM_THREADS=1
-export ESMF_RUNTIME_COMPLIANCECHECK=ON:depth=4
+export ESMF_RUNTIME_COMPLIANCECHECK=OFF:depth=4
 #ulimit -s unlimited
 
-source /apps/lmod/lmod/init/sh
+#source /apps/lmod/lmod/init/sh
 source _SRCD_/src/conf/modules.nems
 module list
 
+pwd 
+
 echo "Model started:  " `date`
 
-mpirun -prepend-rank -np $PBS_NP ./NEMS.x
+#mpirun -prepend-rank -np $PBS_NP ./NEMS.x
+_MPIEXEC_ _MPIEXECOPTS_ -prepend-rank -np $PBS_NP ./NEMS.x
 
 echo "Model ended:    " `date`
 

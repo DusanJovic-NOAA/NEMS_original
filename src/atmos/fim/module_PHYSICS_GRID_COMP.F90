@@ -13,7 +13,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+      USE ESMF
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !

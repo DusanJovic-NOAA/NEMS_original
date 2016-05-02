@@ -6,7 +6,7 @@
 
    Program utCFIO
 
-   use ESMF_Mod
+   use ESMF
 
    use MAPL_BaseMod
    use MAPL_CommsMod

@@ -1,12 +1,5 @@
 #include "../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
  SUBROUTINE ENS_bcst_global(var, peid, rc)
 
 !----------------------------------------------------------------------
@@ -30,7 +23,7 @@
 !   peid   -- PE ID of var.
 !   vm     -- the global ESMF VM.
 !
-      USE esmf_mod
+      USE ESMF
  USE machine
 
  REAL(KIND = kind_evod)                    :: var 
@@ -43,11 +36,7 @@
 
  CALL ESMF_VMGetGlobal(vm, rc = rc)
 
-#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc, msg='VMGetGlobal Error')) THEN
-#else
- IF(ESMF_LogFoundError(rc,     'VMGetGlobal Error')) THEN
-#endif
      PRINT*, 'Error Happened When Getting the Global VM, peid, rc=', &
           peid, rc
  END IF
@@ -58,11 +47,7 @@
 
  CALL ESMF_VMBroadcast(vm, var_work, 1, peid, rc = rc) 
 
-#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc, msg='VM Broadcast Error')) THEN
-#else
- IF(ESMF_LogFoundError(rc,     'VM Broadcast Error')) THEN
-#endif
      PRINT*, 'Error Happened When VM Broadcasting, peid, rc=', &
           peid, rc
  END IF
@@ -98,7 +83,7 @@
 !   peid   -- PE ID of var.
 !   vm     -- the global ESMF VM.
 !
-      USE esmf_mod
+      USE ESMF
  USE machine
 
  INTEGER                                   :: var 
@@ -111,11 +96,7 @@
 
  CALL ESMF_VMGetGlobal(vm, rc = rc)
 
-#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc, msg='VMGetGlobal Error')) THEN
-#else
- IF(ESMF_LogFoundError(rc,     'VMGetGlobal Error')) THEN
-#endif
      PRINT*, 'Error Happened When Getting the Global VM, peid, rc=', &
           peid, rc
  END IF
@@ -126,11 +107,7 @@
 
  CALL ESMF_VMBroadcast(vm, var_work, 1, peid, rc = rc) 
 
-#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc, msg='VM Broadcast Error')) THEN
-#else
- IF(ESMF_LogFoundError(rc,     'VM Broadcast Error')) THEN
-#endif
      PRINT*, 'Error Happened When VM Broadcasting, peid, rc=', &
           peid, rc
  END IF

@@ -1,12 +1,5 @@
 #include "../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
 !----------------------------------------------------------------------
 !
       MODULE MODULE_GEN_GRID_COMP
@@ -29,7 +22,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE MODULE_GEN_INTERNAL_STATE,ONLY: GEN_INTERNAL_STATE            &
                                          ,WRAP_GEN_INTERNAL_STATE
@@ -91,27 +84,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 !
-#ifdef ESMF_3
-      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type
-                                     ,GEN_INITIALIZE                    &  !<-- User's subroutine name
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &
                                      ,ESMF_METHOD_INITIALIZE            &
                                      ,GEN_INITIALIZE                    &
-                                     ,phase=1                           &
                                      ,rc=RC)
-#else
-      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type
-                                     ,GEN_INITIALIZE                    &  !<-- User's subroutine name
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -126,27 +102,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-#ifdef ESMF_3
-        CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                       ,ESMF_SETRUN                       &  !<-- Subroutine type
-                                       ,GEN_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
-                                       ,ESMF_SINGLEPHASE                  &
-                                       ,RC)
-#else
-#ifdef ESMF_520r
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &
                                      ,ESMF_METHOD_RUN                   &
                                      ,GEN_RUN                           &
-                                     ,phase=1                           &
                                      ,rc=RC)
-#else
-        CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                       ,ESMF_SETRUN                       &  !<-- Subroutine type
-                                       ,GEN_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
-                                       ,phase=ESMF_SINGLEPHASE            &
-                                       ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -162,27 +121,10 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-#ifdef ESMF_3
-      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type
-                                     ,GEN_FINALIZE                      &  !<-- User's subroutine name
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &
                                      ,ESMF_METHOD_FINALIZE              &
                                      ,GEN_FINALIZE                      &
-                                     ,phase=1                           &
                                      ,rc=RC)
-#else
-      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type
-                                     ,GEN_FINALIZE                      &  !<-- User's subroutine name
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)

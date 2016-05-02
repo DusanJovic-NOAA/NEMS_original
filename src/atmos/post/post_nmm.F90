@@ -152,7 +152,7 @@
       use gridspec_mod
       use lookup_mod
 !
-      use ESMF_Mod
+      use ESMF
       use MODULE_WRITE_INTERNAL_STATE
       use module_constants,only : G1=>G
 !

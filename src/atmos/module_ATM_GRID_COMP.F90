@@ -33,15 +33,19 @@
 !  2013-07     Theurich - NUOPC option to be compliant with ESMF 6.2.0 reference.
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 
 #ifdef WITH_NUOPC
       use NUOPC
       use NUOPC_Model, only: &
         model_routine_SS            => SetServices, &
         model_label_DataInitialize  => label_DataInitialize, &
+        model_label_CheckImport     => label_CheckImport, &
         model_label_Advance         => label_Advance
       use module_CPLFIELDS
+#ifdef WITH_NMMB_NUOPC
+      USE module_NMM_GRID_COMP,ONLY: nmm_grid
+#endif
 #endif
 
 !
@@ -55,6 +59,10 @@
 !
       USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
+#ifdef ESMF_NETCDF
+  use netcdf
+#endif
+
 !-----------------------------------------------------------------------
 !
       IMPLICIT NONE
@@ -62,6 +70,23 @@
 !-----------------------------------------------------------------------
 !
       PRIVATE
+
+  integer, parameter :: MAXNAMELEN = 128
+
+  ! private internal state to keep instance data
+  type InternalStateStruct
+    integer(ESMF_KIND_I4), pointer :: numPerRow(:)
+    real(ESMF_KIND_R8), pointer :: lons(:,:), lats(:,:)
+    integer, pointer :: rowinds(:), indList(:)
+    integer :: dims(2)
+    integer :: myrows
+    integer :: wamtotalnodes, localnodes
+    integer :: PetNo, PetCnt
+  end type
+
+  type InternalState
+    type(InternalStateStruct), pointer :: wrap
+  end type
 !
       PUBLIC :: ATM_REGISTER
 !
@@ -74,6 +99,8 @@
 !
 #ifdef WITH_NUOPC
       character(len=160) :: nuopcMsg
+      logical :: write_diagnostics = .true.
+      logical :: profile_memory = .true.
 #endif
 
 !-----------------------------------------------------------------------
@@ -156,7 +183,18 @@
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-        
+      call ESMF_MethodRemove(ATM_GRID_COMP, model_label_CheckImport, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call NUOPC_CompSpecialize(ATM_GRID_COMP, &
+        specLabel=model_label_CheckImport, specRoutine=ATM_CHECKIMPORT, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
       ! Overwrite generic NUOPC_Model Finalize method
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_FINALIZE, &
         ATM_FINALIZE, rc=RC_REG)
@@ -241,6 +279,8 @@
     type(ESMF_State)      :: importState, exportState
     type(ESMF_Clock)      :: clock
     integer, intent(out)  :: rc
+
+    character(len=10)                         :: value
     
     rc = ESMF_SUCCESS
 
@@ -251,6 +291,22 @@
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+
+    call ESMF_AttributeGet(gcomp, name="DumpFields", value=value, defaultValue="true", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    write_diagnostics=(trim(value)=="true")
+
+    call ESMF_AttributeGet(gcomp, name="ProfileMemory", value=value, defaultValue="true", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    profile_memory=(trim(value)/="false")
     
   end subroutine
 
@@ -266,80 +322,15 @@
 
     ! advertise Fields
 
-#define IMPORT_FIELDS
-#ifdef IMPORT_FIELDS
     ! importable fields:
-    call NUOPC_StateAdvertiseFields(importState, StandardNames=(/ &
-      "land_mask                        ", &
-      "sea_surface_temperature          ", &
-      "ice_fraction                     ", &
-      "inst_ice_ir_dif_albedo           ", &
-      "inst_ice_ir_dir_albedo           ", &
-      "inst_ice_vis_dif_albedo          ", &
-      "inst_ice_vis_dir_albedo          ", &
-      "mean_up_lw_flx_ice               ", &
-      "mean_laten_heat_flx_atm_into_ice ", &
-      "mean_sensi_heat_flx_atm_into_ice ", &
-      "mean_evap_rate_atm_into_ice      ", &
-      "stress_on_air_ice_zonal          ", &
-      "stress_on_air_ice_merid          "  &
-      /), rc=rc)
+    call NUOPC_Advertise(importState, StandardNames=ImportFieldsList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-#endif
 
     ! exportable fields:
-    call NUOPC_StateAdvertiseFields(exportState, StandardNames=(/ &
-      "mean_zonal_moment_flx      ", &
-      "mean_merid_moment_flx      ", &
-      "mean_sensi_heat_flx        ", &
-      "mean_laten_heat_flx        ", &
-      "mean_down_lw_flx           ", &
-      "mean_down_sw_flx           ", &
-      "mean_prec_rate             ", &
-      "inst_zonal_moment_flx      ", &
-      "inst_merid_moment_flx      ", &
-      "inst_sensi_heat_flx        ", &
-      "inst_laten_heat_flx        ", &
-      "inst_down_lw_flx           ", &
-      "inst_down_sw_flx           ", &
-      "inst_temp_height2m         ", &
-      "inst_spec_humid_height2m   ", &
-      "inst_zonal_wind_height10m  ", &
-      "inst_merid_wind_height10m  ", &
-      "inst_temp_height_surface   ", &
-      "inst_pres_height_surface   ", &
-      "inst_surface_height        ", &
-      "mean_net_lw_flx            ", &
-      "mean_net_sw_flx            ", &
-      "inst_net_lw_flx            ", &
-      "inst_net_sw_flx            ", &
-      "mean_down_sw_ir_dir_flx    ", &
-      "mean_down_sw_ir_dif_flx    ", &
-      "mean_down_sw_vis_dir_flx   ", &
-      "mean_down_sw_vis_dif_flx   ", &
-      "inst_down_sw_ir_dir_flx    ", &
-      "inst_down_sw_ir_dif_flx    ", &
-      "inst_down_sw_vis_dir_flx   ", &
-      "inst_down_sw_vis_dif_flx   ", &
-      "mean_net_sw_ir_dir_flx     ", &
-      "mean_net_sw_ir_dif_flx     ", &
-      "mean_net_sw_vis_dir_flx    ", &
-      "mean_net_sw_vis_dif_flx    ", &
-      "inst_net_sw_ir_dir_flx     ", &
-      "inst_net_sw_ir_dif_flx     ", &
-      "inst_net_sw_vis_dir_flx    ", &
-      "inst_net_sw_vis_dif_flx    ", &
-#if 0
-      "inst_ir_dir_albedo         ", &
-      "inst_ir_dif_albedo         ", &
-      "inst_vis_dir_albedo        ", &
-      "inst_vis_dif_albedo        ", &
-#endif
-      "inst_land_sea_mask         "  &
-      /), rc=rc)
+    call NUOPC_Advertise(exportState, StandardNames=ExportFieldsList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -355,6 +346,7 @@
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 
+    integer                         :: n
     type(ESMF_Grid)                 :: gridIn, gridOut
     type(ESMF_array)                :: array
 
@@ -371,583 +363,34 @@
     ! use the regular Gaussian Grid that was setup during the NEMS/ATM init
     gridIn  = gauss2d ! for imported Fields
     gridOut = gauss2d ! for exported Fields
-
-#if 1
-    if (atm_int_state%CORE == "gsm") then
-      ! dump the GSM Grid coordinate arrays for reference      
-      call ESMF_GridGetCoord(gridIn, coordDim=1, array=array, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call ESMF_ArrayWrite(array, file="array_gsm_grid_coord1.nc", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      call ESMF_GridGetCoord(gridIn, coordDim=2, array=array, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call ESMF_ArrayWrite(array, file="array_gsm_grid_coord2.nc", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    if (atm_int_state%CORE == "nmm") then
+#ifdef WITH_NMMB_NUOPC
+      gridIn = nmm_grid
+      gridOut = nmm_grid
+#endif
     endif
-#endif
-      
+
     ! conditionally realize or remove Fields from States ...
-    
-#ifdef IMPORT_FIELDS
-!    if (NUOPC_StateIsFieldConnected(importState, fieldName="sst")) then
-!      ! realize a connected Field
-!      inst_sea_surf_temp = ESMF_FieldCreate(name="sst", grid=gridIn, &
-!        typekind=ESMF_TYPEKIND_R8, rc=rc)
-!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!        line=__LINE__, &
-!        file=__FILE__)) &
-!        return  ! bail out
-!      call NUOPC_StateRealizeField(importState, field=inst_sea_surf_temp, rc=rc)
-!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!        line=__LINE__, &
-!        file=__FILE__)) &
-!        return  ! bail out
-!    else
-!      ! remove a not connected Field from State
-!      call ESMF_StateRemove(importState, (/"sst"/), rc=rc)
-!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!        line=__LINE__, &
-!        file=__FILE__)) &
-!        return  ! bail out
-!    endif
 
-    ! importable field: land_mask
-    call realizeConnectedInternCplField(importState, &
-      field=land_mask, standardName="land_mask", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    do n = 1,nImportFields
+      call realizeConnectedInternCplField(importState, &
+        field=importFields(n), standardName=trim(importFieldsList(n)), &
+        grid=gridIn, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
 
-    ! importable field: sea_surface_temperature
-    call realizeConnectedInternCplField(importState, &
-      field=inst_sea_surf_temp, standardName="sea_surface_temperature", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: ice_fraction
-    call realizeConnectedInternCplField(importState, &
-      field=ice_fraction, standardName="ice_fraction", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: inst_ice_ir_dif_albedo
-    call realizeConnectedInternCplField(importState, &
-      field=inst_ice_ir_dif_albedo, standardName="inst_ice_ir_dif_albedo", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: inst_ice_ir_dir_albedo
-    call realizeConnectedInternCplField(importState, &
-      field=inst_ice_ir_dir_albedo, standardName="inst_ice_ir_dir_albedo", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: inst_ice_vis_dif_albedo
-    call realizeConnectedInternCplField(importState, &
-      field=inst_ice_vis_dif_albedo, standardName="inst_ice_vis_dif_albedo", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: inst_ice_vis_dir_albedo
-    call realizeConnectedInternCplField(importState, &
-      field=inst_ice_vis_dir_albedo, standardName="inst_ice_vis_dir_albedo", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: mean_up_lw_flx_ice
-    call realizeConnectedInternCplField(importState, &
-      field=mean_up_lw_flx_ice, standardName="mean_up_lw_flx_ice", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: mean_laten_heat_flx_atm_into_ice
-    call realizeConnectedInternCplField(importState, &
-      field=mean_laten_heat_flx_atm_into_ice, standardName="mean_laten_heat_flx_atm_into_ice", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: mean_sensi_heat_flx_atm_into_ice
-    call realizeConnectedInternCplField(importState, &
-      field=mean_sensi_heat_flx_atm_into_ice, standardName="mean_sensi_heat_flx_atm_into_ice", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: mean_evap_rate_atm_into_ice
-    call realizeConnectedInternCplField(importState, &
-      field=mean_evap_rate_atm_into_ice, standardName="mean_evap_rate_atm_into_ice", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: stress_on_air_ice_zonal
-    call realizeConnectedInternCplField(importState, &
-      field=stress_on_air_ice_zonal, standardName="stress_on_air_ice_zonal", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! importable field: stress_on_air_ice_merid
-    call realizeConnectedInternCplField(importState, &
-      field=stress_on_air_ice_merid, standardName="stress_on_air_ice_merid", &
-      grid=gridIn, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-#endif
- 
-    ! exportable field: mean_zonal_moment_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_zonal_moment_flx, standardName="mean_zonal_moment_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_merid_moment_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_merid_moment_flx, standardName="mean_merid_moment_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    
-    ! exportable field: mean_sensi_heat_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_sensi_heat_flx, standardName="mean_sensi_heat_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    
-    ! exportable field: mean_laten_heat_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_laten_heat_flx, standardName="mean_laten_heat_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    
-    ! exportable field: mean_down_lw_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_down_lw_flx, standardName="mean_down_lw_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_down_sw_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_down_sw_flx, standardName="mean_down_sw_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_prec_rate
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_prec_rate, standardName="mean_prec_rate", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_zonal_moment_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_zonal_moment_flx, standardName="inst_zonal_moment_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_merid_moment_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_merid_moment_flx, standardName="inst_merid_moment_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_sensi_heat_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_sensi_heat_flx, standardName="inst_sensi_heat_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_laten_heat_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_laten_heat_flx, standardName="inst_laten_heat_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_down_lw_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_down_lw_flx, standardName="inst_down_lw_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_down_sw_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_down_sw_flx, standardName="inst_down_sw_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_temp_height2m
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_temp_height2m, standardName="inst_temp_height2m", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_spec_humid_height2m
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_spec_humid_height2m, standardName="inst_spec_humid_height2m", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_zonal_wind_height10m
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_zonal_wind_height10m, standardName="inst_zonal_wind_height10m", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_merid_wind_height10m
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_merid_wind_height10m, standardName="inst_merid_wind_height10m", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_temp_height_surface
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_temp_height_surface, standardName="inst_temp_height_surface", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_pres_height_surface
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_pres_height_surface, standardName="inst_pres_height_surface", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_surface_height
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_surface_height, standardName="inst_surface_height", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_net_lw_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_net_lw_flx, standardName="mean_net_lw_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_net_sw_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_net_sw_flx, standardName="mean_net_sw_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_net_lw_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_net_lw_flx, standardName="inst_net_lw_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_net_sw_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_net_sw_flx, standardName="inst_net_sw_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_down_sw_ir_dir_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_down_sw_ir_dir_flx, standardName="mean_down_sw_ir_dir_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_down_sw_ir_dif_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_down_sw_ir_dif_flx, standardName="mean_down_sw_ir_dif_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_down_sw_vis_dir_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_down_sw_vis_dir_flx, standardName="mean_down_sw_vis_dir_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_down_sw_vis_dif_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_down_sw_vis_dif_flx, standardName="mean_down_sw_vis_dif_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_down_sw_ir_dir_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_down_sw_ir_dir_flx, standardName="inst_down_sw_ir_dir_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_down_sw_ir_dif_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_down_sw_ir_dif_flx, standardName="inst_down_sw_ir_dif_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_down_sw_vis_dir_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_down_sw_vis_dir_flx, standardName="inst_down_sw_vis_dir_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_down_sw_vis_dif_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_down_sw_vis_dif_flx, standardName="inst_down_sw_vis_dif_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_net_sw_ir_dir_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_net_sw_ir_dir_flx, standardName="mean_net_sw_ir_dir_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_net_sw_ir_dif_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_net_sw_ir_dif_flx, standardName="mean_net_sw_ir_dif_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_net_sw_vis_dir_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_net_sw_vis_dir_flx, standardName="mean_net_sw_vis_dir_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: mean_net_sw_vis_dif_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=mean_net_sw_vis_dif_flx, standardName="mean_net_sw_vis_dif_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_net_sw_ir_dir_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_net_sw_ir_dir_flx, standardName="inst_net_sw_ir_dir_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_net_sw_ir_dif_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_net_sw_ir_dif_flx, standardName="inst_net_sw_ir_dif_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_net_sw_vis_dir_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_net_sw_vis_dir_flx, standardName="inst_net_sw_vis_dir_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_net_sw_vis_dif_flx
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_net_sw_vis_dif_flx, standardName="inst_net_sw_vis_dif_flx", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-#if 0
-    ! exportable field: inst_ir_dir_albedo
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_ir_dir_albedo, standardName="inst_ir_dir_albedo", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_ir_dif_albedo
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_ir_dif_albedo, standardName="inst_ir_dif_albedo", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_vis_dir_albedo
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_vis_dir_albedo, standardName="inst_vis_dir_albedo", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-    ! exportable field: inst_vis_dif_albedo
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_vis_dif_albedo, standardName="inst_vis_dif_albedo", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-#endif
-
-    ! exportable field: inst_vis_dif_albedo
-    call realizeConnectedInternCplField(exportState, &
-      field=inst_vis_dif_albedo, standardName="inst_land_sea_mask", &
-      grid=gridOut, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    do n = 1,nExportFields
+      call realizeConnectedInternCplField(exportState, &
+        field=exportFields(n), standardName=trim(exportFieldsList(n)), &
+        grid=gridOut, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
 
   contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   
@@ -960,23 +403,49 @@
       
       ! local variables
       character(len=80)               :: fieldName
-      
+      type(ESMF_ArraySpec)            :: arrayspec
+      type(ESMF_Mesh)                 :: mesh
+      integer                         :: i
+
       if (present(rc)) rc = ESMF_SUCCESS
       
       fieldName = standardName  ! use standard name as field name
-      
-      if (NUOPC_StateIsFieldConnected(state, fieldName=fieldName)) then
-        ! realize the connected Field pass back up for internal cpl fields
-        field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, name=fieldName, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-        call NUOPC_StateRealizeField(state, field=field, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+
+      !! Create fields using wam2dmesh if they are WAM fields 
+      if (NUOPC_IsConnected(state, fieldName=fieldName)) then
+         if (fieldName == "northward_wind_neutral" .or. &
+             fieldName == "eastward_wind_neutral" .or. &
+             fieldName == "upward_wind_neutral" .or. &
+             fieldName == "temp_neutral" .or. &
+             fieldName == "O_Density" .or. &
+             fieldName == "O2_Density" .or. &
+             fieldName == "N2_Density" .or. &
+             fieldName == "height")  then
+           call ESMF_ArraySpecSet(arrayspec,2,ESMF_TYPEKIND_R8, rc=rc)
+           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, &
+              file=__FILE__)) &
+              return  ! bail out
+           field = ESMF_FieldCreate(mesh, arrayspec, &
+              ungriddedLBound=(/1/), ungriddedUBound=(/wamlevels/),&
+              name=fieldName, rc=rc)
+           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, &
+              file=__FILE__)) &
+              return  ! bail out
+         else
+           ! realize the connected Field pass back up for internal cpl fields
+           field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, name=fieldName, rc=rc)
+           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+             line=__LINE__, &
+             file=__FILE__)) &
+             return  ! bail out
+           call NUOPC_Realize(state, field=field, rc=rc)
+           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+             line=__LINE__, &
+             file=__FILE__)) &
+             return  ! bail out
+         endif
       else
         ! remove a not connected Field from State
         call ESMF_StateRemove(state, (/fieldName/), rc=rc)
@@ -988,7 +457,6 @@
     end subroutine
 
   end subroutine
-  
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
@@ -1026,6 +494,7 @@
       real(ESMF_KIND_R8)      :: medAtmCouplingIntervalSec
       type(ESMF_Clock)        :: atmClock
       type(ESMF_TimeInterval) :: atmStep
+      type(ESMF_Time)         :: currTime
 #endif
 !
 !-----------------------------------------------------------------------
@@ -1036,16 +505,16 @@
 !
 !-----------------------------------------------------------------------
 #ifdef WITH_NUOPC
-      call NUOPC_ClockPrintCurrTime(CLOCK_EARTH, &
-        string="entering ATM_INITIALIZE with CLOCK_EARTH current: ", &
+      call ESMF_ClockPrint(CLOCK_EARTH, options="currTime", &
+        preString="entering ATM_INITIALIZE with CLOCK_EARTH current: ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStartTime(CLOCK_EARTH, &
-        string="entering ATM_INITIALIZE with CLOCK_EARTH start:   ", &
+      call ESMF_ClockPrint(CLOCK_EARTH, options="startTime", &
+        preString="entering ATM_INITIALIZE with CLOCK_EARTH start:   ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStopTime(CLOCK_EARTH, &
-        string="entering ATM_INITIALIZE with CLOCK_EARTH stop:    ", &
+      call ESMF_ClockPrint(CLOCK_EARTH, options="stopTime", &
+        preString="entering ATM_INITIALIZE with CLOCK_EARTH stop:    ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 #endif
@@ -1137,7 +606,8 @@
         ESMF_ERR_RETURN(RC_INIT,RC_INIT)
       endif
 
-      !TODO: not sure the following is really needed for NUOPC mode
+      ! need another Clock instance here that the ATM core is allowed to
+      ! modify
       atm_int_state%CLOCK_ATM = ESMF_ClockCreate(CLOCK_EARTH, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
 
@@ -1256,7 +726,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      atm_int_state%CORE_IMP_STATE=ESMF_StateCreate(STATENAME   = "CORE Import"            &
+      atm_int_state%CORE_IMP_STATE=ESMF_StateCreate(name   = "CORE Import"            &
                                                    ,stateintent = ESMF_STATEINTENT_IMPORT  &
                                                    ,rc          = RC)
 !
@@ -1269,7 +739,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      atm_int_state%CORE_EXP_STATE=ESMF_StateCreate(STATENAME   = "CORE Export"            &
+      atm_int_state%CORE_EXP_STATE=ESMF_StateCreate(name   = "CORE Export"            &
                                                    ,stateintent = ESMF_STATEINTENT_EXPORT  &
                                                    ,rc          = RC)
 !
@@ -1291,8 +761,8 @@
 ! - Cannot bring these items out through the ATM Import and Export States 
 ! - under NUOPC, because NUOPC requires a minumum of Field metadata for 
 ! - anything that is going in/out of a component (e.g. to timestamp).
-      CALL ESMF_StateAdd(IMP_STATE,LISTWRAPPER(atm_int_state%CORE_IMP_STATE),rc = RC)
-      CALL ESMF_StateAdd(EXP_STATE,LISTWRAPPER(atm_int_state%CORE_EXP_STATE),rc = RC)
+      CALL ESMF_StateAddReplace(IMP_STATE,(/atm_int_state%CORE_IMP_STATE/),rc = RC)
+      CALL ESMF_StateAddReplace(EXP_STATE,(/atm_int_state%CORE_EXP_STATE/),rc = RC)
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1329,29 +799,46 @@
 !-----------------------------------------------------------------------
 !
 #ifdef WITH_NUOPC
-      call NUOPC_ClockPrintCurrTime(CLOCK_EARTH, &
-        string="leaving  ATM_INITIALIZE with CLOCK_EARTH current: ", &
+! - Under NUOPC, the EARTH driver clock is a separate instance from the 
+! - ATM clock. However, the ATM clock may have been reset during ATM initialize
+! - and therefore the EARTH driver clock must also be adjusted.
+! - Only affected: currTime
+      call ESMF_ClockGet(atm_int_state%CLOCK_ATM, currTime=currTime, rc=RC_INIT)
+      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+      call ESMF_ClockSet(CLOCK_EARTH, currTime=currTime, rc=RC_INIT)
+      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+! - Also the internal clock in ATM_GRID_COMP, which is controlled by NUOPC
+! - must be reset to match currTime
+      call ESMF_GridCompGet(ATM_GRID_COMP, clock=atmClock, rc=RC_INIT)
+      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+      call ESMF_ClockSet(atmClock, currTime=currTime, rc=RC_INIT)
+      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+#endif
+
+#ifdef WITH_NUOPC
+      call ESMF_ClockPrint(CLOCK_EARTH, options="currTime", &
+        preString="leaving  ATM_INITIALIZE with CLOCK_EARTH current: ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStartTime(CLOCK_EARTH, &
-        string="leaving  ATM_INITIALIZE with CLOCK_EARTH start:   ", &
+      call ESMF_ClockPrint(CLOCK_EARTH, options="startTime", &
+        preString="leaving  ATM_INITIALIZE with CLOCK_EARTH start:   ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStopTime(CLOCK_EARTH, &
-        string="leaving  ATM_INITIALIZE with CLOCK_EARTH stop:    ", &
+      call ESMF_ClockPrint(CLOCK_EARTH, options="stopTime", &
+        preString="leaving  ATM_INITIALIZE with CLOCK_EARTH stop:    ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 
-      call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_INITIALIZE with CLOCK_ATM current: ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="currTime", &
+        preString="leaving  ATM_INITIALIZE with CLOCK_ATM current: ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_INITIALIZE with CLOCK_ATM start:   ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="startTime", &
+        preString="leaving  ATM_INITIALIZE with CLOCK_ATM start:   ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_INITIALIZE with CLOCK_ATM stop:    ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="stopTime", &
+        preString="leaving  ATM_INITIALIZE with CLOCK_ATM stop:    ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 #endif
@@ -1389,55 +876,7 @@
     ! -> set Updated Field Attribute to "true", indicating to the IPDv02p5
     ! generic code to set the timestamp for this Field
     
-    call setFieldsUpdated(exportState, standardNameList=(/ &
-      "mean_zonal_moment_flx    ", &
-      "mean_merid_moment_flx    ", &
-      "mean_sensi_heat_flx      ", &
-      "mean_laten_heat_flx      ", &
-      "mean_down_lw_flx         ", &
-      "mean_down_sw_flx         ", &
-      "mean_prec_rate           ", &
-      "inst_zonal_moment_flx    ", &
-      "inst_merid_moment_flx    ", &
-      "inst_sensi_heat_flx      ", &
-      "inst_laten_heat_flx      ", &
-      "inst_down_lw_flx         ", &
-      "inst_down_sw_flx         ", &
-      "inst_temp_height2m       ", &
-      "inst_spec_humid_height2m ", &
-      "inst_zonal_wind_height10m", &
-      "inst_merid_wind_height10m", &
-      "inst_temp_height_surface ", &
-      "inst_pres_height_surface ", &
-      "inst_surface_height      ", &
-      "mean_net_lw_flx          ", &
-      "mean_net_sw_flx          ", &
-      "inst_net_lw_flx          ", &
-      "inst_net_sw_flx          ", &
-      "mean_down_sw_ir_dir_flx  ", &
-      "mean_down_sw_ir_dif_flx  ", &
-      "mean_down_sw_vis_dir_flx ", &
-      "mean_down_sw_vis_dif_flx ", &
-      "inst_down_sw_ir_dir_flx  ", &
-      "inst_down_sw_ir_dif_flx  ", &
-      "inst_down_sw_vis_dir_flx ", &
-      "inst_down_sw_vis_dif_flx ", &
-      "mean_net_sw_ir_dir_flx   ", &
-      "mean_net_sw_ir_dif_flx   ", &
-      "mean_net_sw_vis_dir_flx  ", &
-      "mean_net_sw_vis_dif_flx  ", &
-      "inst_net_sw_ir_dir_flx   ", &
-      "inst_net_sw_ir_dif_flx   ", &
-      "inst_net_sw_vis_dir_flx  ", &
-      "inst_net_sw_vis_dif_flx  ", &
-#if 0
-      "inst_ir_dir_albedo       ", &
-      "inst_ir_dif_albedo       ", &
-      "inst_vis_dir_albedo      ", &
-      "inst_vis_dif_albedo      ", &
-#endif
-      "inst_land_sea_mask       "  &
-      /), rc=rc)
+    call setAllFieldsUpdated(exportState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -1445,9 +884,8 @@
       
     ! -> set InitializeDataComplete Component Attribute to "true", indicating
     ! to the driver that this Component has fully initialized its data
-    call ESMF_AttributeSet(gcomp, &
-      name="InitializeDataComplete", value="true", &
-      convention="NUOPC", purpose="General", rc=rc)
+    call NUOPC_CompAttributeSet(gcomp, &
+      name="InitializeDataComplete", value="true", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -1455,34 +893,51 @@
         
   contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   
-    subroutine setFieldsUpdated(state, standardNameList, rc)
+    subroutine setAllFieldsUpdated(state, rc)
       type(ESMF_State)                :: state
-      character(len=*)                :: standardNameList(:)
       integer, intent(out), optional  :: rc
       
-      integer                         :: i
-      character(len=80)               :: fieldName
+      integer                         :: i, fieldCount
+      character(len=80), allocatable  :: fieldNameList(:)
       type(ESMF_Field)                :: field
       type(ESMF_StateItem_Flag)       :: itemType
+      real(ESMF_KIND_R8), pointer     :: fptr(:,:)
 
       if (present(rc)) rc = ESMF_SUCCESS
       
-      do i=1, size(standardNameList)
-        fieldName = standardNameList(i)
-        call ESMF_StateGet(state, itemName=fieldName, itemType=itemType, rc=rc)
+      call ESMF_StateGet(State, itemCount=fieldCount, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      allocate(fieldNameList(fieldCount))
+      call ESMF_StateGet(State, itemNameList=fieldNameList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      
+      do i=1, fieldCount
+        call ESMF_StateGet(state, itemName=fieldNameList(i), &
+          itemType=itemType, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
           return  ! bail out
         if (itemType /= ESMF_STATEITEM_NOTFOUND) then
           ! item exists -> set "Updated"
-          call ESMF_StateGet(state, itemName=fieldName, field=field, rc=rc)
+          call ESMF_StateGet(state, itemName=fieldNameList(i), field=field, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, &
             file=__FILE__)) &
             return  ! bail out
-          call ESMF_AttributeSet(field, name="Updated", value="true", &
-            convention="NUOPC", purpose="General", rc=rc)
+	  call ESMF_FieldGet(field, farrayPtr=fptr, rc=rc)
+	  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+          fptr=0.d0 ! zero out the entire field
+          call NUOPC_SetAttribute(field, name="Updated", value="true", rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, &
             file=__FILE__)) &
@@ -1626,7 +1081,7 @@
 !---------------------
 !
       type(ESMF_Clock)              :: clock
-      type(ESMF_Time)               :: stopTime
+      type(ESMF_Time)               :: stopTime, currTime
       type(ESMF_State)              :: importState, exportState
       type(ESMF_Field)              :: field
       type(ESMF_StateItem_Flag)     :: itemType
@@ -1638,6 +1093,7 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+    if(profile_memory) call ESMF_VMLogMemInfo("Entering ATM ATM_ADVANCE ")
       rc = ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
@@ -1649,23 +1105,24 @@
       ESMF_ERR_RETURN(rc,rc)
       
       ! The stopTime will be updated to be the next ATM-OCN coupling time
-      call ESMF_ClockGet(clock, stopTime=stopTime, rc=rc)
+      call ESMF_ClockGet(clock, currTime=currTime, stopTime=stopTime, rc=rc)
       ESMF_ERR_RETURN(rc,rc)
       
       ! Set the ATM-OCN coupling time to be stopTime in Clock that ATM core uses
-      call ESMF_ClockSet(atm_int_state%CLOCK_ATM, stopTime=stopTime, rc=rc)
+      call ESMF_ClockSet(atm_int_state%CLOCK_ATM, currTime=currTime, &
+        stopTime=stopTime, rc=rc)
       ESMF_ERR_RETURN(rc,rc)
 
-      call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
-        string="entering ATM_ADVANCE with CLOCK_ATM current: ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="currTime", &
+        preString="entering ATM_ADVANCE with CLOCK_ATM current: ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
-        string="entering ATM_ADVANCE with CLOCK_ATM start:   ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="startTime", &
+        preString="entering ATM_ADVANCE with CLOCK_ATM start:   ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
-        string="entering ATM_ADVANCE with CLOCK_ATM stop:    ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="stopTime", &
+        preString="entering ATM_ADVANCE with CLOCK_ATM stop:    ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 
@@ -1673,12 +1130,14 @@
 !***  Execute the Run step of the selected dynamic core.
 !-----------------------------------------------------------------------
 
+      if(profile_memory) call ESMF_VMLogMemInfo("Entering ATM GridCompRun ")
       CALL ESMF_GridCompRun(gridcomp   =atm_int_state%CORE_GRID_COMP    &
                            ,importState=atm_int_state%CORE_IMP_STATE    &
                            ,exportState=atm_int_state%CORE_EXP_STATE    &
                            ,clock      =atm_int_state%CLOCK_ATM         &
                            ,rc         =rc)
       ESMF_ERR_RETURN(rc,rc)
+      if(profile_memory) call ESMF_VMLogMemInfo("Leaving ATM GridCompRun ")
 
 !-----------------------------------------------------------------------
 
@@ -1690,41 +1149,151 @@
         file=__FILE__)) &
         return  ! bail out
       
-#if 1
-      ! for testing write all of the Fields in the importState to file
-      call NUOPC_StateWrite(importState, filePrefix="field_atm_import_", &
-        timeslice=slice, relaxedFlag=.true., rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      ! for testing write all of the Fields in the exportState to file
-      call NUOPC_StateWrite(exportState, filePrefix="field_atm_export_", &
-        timeslice=slice, relaxedFlag=.true., rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      ! advance the time slice counter
-      slice = slice + 1
-#endif
+      if(write_diagnostics) then
+        ! for testing write all of the Fields in the importState to file
+        call NUOPC_Write(importState, fileNamePrefix="field_atm_import_", &
+          timeslice=slice, relaxedFlag=.true., rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        ! for testing write all of the Fields in the exportState to file
+        call NUOPC_Write(exportState, fileNamePrefix="field_atm_export_", &
+          timeslice=slice, relaxedFlag=.true., rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        ! advance the time slice counter
+        slice = slice + 1
+      endif
 
-      call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_ADVANCE with CLOCK_ATM current: ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="currTime", &
+        preString="leaving  ATM_ADVANCE with CLOCK_ATM current: ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_ADVANCE with CLOCK_ATM start:   ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="startTime", &
+        preString="leaving  ATM_ADVANCE with CLOCK_ATM start:   ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-      call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_ADVANCE with CLOCK_ATM stop:    ", &
+      call ESMF_ClockPrint(atm_int_state%CLOCK_ATM, options="stopTime", &
+        preString="leaving  ATM_ADVANCE with CLOCK_ATM stop:    ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
+    if(profile_memory) call ESMF_VMLogMemInfo("Leaving ATM ATM_ADVANCE ")
 
 !-----------------------------------------------------------------------
 
       END SUBROUTINE ATM_ADVANCE
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+
+      SUBROUTINE ATM_CHECKIMPORT(ATM_GRID_COMP, rc)
+!
+!-----------------------------------------------------------------------
+!***  Check the import state fields
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      type(ESMF_GridComp)   :: ATM_GRID_COMP
+      integer, intent(out)  :: rc
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      integer :: n, nf
+      type(ESMF_Clock)   :: clock
+      type(ESMF_Time)    :: currTime, invalidTime
+      type(ESMF_State)   :: importState
+      logical            :: timeCheck1,timeCheck2
+      type(ESMF_Field),pointer  :: fieldList(:)
+      character(len=128) :: fldname
+
+      ! query the Component for its clock
+      call ESMF_GridCompGet(ATM_GRID_COMP, clock=clock, &
+         importState=importState, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      ! get the current time out of the clock
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      ! set up invalid time (by convention)
+      call ESMF_TimeSet(invalidTime, yy=99999999, mm=01, dd=01, &
+        h=00, m=00, s=00, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      nullify(fieldList)
+      call NUOPC_GetStateMemberLists(importState, &
+        fieldList=fieldList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      !--------------------------------
+      ! set the importFieldsValid flag
+      ! have to be VERY CAREFUL here, the order of fieldList does NOT
+      ! match the order of importFieldsList.
+      ! associated(fieldList) will be false if there are no fields
+      !--------------------------------
+
+      importFieldsValid(:) = .true.
+      if (associated(fieldList)) then
+      do n = 1,size(fieldList)
+        call ESMF_FieldGet(fieldList(n), name=fldname, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        nf = QueryFieldList(ImportFieldsList,fldname)
+        timeCheck1 = NUOPC_IsAtTime(fieldList(n), invalidTime, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        if (timeCheck1) then
+          importFieldsValid(nf) = .false.
+        else
+          timeCheck2 = NUOPC_IsAtTime(fieldList(n), currTime, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+          if (.not.timeCheck2) then
+            !TODO: introduce and use INCOMPATIBILITY return codes!!!!
+            call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+              msg="NUOPC INCOMPATIBILITY DETECTED: "//&
+              "Import Field not at current time", &
+              line=__LINE__, file=__FILE__, &
+              rcToReturn=rc)
+              return  ! bail out
+          endif
+        endif
+        write(MESSAGE_CHECK,'(A,2i4,l3)') &
+          "ATM_CHECKIMPORT "//trim(fldname),n,nf,importFieldsValid(nf)
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+      enddo
+      endif
+
+!-----------------------------------------------------------------------
+
+      END SUBROUTINE ATM_CHECKIMPORT
 !
 !-----------------------------------------------------------------------
 !#######################################################################

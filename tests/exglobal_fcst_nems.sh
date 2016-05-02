@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_fcst.sh.sms_nems.sh
+# Script name:         exglobal_fcst_nems.sh
 # Script description:  Runs a global spectral model forecast
 #
 # Author:        Mark Iredell       Org: NP23         Date: 1999-05-01
@@ -865,6 +865,7 @@ else
   export REDOUT=${REDOUT:-'1>'}
   export REDERR=${REDERR:-'2>'}
 fi
+print_esmf=.true.      # print each PET output to file
 export print_esmf=${print_esmf:-.false.}
 
 ################################################################################
@@ -1289,13 +1290,16 @@ fi
 # jw: generate configure file
 #
 core=${core:-gfs}
-cat << EOF > $DATA/atmos.configure
-core: $core
-EOF
+# gjt: already generated
+#cat << EOF > $DATA/atmos.configure
+#core: $core
+#EOF
 
 cat << EOF > atm_namelist.rc
 core: $core
 print_esmf:     ${print_esmf}
+
+nhours_dfini=${nhours_dfini:-$FHDFI}
 
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35
@@ -1326,7 +1330,7 @@ PE_MEMBER19:             $PE19
 PE_MEMBER20:             $PE20
 PE_MEMBER21:             $PE21
 
-# For stachastic purturbed runs -  added by Dhou and Wyang
+# For stochastic purturbed runs -  added by Dhou and Wyang
   --------------------------------------------------------
 #  ENS_SPS, logical control for application of stochastic perturbation scheme
 #  HH_START, start hour of forecast, and modified ADVANCECOUNT_SETUP

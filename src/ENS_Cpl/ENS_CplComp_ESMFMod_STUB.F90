@@ -1,11 +1,5 @@
 #include "../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !----------------------------------------------------------------------
 ! !MODULE: ENS_CplComp_ESMFMod
 !        --- ESMF coupler gridded component of the EARTH Ensemble 
@@ -36,7 +30,7 @@
 ! the EARTH ensemble coupler grid component.
 !---------------------------------------------------------------
 !dusan USE ENS_Cpl_ESMFMod
- USE ESMF_MOD
+ USE ESMF
 
  IMPLICIT none
 
@@ -83,40 +77,13 @@
 ! ------------------------------------
 
  CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_INITIALIZE,  Cpl_Initialize &
-#ifdef ESMF_520r
-                                 ,phase = 1                             &
                                  ,rc    = RC1)
-#else
-#ifdef ESMF_3
-                                 ,ESMF_SINGLEPHASE, rc1)
-#else
-                                 ,phase=ESMF_SINGLEPHASE, rc=rc1)
-#endif
-#endif
 
  CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_RUN,   Cpl_Run    &
-#ifdef ESMF_520r
-                                 ,phase = 1                             &
                                  ,rc    = RC1)
-#else
-#ifdef ESMF_3
-                                 ,ESMF_SINGLEPHASE, rc1)
-#else
-                                 ,phase=ESMF_SINGLEPHASE, rc=rc1)
-#endif
-#endif
 
  CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_FINALIZE, Cpl_Finalize   &
-#ifdef ESMF_520r
-                                 ,phase = 1                             &
                                  ,rc    = RC1)
-#else
-#ifdef ESMF_3
-                                 ,ESMF_SINGLEPHASE, rc1)
-#else
-                                 ,phase=ESMF_SINGLEPHASE, rc=rc1)
-#endif
-#endif
 
  END SUBROUTINE ENS_CplCompSetServices
 

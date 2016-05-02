@@ -9,6 +9,7 @@
 
 set -aeux
 export MPI_GROUP_MAX=96
+# ulimit -n 16000
 
 export SCHEDULER=_SCHED_
 if [ ${SCHEDULER} = pbs ]; then
