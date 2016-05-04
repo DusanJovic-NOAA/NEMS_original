@@ -35,7 +35,6 @@
 !
       USE ESMF
 
-#ifdef WITH_NUOPC
       use NUOPC
       use NUOPC_Model, only: &
         model_routine_SS            => SetServices, &
@@ -45,7 +44,6 @@
       use module_CPLFIELDS
 #ifdef WITH_NMMB_NUOPC
       USE module_NMM_GRID_COMP,ONLY: nmm_grid
-#endif
 #endif
 
 !
@@ -97,11 +95,9 @@
 !
       TYPE(ESMF_Clock),SAVE :: CLOCK_ATM                                   !<-- The Clock of the ATM component
 !
-#ifdef WITH_NUOPC
       character(len=160) :: nuopcMsg
       logical :: write_diagnostics = .true.
       logical :: profile_memory = .true.
-#endif
 
 !-----------------------------------------------------------------------
 !
@@ -135,7 +131,6 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 
-#ifdef WITH_NUOPC
       ! the NUOPC model component will register the generic methods
       call NUOPC_CompDerive(ATM_GRID_COMP, model_routine_SS, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
@@ -203,60 +198,6 @@
         file=__FILE__)) &
         return  ! bail out
       
-#else
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Set Entry Point for ATM Initialize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
-                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
-                                     ,ATM_INITIALIZE                    &  !<-- User's subroutine name
-                                     ,phase=1                           &
-                                     ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Set Entry Point for ATM Run"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
-      CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
-                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
-                                     ,ATM_RUN                           &  !<-- User's subroutine name
-                                     ,phase=1                           &
-                                     ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Set Entry Point for ATM Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
-                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Finalize)
-                                     ,ATM_FINALIZE                      &  !<-- User's subroutine name
-                                     ,phase=1                           &
-                                     ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#endif
 !-----------------------------------------------------------------------
 !
       IF(RC_REG==ESMF_SUCCESS)THEN
@@ -273,7 +214,6 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-#ifdef WITH_NUOPC
   subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
     type(ESMF_GridComp)   :: gcomp
     type(ESMF_State)      :: importState, exportState
@@ -461,7 +401,6 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-#endif
 
       SUBROUTINE ATM_INITIALIZE(ATM_GRID_COMP                           &
                                ,IMP_STATE                               &
@@ -490,12 +429,10 @@
       INTEGER :: RC
 !
       TYPE(ESMF_Config)       :: CF
-#ifdef WITH_NUOPC
       real(ESMF_KIND_R8)      :: medAtmCouplingIntervalSec
       type(ESMF_Clock)        :: atmClock
       type(ESMF_TimeInterval) :: atmStep
       type(ESMF_Time)         :: currTime
-#endif
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -504,7 +441,6 @@
       RC_INIT = ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-#ifdef WITH_NUOPC
       call ESMF_ClockPrint(CLOCK_EARTH, options="currTime", &
         preString="entering ATM_INITIALIZE with CLOCK_EARTH current: ", &
         unit=nuopcMsg)
@@ -517,7 +453,6 @@
         preString="entering ATM_INITIALIZE with CLOCK_EARTH stop:    ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-#endif
 
 !
 !-----------------------------------------------------------------------
@@ -583,8 +518,6 @@
 !***  the ATM component.
 !-----------------------------------------------------------------------
 !
-#ifdef WITH_NUOPC
-      
       ! Set ATM component clock as copy of EARTH clock.
       call NUOPC_CompSetClock(ATM_GRID_COMP, CLOCK_EARTH, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
@@ -611,12 +544,6 @@
       atm_int_state%CLOCK_ATM = ESMF_ClockCreate(CLOCK_EARTH, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
 
-#else
-
-      atm_int_state%CLOCK_ATM=CLOCK_EARTH
-
-#endif
-
 !-----------------------------------------------------------------------
 !***  Extract the dynamic core name from the configure file.
 !-----------------------------------------------------------------------
@@ -628,11 +555,7 @@
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The ATM configure object
                                   ,value =atm_int_state%CORE            &  !<-- The dynamic core name
-#ifdef WITH_NUOPC
                                   ,label ='atm_model:'                  &  !<-- The label in the configure file
-#else
-                                  ,label ='core:'                       &  !<-- The label in the configure file
-#endif
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -757,7 +680,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifndef WITH_NUOPC
+#ifdef WITH_OLD_GEFS
 ! - Cannot bring these items out through the ATM Import and Export States 
 ! - under NUOPC, because NUOPC requires a minumum of Field metadata for 
 ! - anything that is going in/out of a component (e.g. to timestamp).
@@ -798,7 +721,6 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef WITH_NUOPC
 ! - Under NUOPC, the EARTH driver clock is a separate instance from the 
 ! - ATM clock. However, the ATM clock may have been reset during ATM initialize
 ! - and therefore the EARTH driver clock must also be adjusted.
@@ -813,9 +735,7 @@
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
       call ESMF_ClockSet(atmClock, currTime=currTime, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-#endif
 
-#ifdef WITH_NUOPC
       call ESMF_ClockPrint(CLOCK_EARTH, options="currTime", &
         preString="leaving  ATM_INITIALIZE with CLOCK_EARTH current: ", &
         unit=nuopcMsg)
@@ -841,7 +761,6 @@
         preString="leaving  ATM_INITIALIZE with CLOCK_ATM stop:    ", &
         unit=nuopcMsg)
       call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -852,8 +771,6 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-
-#ifdef WITH_NUOPC
 
   subroutine ATM_DATAINIT(gcomp, rc)
     type(ESMF_GridComp)  :: gcomp
@@ -947,122 +864,11 @@
     end subroutine
     
   end subroutine
-
-#endif
-
 !
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-#ifndef WITH_NUOPC
-
-      SUBROUTINE ATM_RUN(ATM_GRID_COMP                                  &
-                        ,IMP_STATE                                      &
-                        ,EXP_STATE                                      &
-                        ,CLOCK_EARTH                                    &
-                        ,RC_RUN)
-!
-!-----------------------------------------------------------------------
-!***  The Run step of the ATM component.
-!-----------------------------------------------------------------------
-!
-!------------------------
-!***  Argument Variables
-!------------------------
-! 
-      TYPE(ESMF_GridComp)               :: ATM_GRID_COMP                   !<-- The ATM component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The ATM import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The ATM export state
-      TYPE(ESMF_Clock)                  :: CLOCK_EARTH                     !<-- The Clock of the EARTH component
-      INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
-!
-!---------------------
-!***  Local Variables
-!---------------------
-!
-      INTEGER :: RC
-!
-      TYPE(ESMF_Time) :: CURRTIME                                       &
-                        ,STARTTIME
-!
-      TYPE(ESMF_TimeInterval) :: RUNDURATION
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  For the moment, use a direct copy of the EARTH Clock within
-!***  the ATM component.
-!-----------------------------------------------------------------------
-!
-      atm_int_state%CLOCK_ATM=CLOCK_EARTH
-!
-!-----------------------------------------------------------------------
-!***  Execute the Run step of the selected dynamic core.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the Run step of the CORE component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompRun(gridcomp   =atm_int_state%CORE_GRID_COMP    &
-                           ,importState=atm_int_state%CORE_IMP_STATE    &
-                           ,exportState=atm_int_state%CORE_EXP_STATE    &
-                           ,clock      =atm_int_state%CLOCK_ATM         &
-                           ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Update the ATMOS clock.
-!-----------------------------------------------------------------------
-
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK = "Update the current time of the ATMOS clock"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ClockGet(clock      =atm_int_state%CLOCK_ATM            &
-                        ,startTime  =STARTTIME                          &
-                        ,runDuration=RUNDURATION                        &
-                        ,rc         =RC)
-!
-      CURRTIME=STARTTIME+RUNDURATION
-!
-      CALL ESMF_ClockSet(clock   =atm_int_state%CLOCK_ATM               &
-                        ,currTime=CURRTIME                              &
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      IF(RC_RUN==ESMF_SUCCESS)THEN
-!       WRITE(0,*)' ATM_RUN succeeded'
-      ELSE
-        WRITE(0,*)' ATM_RUN failed  RC_RUN=',RC_RUN
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE ATM_RUN
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-
-#else
-
       SUBROUTINE ATM_ADVANCE(ATM_GRID_COMP, rc)
 !
 !-----------------------------------------------------------------------
@@ -1299,7 +1105,6 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-#endif
 
       SUBROUTINE ATM_FINALIZE(ATM_GRID_COMP                             &
                              ,IMP_STATE                                 &
@@ -1348,15 +1153,11 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef WITH_NUOPC
-!-----------------------------------------------------------------------
-!
       call ESMF_ClockDestroy(atm_int_state%CLOCK_ATM, rc=RC_FINALIZE)
       if (ESMF_LogFoundError(rcToCheck=RC_FINALIZE, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-#endif
 
       IF(RC_FINALIZE==ESMF_SUCCESS)THEN
 !       WRITE(0,*)' ATM_FINALIZE succeeded'

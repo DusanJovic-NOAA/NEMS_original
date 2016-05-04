@@ -25,16 +25,8 @@
 !
       TYPE EARTH_INTERNAL_STATE
 !
-#ifdef WITH_NUOPC
         real(ESMF_KIND_R8)  :: medAtmCouplingIntervalSec
         real(ESMF_KIND_R8)  :: medOcnCouplingIntervalSec
-#else
-        TYPE(ESMF_Clock   ) :: CLOCK_EARTH
-!
-        TYPE(ESMF_GridComp) :: ATM_GRID_COMP
-        TYPE(ESMF_State   ) :: ATM_IMP_STATE
-        TYPE(ESMF_State   ) :: ATM_EXP_STATE
-#endif
 !
       END TYPE EARTH_INTERNAL_STATE
 !

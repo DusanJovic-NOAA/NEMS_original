@@ -1,5 +1,4 @@
 #include "./ESMFVersionDefine.h"
-#ifdef WITH_NUOPC
 
 module module_MEDIATOR_methods
 
@@ -344,4 +343,3 @@ END subroutine shr_flux_atmOcn
   !-----------------------------------------------------------------------------
 
 end module
-#endif

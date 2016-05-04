@@ -1,5 +1,4 @@
 #include "./ESMFVersionDefine.h"
-#ifdef WITH_NUOPC
 
 module module_MEDIATOR
 
@@ -7729,4 +7728,3 @@ module module_MEDIATOR
   !-----------------------------------------------------------------------------
 
 end module
-#endif

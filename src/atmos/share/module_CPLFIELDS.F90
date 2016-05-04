@@ -8,15 +8,12 @@ module module_CPLFIELDS
   !-----------------------------------------------------------------------------
 
   use ESMF
-#ifdef WITH_NUOPC
   use NUOPC
-#endif
   
   implicit none
   
   private
   
-#ifdef WITH_NUOPC
   integer, parameter :: MAXNAMELEN = 128
 
   ! private internal state to keep instance data
@@ -41,7 +38,6 @@ module module_CPLFIELDS
   type(ESMF_Grid)   :: gauss2d
   type(ESMF_Mesh)   :: wam2dmesh
   integer           :: wamlevels
-#endif
   
   ! Export Fields ----------------------------------------
   integer, public, parameter :: NexportFields = 56
@@ -148,7 +144,6 @@ module module_CPLFIELDS
   contains
   !-----------------------------------------------------------------------------
   
-#ifdef WITH_NUOPC
   subroutine fillExportFields(data_a2oi, lonr, latr, rootPet, rc)
     real(kind=ESMF_KIND_R8), target, intent(in) :: data_a2oi(:,:,:)
     integer, intent(in)                         :: lonr, latr, rootPet
@@ -172,17 +167,9 @@ module module_CPLFIELDS
     ESMF_ERR_RETURN(rc,rc)
 
   end subroutine
-#else
-  subroutine fillExportFields(data_a2oi, lonr, latr, rootPet, rc)
-    real(kind=8)                                :: data_a2oi(:,:,:)
-    integer, intent(in)                         :: lonr, latr, rootPet
-    integer, optional                           :: rc
-  end subroutine
-#endif
   
   !-----------------------------------------------------------------------------
 
-#ifdef WITH_NUOPC
   subroutine setupGauss2d(lonr, latr, pi, colrad_a, lats_node_a, &
     global_lats_a, lonsperlat, rc)
     integer, intent(in)                         :: lonr, latr 
@@ -322,19 +309,7 @@ module module_CPLFIELDS
     deallocate(latCounts)
 
   end subroutine
-#else
-  subroutine setupGauss2d(lonr, latr, pi, colrad_a, lats_node_a, &
-    global_lats_a, lonsperlat, rc)
-    integer, intent(in)                         :: lonr, latr 
-    real(kind=8), intent(in)                    :: pi, colrad_a(:)
-    integer, intent(in)                         :: lats_node_a
-    integer, intent(in), target                 :: global_lats_a(:)
-    integer, intent(in), target                 :: lonsperlat(:)
-    integer, optional                           :: rc
-  end subroutine
-#endif
 
-#ifdef WITH_NUOPC
   ! Create 2D WAM as a ESMF_Mesh with only distgrid (no coordinates)
   subroutine createWAMGrid(long, latg, levs, ipt_lats_node_a, lats_node_a, global_lats_a, lonsperlat, rc)
 
@@ -387,20 +362,6 @@ module module_CPLFIELDS
 
   end subroutine
 
-#else
-  subroutine createWAMGrid(long, latg, levs, ipt_lats_node_a, lats_node_a, &
-                           global_lats_a, lonsperlat, rc)
-     integer                        :: long, latg, levs ! grid dimension (192x94x150)
-     integer                        :: ipt_lats_node_a  ! starting lat index for the local processor
-     integer                        :: lats_node_a      ! number of latitues in the local processor
-     integer(ESMF_KIND_I4), target  :: global_lats_a(:) ! array holds the random shuffle order of latitude index
-     integer(ESMF_KIND_I4), target  :: lonsperlat(:)    ! number of longitude points per lat 
-     integer, optional              :: rc
-
-  end subroutine
-#endif
-
-#ifdef WITH_NUOPC
   ! Create analytical fields for the 2D WAM built on a ESMF_Mesh
   subroutine fillWAMFields(uug, vvg, wwg, ttg, zzg, n2g, rqg, rc)
     
@@ -457,20 +418,6 @@ module module_CPLFIELDS
    enddo
 
   end subroutine
-#else
-  subroutine fillWAMFields(uug, vvg, wwg, ttg, zzg, n2g, rqg, rc)
-    real(ESMF_KIND_R8), pointer :: uug(:,:,:)
-    real(ESMF_KIND_R8), pointer :: vvg(:,:,:)
-    real(ESMF_KIND_R8), pointer :: wwg(:,:,:)
-    real(ESMF_KIND_R8), pointer :: ttg(:,:,:)
-    real(ESMF_KIND_R8), pointer :: zzg(:,:,:)
-    real(ESMF_KIND_R8), pointer :: n2g(:,:,:)
-    real(ESMF_KIND_R8), pointer :: rqg(:,:,:)
-    integer, optional :: rc
-
-  end subroutine 
-
-#endif
 
   integer function queryFieldList(fieldlist, fieldname, abortflag, rc)
     ! returns integer index of first found fieldname in fieldlist
@@ -501,10 +448,8 @@ module module_CPLFIELDS
     enddo
 
     if (labort .and. queryFieldList < 1) then
-#ifdef WITH_NUOPC
-     call ESMF_LogWrite('queryFieldList ABORT on fieldname '//trim(fieldname), ESMF_LOGMSG_INFO, line=__LINE__, file=__FILE__, rc=rc)
+      call ESMF_LogWrite('queryFieldList ABORT on fieldname '//trim(fieldname), ESMF_LOGMSG_INFO, line=__LINE__, file=__FILE__, rc=rc)
       CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
-#endif
     endif
   end function queryFieldList
   !-----------------------------------------------------------------------------

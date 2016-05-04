@@ -7,4 +7,3 @@
 
 #include "./ESMFConvenienceMacros.h"
 
-#define WITH_NUOPC

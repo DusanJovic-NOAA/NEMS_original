@@ -1,5 +1,4 @@
 #include "./ESMFVersionDefine.h"
-#ifdef WITH_NUOPC
 
 module module_MEDSpaceWeather
 
@@ -1533,4 +1532,3 @@ subroutine convert2Sphdeg (coord1, coord2, coord3, lon, lat, hgt)
 end subroutine convert2Sphdeg
 
 end module
-#endif
