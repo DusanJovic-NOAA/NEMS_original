@@ -155,6 +155,7 @@ if [[ $CREATE_BASELINE == true ]]; then
     cp ${RTPWD}/GFS_SLG_48PE/*             ${RTPWD_U}/GFS_SLG_48PE/.
     cp ${RTPWD}/GFS_SLG_T574/*             ${RTPWD_U}/GFS_SLG_T574/.
     cp ${RTPWD}/GFS_SLG_NSST/*             ${RTPWD_U}/GFS_SLG_NSST/.
+    cp ${RTPWD}/GFS_SLG_STOCHY/*            ${RTPWD_U}/GFS_SLG_STOCHY/.
   fi
   if [[ $CB_arg != nmm ]]; then
     echo "copy nmm"
