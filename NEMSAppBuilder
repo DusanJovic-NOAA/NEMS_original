@@ -305,9 +305,18 @@ build_mom5(){
 build_hycom(){
   # in: COMP, COMP_SRCDIR, COMP_BINDIR
   if [ $MACHINE_ID = linux_gnu ]; then
-    HYCOM_ARCH='Alinux-gnu-relo'
+    if [ "$HYCOM_REGIONAL" = "TRUE" ]; then
+      HYCOM_ARCH='linux-gnu-relo'
+    else
+      HYCOM_ARCH='Alinux-gnu-relo'
+    fi
   else
-    HYCOM_ARCH='Aintelrelo'    
+    if [ "$HYCOM_REGIONAL" = "TRUE" ]; then
+      echo "Building regional hycom using intelrelo-nuopc config"
+      HYCOM_ARCH='intelrelo'    
+    else
+      HYCOM_ARCH='Aintelrelo'    
+    fi
   fi
 
   if [[ $1"" == "clean" ]] ; then
@@ -316,7 +325,7 @@ build_hycom(){
     make ARCH=$HYCOM_ARCH TYPE=nuopc clean
     echo "...done cleaning $COMP."
   else
-    echo "Building $COMP..."
+    echo "Building $COMP using $HYCOM_ARCH..."
     cd $COMP_SRCDIR/sorc
     make ARCH=$HYCOM_ARCH TYPE=nuopc nuopc
     make ARCH=$HYCOM_ARCH TYPE=nuopc DESTDIR=/ INSTDIR=$COMP_BINDIR nuopcinstall

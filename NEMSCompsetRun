@@ -213,6 +213,20 @@ setup_hycom_Core2-1.6(){
   echo  "done."
 }
 
+setup_hycom_HEP20(){
+  echo -n "setup_hycom_HEP20 ... "
+  if [ $MACHINE_ID = theia ] ; then
+    ln -s /scratch4/NCEPDEV/nems/noscrub/NEMS-Data/HYCOM/REGIONAL_HEP20/* ${RUNDIR}/.
+    cp /scratch4/NCEPDEV/nems/noscrub/NEMS-Data/HYCOM/REGIONAL_HEP20/patch_input.144 ${RUNDIR}/patch.input
+  elif [ $MACHINE_ID = yellowstone ] ; then
+    ln -s /glade/p/work/abozec/hycom/HYCOM_CESM/INPUT_hep20/* ${RUNDIR}/.
+  else
+    echo "unknown machine ... bailing out"
+    exit 1
+  fi
+  echo  "done."
+}
+
 setup_mom5(){
   ocngrid="nx1"
   inpversion=""
