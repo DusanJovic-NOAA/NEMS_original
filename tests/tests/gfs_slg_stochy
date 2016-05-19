@@ -8,7 +8,7 @@
 
 export TEST_DESCR="Run SLG non-adiabatic test with NEMSIO and digital filter and stochastic physics from NEMSIO initial conditions"
 
-export CNTL_DIR=GFS_SLG
+export CNTL_DIR=GFS_SLG_STOCHY
 export LIST_FILES="sigf00 sigf01 sigf24 sfcf00 sfcf01 sfcf24 flxf00 flxf01 flxf24"
 
 export_gsm
