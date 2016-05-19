@@ -133,8 +133,8 @@
        integer :: myme                              ! My mpi mpe - set in initialize
        ! logical, parameter :: debug = .false.         ! Flag toggle for debug print output
        logical, parameter :: debug = .true.
-       ! logical, parameter :: use_nuopc = .false.
-       logical, parameter :: use_nuopc = .true.     ! Flag to use this wrapper
+       logical, parameter :: use_nuopc = .false.
+       !logical, parameter :: use_nuopc = .true.     ! Flag to use this wrapper
 
 
 !******************************************

@@ -1413,6 +1413,15 @@ io_pad:                  ' '
 #jwend
 
 EOF
+# addition import/export variables for stochastic physics
+export sppt_import=${sppt_import:-0}
+export sppt_export=${sppt_export:-0}
+export shum_import=${shum_import:-0}
+export shum_export=${shum_export:-0}
+export skeb_import=${skeb_import:-0}
+export skeb_export=${skeb_export:-0}
+export vc_import=${vc_import:-0}
+export vc_export=${vc_export:-0}
 
 #
 cat atm_namelist.rc > dyn_namelist.rc
@@ -1446,6 +1455,10 @@ tracer_export:                    1
 p_export:                         1
 dp_export:                        1
 dpdt_export:                      1
+sppt_wts_export:                  ${sppt_export}
+shum_wts_export:                  ${shum_export}
+skeb_wts_export:                  ${skeb_export}
+vc_wts_export:                    ${vc_export}
 
 EOF
 
@@ -1465,6 +1478,10 @@ tracer_import:                    1
 p_import:                         $p_import
 dp_import:                        $dp_import
 dpdt_import:                      $dpdt_import
+sppt_wts_import:                  ${sppt_import}
+shum_wts_import:                  ${shum_import}
+skeb_wts_import:                  ${skeb_import}
+vc_wts_import:                    ${vc_import}
 
 idate1_export:                    1
 z_export:                         1
@@ -1554,6 +1571,36 @@ slope_type_export:                1
 snow_albedo_max_export:           1
 
 EOF
+# additional namelist parameters for stochastic physics.  Default is off
+export SPPT=${SPPT:-"0.0,0.0,0.0,0.0,0.0"}
+export ISEED_SPPT=${ISEED_SPPT:-0}
+export SPPT_LOGIT=.TRUE.
+export SPPT_LOGIT=${SPPT_LOGIT:-.TRUE.}
+export SPPT_TAU=${SPPT_TAU:-"21600,2592500,25925000,7776000,31536000"}
+export SPPT_LSCALE=${SPPT_LSCALE:-"500000,1000000,2000000,2000000,2000000"}
+
+export SHUM=${SHUM:-"0.0, -999., -999., -999, -999"}
+export ISEED_SHUM=${ISEED_SHUM:-0}
+export SHUM_TAU=${SHUM_TAU:-"2.16E4, 1.728E5, 6.912E5, 7.776E6, 3.1536E7"}
+export SHUM_LSCALE=${SHUM_LSCALE:-"500.E3, 1000.E3, 2000.E3, 2000.E3, 2000.E3"}
+
+export SKEB=${SKEB:-"0.0, -999., -999., -999, -999"}
+export ISEED_SKEB=${ISEED_SKEB:-0}
+export SKEB_TAU=${SKEB_TAU:-"2.164E4, 1.728E5, 2.592E6, 7.776E6, 3.1536E7"}
+export SKEB_LSCALE=${SKEB_LSCALE:="1000.E3, 1000.E3, 2000.E3, 2000.E3, 2000.E3"}
+export SKEB_VFILT=${SKEB_VFILT:-40}
+export SKEB_DISS_SMOOTH=${SKEB_DISS_SMOOTH:-12}
+
+export VC=${VC:-0.0}
+export ISEED_VC=${ISEED_VC:-0}
+export VCAMP=${VCAMP:-"0.0, -999., -999., -999, -999"}
+export VC_TAU=${VC_TAU:-"4.32E4, 1.728E5, 2.592E6, 7.776E6, 3.1536E7"}
+export VC_LSCALE=${VC_LSCALE:-"1000.E3, 1000.E3, 2000.E3, 2000.E3, 2000.E3"}
+
+#
+#   WARNING WARNING FILESTYLE "C" will not work for Component Ensembles!!!
+#
+#eval $PGM <<EOF $REDOUT$PGMOUT $REDERR$PGMERR
 
 #
 #   WARNING WARNING FILESTYLE "C" will not work for Component Ensembles!!!
@@ -1581,6 +1628,10 @@ cat  > atm_namelist <<EOF
   semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   dfilevs=$DFILEVS,
+  SHUM=$SHUM,SHUM_TAU=$SHUM_TAU,SHUM_LSCALE=$SHUM_LSCALE,ISEED_SHUM=$ISEED_SHUM,
+  SPPT=$SPPT,SPPT_TAU=$SPPT_TAU,SPPT_LSCALE=$SPPT_LSCALE,SPPT_LOGIT=$SPPT_LOGIT,ISEED_SPPT=$ISEED_SPPT,
+  SKEB=$SKEB,SKEB_TAU=$SKEB_TAU,SKEB_LSCALE=$SKEB_LSCALE,SKEB_VFILT=$SKEB_VFILT,SKEB_DISS_SMOOTH=$SKEB_DISS_SMOOTH,ISEED_SKEB=$ISEED_SKEB,
+  VC=$VC,VC_TAU=$VC_TAU,VC_LSCALE=$VC_LSCALE,VCAMP=$VCAMP,ISEED_VC=$ISEED_VC,
   $DYNVARS /
  &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
@@ -1598,6 +1649,7 @@ cat  > atm_namelist <<EOF
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   nstf_name=${nstf_name},nst_anl=${nst_anl},
+  SHUM=$SHUM, SPPT=$SPPT,SKEB=$SKEB, VC=$VC,VCAMP=$VCAMP
   $PHYVARS /
  &TRACER_CONSTANT
   $TRACERVARS /

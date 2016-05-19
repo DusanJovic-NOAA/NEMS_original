@@ -140,6 +140,28 @@ fi
  export FHRES=_FHRES_
  export FHOUT=_FHOUT_
  export FHZER=_FHZER_
+# stochastic physics
+  export skeb_import=_skeb_import_
+  export sppt_import=_sppt_import_
+  export shum_import=_shum_import_
+  export skeb_export=_skeb_export_
+  export sppt_export=_sppt_export_
+  export shum_export=_shum_export_
+  export SPPT=_SPPT_
+  export SPPT_LOGIT=_SPPTLOGIT_
+  export SPPT_TAU=_SPPTTAU_
+  export SPPT_LSCALE=_SPPTLSCALE_
+  export SPPT_SFCLIMIT=_SPPTSFCLIMIT_
+  export SHUM=_SHUM_
+  export SHUM_TAU=_SHUMTAU_
+  export SHUM_LSCALE=_SHUMLSCALE_
+  export SKEB=_SKEB_
+  export SKEB_TAU=_SKEBTAU_
+  export SKEB_LSCALE=_SKEBLSCALE_
+  export SKEB_VFILT=_SKEBVFILT_
+  export ISEED_SPPT=_ISEEDSPPT_
+  export ISEED_SHUM=_ISEEDSHUM_
+  export ISEED_SKEB=_ISEEDSKEB_
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
 # export SFCPRESS_ID=2

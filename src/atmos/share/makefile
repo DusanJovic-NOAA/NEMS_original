@@ -11,11 +11,12 @@ MODULES_F90  = module_ERR_MSG.o \
 	       check_esmf_pet.o \
 	       ffsync.o 
 
-MODULES_IDEA = idea_composition.o
+MODULES_F77 = idea_composition.o \
+	       mersenne_twister.o  \
 
-MODULES_ALL = $(MODULES_F90) $(MODULES_IDEA)
+MODULES_ALL = $(MODULES_F90) $(MODULES_F77)
 
-DEPEND_FILES = ${MODULES_F90:.o=.F90} ${MODULES_IDEA:.o=.f}
+DEPEND_FILES = ${MODULES_F90:.o=.F90} ${MODULES_F77:.o=.f}
 
 
 #all default: depend
@@ -29,7 +30,7 @@ $(LIBRARY): $(MODULES_ALL)
 $(MODULES_F90): %.o: %.f90
 	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
 
-$(MODULES_IDEA): %.o: %.f
+$(MODULES_F77): %.o: %.f
 	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
 
 

@@ -140,8 +140,28 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_F107_KP_INTERVAL_:${F107_KP_INTERVAL}:g \
                      | sed s:_MPIEXEC_:${MPIEXEC}:g               \
                      | sed s:_NHRS_:${NHRS}:g                     \
-                     | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
-
+                     | sed s:_NDAYS_:${NDAYS}:g                   \
+                     | sed s:_skeb_import_:${skeb_import}:g       \
+                     | sed s:_sppt_import_:${sppt_import}:g       \
+                     | sed s:_shum_import_:${shum_import}:g       \
+                     | sed s:_skeb_export_:${skeb_export}:g       \
+                     | sed s:_sppt_export_:${sppt_export}:g       \
+                     | sed s:_shum_export_:${shum_export}:g       \
+                     | sed s:_SKEBVFILT_:"${SKEB_VFILT}":g       \
+                     | sed s:_SPPTLOGIT_:${SPPT_LOGIT}:g         \
+                     | sed s:_SPPTSFCLIMIT_:${SPPT_SFCLIMIT}:g   \
+                     | sed s:_SPPT_:"${SPPT}":g                   \
+                     | sed s:_SPPTTAU_:"${SPPT_TAU}":g           \
+                     | sed s:_SPPTLSCALE_:"${SPPT_LSCALE}":g     \
+                     | sed s:_SHUM_:"${SHUM}":g                   \
+                     | sed s:_SHUMTAU_:"${SHUM_TAU}":g           \
+                     | sed s:_SHUMLSCALE_:"${SHUM_LSCALE}":g     \
+                     | sed s:_SKEB_:"${SKEB}":g                   \
+                     | sed s:_SKEBTAU_:"${SKEB_TAU}":g           \
+                     | sed s:_SKEBLSCALE_:"${SKEB_LSCALE}":g     \
+                     | sed s:_ISEEDSPPT_:"${ISEED_SPPT}":g       \
+                     | sed s:_ISEEDSHUM_:"${ISEED_SHUM}":g       \
+                     | sed s:_ISEEDSKEB_:"${ISEED_SKEB}":g >  gfs_fcst_run
  chmod 755 gfs_fcst_run
 
  # | sed s:_LDFI_SPECT_:${LDFI_SPECT}:g               \
