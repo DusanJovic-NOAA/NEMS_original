@@ -1219,16 +1219,12 @@ if [ $FHINI -eq 0 ]; then
     INI_MONTH=$(echo $CDATE | awk -F" " '{print $2}')
     INI_DAY=$(echo $CDATE | awk -F" " '{print $3}')
     INI_HOUR=$(echo $CDATE | awk -F" " '{print $4}')
-    INI_MINUTE=$(echo $CDATE | awk -F" " '{print $5}')
-    INI_SECOND=$(echo $CDATE | awk -F" " '{print $6}')
   else
     INI_YEAR=$(echo $CDATE | cut -c1-4)
     echo "cdate=$CDATE, ini_year=${INI_YEAR}"
     INI_MONTH=$(echo $CDATE | cut -c5-6)
     INI_DAY=$(echo $CDATE | cut -c7-8)
     INI_HOUR=$(echo $CDATE | cut -c9-10)
-    INI_MINUTE=$(echo $CDATE | cut -c11-12)
-    INI_SECOND=$(echo $CDATE | cut -c13-14)
   fi
 else
   if [[ $ENS_NUM -le 1 ]] ; then
@@ -1261,25 +1257,13 @@ else
     INI_MONTH=$(echo $CDATE | awk -F" " '{print $2}')
     INI_DAY=$(echo $CDATE | awk -F" " '{print $3}')
     INI_HOUR=$(echo $CDATE | awk -F" " '{print $4}')
-    INI_MINUTE=$(echo $CDATE | awk -F" " '{print $5}')
-    INI_SECOND=$(echo $CDATE | awk -F" " '{print $6}')
   else
     INI_YEAR=$(echo $CDATE | cut -c1-4)
     echo "cdate=$CDATE, ini_year=${INI_YEAR}"
     INI_MONTH=$(echo $CDATE | cut -c5-6)
     INI_DAY=$(echo $CDATE | cut -c7-8)
     INI_HOUR=$(echo $CDATE | cut -c9-10)
-    INI_MINUTE=$(echo $CDATE | cut -c11-12)
-    INI_SECOND=$(echo $CDATE | cut -c13-14)
   fi
-fi
-
-# For old style CDATE without minute and second, use the same default value 0
-if [ -z "$INI_MINUTE" ]; then
-  INI_MINUTE=0
-fi
-if [ -z "$INI_SECOND" ]; then
-  INI_SECOND=0
 fi
 
 ## copy configure files needed for NEMS GFS
@@ -1375,8 +1359,8 @@ start_year:              $INI_YEAR
 start_month:             $INI_MONTH
 start_day:               $INI_DAY
 start_hour:              $INI_HOUR
-start_minute:            $INI_MINUTE
-start_second:            $INI_SECOND
+start_minute:            0
+start_second:            0
 nhours_fcst:             $FHMAX
 restart:                 $RESTART
 nhours_fcst1:            $FHMAX
