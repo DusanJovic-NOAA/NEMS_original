@@ -432,7 +432,7 @@
       real(ESMF_KIND_R8)      :: medAtmCouplingIntervalSec
       type(ESMF_Clock)        :: atmClock
       type(ESMF_TimeInterval) :: atmStep
-      type(ESMF_Time)         :: currTime
+      type(ESMF_Time)         :: currTime, stopTime
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -514,33 +514,10 @@
 !
 !
 !-----------------------------------------------------------------------
-!***  For the moment, use a direct copy of the EARTH Clock within
-!***  the ATM component.
+!***  Setup a Clock instance that the ATM core is allowed to modify.
+!***  This Clock is NOT under direct NUOPC control!
 !-----------------------------------------------------------------------
 !
-      ! Set ATM component clock as copy of EARTH clock.
-      call NUOPC_CompSetClock(ATM_GRID_COMP, CLOCK_EARTH, rc=RC_INIT)
-      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-
-      ! Read in the ATM coupling interval
-      call ESMF_ConfigGetAttribute(CF, medAtmCouplingIntervalSec, &
-        label="atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
-        rc=RC_INIT)
-      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-      
-      if (medAtmCouplingIntervalSec>0._ESMF_KIND_R8) then
-        ! The coupling time step was provided
-        call ESMF_TimeIntervalSet(atmStep, s_r8=medAtmCouplingIntervalSec, &
-          rc=RC_INIT)
-        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-        call ESMF_GridCompGet(ATM_GRID_COMP, clock=atmClock, rc=RC_INIT)
-        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-        call ESMF_ClockSet(atmClock, timestep=atmStep, rc=RC_INIT)
-        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-      endif
-
-      ! need another Clock instance here that the ATM core is allowed to
-      ! modify
       atm_int_state%CLOCK_ATM = ESMF_ClockCreate(CLOCK_EARTH, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
 
@@ -724,17 +701,34 @@
 ! - Under NUOPC, the EARTH driver clock is a separate instance from the 
 ! - ATM clock. However, the ATM clock may have been reset during ATM initialize
 ! - and therefore the EARTH driver clock must also be adjusted.
-! - Only affected: currTime
-      call ESMF_ClockGet(atm_int_state%CLOCK_ATM, currTime=currTime, rc=RC_INIT)
+! - Affected: currTime, timeStep
+      call ESMF_ClockGet(atm_int_state%CLOCK_ATM, currTime=currTime, &
+        stopTime=stopTime, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-      call ESMF_ClockSet(CLOCK_EARTH, currTime=currTime, rc=RC_INIT)
+      call ESMF_ClockSet(CLOCK_EARTH, currTime=currTime, &
+        timeStep=stopTime-currTime, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-! - Also the internal clock in ATM_GRID_COMP, which is controlled by NUOPC
-! - must be reset to match currTime
-      call ESMF_GridCompGet(ATM_GRID_COMP, clock=atmClock, rc=RC_INIT)
+
+      ! Set ATM component clock as copy of EARTH clock.
+      call NUOPC_CompSetClock(ATM_GRID_COMP, CLOCK_EARTH, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-      call ESMF_ClockSet(atmClock, currTime=currTime, rc=RC_INIT)
+
+      ! Read in the ATM coupling interval
+      call ESMF_ConfigGetAttribute(CF, medAtmCouplingIntervalSec, &
+        label="atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
+        rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+      
+      if (medAtmCouplingIntervalSec>0._ESMF_KIND_R8) then
+        ! The coupling time step was provided
+        call ESMF_TimeIntervalSet(atmStep, s_r8=medAtmCouplingIntervalSec, &
+          rc=RC_INIT)
+        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+        call ESMF_GridCompGet(ATM_GRID_COMP, clock=atmClock, rc=RC_INIT)
+        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+        call ESMF_ClockSet(atmClock, timestep=atmStep, rc=RC_INIT)
+        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+      endif
 
       call ESMF_ClockPrint(CLOCK_EARTH, options="currTime", &
         preString="leaving  ATM_INITIALIZE with CLOCK_EARTH current: ", &

@@ -292,7 +292,7 @@ c
             ucko(i,k) = 0.
             vcko(i,k) = 0.
             dbyo(i,k) = 0.
-!           pwo(i,k)  = 0.
+            pwo(i,k)  = 0.
             dellal(i,k) = 0.
             to(i,k)   = t1(i,k)
             qo(i,k)   = q1(i,k)
@@ -1235,7 +1235,7 @@ c
         deltbar(i) = 0.
         delubar(i) = 0.
         delvbar(i) = 0.
-!       qcond(i) = 0.
+        qcond(i) = 0.
       enddo
       do k = 1, km
         do i = 1, im

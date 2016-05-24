@@ -1,17 +1,17 @@
-Mon May  2 00:01:53 UTC 2016
+Mon May 23 13:54:57 UTC 2016
 Start Regression test
 
 
 
-Test 9 gfs_gocart_nemsio GFS_GOCART with NEMSIO
-Test 9
+Test 1 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 1
 GFS_GOCART with NEMSIO
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 9 results ....
+Checking test 1 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -27,10 +27,10 @@ Checking test 9 results ....
  Comparing ngac.t00z.aerf06.........OK
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
-Test 9 PASS 
+Test 1 PASS 
 
 
 
 
 REGRESSION TEST WAS SUCCESSFUL
-Mon May  2 00:13:06 UTC 2016
+Mon May 23 14:02:10 UTC 2016

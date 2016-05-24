@@ -1289,11 +1289,26 @@ fi
 #
 # jw: generate configure file
 #
+#---------------------------------------
+if [ ! -s $DATA/nems.configure ]; then
+cat << EOF > $DATA/nems.configure
+EARTH_component_list:       ATM
+ATM_model:                  ${atm_model:-gsm}
+runSeq::
+  ATM
+::
+EOF
+fi
+
 core=${core:-gfs}
-# gjt: already generated
-#cat << EOF > $DATA/atmos.configure
-#core: $core
-#EOF
+if [ ! -s $DATA/atmos.configure ]; then
+cat << EOF > $DATA/atmos.configure
+atm_model:                  ${atm_model:-gsm}
+atm_coupling_interval_sec:  ${coupling_interval_fast_sec:-600}
+EOF
+fi
+
+#---------------------------------------
 
 cat << EOF > atm_namelist.rc
 core: $core
