@@ -16,6 +16,7 @@ MED_attributes::
   DumpFields = true
   DumpRHs = false
   coldstart = false
+  restart_interval = 0
 ::
 
 # ATM #
@@ -23,7 +24,7 @@ ATM_model:                      _atm_model_
 ATM_petlist_bounds:             _atm_petlist_bounds_
 ATM_attributes::
   Verbosity = max
-  DumpFields = true
+  DumpFields = false
 ::
 
 # OCN #
@@ -31,8 +32,8 @@ OCN_model:                      _ocn_model_
 OCN_petlist_bounds:             _ocn_petlist_bounds_
 OCN_attributes::
   Verbosity = max
-  DumpFields = true
-  restart_interval = 21600
+  DumpFields = false
+  restart_interval = 9999999
 ::
 
 # ICE #
@@ -40,7 +41,7 @@ ICE_model:                      _ice_model_
 ICE_petlist_bounds:             _ice_petlist_bounds_
 ICE_attributes::
   Verbosity = max
-  DumpFields = true
+  DumpFields = false
 ::
 
 # Run Sequence #
@@ -62,5 +63,6 @@ runSeq::
       MED MedPhase_accum_fast
     @
     OCN -> MED :remapMethod=redist
+    MED MedPhase_write_restart
   @
 ::

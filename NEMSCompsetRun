@@ -142,16 +142,17 @@ setup_med_nems(){
       nemsgridinp="C"
     fi
   fi
-  echo "NEMSCompsetRun nemsgrid = ${nemsgrid}"
-  echo "NEMSCompsetRun nemsgridinp = ${nemsgridinp}"
-  # cp -f ${DATADIR}/MED_NEMS/${nemsgrid}${nemsgridinp}/* ${RUNDIR}
-  # cp -f /scratch3/NCEPDEV/stmp1/Anthony.Craig/UGCS-Seasonal.r72808/20150401short_nemscold_gsm_cice_mom5/mediator*restart* ${RUNDIR}
+  #echo "NEMSCompsetRun nemsgrid = ${nemsgrid}"
+  #echo "NEMSCompsetRun nemsgridinp = ${nemsgridinp}"
 
   if [ $SLG = .true. ] ; then
-    cp -f ${DATADIR}/MED_NEMS_SLG_v002/${nemsgrid}${nemsgridinp}/* ${RUNDIR}
+    MED_INPUT=${DATADIR}/MED_NEMS_SLG_v002/${nemsgrid}${nemsgridinp}
   else
-    cp -f ${DATADIR}/MED_NEMS_v002/${nemsgrid}${nemsgridinp}/* ${RUNDIR}
+    MED_INPUT=${DATADIR}/MED_NEMS_v002/${nemsgrid}${nemsgridinp}
   fi
+  echo "NEMSCompsetRun setup_med_nems MED_INPUT = ${MED_INPUT}"
+
+  cp -f ${MED_INPUT}/* ${RUNDIR}
   echo  "...done."
 }
 
@@ -160,9 +161,9 @@ setup_hycom_GLBT0.72(){
   if [ $MACHINE_ID = gaea ] ; then
     ln -s /ptmp/HycomGLBT0.72DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = theia ] ; then
-    ln -s /scratch4/NCEPDEV/nems/noscrub/NEMS-Data/HYCOM/GLBT0.72DATA/* ${RUNDIR}/.
+    ln -s ${DATADIR}/HYCOM/GLBT0.72DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = yellowstone ] ; then
-    ln -s /glade/p/work/theurich/NEMS-Data/HYCOM/GLBT0.72DATA/* ${RUNDIR}/.
+    ln -s ${DATADIR}/HYCOM/GLBT0.72DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = wcoss ] ; then
     ln -s /ptmp/HycomGLBT0.72DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = linux_gnu ] ; then  
@@ -180,9 +181,9 @@ setup_hycom_Core2-0.72(){
   if [ $MACHINE_ID = gaea ] ; then
     ln -s /ptmp/Core2-0.72DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = theia ] ; then
-    ln -s /scratch4/NCEPDEV/nems/noscrub/NEMS-Data/HYCOM/Core2-0.72DATA/* ${RUNDIR}/.
+    ln -s ${DATADIR}/HYCOM/Core2-0.72DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = yellowstone ] ; then
-    ln -s /glade/p/work/theurich/NEMS-Data/HYCOM/Core2-0.72DATA/* ${RUNDIR}/.
+    ln -s ${DATADIR}/HYCOM/Core2-0.72DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = wcoss ] ; then
     ln -s /ptmp/Core2-0.72DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = linux_gnu ] ; then  
@@ -199,9 +200,9 @@ setup_hycom_Core2-1.6(){
   if [ $MACHINE_ID = gaea ] ; then
     ln -s /ptmp/Core2-1.6DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = theia ] ; then
-    ln -s /scratch4/NCEPDEV/nems/noscrub/NEMS-Data/HYCOM/Core2-1.6DATA/* ${RUNDIR}/.
+    ln -s ${DATADIR}/HYCOM/Core2-1.6DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = yellowstone ] ; then
-    ln -s /glade/p/work/theurich/NEMS-Data/HYCOM/Core2-1.6DATA/* ${RUNDIR}/.
+    ln -s ${DATADIR}/HYCOM/Core2-1.6DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = wcoss ] ; then
     ln -s /ptmp/Core2-1.6DATA/* ${RUNDIR}/.
   elif [ $MACHINE_ID = linux_gnu ] ; then  
@@ -222,25 +223,25 @@ setup_mom5(){
       ocngrid="nx1"
     elif [[ $NEMS_GRID = *mx5* ]] ; then
       ocngrid="mx5"
-      inpversion="B"
+      inpversion="C"
     fi
   fi
-  echo "NEMSCompsetRun ocngrid = ${ocngrid}"
-  echo "NEMSCompsetRun ocn inpversion = ${inpversion}"
+  #echo "NEMSCompsetRun ocngrid = ${ocngrid}"
+  #echo "NEMSCompsetRun ocn inpversion = ${inpversion}"
+
   if [ $MACHINE_ID = zeus ] ; then
     OCN_INPUT=/scratch1/portfolios/NCEPDEV/ocean/noscrub/Fei.Liu/global_box1/INPUT
   elif [ $MACHINE_ID = gaea ] ; then
     OCN_INPUT=/lustre/f1/unswept/ncep/Gerhard.Theurich/global_box1/INPUT
   elif [ $MACHINE_ID = theia ] ; then
-#    OCN_INPUT=/scratch4/NCEPDEV/ocean/noscrub/Fei.Liu/global_box1/INPUT
-#    OCN_INPUT=/scratch4/NCEPDEV/nems/noscrub/Anthony.Craig/mom_data/${ocngrid}/INPUT
-    OCN_INPUT=/scratch4/NCEPDEV/nems/noscrub/Anthony.Craig/mom_data/${ocngrid}${inpversion}/INPUT
+    OCN_INPUT=${DATADIR}/MOM/${ocngrid}${inpversion}/INPUT
   elif [ $MACHINE_ID = yellowstone ] ; then
-#    OCN_INPUT=/glade/p/work/theurich/global_box1/INPUT
     OCN_INPUT=/glade/p/cgd/cseg/people/tcraig/NEMS_DATA/mom5/${ocngrid}${inpversion}/INPUT
   elif [ $MACHINE_ID = wcoss ] ; then
     OCN_INPUT=/climate/noscrub/emc.climpara/Patrick/mom5_data/${ocngrid}${inpversion}/INPUT
   fi
+  echo "NEMSCompsetRun setup_mom OCN_INPUT = ${OCN_INPUT}"
+
   dst_dir="${RUNDIR}"
   cp -r ${OCN_INPUT}/ ${dst_dir}
   cp ${OCN_INPUT}/input.nml ${dst_dir}
@@ -263,53 +264,34 @@ setup_cice(){
       icegrid="nx1"
     elif [[ $NEMS_GRID = *mx5* ]] ; then
       icegrid="mx5"
-      inpversion="B"
+      inpversion="C"
     fi
   fi
-  echo "NEMSCompsetRun icegrid = ${icegrid}"
-  echo "NEMSCompsetRun ice inpversion = ${inpversion}"
+  #echo "NEMSCompsetRun icegrid = ${icegrid}"
+  #echo "NEMSCompsetRun ice inpversion = ${inpversion}"
 
   if [ $MACHINE_ID = zeus ] ; then
     ICE_INPUT=/home/Anthony.Craig/lanl_cice_data
   elif [ $MACHINE_ID = gaea ] ; then
     ICE_INPUT=/lustre/f1/unswept/ncep/Gerhard.Theurich/lanl_cice_data
   elif [ $MACHINE_ID = theia ] ; then
-#    ICE_INPUT=/scratch4/NCEPDEV/nems/noscrub/Gerhard.Theurich/lanl_cice_data/
-#    ICE_INPUT=/scratch4/NCEPDEV/nems/noscrub/Anthony.Craig/lanl_cice_data/${icegrid}
-#    ICE_INPUT=/scratch4/NCEPDEV/nems/noscrub/Anthony.Craig/lanl_cice_data/${icegrid}
-    ICE_INPUT=/scratch4/NCEPDEV/nems/noscrub/Anthony.Craig/lanl_cice_data/${icegrid}${inpversion}
+    ICE_INPUT=${DATADIR}/CICE/${icegrid}${inpversion}
   elif [ $MACHINE_ID = yellowstone ] ; then
-#    ICE_INPUT=/glade/p/work/theurich/lanl_cice_data
-#    ICE_INPUT=/glade/p/cgd/cseg/people/tcraig/NEMS_DATA/cice/$icegrid
-#    ICE_INPUT=/glade/p/work/feiliu/NEMS/data/INIT/CICE/${icegrid}${inpversion}
     ICE_INPUT=/glade/p/cgd/cseg/people/tcraig/NEMS_DATA/cice/${icegrid}${inpversion}
   elif [ $MACHINE_ID = wcoss ] ; then
     ICE_INPUT=/climate/noscrub/emc.climpara/Patrick/lanl_cice_data/${icegrid}${inpversion}
   fi
+  echo "NEMSCompsetRun setup_cice ICE_INPUT = ${ICE_INPUT}"
 
   dst_dir="${RUNDIR}"
-#  cp ${ICE_INPUT}/ice_in_360x200 ${dst_dir}/ice_in
-#  cp ${ICE_INPUT}/grid_cice_360x200.nc ${dst_dir}
   cp -f ${ICE_INPUT}/* ${dst_dir}
-  cp -f ${ICE_INPUT}/ice_in_${icegrid} ${dst_dir}/ice_in
-  if [ $MACHINE_ID = yellowstone ] ; then
-    cp -f ~feiliu/ice_in.5.0.2 ${dst_dir}/ice_in
-  elif [ $MACHINE_ID = theia ] ; then
-    cp -f ~Fei.Liu/ice_in.5.0.2 ${dst_dir}/ice_in
 
-    # PT for 900s ice timestep and additional output.
-    if [ $SLG = .true. ] ; then
-      cp -f /scratch4/NCEPDEV/nems/noscrub/Patrick.Tripp/lanl_cice_data/ice_in.5.0.2_xwu ${dst_dir}/ice_in
-    fi
-  elif [ $MACHINE_ID = wcoss ] ; then
-    cp -f /climate/noscrub/emc.climpara/Patrick/lanl_cice_data/ice_in.5.0.2 ${dst_dir}/ice_in
-
-    # PT for 900s ice timestep and additional output.
-    if [ $SLG = .true. ] ; then
-      cp -f /climate/noscrub/emc.climpara/Patrick/lanl_cice_data/ice_in.5.0.2_xwu ${dst_dir}/ice_in
-    fi
+  if [ $SLG = .true. ] ; then
+    cp -f ${ICE_INPUT}/ice_in_${icegrid}_slg ${dst_dir}/ice_in
+  else
+    cp -f ${ICE_INPUT}/ice_in_${icegrid} ${dst_dir}/ice_in
   fi
-#  rm ${dst_dir}/mediator*_restart*
+
   mkdir ${dst_dir}/restart
   mkdir ${dst_dir}/history
 }
@@ -539,19 +521,19 @@ setup_lis(){
 
 setup_ww3Case1(){
   if [ $MACHINE_ID = theia ] ; then
-    cp -r /scratch4/NCEPDEV/nems/noscrub/NEMS-Data/WW3/Case1_20160412/* ${RUNDIR}/.
+    cp -r ${DATADIR}/WW3/Case1_20160412/* ${RUNDIR}/.
   fi
 }
 
 setup_ww3Case2(){
   if [ $MACHINE_ID = theia ] ; then
-    cp -r /scratch4/NCEPDEV/nems/noscrub/NEMS-Data/WW3/Case2_20160412/* ${RUNDIR}/.
+    cp -r ${DATADIR}/WW3/Case2_20160412/* ${RUNDIR}/.
   fi
 }
 
 setup_ww3Case3(){
   if [ $MACHINE_ID = theia ] ; then
-    cp -r /scratch4/NCEPDEV/nems/noscrub/NEMS-Data/WW3/Case3_20160412/* ${RUNDIR}/.
+    cp -r ${DATADIR}/WW3/Case3_20160412/* ${RUNDIR}/.
   fi
 }
 

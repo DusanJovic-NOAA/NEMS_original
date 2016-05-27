@@ -180,6 +180,7 @@ module module_MEDIATOR
   type(ESMF_Grid)    :: gridAtm, gridOcn, gridIce, gridLnd, gridHyd, gridMed
   integer, parameter :: nx_med=400, ny_med=200
   integer            :: dbug_flag = 5
+  integer            :: restart_interval = 0
   logical            :: statewrite_flag = .true.      ! diagnostics output, default
   logical            :: rhprint_flag = .false.        ! diagnostics output, default
   logical            :: profile_memory = .true.       ! diagnostics output, default
@@ -420,6 +421,17 @@ module module_MEDIATOR
       line=__LINE__, file=__FILE__)) return  ! bail out
     call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_Advance, &
       specPhaseLabel="MedPhase_prep_hyd", specRoutine=MedPhase_prep_hyd, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! set entry point for Run( phase = write_restart ) and specialize
+    call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_RUN, &
+      phaseLabelList=(/"MedPhase_write_restart"/), &
+      userRoutine=mediator_routine_Run, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_Advance, &
+      specPhaseLabel="MedPhase_write_restart", specRoutine=MedPhase_write_restart, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -859,7 +871,18 @@ module module_MEDIATOR
       acceptStringList=(/"IPDv03p"/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
-    
+
+    call ESMF_AttributeGet(gcomp, name="restart_interval", value=value, defaultValue="unset", &
+      convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    restart_interval = ESMF_UtilString2Int(value, &
+      specialStringList=(/"unset"/), specialValueList=(/0/), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+    write(msgString,'(A,i6)') trim(subname)//' restart_interval = ',restart_interval
+    call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_INFO, rc=dbrc)
+
     call ESMF_AttributeGet(gcomp, name="coldstart", value=value, defaultValue="false", &
       convention="NUOPC", purpose="Instance", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -2638,7 +2661,7 @@ module module_MEDIATOR
 
       !---tcraig, turn if on to force no mediator restarts for testing
       !if (.not.coldstart) then
-        call Mediator_restart(gcomp,'read',rc)
+        call Mediator_restart(gcomp,'read','mediator',rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
       !endif
@@ -4589,6 +4612,62 @@ module module_MEDIATOR
   end subroutine MedPhase_prep_ocn
 
   !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+
+  subroutine MedPhase_write_restart(gcomp, rc)
+    type(ESMF_GridComp)  :: gcomp
+    integer, intent(out) :: rc
+    
+    ! local variables
+    type(ESMF_Clock)           :: clock
+    type(ESMF_Time)            :: time
+    integer*8                  :: sec8
+    integer                    :: yr,mon,day,hr,min,sec
+    character(len=128)         :: fname
+    character(len=*),parameter :: subname='(module_MEDIATOR:MedPhase_write_restart)'
+
+    if (dbug_flag > 5) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    rc = ESMF_SUCCESS
+
+    if (restart_interval > 0) then
+      call ESMF_GridCompGet(gcomp, clock=clock, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+      call ESMF_ClockGet(clock,currtime=time,rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_TimeGet(time,s_i8=sec8,rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+      if (mod(sec8,restart_interval) == 0) then
+        write(msgString,*) trim(subname)//' restart at sec8= ',sec8,restart_interval
+        call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=dbrc)
+
+        call ESMF_TimeGet(time,yy=yr,mm=mon,dd=day,h=hr,m=min,s=sec,rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+
+        write(fname,'(i4.4,2i2.2,a,3i2.2,a)') yr,mon,day,'-',hr,min,sec,'_mediator'
+        write(msgString,*) trim(subname)//' restart to '//trim(fname)
+        call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=dbrc)
+
+        call Mediator_restart(gcomp,'write',trim(fname),rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      endif
+    endif
+
+    if (dbug_flag > 5) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine MedPhase_write_restart
+
+  !-----------------------------------------------------------------------------
 
   subroutine Finalize(gcomp, importState, exportState, clock, rc)
     type(ESMF_GridComp)  :: gcomp
@@ -4606,7 +4685,7 @@ module module_MEDIATOR
     endif
     rc = ESMF_SUCCESS
 
-    call Mediator_restart(gcomp,'write',rc)
+    call Mediator_restart(gcomp,'write','mediator',rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -4681,12 +4760,13 @@ module module_MEDIATOR
   end subroutine Finalize
 
   !-----------------------------------------------------------------------------
-  subroutine Mediator_restart(gcomp,mode,rc)
+  subroutine Mediator_restart(gcomp,mode,bfname,rc)
     !
     ! read/write mediator restart file
     !
     type(ESMF_GridComp)  :: gcomp
     character(len=*), intent(in)    :: mode
+    character(len=*), intent(in)    :: bfname
     integer         , intent(inout) :: rc
 
     type(InternalState)  :: is_local
@@ -4712,37 +4792,37 @@ module module_MEDIATOR
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    fname = 'mediator_FBaccumAtm_restart.nc'
+    fname = trim(bfname)//'_FBaccumAtm_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBaccumAtm,read_rest_FBaccumAtm,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    fname = 'mediator_FBaccumOcn_restart.nc'
+    fname = trim(bfname)//'_FBaccumOcn_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBaccumOcn,read_rest_FBaccumOcn,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    fname = 'mediator_FBaccumIce_restart.nc'
+    fname = trim(bfname)//'_FBaccumIce_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBaccumIce,read_rest_FBaccumIce,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    fname = 'mediator_FBaccumLnd_restart.nc'
+    fname = trim(bfname)//'_FBaccumLnd_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBaccumLnd,read_rest_FBaccumLnd,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    fname = 'mediator_FBaccumHyd_restart.nc'
+    fname = trim(bfname)//'_FBaccumHyd_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBaccumHyd,read_rest_FBaccumHyd,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    fname = 'mediator_FBaccumAtmOcn_restart.nc'
+    fname = trim(bfname)//'_FBaccumAtmOcn_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBaccumAtmOcn,read_rest_FBaccumAtmOcn,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
-    fname = 'mediator_FBAtm_a_restart.nc'
+    fname = trim(bfname)//'_FBAtm_a_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBAtm_a,read_rest_FBAtm_a,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
@@ -4752,7 +4832,7 @@ module module_MEDIATOR
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
-    fname = 'mediator_FBIce_i_restart.nc'
+    fname = trim(bfname)//'_FBIce_i_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBIce_i,read_rest_FBIce_i,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
@@ -4762,7 +4842,7 @@ module module_MEDIATOR
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
-    fname = 'mediator_FBOcn_o_restart.nc'
+    fname = trim(bfname)//'_FBOcn_o_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBOcn_o,read_rest_FBOCN_o,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
@@ -4772,7 +4852,7 @@ module module_MEDIATOR
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
-    fname = 'mediator_FBLnd_l_restart.nc'
+    fname = trim(bfname)//'_FBLnd_l_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBLnd_l,read_rest_FBLnd_l,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
@@ -4782,7 +4862,7 @@ module module_MEDIATOR
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
-    fname = 'mediator_FBHyd_h_restart.nc'
+    fname = trim(bfname)//'_FBHyd_h_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBHyd_h,read_rest_FBHyd_h,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
@@ -4792,13 +4872,13 @@ module module_MEDIATOR
         line=__LINE__, file=__FILE__)) return  ! bail out
     endif
 
-    fname = 'mediator_FBAtmOcn_o_restart.nc'
+    fname = trim(bfname)//'_FBAtmOcn_o_restart.nc'
     call FieldBundle_RWFields(mode,fname,is_local%wrap%FBAtmOcn_o,read_rest_FBAtmOcn_o,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     funit = 1101
-    fname = 'mediator_scalars_restart.txt'
+    fname = trim(bfname)//'_scalars_restart.txt'
     if (mode == 'write') then
       call ESMF_LogWrite(trim(subname)//": write "//trim(fname), ESMF_LOGMSG_INFO, rc=dbrc)
       open(funit,file=fname,form='formatted')
