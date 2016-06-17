@@ -344,7 +344,6 @@
       ! local variables
       character(len=80)               :: fieldName
       type(ESMF_ArraySpec)            :: arrayspec
-      type(ESMF_Mesh)                 :: mesh
       integer                         :: i
 
       if (present(rc)) rc = ESMF_SUCCESS
@@ -366,7 +365,7 @@
               line=__LINE__, &
               file=__FILE__)) &
               return  ! bail out
-           field = ESMF_FieldCreate(mesh, arrayspec, &
+           field = ESMF_FieldCreate(wam2dmesh, arrayspec, &
               ungriddedLBound=(/1/), ungriddedUBound=(/wamlevels/),&
               name=fieldName, rc=rc)
            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -380,12 +379,12 @@
              line=__LINE__, &
              file=__FILE__)) &
              return  ! bail out
-           call NUOPC_Realize(state, field=field, rc=rc)
-           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-             line=__LINE__, &
-             file=__FILE__)) &
-             return  ! bail out
          endif
+         call NUOPC_Realize(state, field=field, rc=rc)
+         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+           line=__LINE__, &
+           file=__FILE__)) &
+           return  ! bail out
       else
         ! remove a not connected Field from State
         call ESMF_StateRemove(state, (/fieldName/), rc=rc)
@@ -431,7 +430,7 @@
       TYPE(ESMF_Config)       :: CF
       real(ESMF_KIND_R8)      :: medAtmCouplingIntervalSec
       type(ESMF_Clock)        :: atmClock
-      type(ESMF_TimeInterval) :: atmStep
+      type(ESMF_TimeInterval) :: atmStep, earthStep
       type(ESMF_Time)         :: currTime, stopTime
 !
 !-----------------------------------------------------------------------
@@ -705,8 +704,12 @@
       call ESMF_ClockGet(atm_int_state%CLOCK_ATM, currTime=currTime, &
         stopTime=stopTime, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+      call ESMF_ClockGet(CLOCK_EARTH, timeStep=earthStep, rc=RC_INIT)
+      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+
+      if (earthStep>(stopTime-currTime)) earthStep=stopTime-currTime
       call ESMF_ClockSet(CLOCK_EARTH, currTime=currTime, &
-        timeStep=stopTime-currTime, rc=RC_INIT)
+        timeStep=earthStep, rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
 
       ! Set ATM component clock as copy of EARTH clock.
@@ -718,7 +721,7 @@
         label="atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
         rc=RC_INIT)
       ESMF_ERR_RETURN(RC_INIT,RC_INIT)
-      
+
       if (medAtmCouplingIntervalSec>0._ESMF_KIND_R8) then
         ! The coupling time step was provided
         call ESMF_TimeIntervalSet(atmStep, s_r8=medAtmCouplingIntervalSec, &

@@ -5,10 +5,6 @@
 
 SHELL           = /bin/sh
 
-include /scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/libs/esmf_6/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
-ESMF_INC    = $(ESMF_F90COMPILEPATHS)
-ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
-
 ################################################################################
 ## Include the common configuration parts
 

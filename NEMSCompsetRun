@@ -139,7 +139,7 @@ setup_med_nems(){
       nemsgrid="nx1"
     elif [[ $NEMS_GRID = *mx5* ]] ; then
       nemsgrid="mx5"
-      nemsgridinp="C"
+      nemsgridinp="D"
     fi
   fi
   #echo "NEMSCompsetRun nemsgrid = ${nemsgrid}"
@@ -152,7 +152,7 @@ setup_med_nems(){
   fi
   echo "NEMSCompsetRun setup_med_nems MED_INPUT = ${MED_INPUT}"
 
-  cp -f ${MED_INPUT}/* ${RUNDIR}
+  cp -pf ${MED_INPUT}/* ${RUNDIR}
   echo  "...done."
 }
 
@@ -238,7 +238,7 @@ setup_mom5(){
   elif [ $MACHINE_ID = yellowstone ] ; then
     OCN_INPUT=/glade/p/cgd/cseg/people/tcraig/NEMS_DATA/mom5/${ocngrid}${inpversion}/INPUT
   elif [ $MACHINE_ID = wcoss ] ; then
-    OCN_INPUT=/climate/noscrub/emc.climpara/Patrick/mom5_data/${ocngrid}${inpversion}/INPUT
+    OCN_INPUT=${DATADIR}/MOM/${ocngrid}${inpversion}/INPUT
   fi
   echo "NEMSCompsetRun setup_mom OCN_INPUT = ${OCN_INPUT}"
 
@@ -264,7 +264,7 @@ setup_cice(){
       icegrid="nx1"
     elif [[ $NEMS_GRID = *mx5* ]] ; then
       icegrid="mx5"
-      inpversion="C"
+      inpversion="D"
     fi
   fi
   #echo "NEMSCompsetRun icegrid = ${icegrid}"
@@ -279,7 +279,7 @@ setup_cice(){
   elif [ $MACHINE_ID = yellowstone ] ; then
     ICE_INPUT=/glade/p/cgd/cseg/people/tcraig/NEMS_DATA/cice/${icegrid}${inpversion}
   elif [ $MACHINE_ID = wcoss ] ; then
-    ICE_INPUT=/climate/noscrub/emc.climpara/Patrick/lanl_cice_data/${icegrid}${inpversion}
+    ICE_INPUT=${DATADIR}/CICE/${icegrid}${inpversion}
   fi
   echo "NEMSCompsetRun setup_cice ICE_INPUT = ${ICE_INPUT}"
 
@@ -586,6 +586,7 @@ if [ $MACHINE_ID = wcoss ]; then
 
   cp $PATHRT/gfs_fcst_run.IN_IBM $PATHRT/gfs_fcst_run.IN
   cp $PATHRT/gfs_bsub.IN_wcoss $PATHRT/gfs_bsub.IN
+  cp $PATHRT/nmm_conf/nmm_bsub.IN_wcoss $PATHRT/nmm_conf/nmm_bsub.IN
   export IC_DIR=$DATADIR/GSM_INITIAL_CONDITIONS_v002
   export RTPWD=$DATADIR/RT-Baselines
   export FIXGLOBAL=/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am

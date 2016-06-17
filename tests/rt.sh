@@ -44,6 +44,7 @@ if [ $MACHINE_ID = wcoss ]; then
   export SIGHDR=/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
   cp gfs_fcst_run.IN_IBM gfs_fcst_run.IN
   cp gfs_bsub.IN_wcoss gfs_bsub.IN
+  cp nmm_conf/nmm_bsub.IN_wcoss nmm_conf/nmm_bsub.IN
 elif [ $MACHINE_ID = gaea ]; then
   export DISKNM=/lustre/f1/unswept/ncep/Ratko.Vasic
   export STMP=/lustre/f1/ncep

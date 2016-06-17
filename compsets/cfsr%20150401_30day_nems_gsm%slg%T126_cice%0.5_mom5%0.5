@@ -112,11 +112,12 @@ setup_med_nems
 RUN_SCRIPT=rt_gfs.sh
 
 # - validation
-export CNTL_DIR=cfsr%20150401_30day_nems_gsm%slg%T126_cice%0.5_mom5%0.5_V0001
+export CNTL_DIR=cfsr%20150401_30day_nems_gsm%slg%T126_cice%0.5_mom5%0.5_V0003
+
 export LIST_FILES=" \
- sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 \
- sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 \
- flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 "
+ sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 sigf48 sigf72 sigf96 sigf120 sigf240 sigf480 sigf720 \
+ sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 sfcf48 sfcf72 sfcf96 sfcf120 sfcf240 sfcf480 sfcf720 \
+ flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 flxf48 flxf72 flxf96 flxf120 flxf240 flxf480 flxf720"
 LIST_FILES+=" \
  grid_cice_NEMS_mx5.nc                                            \
  init_field_ocn_export_freezing_melting_potential.nc              \
