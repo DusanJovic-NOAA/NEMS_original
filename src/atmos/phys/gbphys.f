@@ -154,6 +154,8 @@
 !                        & imfshalcnv, respectively
 !      Mar  2016    F. Yang     add pgr to rayleigh damping call        !
 !      Mar  2016    S. Moorthi  add ral_ts                              !
+!      Jun  2016    X. Li       change all nst_fld as inout             !
+!    
 !  ====================  definition of variables  ====================  !
 !                                                                       !
 !  inputs:                                                       size   !
@@ -553,6 +555,7 @@
      &      nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,snow_cpl,       &
 
      &      xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,       &
+     &      tref, z_c, c_0, c_d, w_0, w_d,                              &
      &      phy_fctd,                                                   &
 !  ---  outputs:
      &      gt0,gq0,gu0,gv0,t2m,q2m,u10m,v10m,                          &
@@ -570,8 +573,7 @@
      &      nlwsfci_cpl, nswsfci_cpl,                                   &
      &      nnirbmi_cpl, nnirdfi_cpl, nvisbmi_cpl, nvisdfi_cpl,         &
      &      t2mi_cpl,    q2mi_cpl,    u10mi_cpl,   v10mi_cpl,           &
-     &      tseai_cpl,   psurfi_cpl,                                    &
-     &      tref, z_c, c_0, c_d, w_0, w_d                               &
+     &      tseai_cpl,   psurfi_cpl                                     &
      &      )
 !
       use machine ,   only : kind_phys
@@ -668,8 +670,7 @@
      &      nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,                &
 ! for nst
      &      xt, xs, xu, xv, xz, zm, xtts, xzts, d_conv, ifd, dt_cool,
-     &      Qrain
-!    &      Qrain, tref, z_c, c_0, c_d, w_0, w_d
+     &      Qrain, tref, z_c, c_0, c_d, w_0, w_d
 
 !
       real(kind=kind_phys), dimension(ix,lsoil),      intent(inout) ::  &
@@ -704,8 +705,7 @@
      &      nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            &
      &      t2mi_cpl,q2mi_cpl,                                          &
      &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,                   &
-!    &      rqtk
-     &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk
+     &      rqtk
 
       real(kind=kind_phys), dimension(ix,levs),       intent(out) ::    &
      &      gt0, gu0, gv0
