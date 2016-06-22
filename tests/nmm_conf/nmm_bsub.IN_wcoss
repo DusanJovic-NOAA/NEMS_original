@@ -13,6 +13,7 @@
 ##BSUB -P dev
 #BSUB -a poe
 
+source /usrx/local/Modules/default/init/sh
 source _SRCD_/src/conf/modules.nems
 module list
 

@@ -27,8 +27,7 @@ export dprefix=""
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 if [ $MACHINE_ID = wcoss ]; then
   source /usrx/local/Modules/default/init/sh
-#  export DISKNM=/meso
-  export DISKNM=/nems
+  export DISKNM=/meso
   # export pex=1           # for wcoss phase1
   # export pex=${pex:-2}   # default - phase2
   export QUEUE=debug # dev
@@ -55,8 +54,7 @@ elif [ $MACHINE_ID = theia ]; then
   source /apps/lmod/lmod/init/sh
   export ACCNR
   export dprefix=/scratch4/NCEPDEV
-#  export DISKNM=$dprefix/meso
-  export DISKNM=$dprefix/nems
+  export DISKNM=$dprefix/meso
   export STMP=$dprefix/stmp4
   export PTMP=$dprefix/stmp3
   export SCHEDULER=pbs
@@ -129,8 +127,7 @@ while getopts ":c:fsl:mh" opt; do
   esac
 done
 
-#export RTPWD=${RTPWD:-${DISKNM}/noscrub/wx20rv/REGRESSION_TEST}
-export RTPWD=${RTPWD:-${DISKNM}/noscrub/Jun.Wang/REGRESSION_TEST}
+export RTPWD=${RTPWD:-${DISKNM}/noscrub/wx20rv/REGRESSION_TEST}
 
 shift $((OPTIND-1))
 [[ $# -gt 0 ]] && usage
