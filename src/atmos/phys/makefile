@@ -11,48 +11,6 @@ GOCARTINCS = -I../../chem/gocart/${ARCH}/include/Chem_Base
 
 LIBRARY  = libphys.a
 
-MODULES_NMM      = module_BL_GFSPBL.o \
-                   module_BL_GFSPBLHUR.o \
-                   module_BL_MYJPBL.o \
-                   module_CU_BMJ.o \
-                   module_CU_SAS.o \
-                   module_CU_SASHUR.o \
-                   module_LS_LISS.o \
-                   module_LS_NOAHLSM.o \
-                   module_MP_ETANEW.o \
-                   module_MP_FER_HIRES.o \
-                   module_mp_thompson.o \
-                   module_mp_radar.o \
-                   module_MP_GFS.o \
-                   module_MP_WSM6.o \
-                   module_RA_GFDL.o \
-                   module_RA_RRTM.o \
-                   module_SF_JSFC.o \
-                   module_SF_GFDL.o \
-                   module_SF_URBAN.o
-
-MODULES_NMM_RRTM = grrad_nmmb.o                   \
-                   radiation_astronomy_nmmb.o     \
-                   radiation_aerosols_nmmb.o      \
-                   radiation_gases_nmmb.o         \
-                   radiation_clouds_nmmb.o        \
-                   radiation_surface_nmmb.o       \
-                   rad_initialize_nmmb.o          \
-	           radlw_param_nmmb.o             \
- 	           radlw_datatb_nmmb.o            \
-	           radlw_main_nmmb.o              \
-	           radsw_param_nmmb.o             \
-	           radsw_datatb_nmmb.o            \
-	           radsw_main_nmmb.o              \
-                   radiation_astronomy_gfs.o \
-                   radiation_aerosols_gfs.o  \
-                   radiation_gases_gfs.o     \
-                   radiation_clouds_gfs.o    \
-                   radiation_surface_gfs.o   \
-                   precpd_nmmb.o
-
-#                   grrad_gfs.o               \
-
 MODULE_FGFS =                                \
 	           num_parthds.o
 
@@ -160,22 +118,20 @@ MODULES_TRAC_stub= gocart_tracer_config_stub.o
 
 OBJS_PHYSDRV    =  nuopc_physics.o
 
-MODULES_ALL =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
-		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS) \
+MODULES_ALL =	$(MODULES_GFS) $(MODULES_IDEA) \
+		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULE_FGFS) \
 		$(OBJS_PHYSDRV)
-MODULES_GOCART =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
-			$(MODULES_GFSF) $(MODULES_TRAC) $(MODULES_NMM_RRTM) $(MODULE_FGFS) \
+MODULES_GOCART =$(MODULES_GFS) $(MODULES_IDEA) \
+			$(MODULES_GFSF) $(MODULES_TRAC) $(MODULE_FGFS) \
 			$(OBJS_PHYSDRV)
 
-#			$(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
-
 ifeq ($(GOCART_MODE),full)
-	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} \
-			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F} \
+	DEPEND_FILES =	${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} \
+			${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F} \
 			${OBJS_PHYSDRV:.o=.F90}
 else
-	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} \
-			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F} \
+	DEPEND_FILES =	${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} \
+			${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F} \
 			${OBJS_PHYSDRV:.o=.F90}
 endif
 
@@ -190,12 +146,6 @@ gocart_stub: depend $(MODULES_ALL)
 
 gocart_full: $(MODULES_GOCART)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_GOCART)
-
-$(MODULES_NMM): %.o: %.f90
-	$(FC) $(FFLAGS_NMM) $(UTILINCS) -c $*.f90
-
-$(MODULES_NMM_RRTM): %.o: %.f
-	$(FC) $(FREE) $(FFLAGS_NMM) $(UTILINCS) $(FPP) $(CPPFLAGS) $(R8) -c $*.f
 
 $(MODULE_FGFS): %.o: %.F
 	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(R8) $(SUFFIX_FLAG) -c $*.F

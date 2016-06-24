@@ -154,7 +154,6 @@
 !
       use ESMF
       use MODULE_WRITE_INTERNAL_STATE
-      use module_constants,only : G1=>G
 !
 !-----------------------------------------------------------------------
 !
@@ -180,6 +179,7 @@
       REAL,dimension(:,:),allocatable :: dummy,vlat,vlon,buf
       REAL,dimension(:,:,:),allocatable :: FI
       REAL,dimension(:),allocatable  :: ETA1, ETA2, DXH
+      real, parameter :: G1 = 9.8060226 ! from module_CONSTANTS
 !
 !-----------------------------------------------------------------------
 !***  INTEGER SCALAR/1D HISTORY VARIABLES

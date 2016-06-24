@@ -6,10 +6,8 @@ LIBRARY  = libshare.a
 
 MODULES_F90  = module_ERR_MSG.o \
                module_INCLUDE.o \
-               module_CONSTANTS.o \
                module_CPLFIELDS.o \
-	       check_esmf_pet.o \
-	       ffsync.o 
+	       check_esmf_pet.o
 
 MODULES_F77 = idea_composition.o \
 	       mersenne_twister.o  \
