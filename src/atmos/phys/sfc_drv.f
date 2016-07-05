@@ -11,11 +11,11 @@
 !            shdmin, shdmax, snoalb, sfalb, flag_iter, flag_guess,      !
 !  ---  in/outs:                                                        !
 !            weasd, snwdph, tskin, tprcp, srflag, smc, stc, slc,        !
-!            canopy, trans, tsurf, zorl,                                !
+!            canopy, trans, tsurf,                                      !
 !  ---  outputs:                                                        !
 !            sncovr1, qsurf, gflux, drain, evap, hflx, ep, runoff,      !
 !            cmm, chh, evbs, evcw, sbsno, snowc, stm, snohf,            !
-!            smcwlt2, smcref2, wet1 )                                   !
+!            smcwlt2, smcref2, zorl, wet1 )                             !
 !                                                                       !
 !                                                                       !
 !  subprogram called:  sflx                                             !
@@ -110,11 +110,11 @@
      &       shdmin, shdmax, snoalb, sfalb, flag_iter, flag_guess,      &
 !  ---  in/outs:
      &       weasd, snwdph, tskin, tprcp, srflag, smc, stc, slc,        &
-     &       canopy, trans, tsurf, zorl,                                &
+     &       canopy, trans, tsurf,                                      &
 !  ---  outputs:
      &       sncovr1, qsurf, gflux, drain, evap, hflx, ep, runoff,      &
      &       cmm, chh, evbs, evcw, sbsno, snowc, stm, snohf,            &
-     &       smcwlt2, smcref2, wet1                                     &
+     &       smcwlt2, smcref2, zorl, wet1                               &
      &     )
 !
       use machine ,   only : kind_phys
@@ -388,9 +388,6 @@
           chh(i) = chx * rho(i)
           cmm(i) = cmx
 
-!  ---- ... outside sflx, roughness uses cm as unit
-          z0 = zorl(i)/100.
-
 !  --- ...  call noah lsm
 
           call sflx                                                     &
@@ -401,13 +398,13 @@
      &       vtype, stype, slope, shdmin1d, alb, snoalb1d,              &
 !  ---  input/outputs:
      &       tbot, cmc, tsea, stsoil, smsoil, slsoil, sneqv, chx, cmx,  &
-     &       z0,                                                        & 
 !  ---  outputs:
      &       nroot, shdfac, snowh, albedo, eta, sheat, ec,              &
      &       edir, et, ett, esnow, drip, dew, beta, etp, ssoil,         &
      &       flx1, flx2, flx3, runoff1, runoff2, runoff3,               &
      &       snomlt, sncovr, rc, pc, rsmin, xlai, rcs, rct, rcq,        &
-     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax) 
+     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax,      &
+     &       z0 )
 
 !  --- ...  noah: prepare variables for return to parent mode
 !   6. output (o):
@@ -454,8 +451,7 @@
           snwdph(i)  = snowh * 1000.0
           weasd(i)   = sneqv * 1000.0
           sncovr1(i) = sncovr
-!  ---- ... outside sflx, roughness uses cm as unit (update after snow's
-!  effect)
+!  ---- ... outside sflx, roughness uses cm as unit
           zorl(i) = z0*100.
 
 !  --- ...  do not return the following output fields to parent model
