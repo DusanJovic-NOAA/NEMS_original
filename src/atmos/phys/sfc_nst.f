@@ -51,6 +51,7 @@
 !         2009  -- xu li       recreatead the code                      !
 !    feb  2010  -- s. moorthi added some changes made to the previous   !
 !                  version                                              !
+!    Jul  2016  -- X. Li, modify the diurnal warming event reset        !
 !                                                                       !
 !                                                                       !
 !  ====================  definition of variables  ====================  !
@@ -211,7 +212,7 @@
       real(kind=kind_phys) rnl_ts,hs_ts,hl_ts,rf_ts,q_ts
       real(kind=kind_phys) fw,q_warm
       real(kind=kind_phys) t12,alon,tsea,sstc,dta,dtz
-      real(kind=kind_phys) zsea1,zsea2,soltim,soltim0,solhr0
+      real(kind=kind_phys) zsea1,zsea2,soltim
 
 !  external functions called: iw3jdn
       integer :: iw3jdn
@@ -292,8 +293,6 @@ cc
 
 ! run nst model: dtm + slm   
 ! 
-      solhr0 = solhr - timestep/3600.0
-      if ( solhr0 < 0.0 ) solhr0 = solhr0 + 24.0
       zsea1 = 0.001*real(nstf_name(4))
       zsea2 = 0.001*real(nstf_name(5))
       do i = 1, im
@@ -304,7 +303,6 @@ cc
           alon      = xlon(i)*rad2deg
           grav      = grv(sinlat(i))
           soltim  = mod(alon/15.0 + solhr, 24.0)*3600.0
-          soltim0 = mod(alon/15.0 + solhr0,24.0)*3600.0
           call density(tsea,sss,rho_w)                     ! sea water density
           call rhocoef(tsea,sss,rho_w,alpha,beta)          ! alpha & beta
 !
@@ -476,7 +474,7 @@ cc
 !
             endif             ! if ( xt(i) > 0.0 ) then
 !           reset dtl at midnight and when solar zenith angle > 89.994 degree
-            if ( soltim < soltim0 .and. xcosz(i) < czmin ) then
+            if ( abs(soltim) < 2.0*timestep ) then
               call dtl_reset
      &           (xt(i),xs(i),xu(i),xv(i),xz(i),xzts(i),xtts(i))
             endif
