@@ -631,9 +631,9 @@ end subroutine solar_time_from_julian
 
   implicit none
 
+  integer, intent(in) :: nx,ny
   real (kind=kind_phys), dimension(nx,ny), intent(in)  :: xt,xz,dt_cool,zc,slmsk
   real (kind=kind_phys), intent(in)  :: z1,z2
-  integer, intent(in) :: nx,ny
   real (kind=kind_phys), dimension(nx,ny), intent(out) :: dtm                    
 ! Local variables
   integer :: i,j

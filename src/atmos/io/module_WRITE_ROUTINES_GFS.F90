@@ -90,22 +90,22 @@
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_FieldBundle)       :: FILE_BUNDLE
-      INTEGER                      :: I,IERR,IM,J,JM,L,K,N,NN,NUM_ATTRIB   &
+      INTEGER                      :: I,IERR,IM,J,JM,L,K,N,NUM_ATTRIB   &
                                      ,NWTPG,RC,RC_WRT
 !
       INTEGER,DIMENSION(:),POINTER :: ITMP
       REAL,   DIMENSION(:),POINTER :: RTMP
       TYPE(ESMF_Logical),DIMENSION(:),POINTER :: LTMP
 !
-      INTEGER                      :: JROW_FIRST,JROW_LAST,JROWS,          &
-                                      LAST_FCST_TASK, LEAD_WRITE_TASK,     &
+      INTEGER                      :: JROW_FIRST,JROW_LAST,JROWS,       &
+                                      LAST_FCST_TASK, LEAD_WRITE_TASK,  &
                                       LAST_WRITE_TASK
 !
       INTEGER,SAVE                 :: NCHAR_I1D, NCHAR_R1D, NCHAR_LOG
 !
-      INTEGER                      :: JEND_WRITE,JSTA_WRITE, NUM_PES_FCST 
+      INTEGER                      :: JEND_WRITE,JSTA_WRITE, NUM_PES_FCST
 !
-      INTEGER                      :: KOUNT_I1D, KOUNT_I2D, KOUNT_R1D      &
+      INTEGER                      :: KOUNT_I1D, KOUNT_I2D, KOUNT_R1D   &
                                      ,KOUNT_R2D, KOUNT_LOG
 !
       INTEGER                      :: LENGTH, LENGTH_SUM_I1D, LENGTH_SUM_R1D &
@@ -2227,20 +2227,22 @@
         INDX_2D = INDEX(NAME,"_2D")
 !
         IF (INDX_2D > 0) THEN
-          INDX_2DA     = INDEX(NAME(1:INDX_2D-1),"_",back=.true.)
+          INDX_2DA     = INDEX(NAME(1:INDX_2D-1),"__",back=.true.)
           RECLEV(NREC) = 0
-          DO I=1, INDX_2D-INDX_2DA-1
+          DO I=1, INDX_2D-INDX_2DA-2
             RECLEV(NREC) = (ICHAR(NAME(INDX_2D-i:INDX_2D-i))-48)*10**(I-1)+RECLEV(NREC)
           ENDDO
-          INDX_2D2     = INDEX(NAME,"_")
+          INDX_2D2     = INDEX(NAME,"__")
           if(INDX_2D2 > 0) RECNAME(NREC) = NAME(1:INDX_2D2-1)
           CALL LOWERCASE(RECNAME(NREC))
-          if(INDX_2D-4 > INDX_2D2)  then
+          if(INDX_2D-5 > INDX_2D2)  then
              RECLEVTYP(NREC) = NAME(INDX_2D2+1:INDX_2D-4)
           else
              RECLEVTYP(NREC) = 'mid layer'
           endif
           IF (RECLEV(NREC) == LM+1) RECLEVTYP(NREC-LM:NREC) = 'layer'
+!          print *,'1r,nfld=',nfield,'name=',trim(name),'recname=',recname(nrec),  &
+!            'reclevtyp=',reclevtyp(nrec),'reclev=',reclev(nrec)
 !
           IF (RECNAME(NREC) == 'smc'.or. RECNAME(NREC) == 'soilw') LSOIL = LSOIL + 1
           IF (RECNAME(NREC) == 'w')  RECNAME(NREC) = 'vvel'
@@ -2261,15 +2263,15 @@
           ENDIF
         ELSE
           RECLEV(NREC) = 1
-          INDX_2D2 = INDEX(NAME,"_")
-          INDX_2D3 = INDEX(NAME,"_",BACK=.true.)
+          INDX_2D2 = INDEX(NAME,"__")
+          INDX_2D3 = INDEX(NAME,"__",BACK=.true.)
           if(INDX_2D2 > 0) then
             RECNAME(NREC) = trim(NAME(1:INDX_2D2-1))
           else
             RECNAME(NREC) = TRIM(NAME)
           endif
           if(INDX_2D3 > 0) then
-            RECLEVTYP(NREC) = NAME(INDX_2D3+1:)
+            RECLEVTYP(NREC) = NAME(INDX_2D3+2:)
           else
             RECLEVTYP(NREC) = 'sfc'
           endif
@@ -2279,6 +2281,9 @@
             RECNAME(NREC)   = 'dpres'
             RECLEVTYP(NREC) = 'hybrid sig lev'
           ENDIF
+
+!          write(0,*)'2r, nfld=',nfield,'name=',trim(name),'recname=',recname(nrec),  &
+!            'reclevtyp=',reclevtyp(nrec),'reclev=',reclev(nrec)
 !
           IF (RECNAME(NREC) == 'pressfc') RECNAME(NREC) = 'pres'
           IF (RECNAME(NREC) == 'sst')     RECNAME(NREC) = 'tsea'
@@ -2304,7 +2309,6 @@
 !       'nsoil=',nsoil,'ntrac=',ntrac,'ncldt=',ncld,'nrec=',nrec,'cpi=',cpi, &
 !       'ri=',ri,'nmetavarl=',n2lscalar,'nmetaaryr=',n2rary,'idsl=',idsl,    &
 !       'idvc=',idvc,'idvm=',idvm
-!      write(0,*)'before nemsio_open,variname=',variname,varival
 !
 !-----------------------------------------------------------------------
 !***  OPEN NEMSIO FILE

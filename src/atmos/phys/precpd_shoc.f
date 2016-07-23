@@ -251,11 +251,13 @@
             cwmk   = max(cons_0, wws)
 !           amaxcm = max(cons_0, cwmk - wmink(n))
             if (iwl(n) == 1) then                 !  ice phase
-               amaxcm    = max(cons_0, (cwmk - wmini(i,k)))
+               amaxcm    = max(cons_0, (cwmk-wmini(i,k))/cll(i,k))
                expf      = dt * exp(0.025*tmt0(n))
                psaut     = min(cwmk, psautco(i)*expf*amaxcm)
+
                ww(n)     = ww(n) - psaut
                cwmk      = max(cons_0, ww(n))
+
 !              cwmk      = max(cons_0, ww(n)-wmini(i,k))
                psaci     = min(cwmk, aa2*expf*precsl1(n)*cwmk)
 

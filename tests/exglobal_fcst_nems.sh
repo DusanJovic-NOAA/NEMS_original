@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/sh
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
@@ -77,6 +77,12 @@
 #                          the f10.7 and kp observation data before the start time
 #                          of the forecast run.
 # 2016-03-17 S. Moorthi  - added default values to Weiyu's WAM changes
+# 2016-03-28 S. Moorthi  - add iobuf, hugepages, task geometry equivalent etc on
+#                          wcoss cray.  Right now it is designed to have three
+#                          segments for the compute tasks and one for io tasks.
+#                          The aprun commands themselves need to be set outside
+#                          The default setting is to run one aprun command
+# 2016-06-10 S. Moorthi  - Adding H2O Chemistry for staratosphere
 #
 # Usage:  global_forecast.sh SIGI/GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -165,6 +171,8 @@
 #                   defaults to ${FIXGLOBAL}/global_o3prdlos.f77
 #     O3CLIM        Input ozone climatology
 #                   defaults to ${FIXGLOBAL}/global_o3clim.txt
+#     H2OFORC       input h2o forcing (production/loss) climatology
+#                   defaults to ${FIXGLOBAL}/global_h2o_pltc.f77
 #     FNGLAC        Input glacier climatology GRIB file
 #                   defaults to ${FIXGLOBAL}/global_glacier.2x2.grb
 #     FNMXIC        Input maximum sea ice climatology GRIB file
@@ -346,6 +354,7 @@
 #                  $MTNVAR
 #                  $O3FORC
 #                  $O3CLIM
+#                  $H2OFORC
 #                  $FNGLAC
 #                  $FNMXIC
 #                  $FNTSFC
@@ -435,7 +444,10 @@ export ESMF_RUNTIME_COMPLIANCECHECK=$COMPLIANCECHECK:depth=4
 #
 export machine=${machine:-WCOSS}
 export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
-FCST_LAUNCHER=${FCST_LAUNCHER:-${APRUN:-""}}
+export FCST_LAUNCHER=${FCST_LAUNCHER:-${APRUN:-""}}
+export APRUNB=${APRUNB:-NONE}
+export APRUNE=${APRUNE:-NONE}
+export APRUNW=${APRUNW:-NONE}
 if [ $machine = IBMP6 ]; then
   export MP_BINDPROC=${MP_BINDPROC:-yes}
   export MEMORY_AFFINIY=${MEMORY_AFFINIY:-MCM}
@@ -492,8 +504,20 @@ elif [ $machine = WCOSS ] ; then
 # export MP_S_ENABLE_ERR_PRINT=yes
 fi
 if [ $machine = WCOSS_C ] ; then
- module load iobuf
- export IOBUF_PARAMS=${IOBUF_PARAMS:-'*:size=8M:verbose'}
+ export PRGENV=${PRGENV:-intel}
+ export HUGEPAGES=${HUGEPAGES:-hugepages2M}
+ module unload iobuf             ; module load iobuf
+ module unload PrgEnv-$PRGENV    ; module load PrgEnv-$PRGENV
+ module unload craype-$HUGEPAGES ; module load craype-$HUGEPAGES
+
+ export IOBUF_PARAMS=${IOBUF_PARAMS:-'*:size=8M'}
+#export IOBUF_PARAMS=${IOBUF_PARAMS:-'*:size=8M:verbose'}
+#export IOBUF_PARAMS=${IOBUF_PARAMS:-'*:size=4M,%stdout:size=2M:verbose'}
+#export IOBUF_PARAMS=${IOBUF_PARAMS:-'*:size=4M,%stdout:size=2M'}
+ export MPICH_GNI_COLL_OPT_OFF=${MPICH_GNI_COLL_OPT_OFF:-MPI_Alltoallv}
+#export LD_PRELOAD=/u/James.A.Abeles/mpitrace/shared/libmpitrace.so
+#export LD_PRELOAD=/u/James.A.Abeles/gperftools-2.2.1/lib/libtcmalloc_minimal.so
+#export LD_PRELOAD=/u/James.A.Abeles/mpitrace/shared/libmpitrace.so:/u/James.A.Abeles/gperftools-2.2.1/lib/libtcmalloc_minimal.so
 fi
 
 export model=${model:-global}
@@ -651,6 +675,7 @@ export MTNRSLUF=${MTNRSLUF:-$MTNRSL}
 export MTNVAR=${MTNVAR:-${FIXGLOBAL}/global_mtnvar.t$MTNRSL.f77}
 export O3FORC=${O3FORC:-${FIXGLOBAL}/global_o3prdlos.f77}
 export O3CLIM=${O3CLIM:-${FIXGLOBAL}/global_o3clim.txt}
+export H2OFORC=${H2OFORC:-${FIXGLOBAL}/global_h2o_pltc.f77}
 export FNGLAC=${FNGLAC:-${FIXGLOBAL}/global_glacier.2x2.grb}
 export FNMXIC=${FNMXIC:-${FIXGLOBAL}/global_maxice.2x2.grb}
 #export FNTSFC=${FNTSFC:-${FIXGLOBAL}/cfs_oi2sst1x1monclim19822001.grb}
@@ -673,7 +698,7 @@ export FNABSC=${FNABSC:-${FIXGLOBAL}/global_snoalb.1x1.grb}
 export FNMSKH=${FNMSKH:-${FIXGLOBAL}/seaice_newland.grb}
 export OROGRAPHY_UF=${OROGRAPHY_UF:-${FIXGLOBAL}/global_orography_uf.t$MTNRSLUF.${LONR}.${LATR}.grb}
 export FNSMCC=${FNSMCC:-${FIXGLOBAL}/global_soilmgldas.t${JCAP}.${LONR}.${LATR}.grb}
-if [ $lingg_a = .true. ]; then
+if [ ${lingg_a:-.true.} = .true. ]; then
 export OROGRAPHY=${OROGRAPHY:-${FIXGLOBAL}/global_orography.t$MTNRSL.${LONR}.${LATR}.grb}
 export LONSPERLAT=${LONSPERLAT:-${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.${LONR}.${LATR}.txt}
 export LONSPERLAR=${LONSPERLAR:-${FIXGLOBAL}/global_lonsperlat.t$MTNRSL.${LONR}.${LATR}.txt}
@@ -865,8 +890,7 @@ else
   export REDOUT=${REDOUT:-'1>'}
   export REDERR=${REDERR:-'2>'}
 fi
-print_esmf=.true.      # print each PET output to file
-export print_esmf=${print_esmf:-.false.}
+export print_esmf=${print_esmf:-.false.} # print each PET output to file
 
 ################################################################################
 #  Preprocessing
@@ -881,11 +905,32 @@ fi
 cd $DATA||exit 99
 if [ $IDEA = .true. ] ; then 
    ${NCP} $FIX_IDEA/global_idea* . 
- fi
+fi
 [[ -d $COMOUT ]]||mkdir -p $COMOUT
+
+if [[ $HOUTASPS -lt 10000 ]] ; then
+   (( HOUTA = FHROT + FHMAX - HOUTASPS ))  # DHOU, 09/11/2010
+   NMSUB=${NMSUB:-""}
+else
+  HOUTA=-1
+  NMSUB=""
+fi
+
 ################################################################################
 #  Make forecast
-export PGM='$FCST_LAUNCHER $DATA/$(basename $FCSTEXEC)'
+if [ "$APRUNW" = NONE ] ; then
+ if [ "$APRUNB" = NONE -a "$APRUNE" = NONE ] ; then
+   export PGM='$FCST_LAUNCHER $DATA/$(basename $FCSTEXEC)'
+ else
+  export PGM='$FCST_LAUNCHER $DATA/$(basename $FCSTEXEC) $APRUNB $DATA/$(basename $FCSTEXEC) $APRUNE $DATA/$(basename $FCSTEXEC)'
+ fi
+else
+ if [ "$APRUNB" = NONE -a "$APRUNE" = NONE ] ; then
+  export PGM='$FCST_LAUNCHER $DATA/$(basename $FCSTEXEC) $APRUNW $DATA/$(basename $FCSTEXEC)'
+ else
+  export PGM='$FCST_LAUNCHER $DATA/$(basename $FCSTEXEC) $APRUNB $DATA/$(basename $FCSTEXEC) $APRUNE $DATA/$(basename $FCSTEXEC) $APRUNW $DATA/$(basename $FCSTEXEC)'
+ fi
+fi
 export pgm=$PGM
 $LOGSCRIPT
 ${NCP} $FCSTEXEC $DATA
@@ -912,7 +957,7 @@ if [[ $FHINI -gt 0 ]] ; then
    [[ $FH -lt 10 ]]&&FH=0$FH
 fi
 while [[ 10#$FH -le $FHMAX ]] ; do
-   if [[ $FH -le $HOUTA ]] ; then
+   if [[ 10#$FH -le $HOUTA ]] ; then
      FNSUB=$NMSUB
    else
      FNSUB=""
@@ -931,10 +976,11 @@ if [[ $FILESTYLE = "L" ]] ; then
 #  ln -fs $O3FORC fort.28
 #  ln -fs $O3CLIM fort.48
 
-   ${NCP} $CO2CON fort.15
-   ${NCP} $MTNVAR fort.24
-   ${NCP} $O3FORC fort.28
-   ${NCP} $O3CLIM fort.48
+   ${NCP} $CO2CON  fort.15
+   ${NCP} $MTNVAR  fort.24
+   ${NCP} $O3FORC  fort.28
+   ${NCP} $H2OFORC fort.29
+   ${NCP} $O3CLIM  fort.48
 else
   echo 'FILESTYLE' $FILESTYLE 'NOT SUPPORTED'
   exit 222
@@ -1039,7 +1085,7 @@ if [[ $ENS_NUM -le 1 ]] ; then
 #        For output
 #        ----------
   while [[ 10#$FH -le $FHMAX ]] ; do
-    if [[ $FH -le $HOUTA ]] ; then
+    if [[ 10#$FH -le $HOUTA ]] ; then
       FNSUB=$NMSUB
     else
       FNSUB=""
@@ -1063,7 +1109,7 @@ if [[ $ENS_NUM -le 1 ]] ; then
     else
      ((FH=10#$FH+10#$FHOUT))
     fi
-    [[ $FH -lt 10 ]]&&FH=0$FH
+    [[ 10#$FH -lt 10 ]]&&FH=0$FH
 
   done
   eval ln -fs $GRDR1 GRDR1
@@ -1113,17 +1159,17 @@ else
 #        For output
 #        ----------
     FH=$((10#$FHINI))
-    [[ $FH -lt 10 ]]&&FH=0$FH
+    [[ 10#$FH -lt 10 ]]&&FH=0$FH
     if [[ $FHINI -gt 0 ]] ; then
       if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
        FH=$((10#$FHINI+10#$FHOUT_HF))
       else
        FH=$((10#$FHINI+10#$FHOUT))
       fi
-      [[ $FH -lt 10 ]]&&FH=0$FH
+      [[ 10#$FH -lt 10 ]]&&FH=0$FH
     fi
-    while [[ $FH -le $FHMAX ]] ; do
-      if [[ $FH -le $HOUTA ]] ; then
+    while [[ 10#$FH -le $FHMAX ]] ; do
+      if [[ 10#$FH -le $HOUTA ]] ; then
         FNSUB=$NMSUB
       else
         FNSUB=""
@@ -1290,25 +1336,27 @@ fi
 # jw: generate configure file
 #
 #---------------------------------------
-if [ ! -s $DATA/nems.configure ]; then
-cat << EOF > $DATA/nems.configure
-EARTH_component_list:       ATM
-ATM_model:                  ${atm_model:-gsm}
-runSeq::
-  ATM
-::
-EOF
-fi
-
-core=${core:-gfs}
-if [ ! -s $DATA/atmos.configure ]; then
-cat << EOF > $DATA/atmos.configure
-atm_model:                  ${atm_model:-gsm}
-atm_coupling_interval_sec:  ${coupling_interval_fast_sec:-600}
+if [ ! -s $DATA/nems.configure ] ; then
+ cat << EOF > $DATA/nems.configure
+ EARTH_component_list: ATM
+ ATM_model:            ${atm_model:-gsm}
+ runSeq::
+   ATM
+ ::
 EOF
 fi
 
 #---------------------------------------
+
+core=${core:-gfs}
+if [ ! -s $DATA/atmos.configure ] ; then
+ cat << EOF > $DATA/atmos.configure
+ core: $core
+ atm_model:                  ${atm_model:-gsm}
+ atm_coupling_interval_sec:  ${coupling_interval_fast_sec:-" "}
+ atm_coupling_interval_sec:
+EOF
+fi
 
 cat << EOF > atm_namelist.rc
 core: $core
@@ -1719,6 +1767,9 @@ ln -sf atm_namelist.rc ./model_configure
 
 eval $PGM $REDOUT$PGMOUT $REDERR$PGMERR
 
+#if [ $machine = WCOSS_C ] ; then
+#unset LD_PRELOAD
+#fi
 export ERR=$?
 export err=$ERR
 $ERRSCRIPT||exit 2

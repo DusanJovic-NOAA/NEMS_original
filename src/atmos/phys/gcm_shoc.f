@@ -8,11 +8,12 @@
 
 
 
- subroutine shoc(ix, nx, ny, nzm, nz, dtn, me, lat,             &
-                 prsl, phii, phil, u, v, omega, tabs,           &
-                 qwv, qi, qc, qpi, qpl,      cld_sgs,           &
-!                qwv, qi, qc, qpi, qpl, rhc, cld_sgs,           &
-                 tke, hflx, evap, prnum, tkh, wthv_sec,lprnt,ipr)
+ subroutine shoc(ix, nx, ny, nzm, nz, dtn, me, lat,              &
+                 prsl, phii, phil, u, v, omega, tabs,            &
+!                qwv, qi, qc, qpi, qpl,      cld_sgs,            &
+                 qwv, qi, qc, qpi, qpl, rhc, supice, cld_sgs,    &
+                 tke, hflx, evap, prnum, tkh, wthv_sec,lprnt,ipr,&
+                 ncpl,ncpi)
 
   use funcphys , only : fpvsl, fpvsi, fpvs    ! saturation vapor pressure for water & ice
 
@@ -35,9 +36,12 @@
                      sqrtpii = 1.0/sqrt(pi+pi), epsterm = rgas/rv, twoby3 = 2.0/3.0, &
                      onebeps = 1.0/epsterm, twoby15 = 2.0 / 15.0,                    &
                      onebrvcp= 1.0/(rv*cp), skew_facw=1.2, skew_fact=1.0,            &
+!                    onebrvcp= 1.0/(rv*cp), skew_facw=1.2, skew_fact=0.0,            &
                      tkef1=0.5, tkef2=1.0-tkef1, tkhmax=1000.0
 !                    skew_facw=1.2, skew_fact=0.5
 !                    onebeps = 1.0/epsterm, twoby15 = 2.0 / 15.0, skew_facw=1.2  ! orig
+
+! real, parameter :: supice=1.05
 
   logical lprnt
   integer ipr
@@ -65,9 +69,13 @@
   real, intent(inout) :: qwv    (ix,ny,nzm) ! water vapor mixing ratio, kg/kg
   real, intent(inout) :: qc     (ix,ny,nzm) ! cloud water mixing ratio, kg/kg
   real, intent(inout) :: qi     (ix,ny,nzm) ! cloud ice   mixing ratio, kg/kg
+! Anning Cheng 03/11/2016 SHOC feedback to number concentration
+  real, intent(inout) :: ncpl   (nx,ny,nzm) ! cloud water number concentration,/m^3
+  real, intent(inout) :: ncpi   (nx,ny,nzm) ! cloud ice   number concentration,/m^3
   real, intent(inout) :: qpl    (nx,ny,nzm) ! rain mixing ratio, kg/kg
   real, intent(inout) :: qpi    (nx,ny,nzm) ! snow mixing ratio, kg/kg
-! real, intent(inout) :: rhc    (nx,ny,nzm) ! critical relative humidity
+  real, intent(inout) :: rhc    (nx,ny,nzm) ! critical relative humidity
+  real, intent(in)    :: supice             ! ice supersaturation parameter
   real, intent(inout) :: cld_sgs(ix,ny,nzm) ! sgs cloud fraction
 ! real, intent(inout) :: cld_sgs(nx,ny,nzm) ! sgs cloud fraction
   real, intent(inout) :: tke    (ix,ny,nzm) ! turbulent kinetic energy. m**2/s**2
@@ -79,7 +87,8 @@
 ! SHOC tunable parameters
 
   real, parameter :: lambda  = 0.04
-  real, parameter :: min_tke = 1e-6  ! Minumum TKE value, m**2/s**2 
+! real, parameter :: min_tke = 1e-6  ! Minumum TKE value, m**2/s**2 
+  real, parameter :: min_tke = 1e-4  ! Minumum TKE value, m**2/s**2 
   real, parameter :: max_tke = 100.0 ! Maximum TKE value, m**2/s**2 
 ! real, parameter :: max_tke = 5.    ! Maximum TKE value, m**2/s**2 
 ! Maximum turbulent eddy length scale, m
@@ -171,7 +180,8 @@
 ! real conv_vel(nzm)        ! Convective velocity scale cubed, m^3/s^3
   real wqlsb   (nzm)        ! liquid water flux, kg/kg/ m/s
   real wqisb   (nzm)        ! ice flux, kg/kg m/s
-  real thlv    (nzm)        ! Grid-scale level-average virtual potential temperature
+! real thlv    (nzm)        ! Grid-scale level-average virtual potential temperature
+!                              (not used)
 
 
 ! Local variables
@@ -248,6 +258,7 @@
     enddo
   enddo
              
+
   do k=1,nzm
     do j=1,ny
       do i=1,nx
@@ -352,7 +363,7 @@
 ! time scale and diffusion coefficient
 
           wrk1 = 1.0 / adzi(i,j,k)        ! adzi(k) = (zl(k)-zl(km1))
-          wrk3 = tkh(i,j,k) * wrk1
+          wrk3 = max(tkh(i,j,k),0.01) * wrk1
 
           sm   = 0.5*(isotropy(i,j,k)+isotropy(i,j,km1))*wrk1*wrk3 ! Tau*Kh/dz^2
              
@@ -670,7 +681,7 @@ contains
 
           if (qcl(i,j,k)+qci(i,j,k) <= 0) then 
             tkes       = sqrt(tke(i,j,k)) * adzl(i,j,k)
-            numer(i,j) = numer(i,j) + tkes*zl(i,j,k) ! Numerator in Eq. 11 in BK13
+            numer(i,j) = numer(i,j) + tkes*zl(i,j,k) ! Numerator   in Eq. 11 in BK13
             denom(i,j) = denom(i,j) + tkes           ! Denominator in Eq. 11 in BK13
           else
             cldarr(i,j) = 1.0   ! Take note of columns containing cloud.
@@ -792,9 +803,10 @@ contains
             if (tkes > 0.0 .and. l_inf(i,j) > 0.0) then
               wrk1 = 1.0 / (tscale*tkes*vonk*zl(i,j,k))
               wrk2 = 1.0 / (tscale*tkes*l_inf(i,j))
-              wrk1 = 1.0 / (wrk1 + wrk2 + 0.01 * brunt2(i,j,k) / tke(i,j,k))
+              wrk1 = wrk1 + wrk2 + 0.01 * brunt2(i,j,k) / tke(i,j,k)
+              wrk1 = sqrt(1.0 / max(wrk1,1.0e-8)) * (1.0/ 0.3)
 !             smixt(i,j,k) = min(max_eddy_length_scale, 2.8284*sqrt(wrk1)/0.3)
-              smixt(i,j,k) = min(max_eddy_length_scale,        sqrt(wrk1)/0.3)
+              smixt(i,j,k) = min(max_eddy_length_scale, wrk1)
 
 !           smixt(i,j,k) = min(max_eddy_length_scale,(2.8284*sqrt(1./((1./(tscale*tkes*vonk*zl(i,j,k))) & 
 !                  + (1./(tscale*tkes*l_inf(i,j)))+0.01*(brunt2(i,j,k)/tke(i,j,k)))))/0.3)
@@ -1114,7 +1126,7 @@ contains
 ! Local variables
 
     integer i,j,k,ku,kd
-    real wrk, wrk1, wrk2, wrk3, wrk4, bastoeps
+    real wrk, wrk1, wrk2, wrk3, wrk4, bastoeps, eps_ss1, eps_ss2
 
 !   bastoeps = basetemp / epsterm
 
@@ -1345,6 +1357,8 @@ contains
           esval2_2 = 0.
           om1      = 1.
           om2      = 1.
+          eps_ss1  = 0.622
+          eps_ss2  = 0.622
              
 ! Partition based on temperature for the first plume
 
@@ -1358,19 +1372,22 @@ contains
             esval1_1 = fpvsi(Tl1_1)
 !           esval1_1 = esati(Tl1_1)
             lstarn1  = lsub
+            eps_ss1   = 0.622 * supice
           ELSE
 !           esval1_1 = fpvs(Tl1_1)
 !           esval2_1 = fpvs(Tl1_1)
             esval1_1 = fpvsl(Tl1_1)
             esval2_1 = fpvsi(Tl1_1)
+!           esval2_1 = fpvsi(Tl1_1)
 !           esval1_1 = esatw(Tl1_1)
 !           esval2_1 = esati(Tl1_1)
             om1      = max(0.,min(1.,a_bg*(Tl1_1-tbgmin)))
             lstarn1  = lcond + (1.-om1)*lfus
+            eps_ss2   = 0.622 * supice
           ENDIF
 
-          qs1   =     om1  * (0.622*esval1_1/max(esval1_1,pval-0.378*esval1_1))      &
-                + (1.-om1) * (0.622*esval2_1/max(esval2_1,pval-0.378*esval2_1))
+          qs1   =     om1  * (eps_ss1*esval1_1/max(esval1_1,pval-0.378*esval1_1))      &
+                + (1.-om1) * (eps_ss2*esval2_1/max(esval2_1,pval-0.378*esval2_1))
 !         qs1   =     om1  * (0.622*esval1_1/max(esval1_1,pval-esval1_1))      &
 !               + (1.-om1) * (0.622*esval2_1/max(esval2_1,pval-esval2_1))
 
@@ -1385,11 +1402,15 @@ contains
             beta2 = beta1
           ELSE 
 
+            eps_ss1 = 0.622
+            eps_ss2 = 0.622
+
             IF (Tl1_2 < tbgmin) THEN
 !             esval1_2 = fpvs(Tl1_2)
               esval1_2 = fpvsi(Tl1_2)
 !             esval1_2 = esati(Tl1_2)
               lstarn2  = lsub
+              eps_ss1   = 0.622 * supice
             ELSE IF (Tl1_2 >= tbgmax) THEN
 !             esval1_2 = fpvs(Tl1_2)
               esval1_2 = fpvsl(Tl1_2)
@@ -1400,14 +1421,16 @@ contains
 !             esval2_2 = fpvs(Tl1_2)
               esval1_2 = fpvsl(Tl1_2)
               esval2_2 = fpvsi(Tl1_2)
+!             esval2_2 = fpvsi(Tl1_2)
 !             esval1_2 = esatw(Tl1_2)
 !             esval2_2 = esati(Tl1_2)
               om2      = max(0.,min(1.,a_bg*(Tl1_2-tbgmin)))
               lstarn2  = lcond + (1.-om2)*lfus
+              eps_ss2  = 0.622 * supice
             ENDIF
                
-            qs2   =     om2  * (0.622*esval1_2/max(esval1_2,pval-0.378*esval1_2))    &
-                  + (1.-om2) * (0.622*esval2_2/max(esval2_2,pval-0.378*esval2_2))
+            qs2   =     om2  * (eps_ss1*esval1_2/max(esval1_2,pval-0.378*esval1_2))    &
+                  + (1.-om2) * (eps_ss2*esval2_2/max(esval2_2,pval-0.378*esval2_2))
 !           qs2   =     om2  * (0.622*esval1_2/max(esval1_2,pval-esval1_2))    &
 !                 + (1.-om2) * (0.622*esval2_2/max(esval2_2,pval-esval2_2))
                 
@@ -1416,8 +1439,8 @@ contains
                 
           ENDIF
 
-!         qs1 = qs1 * rhc(i,j,k)
-!         qs2 = qs2 * rhc(i,j,k)
+          qs1 = qs1 * rhc(i,j,k)
+          qs2 = qs2 * rhc(i,j,k)
 
 !  Now compute cloud stuff -  compute s term
 
@@ -1503,8 +1526,12 @@ contains
           tabs(i,j,k) = hl(i,j,k) - gamaz(i,j,k) + fac_cond*(diag_ql+qpl(i,j,k)) &
                                                  + fac_sub *(diag_qi+qpi(i,j,k)) &
                       + tkesbdiss(i,j,k) * (dtn/cp)      ! tke dissipative heating
+
 ! Update moisture fields
 
+! Update ncpl and ncpi Anning Cheng 03/11/2016
+         ncpl(i,j,k)    = diag_ql/max(qc(i,j,k),1.e-10)*ncpl(i,j,k)
+         ncpi(i,j,k)    = (1-diag_qi/max(qi(i,j,k),1.e-10))*ncpi(i,j,k)
          qc(i,j,k)      = diag_ql
          qi(i,j,k)      = diag_qi
          qwv(i,j,k)     = total_water(i,j,k) - diag_qn

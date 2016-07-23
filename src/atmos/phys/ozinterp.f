@@ -5,8 +5,9 @@
 !
       implicit none
 !
-      integer latd, nlats, JINDX1(latd),JINDX2(latd)
-      real(kind=kind_phys) GAUL(nlats),DDY(latd)
+      integer                     latd,nlats
+      integer, dimension(latd) :: jindx1, jindx2
+      real(kind=kind_phys)     :: GAUL(nlats),DDY(latd)
 !
       integer i,j,lat
 !
@@ -53,7 +54,7 @@ cyt   if(me.eq.0) print*,'completed setindxoz for nasa prod. and diss'
       USE MACHINE , ONLY : kind_phys
       use ozne_def
       implicit none
-      integer             iday,j,j1,j2,l,latd,nc,n1,n2
+      integer             j,j1,j2,l,latd,nc,n1,n2
       real(kind=kind_phys) fhour,tem, tx1, tx2
 !
  
@@ -65,20 +66,20 @@ cyt   if(me.eq.0) print*,'completed setindxoz for nasa prod. and diss'
       real(kind=kind_phys) DDY(LATD)
       real(kind=kind_phys) ozplout(levozp,LATD,pl_coeff)
       real(kind=kind_phys) RINC(5), rjday
-      integer jdow, jdoy, jday
-      real(4) rinc4(5)
-      integer w3kindreal,w3kindint
+      integer              jdow, jdoy, jday
+      real(4)              rinc4(5)
+      integer              w3kindreal, w3kindint
 !
-      IDAT=0
-      IDAT(1)=IDATE(4)
-      IDAT(2)=IDATE(2)
-      IDAT(3)=IDATE(3)
-      IDAT(5)=IDATE(1)
-      RINC=0.
-      RINC(2)=FHOUR
+      IDAT    = 0
+      IDAT(1) = IDATE(4)
+      IDAT(2) = IDATE(2)
+      IDAT(3) = IDATE(3)
+      IDAT(5) = IDATE(1)
+      RINC    = 0.
+      RINC(2) = FHOUR
       call w3kind(w3kindreal,w3kindint)
       if(w3kindreal==4) then
-        rinc4=rinc
+        rinc4 = rinc
         CALL W3MOVDAT(RINC4,IDAT,JDAT)
       else
         CALL W3MOVDAT(RINC,IDAT,JDAT)
@@ -121,6 +122,11 @@ cyt   if(me.eq.0) print*,'completed setindxoz for nasa prod. and diss'
      &    + tx2*(TEM*ozplin(J1,L,nc,n2)+DDY(J)*ozplin(J2,L,nc,n2))
           ENDDO
         ENDDO
+      enddo
+      do l=1,levozp
+        do j=1,nlats
+          ozplout(l,j,2) = min(ozplout(l,j,2), 0.0)
+        enddo
       enddo
 !
       RETURN

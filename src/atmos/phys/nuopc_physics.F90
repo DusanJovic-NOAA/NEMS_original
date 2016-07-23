@@ -7,23 +7,26 @@
 ! Abstract: Wrapper for GFS physics
 ! History Log: 
 !   Tripp - 5/2015 - Initial release
-!   Tripp - 8/2015 - Added nems_slg_shoc updates
-!   Hang  - 1/2016 - change the newsas and sashal into integer variables
-!   Hang  - 2/2016 - Adjust the radiation calculation based on levr
-!   Hang  - 3/2016 - Fix the WAM driving data flow
-!   Hang  - 4/2016 - Adjust to fit new features in clouds, convections, and sst 
+!   Tripp    - 8/2015 - Added nems_slg_shoc updates
+!   Tripp    - 9/2015 - Added more output on read and save, some code cleanup
+!   Hang Lei - 1/2016 - change the newsas and sashal into integer variables
+!   Hang Lei - 2/2016 - Adjust the radiation calculation based on levr
+!   Hang Lei - 3/2016 - Fix the WAM driving data flow
+!   Hang Lei - 4/2016 - Adjust to fit new features in clouds, convections, and sst 
 !
-!     NEW model parameters: cscnv, nctp, ntke, do_shoc, shocaftcnv, ntot3d, ntot2d, shoc_cld
-!     NEW nuopc_phys_init arguments
-!     NEW grrad arguments shoc_cld
-!     NEW gbphys arguments cscnv, nctp, ntke, do_shoc, shocaftcnv, ntot3d, ntot2d
-!     NEW phy_fctd array for CS convection in gbphys
-!   Tripp      - 9/2015 - Added more output on read and save, some code cleanup
-!   Hang Lei   - 3/2016 : Change the data types of newsas and sashal
-!   into logical variables. Add new physics variables into the physics driver.
-!   Hang Lei   - 4/2016 : Reorganize the functions for DDTs defined in
-!   this drver. Adopt levr in radation calculations and levs in surface
-!   process calculations. 
+!                       NEW model parameters: cscnv, nctp, ntke, do_shoc, shocaftcnv,
+!                       ntot3d, ntot2d, shoc_cld
+!                       NEW nuopc_phys_init arguments
+!                       NEW grrad arguments shoc_cld
+!                       NEW gbphys arguments cscnv, nctp, ntke, do_shoc, shocaftcnv,
+!                       ntot3d, ntot2d
+!                       NEW phy_fctd array for CS convection in gbphys
+!   Hang Lei - 3/2016 : Change the data types of newsas and sashal
+!                       into logical variables. Add new physics variables into the
+!                       physics driver.
+!   Hang Lei - 4/2016 : Reorganize the functions for DDTs defined in
+!                       this drver. Adopt levr in radation calculations and
+!                       levs in surface process calculations. 
 !
 ! Public Variables:
 !   

@@ -25,11 +25,13 @@ MODULES_GFS =                                \
 	           module_nst_water_prop.o   \
 	           module_nst_model.o        \
 		   gcm_shoc.o                \
-	           calpreciptype.o
+	           calpreciptype.o           \
+		   m_micro_driver.o
 
 MODULES_GFSF=                                \
 	           iounitdef.o               \
 	           ozne_def.o                \
+		   h2o_def.o                 \
 	           progtm_module.o           \
 	           date_def.o                \
 	           rascnvv2.o                \
@@ -50,8 +52,11 @@ MODULES_GFSF=                                \
 	           radiation_clouds.o        \
 	           radiation_surface.o       \
 	           grrad.o                   \
+		   ozphys_2015.o             \
 	           ozphys.o                  \
 	           ozinterp.o                \
+		   h2ointerp.o               \
+		   h2ophys.o                 \
 	           sfcsub.o                  \
 	           gbphys.o                  \
 	           dcyc2.o                   \
@@ -96,7 +101,11 @@ MODULES_GFSF=                                \
 	           mstadbtn.o                \
 	           mstcnv.o                  \
 	           get_prs.o                 \
-	           gsmddrive.o
+	           gsmddrive.o               \
+	           aer_cloud.o               \
+	           cldmacro.o                \
+	           cldwat2m_micro.o          \
+	           wv_saturation.o
 
 MODULES_IDEA = co2hc.o              \
                idea_solar_heating.o \

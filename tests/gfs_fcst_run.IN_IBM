@@ -160,7 +160,7 @@ fi
     export FILE_IO_FORM="'grib'"
  else
     export FILENAME_BASE="'SIG.F' 'SFC.F' 'FLX.F'"
-    export FILE_IO_FORM="'grib' 'bin4' 'grib'"
+    export FILE_IO_FORM="'bin4' 'bin4' 'bin4'"
     export NUM_FILE=3
     if [ $NST_FCST -gt 0 ] ; then
       export FILENAME_BASE=${FILENAME_BASE}" 'NST.F'"
@@ -246,6 +246,8 @@ if [ $IDEA = .true. ]; then
  export RIlist="  296.8034, 461.50, 173.2247,    0.0,  519.674, 259.837 "
 #***************************************************************
  export NTRAC=5
+ export NTO=4
+ export NTO2=5
 else
 #                   Dry ,    H2O,     O3,        CLW,    O,      O2
 export CPIlist=" 1004.6,   1846.0, 820.2391,    0.0"
@@ -386,6 +388,12 @@ export NTRAC=${NTRAC:-3}
 export NTOZ=${NTOZ:-2}
 export NTCW=${NTCW:-3}
 export NCLD=${NCLD:-1}
+export NTIW=${NTIW:-0}
+export NTKE=${NTKE:-0}
+export NTLNC=${NTLNC:-0}
+export NTINC=${NTINC:-0}
+export NTO=${NTO:-0}
+export NTO2=${NTO2:-0}
 export NMTVR=${NMTVR:-14}
 #
 #export nsout=${nsout:-0}
@@ -556,6 +564,11 @@ if [[ $nhourb -lt $nhours ]] ; then
   export FHROT=${FHROT:-0}
   export FHOUT_HF=_FHOUTHF_
   export FHMAX_HF=_FHMAXHF_
+
+  export DYNVARS=${DYNVARS:-""}
+  export PHYVARS=${PHYVARS:-""}
+  export DYNVARS="$DYNVARS,NTKE=$NTKE,NTIW=$NTIW,NTLNC=$NTLNC,NTINC=$NTINC,NTO=$NTO,NTO2=$NTO2"
+  export PHYVARS="$PHYVARS,NTKE=$NTKE,NTIW=$NTIW,NTLNC=$NTLNC,NTINC=$NTINC,NTO=$NTO,NTO2=$NTO2"
 
 #
   $FCSTSCRIPT || exit

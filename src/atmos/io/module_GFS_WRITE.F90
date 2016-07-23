@@ -86,6 +86,8 @@
       TYPE(ESMF_Time)        :: CURRTIME
       TYPE(ESMF_TimeInterval):: TIMEINTERVAL_OUTPUT
 !
+      TYPE(ESMF_VM)                          :: VM
+!
       INTEGER :: I,J,RC,RC_INIT,NFHOUT
 !
 !-----------------------------------------------------------------------
@@ -108,6 +110,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine
+                            ,rc=RC)
+!
+      CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
+                     ,localpet=MYPE                                     &  !<-- Local PE rank
+                     ,rc      =RC)
 !
 !-----------------------------------------------------------------------
 !***  EXECUTE THE INITIALIZE STEP FOR THE WRITE COMPONENTS.
@@ -154,9 +163,9 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE WRITE_ASYNC_GFS(WRT_COMPS,EXP_STATE,IMP_STATE_WRITE     &
-                            ,EXP_STATE_WRITE,CLOCK_GFS,MYPE              &
-                            ,WRITE_GROUP_READY_TO_GO)
+      SUBROUTINE WRITE_ASYNC_GFS(WRT_COMPS,EXP_STATE,IMP_STATE_WRITE    &
+                                ,EXP_STATE_WRITE,CLOCK_GFS,MYPE         &
+                                ,WRITE_GROUP_READY_TO_GO)
 !
 !-----------------------------------------------------------------------
 !***  WRITE OUT A HISTORY FILE USING THE ASYNCHRONOUS QUILTING.
@@ -167,7 +176,7 @@
       TYPE(ESMF_STATE)        ,INTENT(INOUT) :: IMP_STATE_WRITE            !<-- The import state of write
       TYPE(ESMF_STATE)        ,INTENT(INOUT) :: EXP_STATE_WRITE            !<-- The export state of write
       TYPE(ESMF_Clock)        ,INTENT(INOUT) :: CLOCK_GFS                 !<-- The ATM Component's ESMF Clock
-      INTEGER,INTENT(IN) :: MYPE
+      INTEGER,INTENT(IN)    :: MYPE
       INTEGER,INTENT(INOUT) :: WRITE_GROUP_READY_TO_GO
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES

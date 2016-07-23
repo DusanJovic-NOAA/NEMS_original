@@ -249,6 +249,7 @@
 !                     back as in the rrtm2 version, spliting surface flux  !
 !                     into two spectral regions (vis & nir), instead of    !
 !                     designated it in nir region only.                    !
+!       may 2016   yu-tai hou        --reverting swflux name back to vrtqdr!
 !                                                                          !
 !!!!!  ==============================================================  !!!!!
 !!!!!                         end descriptions                         !!!!!
@@ -1967,7 +1968,7 @@
 !   purpose:  computes the shortwave radiative fluxes using two-stream  !
 !             method                                                    !
 !                                                                       !
-!   subprograms called:  swflux                                         !
+!   subprograms called:  vrtqdr                                         !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
@@ -2190,7 +2191,7 @@
 !  --- ...  general two-stream expressions
           if ( iswmode == 1 ) then
             zgam1 = 1.75 - zssa1 * (f_one + zasy3)
-            zgam2 =-0.25 - zssa1 * (f_one - zasy3)
+            zgam2 =-0.25 + zssa1 * (f_one - zasy3)
             zgam3 = 0.5  - zasy3 * cosz
           elseif ( iswmode == 2 ) then               ! pifm
             zgam1 = 2.0 - zssa1 * (1.25 + zasy3)
@@ -2329,7 +2330,7 @@
           ztdbt0 = zexp4 * ztdbt0
         enddo    ! end do_k_loop
 
-        call swflux                                                     &
+        call vrtqdr                                                     &
 !  ---  inputs:
      &     ( zrefb,zrefd,ztrab,ztrad,zldbt,ztdbt,                       &
      &       nlay, nlp1,                                                &
@@ -2394,7 +2395,7 @@
 !  --- ...  general two-stream expressions
               if ( iswmode == 1 ) then
                 zgam1 = 1.75 - zssa1 * (f_one + zasy3)
-                zgam2 =-0.25 - zssa1 * (f_one - zasy3)
+                zgam2 =-0.25 + zssa1 * (f_one - zasy3)
                 zgam3 = 0.5  - zasy3 * cosz
               elseif ( iswmode == 2 ) then               ! pifm
                 zgam1 = 2.0 - zssa1 * (1.25 + zasy3)
@@ -2557,7 +2558,7 @@
 
 !  --- ...  perform vertical quadrature
 
-          call swflux                                                   &
+          call vrtqdr                                                   &
 !  ---  inputs:
      &     ( zrefb,zrefd,ztrab,ztrad,zldbt,ztdbt,                       &
      &       nlay, nlp1,                                                &
@@ -2676,7 +2677,7 @@
 !             column approximation, for the representation of sub-grid  !
 !             cloud variability (i.e. cloud overlap).                   !
 !                                                                       !
-!   subprograms called:  swflux                                         !
+!   subprograms called:  vrtqdr                                         !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
@@ -2897,7 +2898,7 @@
 !  --- ...  general two-stream expressions
           if ( iswmode == 1 ) then
             zgam1 = 1.75 - zssa1 * (f_one + zasy3)
-            zgam2 =-0.25 - zssa1 * (f_one - zasy3)
+            zgam2 =-0.25 + zssa1 * (f_one - zasy3)
             zgam3 = 0.5  - zasy3 * cosz
           elseif ( iswmode == 2 ) then               ! pifm
             zgam1 = 2.0 - zssa1 * (1.25 + zasy3)
@@ -3036,7 +3037,7 @@
           ztdbt0 = zexp4 * ztdbt0
         enddo    ! end do_k_loop
 
-        call swflux                                                     &
+        call vrtqdr                                                     &
 !  ---  inputs:
      &     ( zrefb,zrefd,ztrab,ztrad,zldbt,ztdbt,                       &
      &       nlay, nlp1,                                                &
@@ -3099,7 +3100,7 @@
 !  --- ...  general two-stream expressions
               if ( iswmode == 1 ) then
                 zgam1 = 1.75 - zssa1 * (f_one + zasy3)
-                zgam2 =-0.25 - zssa1 * (f_one - zasy3)
+                zgam2 =-0.25 + zssa1 * (f_one - zasy3)
                 zgam3 = 0.5  - zasy3 * cosz
               elseif ( iswmode == 2 ) then               ! pifm
                 zgam1 = 2.0 - zssa1 * (1.25 + zasy3)
@@ -3249,7 +3250,7 @@
 
 !  --- ...  perform vertical quadrature
 
-          call swflux                                                   &
+          call vrtqdr                                                   &
 !  ---  inputs:
      &     ( zrefb,zrefd,ztrab,ztrad,zldbt,ztdbt,                       &
      &       nlay, nlp1,                                                &
@@ -3336,7 +3337,7 @@
 
 
 !-----------------------------------
-      subroutine swflux                                                 &
+      subroutine vrtqdr                                                 &
 !...................................
 !  ---  inputs:
      &     ( zrefb,zrefd,ztrab,ztrad,zldbt,ztdbt,                       &
@@ -3349,7 +3350,7 @@
 !                                                                       !
 !   purpose:  computes the upward and downward radiation fluxes         !
 !                                                                       !
-!   interface:  "swflux" is called by "spcvrc" and "spcvrm"             !
+!   interface:  "vrtqdr" is called by "spcvrc" and "spcvrm"             !
 !                                                                       !
 !   subroutines called : none                                           !
 !                                                                       !
@@ -3436,7 +3437,7 @@
 
       return
 !...................................
-      end subroutine swflux
+      end subroutine vrtqdr
 !-----------------------------------
 
 

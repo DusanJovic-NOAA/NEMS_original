@@ -483,7 +483,9 @@ nmm_post_libs:
 ################################################################################
 
 gsm: gsm_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
+	$(FC) $(LDFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS) $(LDFLAGS_MAP)
+
+#	$(FC) $(LDFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS) -Wl,--print-map
 	@echo "NEMS.x successfully created for GSM core."
 
 gsm_libs:

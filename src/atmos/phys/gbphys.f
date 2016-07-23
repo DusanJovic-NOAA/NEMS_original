@@ -10,13 +10,15 @@
 !    call gbphys                                                        !
 !       inputs:                                                         !
 !         ( im,ix,levs,lsoil,lsm,ntrac,ncld,ntoz,ntcw,ntke,             !
+!           ntiw,ntlnc,ntinc,                                           !
 !           nmtvr,nrcm,ko3,lonr,latr,jcap,                              !
 !           num_p3d,num_p2d,npdf3d,ncnvcld3d,                           !
 !           kdt,lat,me,pl_coeff,nlons,ncw,flgmin,crtrh,cdmbgwd,         !
 !           ccwf,dlqf,ctei_rm,clstp,cgwf,prslrd0,ral_ts,dtp,dtf,fhour,  !
 !           solhr,slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,           !
 !           tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             !
-!           rann,prdout,poz,dpshc,hprime,xlon,xlat,                     !
+!           rann,prdoz,poz,dpshc,hprime,xlon,xlat,                      !
+!           h2o_phys,levh2o,h2opl,h2o_pres,h2o_coeff,                   !
 !           slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 !
 !           vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         !
 !           sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                    !
@@ -28,7 +30,7 @@
 !           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          !
 !           pdfcld,shcnvcw,sup,redrag,hybedmf,dspheat,                  !
 !           flipv,old_monin,cnvgwd,shal_cnv,                            !
-!           imfshalcnv,imfdeepcnv,cal_pre,                              !
+!           imfshalcnv,imfdeepcnv,cal_pre,aero_in,                      !
 !           mom4ice,mstrat,trans_trac,nstf_name,moist_adj,               !
 !           thermodyn_id, sfcpress_id, gen_coord_hybrid,levr,adjtrc,nnp,!
 !           cscnv,nctp,do_shoc,shocaftcnv,ntot3d,ntot2d,                !
@@ -148,13 +150,16 @@
 !      Sep  2015  - Xingren Wu  add sfc_cice                            !
 !      Sep  2015  - Xingren Wu  connect CICE output to sfc_cice         !
 !      Jan  2016  - P. Tripp    NUOPC/GSM merge                         !
-!      Mar  2016  - J. Han  - add ncnvcld3d integer
-!                       for convective cloudiness enhancement
-!      Mar  2016  - J. Han  - change newsas & sashal to imfdeepcnv
-!                        & imfshalcnv, respectively
+!      Mar  2016  - J. Han  -   add ncnvcld3d integer                   !
+!                               for convective cloudiness enhancement   !
+!      Mar  2016  - J. Han  -   change newsas & sashal to imfdeepcnv    !
+!                            &  imfshalcnv, respectively                !
 !      Mar  2016    F. Yang     add pgr to rayleigh damping call        !
 !      Mar  2016    S. Moorthi  add ral_ts                              !
+!      Mar  2016    Ann Cheng   add morrison 2m microphysics (gsfc)     !
+!      May  2016    S. Moorthi  cleanup 2m microphysics implementation  !
 !      Jun  2016    X. Li       change all nst_fld as inout             !
+!      jul  2016    S. Moorthi  fix some bugs in shoc/2m microphysics   !
 !    
 !  ====================  definition of variables  ====================  !
 !                                                                       !
@@ -170,6 +175,9 @@
 !     ntcw     - integer, cloud condensate location in the tracer  1    !
 !                         array                                    1    !
 !     ntke     - integer, tke location in the tracer array         1    !
+!     ntiw     - integer,                                          1    !
+!     ntlnc    - integer,                                          1    !
+!     ntinc    - integer,                                          1
 !     nmtvr    - integer, number of topographic variables such as  1    !
 !                         variance etc used in the GWD parameterization !
 !     nrcm     - integer, second dimension for the random number   1    !
@@ -231,11 +239,16 @@
 !     phii     - real, interface geopotential (m^2/s^2)         ix,levs+1!
 !     phil     - real, layer geopotential     (m^2/s^2)         ix,levs !
 !     rann     - real, random number array (0-1)                ix,nrcm !
-!     prdout   - real, ozone forcing data                       ix,ko3,pl_coeff!
+!     prdoz    - real, ozone forcing data                       ix,ko3,pl_coeff!
 !     poz      - real, ozone forcing data level pressure (ln(Pa))  ko3  !
-!     dpshc    - real, maximum pressure depth for shallow convection im   !
+!     dpshc    - real, maximum pressure depth for shallow convection im !
 !     hprime   - real, orographic std dev                       ix,nmtvr!
 !     xlon,xlat- real, longitude and latitude ( radian )           im   !
+!     h2o_phys - logical,                                               !
+!     levh2o   - integer,                                               !
+!     h2opl    - real,                                                  !
+!     h2o_pres - real,                                                  !
+!     h2o_coeff- integer                                                !
 !     slope    - real, sfc slope type for lsm                      im   !
 !     shdmin   - real, min fractional coverage of green veg        im   !
 !     shdmax   - real, max fractnl cover of green veg (not used)   im   !
@@ -304,17 +317,18 @@
 !     cnvgwd   - logical, flag for conv gravity wave drag          1    !
 !     shal_cnv - logical, flag for calling shallow convection      1    !
 !     imfshalcnv - integer, flag for mass-flux shallow conv scheme 1    !
-!       1: July 2010 version of mass-flux shallow conv scheme 
-!             current operational version as of 2016 
-!       2: scale- & aerosol-aware mass-flux shallow conv scheme (2017)
-!       0: modified Tiedtke's eddy-diffusion shallow conv scheme
-!      -1: no shallow convection used
+!       1: July 2010 version of mass-flux shallow conv scheme           !
+!             current operational version as of 2016                    !
+!       2: scale- & aerosol-aware mass-flux shallow conv scheme (2017)  !
+!       0: modified Tiedtke's eddy-diffusion shallow conv scheme        !
+!      -1: no shallow convection used                                   !
 !     imfdeepcnv - integer, flag for mass-flux deep conv scheme    1    !
-!       1: July 2010 version of SAS conv scheme
-!             current operational version as of 2016 
-!       2: scale- & aerosol-aware mass-flux deep conv scheme (2017)
-!       0: old SAS Convection scheme before July 2010
+!       1: July 2010 version of SAS conv schemea                        !
+!             current operational version as of 2016                    !
+!       2: scale- & aerosol-aware mass-flux deep conv scheme (2017)     !
+!       0: old SAS Convection scheme before July 2010                   !
 !     cal_pre  - logical, flag controls precip type algorithm      1    !
+!     aero_in  - logical, flag controls aerosol activation in 2M micro 1!
 !     mom4ice  - logical, flag controls mom4 sea-ice               1    !
 !     mstrat   - logical, flag for moorthi approach for stratus    1    !
 !     trans_trac-logical, flag for convective transport of tracers 1    !
@@ -513,13 +527,15 @@
       subroutine gbphys                                                 &
 !  ---  inputs:
      &    ( im,ix,levs,lsoil,lsm,ntrac,ncld,ntoz,ntcw,ntke,             &
+     &      ntiw,ntlnc,ntinc,                                           &
      &      nmtvr,nrcm,ko3,lonr,latr,jcap,                              &
      &      num_p3d,num_p2d,npdf3d,ncnvcld3d,                           &
      &      kdt,lat,me,pl_coeff,nlons,ncw,flgmin,crtrh,cdmbgwd,         &
      &      ccwf,dlqf,ctei_rm,clstp,cgwf,prslrd0,ral_ts,dtp,dtf,fhour,  &
      &      solhr,slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,           &
      &      tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             &
-     &      rann,prdout,poz,dpshc,fscav,fswtr,hprime,xlon,xlat,         &
+     &      rann,prdoz,poz,dpshc,fscav,fswtr,hprime,xlon,xlat,          &
+     &      h2o_phys,levh2o,h2opl,h2o_pres,h2o_coeff,                   &
      &      slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 &
      &      vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         &
 
@@ -533,8 +549,8 @@
      &      xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          &
      &      pdfcld,shcnvcw,sup,redrag,hybedmf,dspheat,                  &
      &      flipv,old_monin,cnvgwd,shal_cnv,                            &
-     &      imfshalcnv,imfdeepcnv,cal_pre,                              &
-     &      mom4ice,mstrat,trans_trac,nstf_name,moist_adj,               &
+     &      imfshalcnv,imfdeepcnv,cal_pre,aero_in,                      &
+     &      mom4ice,mstrat,trans_trac,nstf_name,moist_adj,              &
      &      thermodyn_id, sfcpress_id, gen_coord_hybrid,levr,adjtrc,nnp,&
      &      cscnv,nctp,do_shoc,shocaftcnv,ntot3d,ntot2d,                &
 !  ---  input/outputs:
@@ -600,11 +616,12 @@
 !  note: lgocart is the logical flag for in-line gocart;
 
       integer, intent(in) :: ix,   im,   levs, lsoil,   lsm,     ntrac, &
-     &                       ncld, ntoz, ntcw, nmtvr,   nrcm,    ko3,   &
+     &                       ncld, ntiw, ntlnc, ntinc,                  &
+     &                       ntoz, ntcw, nmtvr,   nrcm,    ko3,         &
      &                       lonr, latr, jcap, num_p3d, num_p2d, kdt,   &
      &                       me,   pl_coeff, lat, npdf3d, ncnvcld3d,    &
      &                       thermodyn_id, sfcpress_id, levr, nnp, nctp,&
-     &                       ntke, ntot3d, ntot2d
+     &                       ntke, ntot3d, ntot2d,  h2o_coeff, levh2o
 
 
       integer, intent(in) :: nlons(im), ncw(2)
@@ -612,13 +629,13 @@
       integer, intent(in) :: imfshalcnv, imfdeepcnv
 
       logical, intent(in) :: ras,        pre_rad,   ldiag3d, flipv,     &
-     &                       old_monin,  cnvgwd,                        &
+     &                       old_monin,  cnvgwd,    aero_in,            &
      &                       redrag,     hybedmf,   dspheat,            &
      &                       lssav,                 mom4ice, mstrat,    &
      &                       trans_trac, moist_adj, cal_pre, cscnv,     &
      &                       shal_cnv,   gen_coord_hybrid,   lgocart,   &
      &                       lsidea,     lssav_cpl, pdfcld, shcnvcw,    &
-     &                       do_shoc, shocaftcnv
+     &                       do_shoc,    shocaftcnv, h2o_phys
 
       real(kind=kind_phys) :: adjtrc(ntrac)
 
@@ -644,7 +661,8 @@
      &      prsi, prsik, phii
 
       real(kind=kind_phys), intent(in) ::  hprime(ix,nmtvr),            &
-     &      prdout(ix,ko3,pl_coeff),       rann(ix,nrcm), poz(ko3)
+     &      prdoz(ix,ko3,pl_coeff),        rann(ix,nrcm), poz(ko3),     &
+     &      h2opl(ix,levh2o,h2o_coeff),    h2o_pres(levh2o)
 
       real(kind=kind_phys), intent(in) ::  dtp,   dtf, fhour, solhr,    &
      &      slag,    sdec,      cdec,      ctei_rm(2), clstp,           &
@@ -719,7 +737,7 @@
       real(kind=kind_phys), dimension(im)          :: ccwfac, garea,    &
      &      dlength, xncw,   cumabs, qmax,   cice,    zice,   tice,     &
 !    &      gflx,    rain,   rainc,  rainl,  rain1,   raincs, evapc,    &
-     &      gflx,                    rainl,  rain1,   raincs,           &
+     &      gflx,                            rain1,   raincs,           &
      &      snowmt,  cd,     cdq,    qss,    dusfcg,  dvsfcg, dusfc1,   &
      &      dvsfc1,  dtsfc1, dqsfc1, rb,     rhscnpy, drain,  cld1d,    &
      &      evap,    hflx,   stress, t850,   ep1d,    gamt,   gamq,     &
@@ -727,12 +745,13 @@
      &      elvmax,  wind,   work1,  work2,  runof,   xmu,              &
 !    &      elvmax,  wind,   work1,  work2,  runof,   xmu,    oro_land, &
      &      fm10,    fh2,    tsurf,  tx1,    tx2,     ctei_r, flgmin_l, &
-     &      evbs,    evcw,   trans,  sbsno,  snowc,                     &
+     &      evbs,    evcw,   trans,  sbsno,  snowc,   frland,           &
      &      adjsfcdsw, adjsfcnsw, adjsfcdlw, adjsfculw,gabsbdlw,        &
      &      adjnirbmu, adjnirdfu, adjvisbmu, adjvisdfu,                 &
      &      adjnirbmd, adjnirdfd, adjvisbmd, adjvisdfd,                 &
      &      xcosz,  tseal,  snohf,  dlqfac,  work3, ctei_rml, cldf,     &
-     &      domr,    domzr,  domip,  doms,   psautco_l, prautco_l
+     &      domr,   domzr,  domip,  doms,   psautco_l, prautco_l
+
       real(kind=kind_phys), dimension(im)          :: ocalnirbm_cpl,    &
      &      ocalnirdf_cpl,ocalvisbm_cpl,ocalvisdf_cpl
 
@@ -754,13 +773,13 @@
       real(kind=kind_phys), dimension(im,lsoil)    :: smsoil, stsoil,   &
      &      ai, bi, cci, rhsmc, zsoil, slsoil
 
-      real(kind=kind_phys) :: zsea1,zsea2
+      real(kind=kind_phys)                :: zsea1,zsea2
       real(kind=kind_phys), dimension(im) :: dtzm
 
       real(kind=kind_phys) :: rhbbot, rhbtop, rhpbl, frain, f_rain,     &
      &      f_ice, qi, qw, qr, wc, tem, tem1, tem2,  sume,  sumr, sumq, &
-     &      dqdt(im,levs,ntrac), oa4(im,4), clx(im,4), albbm, albdf,    &
-     &      xcosz_loc
+     &      dqdt(im,levs,ntrac), oa4(im,4), clx(im,4), albbm, xcosz_loc
+      real(kind=kind_phys), parameter :: albdf=0.06
 
 
 !           in clw, the first two varaibles are cloud water and ice. 
@@ -768,15 +787,17 @@
 !           third being the ozone, when ntrac=3 (valid only with ras)
 
       real(kind=kind_phys), allocatable :: clw(:,:,:), qpl(:,:),qpi(:,:)
+     &,                                    ncpl(:,:),  ncpi(:,:)
 
       integer, dimension(im) :: kbot, ktop, kcnv, soiltyp, vegtype,     &
      &          kpbl, slopetyp, kinver, lmh, levshc, islmsk
 
       integer :: i, nvdiff, kk, ic, k, n, ipr, lv, k1, iter, levshcm,   &
      &           tracers, trc_shft, tottracer, num2, num3               &
-     &,          nshocm, nshoc, ntk
+     &,          nshocm, nshoc, ntk, ntln, ntin
 
-      logical, dimension(im) :: flag_iter, flag_guess, invrsn
+      logical, dimension(im) :: flag_iter, flag_guess, invrsn           &
+     &,                         skip_macro
 
       real(kind=kind_phys), dimension(im)          :: dtsfc_cice,       &
      &    dqsfc_cice, dusfc_cice, dvsfc_cice, ulwsfc_cice, tisfc_cice,  &
@@ -785,7 +806,7 @@
       integer, dimension(im) :: islmsk_cice
       logical, dimension(im) :: flag_cice
 
-      logical :: lprnt
+      logical :: lprnt, revap
 
       real(kind=kind_phys), allocatable :: cnvc(:,:),cnvw(:,:)
       real(kind=kind_phys) eng0, eng1, dtshoc
@@ -800,6 +821,12 @@
 !     parameter (tf=233.16, tcr=263.16, tcrf=1.0/(tcr-tf))
       parameter (tf=258.16, tcr=273.16, tcrf=1.0/(tcr-tf))
 !
+!     for 2 M microphysics
+      real(kind=kind_phys), allocatable, dimension(:,:) :: qlcn, qicn
+     &,      w_upi,cf_upi, CNV_MFD, CNV_PRC3, CNV_DQLDT,CLCN,        !Acheng
+     &       CNV_FICE,CNV_NDROP,CNV_NICE
+      real(kind=kind_phys), allocatable, dimension(:) :: cn_prc,cn_snr
+!
 !
 !===> ...  begin here
 !
@@ -807,17 +834,14 @@
 !     do i=1, ntrac-ncld-1
 !       fscav(i) = 0.
 !     enddo
-
-
+ 
 
 !  --- ...  set up check print point (for debugging)
 !
 !*************************************************************************
       lprnt = .false.
-!     lprnt = me == 0 .and. kdt < 10
-!     lprnt = kdt >= 19
-!     ipr = 1
-!     lprnt = kdt >= 19
+!     lprnt = me == 0 .and. kdt < 10 .and. lat == 22
+      ipr = 1
 
 !     if (me == 0 .and. kdt < 5)
 !    &write(0,*)' In gbphys:', im,ix,levs,lsoil,lsm,
@@ -826,21 +850,11 @@
 !    &      kdt,lat,me,pl_coeff,ncw,flgmin,crtrh,cdmbgwd
 !    &,' ccwf=',ccwf,' dlqf=',dlqf,' ras=',ras,
 !    & ' evpco=',evpco,' wminco=',wminco,' levr=',levr
-!     ipr = 1
-!     lprnt = kdt .gt. 0
 !     do i = 1, im
-!       work1(1) = xlon(i) * 57.29578
-!       if (work1(1) >= 180.0) work1(1) = work1(1) - 360.0
-!       work2(1) = xlat(i) * 57.29578
-!       print *,' me=',me,' work1=',work1(1),' work2=',work2(1),' i=',i
-!       lprnt = kdt > 4320
-!       lprnt = kdt > 0 .and. abs(work1(1)-8.4375) < 0.5                &
-!    &                  .and. abs(work2(1)+1.4)   < 0.5
-!       lprnt = kdt >= 14 .and. lat == 43 
 !       lprnt = kdt >= 256 .and. abs(xlon(i)*57.29578-136.07) < 0.08    &
 !    &                   .and. abs(xlat(i)*57.29578+1.1)  < 0.101
-!       lprnt = kdt >= 0 .and. abs(xlon(i)*57.29578-21.5) < 0.501       &
-!    &                   .and. abs(xlat(i)*57.29578+11.8)  < 0.501
+!       lprnt = kdt >= 0 .and. abs(xlon(i)*57.29578-13.125) < 0.501     &
+!    &                   .and. abs(xlat(i)*57.29578-79.043)  < 0.501
 !       lprnt = kdt >= 0 .and. abs(xlon(i)*57.29578-8.4375) < 0.501     &
 !    &                   .and. abs(xlat(i)*57.29578+1.4)  < 0.501
 !       lprnt = kdt >= 40 .and. abs(xlon(i)*57.29578-288.75) < 1.501    &
@@ -858,7 +872,6 @@
 !       endif
 !     enddo
 
-!     write(0,*)' In GBPHYS LSIDEA=',lsidea
 !     lprnt = .false.
 !     if(lprnt) then
 !       write(0,*)' im=',im,' ix=',ix,' levs=',levs,' lsoil=',lsoil,    &
@@ -879,12 +892,20 @@
 !       write(0,*)' qgrs=',qgrs(ipr,:,1)
 !       write(0,*)' ozg=',qgrs(ipr,:,2)
 !       write(0,*)' tke=',qgrs(ipr,:,4)
-!       print *,' clw=',qgrs(ipr,:,3)
+!       print *,' clwb=',qgrs(ipr,:,ntiw)
 !    &,  ' xlon=',xlon(ipr),' xlat=',xlat(ipr)
 !     endif
 !
 !*************************************************************************
 !
+      do i = 1, im
+        if(nint(slmsk(i)) == 1) then
+          frland(i) = 1.0
+        else
+          frland(i) = 0.
+        endif
+      enddo
+
       nvdiff = ntrac           ! vertical diffusion of all tracers!
 !
 !  --- ...                       figure out number of extra tracers
@@ -915,14 +936,36 @@
 !    &,                  ntrac-ncld+2,' clstp=',clstp,' kdt=',kdt
 !    &,' ntk=',ntk,' lat=',lat
 
+      skip_macro = .false.
       allocate ( clw(ix,levs,tottracer+2) )
       if (do_shoc) then
-        allocate (qpl(im,levs), qpi(im,levs))
+        allocate (qpl(im,levs),  qpi(im,levs) 
+     &,           ncpl(im,levs), ncpi(im,levs))
+        do k=1,levs
+          do i=1,im
+            ncpl(i,k) = 0.0
+            ncpi(i,k) = 0.0
+          enddo
+        enddo
       endif
+
       if (.not. ras .or. .not. cscnv) then
         allocate ( cnvc(ix,levs), cnvw(ix,levs))
       endif
 !     allocate (fscav(tottracer+3), fswtr(tottracer+3))
+
+      if (ncld == 2) then         ! For MGB double moment microphysics
+        allocate (qlcn(im,levs),      qicn(im,levs),   w_upi(im,levs)
+     &,           cf_upi(im,levs),    CNV_MFD(im,levs),CNV_PRC3(im,levs)
+     &,           CNV_DQLDT(im,levs), clcn(im,levs),   cnv_fice(im,levs)
+     &,           cnv_ndrop(im,levs), cnv_nice(im,levs))
+        allocate(cn_prc(im), cn_snr(im))
+      else
+        allocate (qlcn(1,1),      qicn(1,1),   w_upi(1,1)
+     &,           cf_upi(1,1),    CNV_MFD(1,1),CNV_PRC3(1,1)
+     &,           CNV_DQLDT(1,1), clcn(1,1),   cnv_fice(1,1)
+     &,           cnv_ndrop(1,1), cnv_nice(1,1))
+      endif
 
 ! The option to compute tracer scavenging in GSM is disabled
       do i=1, tottracer+3
@@ -953,6 +996,7 @@
 !       write(0,*)' prsik=',prsik(ipr,:),' me=',me,' kdt=',kdt
 !       write(0,*)' prslk=',prslk(ipr,:),' me=',me,' kdt=',kdt
 !       write(0,*)' phil=',phil(ipr,:),' me=',me,' kdt=',kdt,' ipr=',ipr
+!    &,' lat=',lat,' prsi=',prsi(ipr,1)
 !       write(0,*)' prsl=',prsl(ipr,:),' kdt=',kdt
 !       print *,' del=',del(ipr,:)
 !     endif
@@ -1139,14 +1183,14 @@
 
 !  --- ...  define the downward lw flux absorbed by ground
 
-        do i = 1, im
-          gabsbdlw(i) = sfcemis(i) * adjsfcdlw(i)
-        enddo
+      do i = 1, im
+        gabsbdlw(i) = sfcemis(i) * adjsfcdlw(i)
+      enddo
 
-!      if( lsidea ) then     ! idea : moved temp adjust to idea_phys
-!        print *,' in gbphys: lsidea is true '
-!        DTDT = 0.
-!      endif
+!     if( lsidea ) then     ! idea : moved temp adjust to idea_phys
+!       print *,' in gbphys: lsidea is true '
+!       DTDT = 0.
+!     endif
 
       if (lssav) then      !  --- ...  accumulate/save output variables
 
@@ -1211,7 +1255,7 @@
 !    Only used for old shallow convection with mstrat=.true.
 
       if (((imfshalcnv == 0 .and. shal_cnv) .or. old_monin)             &
-     &                                   .and. mstrat) then
+     &                                     .and. mstrat) then
         do i = 1, im
           ctei_rml(i) = ctei_rm(1)*work1(i) + ctei_rm(2)*work2(i)
         enddo
@@ -1265,7 +1309,6 @@
 !       write(0,*)' dtdth=',dtdt(ipr,:),' kdt=',kdt
 !     endif
 
-!     if (lprnt) write(0,*)' phil=',phil(1,1:5)
 
 !  --- ...  lu: initialize flag_guess, flag_iter, tsurf
 
@@ -1360,8 +1403,8 @@
           if ( nstf_name(1) > 1 ) then
             zsea1 = 0.001*real(nstf_name(4))
             zsea2 = 0.001*real(nstf_name(5))
-            call get_dtzm_2d(xt,xz,dt_cool,z_c,real(islmsk(:)),
-     &           zsea1,zsea2,im,1,dtzm)
+            call get_dtzm_2d(xt,xz,dt_cool,z_c,slmsk,
+     &                       zsea1,zsea2,im,1,dtzm)
             do i = 1, im
               if ( islmsk(i) == 0 ) then
               tsea(i) = max(271.2,tref(i) + dtzm(i))
@@ -1397,7 +1440,10 @@
         if (lsm == 1) then                          ! noah lsm call
 
 !     if (lprnt) write(0,*)' tsead=',tsea(ipr),' tsurf=',tsurf(ipr),iter
+!    &,' pgr=',pgr(ipr),' sfcemis=',sfcemis(ipr)
+
           call sfc_drv                                                  &
+
 !  ---  inputs:
      &     ( im,lsoil,pgr,ugrs,vgrs,tgrs,qgrs,soiltyp,vegtype,sigmaf,   &
      &       sfcemis,gabsbdlw,adjsfcdsw,adjsfcnsw,dtf,tg3,cd,cdq,       &
@@ -1411,6 +1457,9 @@
      &       cmm,chh,evbs,evcw,sbsno,snowc,soilm,snohf,                 &
      &       smcwlt2,smcref2,zorl,wet1                                  &
      &     )
+
+!     if (lprnt) write(0,*)' tseae=',tsea(ipr),' tsurf=',tsurf(ipr),iter
+!    &,' phy_f2d=',phy_f2d(ipr,num_p2d)
 
         else                                       ! osu lsm call
 
@@ -1548,7 +1597,6 @@
 !  ---  estimate mean albedo for ocean point without ice cover and apply
 !       them to net SW heat fluxes
 
-        albdf = 0.06
         do i = 1, im
           if (islmsk(i) /= 1) then  ! not a land point
 !  ---  compute open water albedo
@@ -1865,6 +1913,7 @@
         endif
       endif
 
+!    Rayleigh damping  near the model top 
       if( .not. lsidea .and. ral_ts > 0.0) then
 !        call rayleigh_damp_mesopause(im, ix, im, levs, dvdt, dudt, dtdt,
 !     &                   ugrs, vgrs, dtp, con_cp, levr, prsl, prslrd0)
@@ -1873,6 +1922,11 @@
      &                     vgrs, dtp, con_cp, levr, pgr, prsl,
      &                     prslrd0, ral_ts)
       endif
+
+!     if (lprnt) then
+!       write(0,*)' tgrs1=',tgrs(ipr,1:10)
+!       write(0,*)' dtdt=',dtdt(ipr,1:10)
+!     endif
 
       do  k = 1, levs
         do i = 1, im
@@ -1889,6 +1943,7 @@
           enddo
         enddo
       enddo
+!     if(lprnt) write(0,*)' gq0i=',gq0(ipr,:,ntiw)
 
       if( lsidea ) then            ! idea convective adjustment
         call ideaca_up(prsi,gt0,ix,im,levs+1)
@@ -1918,10 +1973,26 @@
 
       if (ntoz > 0 .and. ntrac >= ntoz) then
 
-        call ozphys(ix,im,levs,ko3,dtp,gq0(1,1,ntoz),gq0(1,1,ntoz)      &
-     &,             gt0, poz, prsl, prdout, pl_coeff, del, ldiag3d      &
-     &,             dq3dt(1,1,6), me)
+        if (pl_coeff > 4) then
 
+         call ozphys_2015(ix,im,levs,ko3,dtp,gq0(1,1,ntoz),gq0(1,1,ntoz)&
+     &,                   gt0, poz, prsl, prdoz, pl_coeff, del, ldiag3d &
+     &,                   dq3dt(1,1,6), me)
+        else
+
+         call ozphys(ix,im,levs,ko3,dtp,gq0(1,1,ntoz),gq0(1,1,ntoz)     &
+     &,              gt0, poz, prsl, prdoz, pl_coeff, del, ldiag3d      &
+     &,              dq3dt(1,1,6), me)
+
+        endif
+      endif
+
+
+      if (h2o_phys) then
+
+        call h2ophys(ix,im,levs,levh2o,dtp,gq0(1,1,1),gq0(1,1,1)
+     &,              h2o_pres,prsl,h2opl,h2o_coeff,ldiag3d
+     &,              dq3dt(1,1,1), me)
       endif
 
 !  --- ...  to side-step the ozone physics
@@ -1933,8 +2004,8 @@
 !      endif
 
 !     if (lprnt) then
-!       print *,' levs=',levs,' jcap=',jcap,' dtp',dtp                  &
-!    *,  ' slmsk=',slmsk(ilon,ilat),' kdt=',kdt
+!       write(0,*) ' levs=',levs,' jcap=',jcap,' dtp',dtp               &
+!    &,  ' slmsk=',slmsk(ilon,ilat),' kdt=',kdt
 !       print *,' rann=',rann,' ncld=',ncld,' iq=',iq,' lat=',lat
 !       print *,' pgr=',pgr
 !       print *,' del=',del(ipr,:)
@@ -1947,6 +2018,7 @@
 !       print *,' gu0=',gu0(ipr,:)
 !       print *,' gv0=',gv0(ipr,:)
 !       write(0,*)' gq0=',(gq0(ipr,k,1),k=1,levs),' lat=',lat
+!       write(0,*)' gq0i2=',(gq0(ipr,k,ntiw),k=1,levs),' lat=',lat
 !       print *,' gq1=',(gq0(ipr,k,ntcw),k=1,levs)
 !       print *,' vvel=',vvel
 !     endif
@@ -2039,7 +2111,7 @@
           endif
 
         endif
-      endif   ! end if_ras
+      endif   ! end if_ras or cfscnv
 
       do i = 1, im
         ktop(i)  = 1
@@ -2059,73 +2131,83 @@
           enddo
         enddo
 
-        if (num_p3d == 3) then    !  brad ferrier's microphysics
+        if (ncld == 2) then
+          do k = 1, levs
+            do i = 1, im
+              clw(i,k,1) = gq0(i,k,ntiw)                    ! ice
+              clw(i,k,2) = gq0(i,k,ntcw)                    ! water
+            enddo
+          enddo
+        else
+
+          if (num_p3d == 3) then    !  brad ferrier's microphysics
 
 !  --- ...  algorithm to separate different hydrometeor species
 
-          do k = 1, levs
-            do i = 1, im
-              wc     = gq0(i,k,ntcw)
-              qi     = 0.
-              qr     = 0.
-              qw     = 0.
-              f_ice  = max(0.0, min(1.0, phy_f3d(i,k,1)))
-              f_rain = max(0.0, min(1.0, phy_f3d(i,k,2)))
+            do k = 1, levs
+              do i = 1, im
+                wc     = gq0(i,k,ntcw)
+                qi     = 0.
+                qr     = 0.
+                qw     = 0.
+                f_ice  = max(0.0, min(1.0, phy_f3d(i,k,1)))
+                f_rain = max(0.0, min(1.0, phy_f3d(i,k,2)))
 
-              qi = f_ice*wc
-              qw = wc-qi
-              if (qw > 0.0) then
-                qr = f_rain*qw
-                qw = qw-qr
-              endif
+                qi = f_ice*wc
+                qw = wc-qi
+                if (qw > 0.0) then
+                  qr = f_rain*qw
+                  qw = qw-qr
+                endif
 
-!             if (f_ice >= 1.0) then
-!               qi = wc
-!             elseif (f_ice <= 0.0) then
-!               qw = wc
-!             else
-!               qi = f_ice*wc
-!               qw = wc-qi
-!             endif
-
-!             if (qw > 0.0 .and. f_rain > 0.0) then
-!               if (f_rain >= 1.0) then
-!                 qr = qw
-!                 qw = 0.0
+!               if (f_ice >= 1.0) then
+!                 qi = wc
+!               elseif (f_ice <= 0.0) then
+!                 qw = wc
 !               else
-!                 qr = f_rain*qw
-!                 qw = qw-qr
+!                 qi = f_ice*wc
+!                 qw = wc-qi
 !               endif
-!             endif
 
-              qr_col(i,k) = qr
-!             clw(i,k)    = qi + qw
-              clw(i,k,1)  = qi
-              clw(i,k,2)  = qw
+!               if (qw > 0.0 .and. f_rain > 0.0) then
+!                 if (f_rain >= 1.0) then
+!                   qr = qw
+!                   qw = 0.0
+!                 else
+!                   qr = f_rain*qw
+!                   qw = qw-qr
+!                 endif
+!               endif
+
+                qr_col(i,k) = qr
+!               clw(i,k)    = qi + qw
+                clw(i,k,1)  = qi
+                clw(i,k,2)  = qw
 
 !  --- ...  array to track fraction of "cloud" in the form of ice
 
-!             if (qi+qw > epsq) then
-!               fc_ice(i,k) = qi / (qi+qw)
-!             else
-!               fc_ice(i,k) = 0.0
-!             endif
+!               if (qi+qw > epsq) then
+!                 fc_ice(i,k) = qi / (qi+qw)
+!               else
+!                 fc_ice(i,k) = 0.0
+!               endif
+              enddo
             enddo
-          enddo
 
-        elseif (num_p3d == 4) then   ! zhao-carr microphysics 
+          elseif (num_p3d == 4) then   ! zhao-carr microphysics 
 
-          do i = 1, im
-            psautco_l(i) = psautco(1)*work1(i) + psautco(2)*work2(i)
-            prautco_l(i) = prautco(1)*work1(i) + prautco(2)*work2(i)
-          enddo
-          do k = 1, levs
             do i = 1, im
-              clw(i,k,1) = gq0(i,k,ntcw)
+              psautco_l(i) = psautco(1)*work1(i) + psautco(2)*work2(i)
+              prautco_l(i) = prautco(1)*work1(i) + prautco(2)*work2(i)
             enddo
-          enddo
+            do k = 1, levs
+              do i = 1, im
+                clw(i,k,1) = gq0(i,k,ntcw)
+              enddo
+            enddo
 
-        endif  ! end if_num_p3d
+          endif  ! end if_num_p3d
+        endif    ! end if (ncld == 2)
 
       else    ! if_ntcw
 
@@ -2145,18 +2227,29 @@
 !
       if (do_shoc .and. .not. shocaftcnv) then
 
-        if (num_p3d == 4) then
+        if (ncld == 2) then
+          skip_macro = do_shoc
+          do k = 1, levs
+            do i = 1, im
+              clw(i,k,1) = gq0(i,k,ntiw)                    ! ice
+              clw(i,k,2) = gq0(i,k,ntcw)                    ! water
+              ncpl(i,k)  = gq0(i,k,ntlnc)
+              ncpi(i,k)  = gq0(i,k,ntinc)
+            enddo
+          enddo
+        elseif (num_p3d == 4) then
           do k=1,levs
             do i=1,im
               qpl(i,k)   = 0.0
               qpi(i,k)   = 0.0
-              tem = gq0(i,k,ntcw)                                         &
+              tem = gq0(i,k,ntcw)                                       &
      &            * max(0.0, MIN(1.0, (TCR-gt0(i,k))*TCRF))
               clw(i,k,1) = tem                              ! ice
               clw(i,k,2) = gq0(i,k,ntcw) - tem              ! water
             enddo
           enddo
         endif
+
 !       dtshoc = 60.0
 !       dtshoc = 120.0
 !       dtshoc = dtp
@@ -2166,22 +2259,34 @@
 !      if (lprnt) write(1000+me,*)' before shoc tke=',clw(ipr,:,ntk),
 !    &' kdt=',kdt,' lat=',lat,'xlon=',xlon(ipr),' xlat=',xlat(ipr)
 
+!     phy_f3d(1,1,ntot3d-2) - shoc determined sgs clouds
+!     phy_f3d(1,1,ntot3d-1) - shoc determined diffusion coefficients
+!     phy_f3d(1,1,ntot3d  ) - shoc determined  w'theta'
+!
 !         call shoc(ix, im, 1, levs, levs+1, dtshoc, me, lat,           &
           call shoc(ix, im, 1, levs, levs+1, dtp, me, lat,              &
      &              prsl(1,1), phii(1,1), phil(1,1),                    &
      &              gu0(1,1),gv0(1,1), vvel(1,1), gt0(1,1), gq0(1,1,1), &
-!    &              clw(1,1,1), clw(1,1,2), qpi, qpl, rhc, shoc_cld(1,1)&
-!    &              clw(1,1,1), clw(1,1,2), qpi, qpl, shoc_cld(1,1)     &
-     &              clw(1,1,1), clw(1,1,2), qpi, qpl,                   &
-!    &              sgs_cld(1:im,1:levs)                                &
+     &              clw(1,1,1), clw(1,1,2), qpi, qpl,rhc, sup,          &
      &              phy_f3d(1,1,ntot3d-2), clw(1,1,ntk), hflx, evap,    &
      &              prnum, phy_f3d(1,1,ntot3d-1), phy_f3d(1,1,ntot3d),  &
-     &              lprnt, ipr)
+     &              lprnt, ipr, ncpl, ncpi)
+
+          if (ntlnc > 0 .and. ntinc > 0 .and. ncld >=2) then
+            do k=1,levs
+              do i=1,im
+                gq0(i,k,ntlnc) = ncpl(i,k)
+                gq0(i,k,ntinc) = ncpi(i,k)
+              enddo
+            enddo
+          endif
 !       do k=1,levs
 !         do i=1,im
 !           sgs_cld(i,k) = sgs_cld(i,k) + shoc_cld(i,k)
 !         enddo
 !       enddo
+!     if (lprnt) write(0,*)' gt03=',gt0(ipr,1:10)
+!     if (lprnt) write(0,*)' tke=',clw(ipr,1:10,ntk)
 
 !      if (lprnt) write(1000+me,*)' after shoc tke=',clw(1,:,ntk),
 !    &' kdt=',kdt
@@ -2198,6 +2303,7 @@
 !     write(0,*)' aft shoc gu0=',gu0(1,:),' lat=',lat
 !
       endif   ! if(do_shoc)
+      
 
 !  --- ...  calling convective parameterization
 !
@@ -2222,13 +2328,10 @@
 !         if (lprnt) print *,' rain1=',rain1(ipr),' rann=',rann(ipr,1)
         endif
 
-      else    ! ras
+      else        ! ras or cscnv
 
-!       if  (lprnt) print *,' calling ras for kdt=',kdt,' me=',me       &
-!    &,                     ' lprnt=',lprnt
-
-        if(cscnv) then    ! Chikira-Sugiyama                            !DD
-
+        if(cscnv) then    ! Chikira-Sugiyama  convection scheme (via CSU)
+          
 !         fscav(:) = 0.0
 !         fswtr(:) = 0.0
           call cs_convr(                                                & !DD
@@ -2245,7 +2348,9 @@
           do i = 1,im                                                     !DD
              rain1(i) = rain1(i) * (dtp*0.001)                            !DD
           enddo
-        else
+
+        else      ! ras version 2
+
           if (ccwf(1) >= 0.0 .or. ccwf(2) >= 0 ) then
             do i=1,im
               ccwfac(i) = ccwf(1)*work1(i) + ccwf(2)*work2(i)
@@ -2262,14 +2367,22 @@
 !         if  (lprnt) write(0,*) ' calling ras for kdt=',kdt,' me=',me    &
 !    &,                       ' lprnt=',lprnt,' ccwfac=',ccwfac(ipr)
 
-          call rascnv(im,     ix,    levs,   dtp, dtf, rann               &
-     &,               gt0,    gq0,   gu0,    gv0, clw, tottracer, fscav   &
-     &,               prsi,   prsl,   prsik,  prslk, phil,  phii          &
-     &,               kpbl,   cd,     rain1,  kbot,  ktop,  kcnv          &
-     &,               phy_f2d(1,num_p2d), flipv, pa2mb                    &
-     &,               me, garea, lmh, ccwfac, nrcm, rhc                   &
-     &,               ud_mf, dd_mf, dt_mf, dlqfac, lprnt, ipr, kdt)
+          revap = .true.
+!         if (ncld ==2) revap = .false.
+          call rascnv(im,    ix,    levs,   dtp, dtf, rann              &
+     &,               gt0,    gq0,   gu0,    gv0, clw, tottracer, fscav &
+     &,               prsi,   prsl,   prsik,  prslk, phil,  phii        &
+     &,               kpbl,   cd,     rain1,  kbot,  ktop,  kcnv        &
+     &,               phy_f2d(1,num_p2d), flipv, pa2mb                  &
+     &,               me, garea, lmh, ccwfac, nrcm, rhc                 &
+     &,               ud_mf, dd_mf, dt_mf, dlqfac, lprnt, ipr, kdt,revap&
+     &,               QLCN, QICN, w_upi,cf_upi, CNV_MFD, CNV_PRC3       &
+     &,               CNV_DQLDT,CLCN,CNV_FICE,CNV_NDROP,CNV_NICE,ncld )
         endif
+
+!     if(lprnt) write(0,*)' after ras rain1=',rain1(ipr)
+!    &,' cnv_prc3sum=',sum(cnv_prc3(ipr,1:levs))
+!     if (lprnt) write(0,*)' gt04=',gt0(ipr,1:10)
 
         cld1d = 0
 
@@ -2319,6 +2432,7 @@
       do i = 1, im
         rainc(i) = frain * rain1(i)
       enddo
+        
 !
       if (lssav) then
         do i = 1, im
@@ -2346,18 +2460,18 @@
       endif   ! end if_lssav
 !
 !       update dqdt_v to include moisture tendency due to deep convection
-        if (lgocart) then
-          do k = 1, levs
-            do i = 1, im
-              dqdt_v(i,k)  = (gq0(i,k,1)-dqdt(i,k,1))  * frain
-              upd_mf(i,k)  = upd_mf(i,k)  + ud_mf(i,k) * frain
-              dwn_mf(i,k)  = dwn_mf(i,k)  + dd_mf(i,k) * frain
-              det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * frain
-              cnvqc_v(i,k) = cnvqc_v(i,k) + (clw(i,k,1)+clw(i,k,2))
-     &                                                        *frain
-            enddo
+      if (lgocart) then
+        do k = 1, levs
+          do i = 1, im
+            dqdt_v(i,k)  = (gq0(i,k,1)-dqdt(i,k,1))  * frain
+            upd_mf(i,k)  = upd_mf(i,k)  + ud_mf(i,k) * frain
+            dwn_mf(i,k)  = dwn_mf(i,k)  + dd_mf(i,k) * frain
+            det_mf(i,k)  = det_mf(i,k)  + dt_mf(i,k) * frain
+            cnvqc_v(i,k) = cnvqc_v(i,k) + (clw(i,k,1)+clw(i,k,2))
+     &                                                      *frain
           enddo
-        endif ! if (lgocart)
+        enddo
+      endif ! if (lgocart)
 !
       if(npdf3d == 3  .and. num_p3d == 4) then
         num2 = num_p3d + 2
@@ -2377,9 +2491,9 @@
         enddo
       endif 
 
-!     write(0,*)' cnvgwd moninshobl clstp=',clstp,' kdt=',kdt,
-!    &         ' lat=',lat
 !
+!----------------Convective gravity wave drag parameterization starting --------
+
       if (cnvgwd) then         !        call convective gravity wave drag
 
 !  --- ...  calculate maximum convective heating rate            qmax [k/s]
@@ -2480,10 +2594,9 @@
 !  --- ...  end check print ********************************************
 
         call gwdc(im, ix, im, levs, lat, ugrs, vgrs, tgrs, qgrs,        &
-     &            prsl, prsi, del, cumabs,       ktop, kbot, kcnv,cldf, &
-     &            con_g,con_cp,con_rd,con_fvirt, dlength,               &
-     &            lprnt, ipr, fhour,                                    &
-     &            gwdcu, gwdcv,dusfcg,dvsfcg)
+     &            prsl, prsi, del, cumabs, ktop, kbot, kcnv,cldf,       &
+     &            con_g, con_cp, con_rd, con_fvirt, dlength,            &
+     &            lprnt, ipr, fhour, gwdcu, gwdcv, dusfcg, dvsfcg)
 
 
 !       if (lprnt) then
@@ -2561,8 +2674,7 @@
 
       endif   ! end if_cnvgwd (convective gravity wave drag)
 
-!     write(0,*)' after cnvgwd  clstp=',clstp,' kdt=',kdt,
-!    &         ' lat=',lat
+!----------------Convective gravity wave drag parameterization over --------
 
       if (ldiag3d) then
         do k = 1, levs
@@ -2585,9 +2697,9 @@
 
       if (.not. do_shoc) then
 
-        if (shal_cnv) then               ! Shallow convection parameterization
-!                                        -----------------------------------
-          if (imfshalcnv == 1) then               ! opr option now at 2014
+        if (shal_cnv) then               ! Shallow convection parameterizations
+!                                        --------------------------------------
+          if (imfshalcnv == 1) then      ! opr option now at 2014
                                          !-----------------------
             call shalcnv(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,         &
      &                   clw,gq0,gt0,gu0,gv0,                           &
@@ -2624,9 +2736,9 @@
 
           elseif (imfshalcnv == 2) then
             call mfshalcnv(im,ix,levs,dtp,del,prsl,pgr,phil,            &
-     &                   clw,gq0,gt0,gu0,gv0,                           &
-     &                   rain1,kbot,ktop,kcnv,islmsk,garea,             &
-     &                   vvel,ncld,hpbl,ud_mf,dt_mf,cnvw,cnvc)
+     &                     clw,gq0,gt0,gu0,gv0,                         &
+     &                     rain1,kbot,ktop,kcnv,islmsk,garea,           &
+     &                     vvel,ncld,hpbl,ud_mf,dt_mf,cnvw,cnvc)
 
             if (shcnvcw .and. num_p3d == 4 .and. npdf3d == 3 ) then
               do k = 1, levs
@@ -2724,16 +2836,28 @@
 !       endif
 
       elseif (shocaftcnv) then ! if do_shoc is true and shocaftcnv is true call shoc
-
-        if (clw(1,1,2) < -999.0) then ! if clw is not partitioned to ice and water
-          do k=1,levs
-            do i=1,im
-              tem = gq0(i,k,ntcw)                                       &
-     &            * max(0.0, MIN(1.0, (TCR-gt0(i,k))*TCRF))
-              clw(i,k,1) = tem                              ! ice
-              clw(i,k,2) = gq0(i,k,ntcw) - tem              ! water
+        if (ncld == 2) then
+          skip_macro = do_shoc
+          do k = 1, levs
+            do i = 1, im
+!             clw(i,k,1) = gq0(i,k,ntiw)                    ! ice
+!             clw(i,k,2) = gq0(i,k,ntcw)                    ! water
+              ncpl(i,k)  = gq0(i,k,ntlnc)
+              ncpi(i,k)  = gq0(i,k,ntinc)
             enddo
           enddo
+
+!       else
+!         if (clw(1,1,2) < -999.0) then ! if clw is not partitioned to ice and water
+!           do k=1,levs
+!             do i=1,im
+!               tem = gq0(i,k,ntcw)                                     &
+!    &              * max(0.0, MIN(1.0, (TCR-gt0(i,k))*TCRF))
+!               clw(i,k,1) = tem                              ! ice
+!               clw(i,k,2) = gq0(i,k,ntcw) - tem              ! water
+!             enddo
+!           enddo
+!         endif     ! Anning ncld ==2
         endif
         do k=1,levs
           do i=1,im
@@ -2761,10 +2885,20 @@
         call shoc(ix, im, 1, levs, levs+1, dtp, me, lat,                &
      &            prsl(1,1), phii(1,1), phil(1,1),                      &
      &            gu0(1,1),gv0(1,1), vvel(1,1), gt0(1,1), gq0(1,1,1),   &
-     &            clw(1,1,1), clw(1,1,2), qpi, qpl,                     &
+     &            clw(1,1,1), clw(1,1,2), qpi, qpl,rhc, sup,            &
      &            phy_f3d(1,1,ntot3d-2),  gq0(1,1,ntke),hflx,evap,      &
      &            prnum, phy_f3d(1,1,ntot3d-1), phy_f3d(1,1,ntot3d),    &
-     &            lprnt, ipr)
+     &            lprnt, ipr, ncpl, ncpi)
+
+        if (ntlnc > 0 .and. ntinc > 0 .and. ncld >=2) then
+          do k=1,levs
+            do i=1,im
+              gq0(i,k,ntlnc) = ncpl(i,k)
+              gq0(i,k,ntinc) = ncpi(i,k)
+            enddo
+          enddo
+        endif
+         
 !
 !      do k=1,levs
 !      write(1000+me,*)' maxtkh=',maxval(phy_f3d(1:im,k,ntot3d-1)),
@@ -2786,9 +2920,17 @@
 
       if (ntcw > 0) then
 
-!     microphysics
+!  for microphysics
 
-        if (num_p3d == 3) then    ! call brad ferrier's microphysics
+        if (ncld == 2) then           ! morrison microphysics
+          do k = 1, levs
+            do i = 1, im
+              gq0(i,k,ntiw) = clw(i,k,1)                     ! ice
+              gq0(i,k,ntcw) = clw(i,k,2)                     ! water
+            enddo
+          enddo
+
+        elseif (num_p3d == 3) then    ! call brad ferrier's microphysics
 
           do k = 1, levs
             do i = 1, im
@@ -2837,7 +2979,8 @@
 
       endif   ! end if_ntcw
 
-!     write(0,*)' bef cnvc90 clstp=',clstp,' kdt=',kdt,' lat=',lat
+!  Legacy routine which determines convectve clouds - should be removed at some point
+
       call cnvc90(clstp, im,   ix,   rainc, kbot, ktop, levs, prsi,     &
      &            acv,   acvb, acvt, cv,    cvb,  cvt)
 
@@ -3005,6 +3148,7 @@
 !             write(0,*) ' del=',del(ipr,:)
 !             write(0,*) ' aftlsgt0=',gt0(ipr,:),' kdt=',kdt
 !             write(0,*) ' aftlsgq0=',gq0(ipr,:,1),' kdt=',kdt
+!             write(0,*)' aft precpd rain1=',rain1(1:3),' lat=',lat
 !           endif
           else                                ! with pdf clouds
                                               ! ---------------
@@ -3024,20 +3168,70 @@
           endif   ! end of grid-scale precip/microphysics options
         endif     ! end if_num_p3d
 
-      endif       ! end if_ncld
+!     if (lprnt) write(0,*) ' rain1=',rain1(ipr),' rainc=',rainc(ipr)
+!    &,' lat=',lat
+
+      elseif (ncld == 2) then       ! MGB double-moment microphysics
+!       Acheng used clw here for other code to run smoothly and minimum change
+!       to make the code work. However, the nc and clw should be treated
+!       in other procceses too.  August 28/2015; Hope that can be done next
+!       year. I believe this will make the physical interaction more reasonable
+!       Anning 12/5/2015 changed ntcw hold liquid only
+        if (do_shoc) then
+          do k=1,levs
+            do i=1,im
+              clw(i,k,1) = gq0(i,k,ntiw)             ! ice
+              clw(i,k,2) = gq0(i,k,ntcw)             ! water
+              phy_f3d(i,k,1) = phy_f3d(i,k,ntot3d-2) ! clouds from shoc
+            enddo
+          enddo
+        else
+          do k=1,levs
+            do i=1,im
+              clw(i,k,1) = gq0(i,k,ntiw)             ! ice
+              clw(i,k,2) = gq0(i,k,ntcw)             ! water
+              phy_f3d(i,k,1) = min(1.0, phy_f3d(i,k,1)+cnvc(i,k))
+                                                     ! clouds from t-dt and cnvc
+            enddo
+          enddo
+        endif
+!       notice clw ix instead of im
+!       call m_micro_driver(im,ix,levs,flipv,del,dtp,prsl,prsi,
+!    &    prslk,prsik,pgr,vvel,clw(1,1,2), QLCN, clw(1,1,1),QICN,
+!     if (lprnt) write(0,*)' cnv_mfdbef=',cnv_mfd(ipr,:),' flipv=',flipv
+!     if (lprnt) write(0,*)' clw1bef=',clw(ipr,:,1),' kdt=',kdt
+        call m_micro_driver(im,   ix,   levs,  flipv,    dtp,
+     &                      prsl, prsi, prslk, prsik,
+     &                      vvel, clw(1,1,2), QLCN, clw(1,1,1),QICN,
+     &                      hlw,  swh, w_upi, cf_upi,
+     &                      FRLAND, HPBL, CNV_MFD, CNV_PRC3,
+     &                      CNV_DQLDT, CLCN, gu0, gv0,
+     &                      dusfc,  dvsfc, dusfc1, dvsfc1,
+     &                      dusfc1, dvsfc1, CNV_FICE,
+     &                      CNV_NDROP, CNV_NICE,  gq0(1,1,1),
+     &                      gq0(1,1,ntcw), gq0(1,1,ntiw), gt0,
+     &                      rain1, sr, gq0(1,1,ntlnc),
+     &                      gq0(1,1,ntinc), phy_f3d(1,1,1), kbot,
+     &                      aero_in, skip_macro, cn_prc, cn_snr,
+     &                      lprnt, ipr, kdt)
 
 !     if (lprnt) write(0,*) ' rain1=',rain1(ipr),' rainc=',rainc(ipr)
+!    &,' cn_prc=',cn_prc(ipr),' cn_snr=',cn_snr(ipr)
+!     if(lprnt) write(0,*) ' aftlsgq0=',gq0(ipr,:,1),' kdt=',kdt
+!     if (lprnt) write(0,*)' clw1aft=',gq0(ipr,:,ntiw),' kdt=',kdt
+
+      endif       ! end if_ncld
 
       do i = 1, im
-        rainl(i) = frain    * rain1(i)
-        rain(i)  = rainc(i) + rainl(i)
+        rain(i)  = rainc(i) + frain * rain1(i)
       enddo
 
       if (cal_pre) then       ! hchuang: add dominant precipitation type algorithm
 
+        i = min(3,num_p3d)
         call calpreciptype(kdt,nrcm,im,ix,levs,levs+1,rann,
      &                     xlat,xlon,gt0,gq0,prsl,prsi,rain,
-     &                     phii,num_p3d,tsea,sr,phy_f3d(1,1,3),             ! input
+     &                     phii,num_p3d,tsea,sr,phy_f3d(1,1,i),             ! input
      &                     domr,domzr,domip,doms)                           ! output
 
 !
@@ -3063,6 +3257,7 @@
       if (lssav) then
         do i = 1, im
           totprcp(i) = totprcp(i) + rain(i)
+!         cnvprcp(i) = cnvprcp(i) + rainc(i)
         enddo
 
         if (ldiag3d) then
@@ -3076,7 +3271,6 @@
         endif
       endif
 
-!     if (lprnt) write(0,*) ' bef  estimate t850 for'
 !  --- ...  estimate t850 for rain-snow decision
 
       do i = 1, im
@@ -3096,11 +3290,11 @@
 
       if (cal_pre) then ! hchuang: new precip type algorithm defines srflag
         do i = 1, im
-          tprcp(i) = rain(i)            ! clu: rain -> tprcp
+          tprcp(i) = max(0.0, rain(i))  ! clu: rain -> tprcp
         enddo
       else
         do i = 1, im
-          tprcp(i) = rain(i)            ! clu: rain -> tprcp
+          tprcp(i)  = max(0.0, rain(i) )! clu: rain -> tprcp
           srflag(i) = 0.                ! clu: default srflag as 'rain' (i.e. 0)
 
           if (t850(i) <= 273.16) then
@@ -3153,19 +3347,19 @@
 !!! this change allows gocart to use filtered wind fields
 !!!
       if ( lgocart ) then
-          call sfc_diag(im,pgr,gu0,gv0,gt0,gq0,                         &
-     &              tsea,qss,f10m,u10m,v10m,t2m,q2m,work3,              &
-     &              evap,ffmm,ffhh,fm10,fh2)
+        call sfc_diag(im,pgr,gu0,gv0,gt0,gq0,                           &
+     &                tsea,qss,f10m,u10m,v10m,t2m,q2m,work3,            &
+     &                evap,ffmm,ffhh,fm10,fh2)
 
-          if (lssav) then
-            do i = 1, im
-              tmpmax(i)  = max(tmpmax(i),t2m(i))
-              tmpmin(i)  = min(tmpmin(i),t2m(i))
+        if (lssav) then
+          do i = 1, im
+            tmpmax(i)  = max(tmpmax(i),t2m(i))
+            tmpmin(i)  = min(tmpmin(i),t2m(i))
 
-              spfhmax(i) = max(spfhmax(i),q2m(i))
-              spfhmin(i) = min(spfhmin(i),q2m(i))
-            enddo
-          endif
+            spfhmax(i) = max(spfhmax(i),q2m(i))
+            spfhmin(i) = min(spfhmin(i),q2m(i))
+          enddo
+        endif
       endif
 
 !  --- ...  total runoff is composed of drainage into water table and
@@ -3178,7 +3372,6 @@
           srunoff(i) = srunoff(i) + runof(i) * tem
         enddo
       endif
-!     if (lprnt) write(0,*) ' after srunoff'
        
 !  --- ...  xw: return updated ice thickness & concentration to global array
 
@@ -3226,9 +3419,6 @@
         endif
 
         do i = 1, im
-!     if (lat == 45 .and. i == 1) write(1000+me,*)' pwatb=',pwat(1),
-!    &' kdt=',kdt,'del=',del(1,k),' gq0=',gq0(1,k,1),' work1=',
-!    &work1(1a,' k=',k
           pwat(i) = pwat(i) + del(i,k)*(gq0(i,k,1)+work1(i))
           rqtk(i) = rqtk(i) + del(i,k)*(gq0(i,k,1)-qgrs(i,k,1))
         enddo
@@ -3246,15 +3436,23 @@
 !       endif
       deallocate (clw)
       if (do_shoc) then
-        deallocate (qpl, qpi)
+        deallocate (qpl, qpi, ncpl, ncpi)
       endif
       if (.not. ras .or. .not. cscnv) then
         deallocate (cnvc, cnvw)
       endif
 !     deallocate (fscav, fswtr)
 !
+!     if (lprnt) write(0,*)' end of gbphys at kdt=',kdt,
+!    &' rain=',rain(ipr),' rainc=',rainc(ipr)
 !     if (lprnt) call mpi_quit(7)
-!     if (kdt >300 ) call mpi_quit(7)
+!     if (kdt >2 ) call mpi_quit(7)
+!     if (ncld == 2) then         ! For MGB double moment microphysics
+        deallocate (qlcn,      qicn,    w_upi
+     &,             cf_upi,    CNV_MFD, CNV_PRC3
+     &,             CNV_DQLDT, clcn,    cnv_fice
+     &,             cnv_ndrop, cnv_nice)
+!     endif
 
       return
 !...................................

@@ -50,34 +50,28 @@
       real(kind=kind_phys), parameter :: cons1=1.0, cons2=2.0, half=0.5
       real(kind=kind_phys) DTAUX, DTAUY, wrk1, rtrd1, rfactrd, wrk2
      &,                    ENG0, ENG1, tem1, tem2, dti, hfbcpdt, rtrd
-     &,                    slrd0
       real(kind=kind_phys) tx1(im)
       integer              i, k
 !
       if (ral_ts <= 0.0 .or. prslrd0 == 0.0) return
 !
-      slrd0 = prslrd0*1.0e-5
       RTRD1 = 1.0/(ral_ts*86400) ! RECIPROCAL OF TIME SCALE PER SCALE HEIGHT
                                  ! ABOVE BEGINNING SIGMA LEVEL FOR RAYLEIGH DAMPING
       dti = cons1 / dt
       hfbcpdt = half / (cp*dt)
 !
-      do i=1,im
-        tx1(i) = 1.0 / pgr(i)
-      enddo
       DO K=1,km
+        IF(PRSL(1,K) < PRSLRD0) THEN    ! applied only on constant pressure surfaces
+          wrk1 = LOG(PRSLRD0/PRSL(1,K))
+          if (k > levr) then
+            RTRD = RTRD1 * wrk1 * wrk1
+          else
+            RTRD = RTRD1 * wrk1
+          endif
+        ELSE
+          RTRD = 0
+        ENDIF
         DO I = 1,IM
-          wrk2 = prsl(i,k)*tx1(i)
-          if(wrk2 < slrd0) then
-            wrk1 = log(slrd0/wrk2)
-            if (k > levr) then
-              RTRD = RTRD1 * wrk1 * wrk1
-            else
-              RTRD = RTRD1 * wrk1
-            endif
-          ELSE
-            RTRD = 0
-          ENDIF
           RFACTRD = CONS1 / (CONS1+DT*RTRD) - cons1
           DTAUX   = U1(I,k) * RFACTRD
           DTAUY   = V1(I,k) * RFACTRD

@@ -29,12 +29,12 @@ SP_LIB       = -L${LIBDIR} -lsp_d
 SYS_LIB      =
 
 EXTLIBS      = $(NEMSIO_LIB) \
-               $(BACIO_LIB) \
-               $(W3_LIB) \
-               $(SP_LIB) \
-               $(ESMF_LIB) \
+               $(BACIO_LIB)  \
+               $(W3_LIB)     \
+               $(SP_LIB)     \
+               $(ESMF_LIB)   \
                $(NETCDF_LIB) \
-               $(SYS_LIB)
+               $(SYS_LIB) -lm
 
 ## for the post quilting option
 POSTMOD     = ${POSTDIR}/incmod/post_4
@@ -47,18 +47,18 @@ XML_LIB     = -L${LIBDIR} -lxmlparse_v2.0.0
 SIGIO_LIB   = -L${LIBDIR} -lsigio_4
 SFCIO_LIB   = -L${LIBDIR} -lsfcio
 
-EXTLIBS_POST = $(NEMSIO_LIB) \
-               $(POST_LIB) \
+EXTLIBS_POST = $(NEMSIO_LIB)  \
+               $(POST_LIB)    \
                $(W3_POST_LIB) \
-               $(XML_LIB) \
-               $(G2_LIB) \
-               $(BACIO_LIB) \
-               $(SIGIO_LIB) \
-               $(SFCIO_LIB) \
-               $(SP_LIB) \
-               $(CRTM_LIB) \
-               $(ESMF_LIB) \
-               $(NETCDF_LIB) \
+               $(XML_LIB)     \
+               $(G2_LIB)      \
+               $(BACIO_LIB)   \
+               $(SIGIO_LIB)   \
+               $(SFCIO_LIB)   \
+               $(SP_LIB)      \
+               $(CRTM_LIB)    \
+               $(ESMF_LIB)    \
+               $(NETCDF_LIB)  \
                $(SYS_LIB)
 ###
 
@@ -83,13 +83,16 @@ OPTS_FIM    = -O3
 
 FFLAGS_NMM  = $(OPTS_NMM) $(FFLAGS)
 FFLAGS_GFS  = $(OPTS_GFS) $(FFLAGS) $(FREE)
+ LDFLAGS_GFS = -dynamic
+#LDFLAGS_GFS = -dynamic $(MKL)
+# LDFLAGS_MAP = -Wl,--print-map
 FFLAGS_GFSF = $(OPTS_GFS) $(FFLAGS) $(FIXED)
 FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 FPP         = -fpp
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8
+CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8 -DNEMS_GSM
 
 AR          = ar
 ARFLAGS     = -r

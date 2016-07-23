@@ -21,8 +21,10 @@ LIBDIR=/scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/libs
 PARADIR=/contrib/nceplibs_ext/lib
 POSTDIR=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
 
-NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
-NEMSIO_LIB   = -L${LIBDIR} -lnemsio
+#jw NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
+#jw NEMSIO_LIB   = -L${LIBDIR} -lnemsio
+NEMSIO_INC   = -I/scratch4/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/20160716/nemsio_avg/incmod
+NEMSIO_LIB   = /scratch4/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/20160716/nemsio_avg/libnemsio.a
 
 BACIO_LIB    = -L${LIBDIR} -lbacio_4
 W3_LIB       = -L${LIBDIR} -lw3nco_d -lw3emc_d
@@ -30,12 +32,12 @@ SP_LIB       = -L${LIBDIR} -lsp_d
 SYS_LIB      =
  
 EXTLIBS      = $(NEMSIO_LIB) \
-               $(BACIO_LIB) \
-               $(W3_LIB) \
-               $(SP_LIB) \
+               $(BACIO_LIB)  \
+               $(W3_LIB)     \
+               $(SP_LIB)     \
                $(NETCDF_LIB) \
-               $(ESMF_LIB) \
-               $(SYS_LIB)  
+               $(ESMF_LIB)   \
+               $(SYS_LIB) -lm  
 
 ## for the post quilting option
 POSTMOD     = ${POSTDIR}/incmod/post_4
@@ -51,18 +53,18 @@ XML_LIB     = -L/home/Weiyu.Yang/bin -lxmlparse
 SIGIO_LIB   = -L${LIBDIR} -lsigio_4
 SFCIO_LIB   = -L${LIBDIR} -lsfcio_4
 
-EXTLIBS_POST = $(NEMSIO_LIB) \
-               $(POST_LIB) \
+EXTLIBS_POST = $(NEMSIO_LIB)  \
+               $(POST_LIB)    \
                $(W3_POST_LIB) \
-               $(XML_LIB) \
-               $(G2_LIB) \
-               $(BACIO_LIB) \
-               $(SIGIO_LIB) \
-               $(SFCIO_LIB) \
-               $(SP_LIB) \
-               $(CRTM_LIB) \
-               $(ESMF_LIB) \
-               $(NETCDF_LIB) \
+               $(XML_LIB)     \
+               $(G2_LIB)      \
+               $(BACIO_LIB)   \
+               $(SIGIO_LIB)   \
+               $(SFCIO_LIB)   \
+               $(SP_LIB)      \
+               $(CRTM_LIB)    \
+               $(ESMF_LIB)    \
+               $(NETCDF_LIB)  \
                $(SYS_LIB)
 ###
 FC          = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -openmp -convert big_endian -assume byterecl -mkl=sequential -diag-disable 8290,8291
@@ -89,13 +91,15 @@ FFLAGM_DEBUG =
 
 FFLAGS_NMM   = $(OPTS_NMM) $(FFLAGS)
 FFLAGS_GFS   = $(OPTS_GFS) $(FFLAGS) $(FREE)
+LDFLAGS_GFS  =
+LDFLAGS_MAP  =
 FFLAGS_GFSF  = $(OPTS_GFS) $(FFLAGS) $(FIXED)
 FFLAGS_GEN   = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM   = $(OPTS_FIM) $(FFLAGS)
 
 FPP          = -fpp
 CPP          = /lib/cpp -P -traditional
-CPPFLAGS     = -DENABLE_SMP -DCHNK_RRTM=8
+CPPFLAGS     = -DENABLE_SMP -DCHNK_RRTM=8 -DNEMS_GSM
 
 AR           = ar
 ARFLAGS      = -r

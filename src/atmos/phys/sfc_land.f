@@ -227,7 +227,7 @@
 !
 !===> ...  begin here
 !
-      delt2 = delt * 2.0
+      delt2 = delt + delt
 
 !  --- ...  set default flag for land
 

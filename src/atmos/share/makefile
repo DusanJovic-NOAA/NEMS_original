@@ -7,7 +7,8 @@ LIBRARY  = libshare.a
 MODULES_F90  = module_ERR_MSG.o \
                module_INCLUDE.o \
                module_CPLFIELDS.o \
-	       check_esmf_pet.o
+	       check_esmf_pet.o \
+               module_TIMERS.o 
 
 MODULES_F77 = idea_composition.o \
 	       mersenne_twister.o  \

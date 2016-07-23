@@ -544,9 +544,9 @@ module cs_conv
 !
    do i = 1, IJSDIM
      jctop(i) = KTMAX(i)
-     prec(i) = GTPRP(i,1)
-     snow(i) = GSNWP(i,1)
-!    rliq(i) = rliq(i)/1000._r8      ! kg/m2/s => m/s
+     prec(i)  = GTPRP(i,1)
+     snow(i)  = GSNWP(i,1)
+!    rliq(i)  = rliq(i)/1000._r8      ! kg/m2/s => m/s
    end do
   
    cme   = 0._r8   ! temporarily set to be zero
@@ -1373,7 +1373,7 @@ module cs_conv
       DO K = 1, KBMX
          DO I = ISTS, IENS
             IF ( K <= KB( I ) ) THEN
-               GCYM( I,K ) = ( GDZM( I,K      ) - GDZM( I,1 ) ) &
+               GCYM( I,K ) = ( GDZM( I,K     ) - GDZM( I,1 ) ) &
                            / ( GDZM( I,KB(I) ) - GDZM( I,1 ) )
                GCYM( I,K ) = SQRT( GCYM( I,K ) )
             END IF
@@ -3571,7 +3571,7 @@ module cs_conv
 !         FTINTM( K ) = wrk1 * LOG(GDPM(I,K)*wrk)
 !         FTINT ( K ) = wrk1 * LOG(GDP(I,K-1)/GDPM(I,K))
 !         GDTM( I,K ) = FTINTM(K)*GDT(I,K-1) + FTINT(K)*GDT(I,K)
-         END DO
+        END DO
       END DO
 
       DO I = ISTS, IENS

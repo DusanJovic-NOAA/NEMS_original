@@ -156,6 +156,7 @@
       else
         icldflg = 0                     ! diagnostic cloud optical prop scheme
       endif
+      icmphys = 1                       ! default
       if ( num_p3d == 4 ) then
         if (npdf3d /= 3) then
           icmphys = 1                   ! zhao/moorthi's prognostic cloud scheme
@@ -165,6 +166,7 @@
       elseif ( num_p3d == 3 ) then
         icmphys = 2                     ! ferrier's microphysics
       endif
+!     if (ncld == 2) icmphys = 1        ! MG 2m Morrison scheme
 !
       iovrsw = iovr_sw                  ! cloud overlapping control flag for sw
       iovrlw = iovr_lw                  ! cloud overlapping control flag for lw

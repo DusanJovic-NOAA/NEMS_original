@@ -117,19 +117,20 @@
      &       smcwlt2, smcref2, zorl, wet1                               &
      &     )
 !
-      use machine ,   only : kind_phys
-      use funcphys,   only : fpvs
-      use physcons,   only : con_g, con_hvap, con_cp, con_jcal,         &
-     &                       con_eps, con_epsm1, con_fvirt, con_rd
+      use machine , only : kind_phys
+      use funcphys, only : fpvs
+      use physcons, only : grav   => con_g,    cp   => con_cp,          &
+     &                     hvap   => con_hvap, rd   => con_rd,          &
+     &                     eps    => con_eps, epsm1 => con_epsm1,       &
+     &                     rvrdm1 => con_fvirt
 
       implicit none
 
 !  ---  constant parameters:
-      real(kind=kind_phys), parameter :: cpinv   = 1.0/con_cp
-      real(kind=kind_phys), parameter :: hvapi   = 1.0/con_hvap
-      real(kind=kind_phys), parameter :: elocp   = con_hvap/con_cp
+      real(kind=kind_phys), parameter :: cpinv   = 1.0/cp
+      real(kind=kind_phys), parameter :: hvapi   = 1.0/hvap
+      real(kind=kind_phys), parameter :: elocp   = hvap/cp
       real(kind=kind_phys), parameter :: rhoh2o  = 1000.0
-!     real(kind=kind_phys), parameter :: convrad = con_jcal*1.e4/60.0
       real(kind=kind_phys), parameter :: a2      = 17.2693882
       real(kind=kind_phys), parameter :: a3      = 273.16
       real(kind=kind_phys), parameter :: a4      = 35.86
@@ -168,7 +169,7 @@
     
 !  ---  locals:
       real (kind=kind_phys), dimension(im) :: rch, rho,                 &
-     &       q0, qs1, theta1, tv1, wind, weasd_old, snwdph_old,         &
+     &       q0, qs1, theta1, wind, weasd_old, snwdph_old,              &
      &       tprcp_old, srflag_old, tskin_old, canopy_old
 
       real (kind=kind_phys), dimension(km) :: et, sldpth, stsoil,       &
@@ -213,9 +214,9 @@
           srflag_old(i) = srflag(i)
 
           do k = 1, km
-           smc_old(i,k) = smc(i,k)
-           stc_old(i,k) = stc(i,k)
-           slc_old(i,k) = slc(i,k)
+            smc_old(i,k) = smc(i,k)
+            stc_old(i,k) = stc(i,k)
+            slc_old(i,k) = slc(i,k)
           enddo
         endif
       enddo
@@ -244,18 +245,15 @@
 
       do i = 1, im
         if (flag_iter(i) .and. flag(i)) then
-          wind(i) = sqrt( u1(i)*u1(i) + v1(i)*v1(i) )                   &
-     &            + max(0.0, min(ddvel(i), 30.0))
-          wind(i) = max(wind(i), 1.0)
+          wind(i) = max(sqrt( u1(i)*u1(i) + v1(i)*v1(i) )               &
+     &                + max(0.0, min(ddvel(i), 30.0)), 1.0)
 
           q0(i)   = max(q1(i), 1.e-8)   !* q1=specific humidity at level 1 (kg/kg)
           theta1(i) = t1(i) * prslki(i) !* adiabatic temp at level 1 (k)
 
-          tv1(i) = t1(i) * (1.0 + con_fvirt*q0(i))
-          rho(i) = prsl1(i) / (con_rd * tv1(i))
+          rho(i) = prsl1(i) / (rd*t1(i)*(1.0+rvrdm1*q0(i)))
           qs1(i) = fpvs( t1(i) )        !* qs1=sat. humidity at level 1 (kg/kg)
-          qs1(i) = con_eps*qs1(i) / (prsl1(i) + con_epsm1*qs1(i))
-          qs1(i) = max(qs1(i), 1.e-8)
+          qs1(i) = max(eps*qs1(i) / (prsl1(i)+epsm1*qs1(i)), 1.e-8)
           q0 (i) = min(qs1(i), q0(i))
         endif
       enddo
@@ -368,7 +366,7 @@
 !    ch      - surface exchange coefficient for heat and moisture (m s-1) -> chx
 !    cm      - surface exchange coefficient for momentum (m s-1)          -> cmx
 
-          cmc = canopy(i)/1000.              ! convert from mm to m
+          cmc = canopy(i) * 0.001            ! convert from mm to m
           tsea = tsurf(i)                    ! clu_q2m_iter
 
           do k = 1, km
@@ -500,7 +498,7 @@
 
       do i = 1, im
         if (flag_iter(i) .and. flag(i)) then
-          rch(i)   = rho(i) * con_cp * ch(i) * wind(i)
+          rch(i)   = rho(i) * cp * ch(i) * wind(i)
           qsurf(i) = q1(i)  + evap(i) / (elocp * rch(i))
         endif
       enddo

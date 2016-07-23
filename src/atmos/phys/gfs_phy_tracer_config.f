@@ -16,6 +16,8 @@
 !   Nov 11 2011   Sarah Lu, allocate but not assign value for cpi/ri array
 !   Apr 06 2012   Henry Juang, relax hardwire num_tracer, add tracer 4 and 5
 !   Apr 23 2012   Jun Wang, remove save attibute for gfs_phy_tracer (already defined)
+!   --- -- 2016   Anning Cheng add ntiw,ntlnc,ntinc
+!   May 03 2016   S Moorthi add nto, nto2
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
@@ -32,22 +34,16 @@
         real(kind=kind_phys), pointer      :: ri(:)
         real(kind=kind_phys), pointer      :: cpi(:)
         real(kind=kind_phys), pointer      :: fscav(:)    
-        integer                  :: ntrac
-        integer                  :: ntrac_met
-        integer                  :: ntrac_chem
-        logical                  :: doing_DU
-        logical                  :: doing_SU
-        logical                  :: doing_SS
-        logical                  :: doing_OC
-        logical                  :: doing_BC
-        logical                  :: doing_GOCART
+        integer                  :: ntrac,    ntrac_met, ntrac_chem
+        logical                  :: doing_DU, doing_SU,  doing_SS
+     &,                             doing_OC, doing_BC,  doing_GOCART
       endtype gfs_phy_tracer_type
 
-      type (gfs_phy_tracer_type)     ::  gfs_phy_tracer
+      type (gfs_phy_tracer_type) ::  gfs_phy_tracer
 !
 ! misc tracer options
 !
-      logical                              :: glbsum  = .true.
+      logical                    :: glbsum  = .true.
 !
 
 ! --- public interface
@@ -57,16 +53,17 @@
 
 ! -------------------------------------------------------------------   
 ! -------------------------------------------------------------------   
-!      subroutine tracer_config_init (gfs_phy_tracer,ntrac,
-      subroutine tracer_config_init (ntrac,
-     &                               ntoz,ntcw,ncld,ntke,me)
+!     subroutine tracer_config_init (gfs_phy_tracer,ntrac,
+      subroutine tracer_config_init (ntrac,ntoz,ntcw,ncld,
+     &                               ntiw,ntlnc,ntinc,ntke,nto,nto2,me)
 
 c  
 c  This subprogram sets up gfs_phy_tracer
 c 
       implicit none
 ! input
-      integer, intent(in)    ::  me, ntoz,ntcw,ncld,ntke
+      integer, intent(in)     :: me, ntoz,ntcw,ncld,ntke,
+     &                           ntiw,ntlnc,ntinc,nto,nto2
 ! output
 !      type (gfs_phy_tracer_type), intent(out)    ::  gfs_phy_tracer
 ! input/output
@@ -76,12 +73,12 @@ c
       character*20            :: rgname
 
 ! initialize ntrac_chem (the default is no chemistry)
-      gfs_phy_tracer%ntrac_chem = 0
+      gfs_phy_tracer%ntrac_chem   = 0
       gfs_phy_tracer%doing_GOCART = .false.
 
 ! initialize chem tracers
       call gocart_tracer_config(me)
-!      call gocart_tracer_config(gfs_phy_tracer,me)
+!     call gocart_tracer_config(gfs_phy_tracer,me)
 
 ! ntrac_met = number of met tracers
 !hmhj if ( ntoz < ntcw ) then                       
@@ -110,43 +107,54 @@ c
 
 ! Set up tracer name, cpi, and ri
       if ( gfs_phy_tracer%ntrac > 0 ) then      
-       allocate(gfs_phy_tracer%vname(ntrac), stat=status)
-           if( status .ne. 0 ) go to 999         
-       allocate(gfs_phy_tracer%ri(0:ntrac),  stat=status)
-           if( status .ne. 0 ) go to 999
-       allocate(gfs_phy_tracer%cpi(0:ntrac), stat=status)
-           if( status .ne. 0 ) go to 999
-       allocate(gfs_phy_tracer%fscav(ntrac), stat=status)
-           if( status .ne. 0 ) go to 999
+        allocate(gfs_phy_tracer%vname(ntrac), stat=status)
+        if( status /= 0 ) then
+          print *,'LU_TRC: alloc error - gfs_dyn_tracer :',status,me
+          return
+         endif
+        allocate(gfs_phy_tracer%ri(0:ntrac),  stat=status)
+        if( status /= 0 ) then
+          print *,'LU_TRC: alloc error - gfs_dyn_tracer :',status,me
+          return
+        endif
+        allocate(gfs_phy_tracer%cpi(0:ntrac), stat=status)
+        if( status /= 0 ) then
+          print *,'LU_TRC: alloc error - gfs_dyn_tracer :',status,me
+          return
+        endif
+        allocate(gfs_phy_tracer%fscav(ntrac), stat=status)
+        if( status /= 0 ) then
+          print *,'LU_TRC: alloc error - gfs_dyn_tracer :',status,me
+          return
+        endif
 
 !--- fill in met tracers
-      gfs_phy_tracer%vname(1) = 'spfh'   
-      if(ntoz>0) gfs_phy_tracer%vname(ntoz) = 'o3mr'   
-      if(ntcw>0) gfs_phy_tracer%vname(ntcw) = 'clwmr'   
-      if(ntke>0) gfs_phy_tracer%vname(ntke) = 'tke'   
-!hmhj hardwired here, relax in future
-      if(gfs_phy_tracer%ntrac_met .eq. 5) then
-        gfs_phy_tracer%vname(4) = 'o' 
-        gfs_phy_tracer%vname(5) = 'o2' 
-      endif
+                      gfs_phy_tracer%vname(1)     = 'spfh'   
+        if(ntoz  > 0) gfs_phy_tracer%vname(ntoz)  = 'o3mr'   
+        if(ntcw  > 0) gfs_phy_tracer%vname(ntcw)  = 'clwmr'   
+        if(ntiw  > 0) gfs_phy_tracer%vname(ntiw)  = 'climr'   
+        if(ntlnc > 0) gfs_phy_tracer%vname(ntlnc) = 'lnc'
+        if(ntinc > 0) gfs_phy_tracer%vname(ntinc) = 'inc'
+        if(ntke  > 0) gfs_phy_tracer%vname(ntke)  = 'tke'   
+        if(nto   > 0) gfs_phy_tracer%vname(nto)   = 'o'   
+        if(nto2  > 0) gfs_phy_tracer%vname(nto2)  = 'o2'   
 
-      gfs_phy_tracer%fscav(1:gfs_phy_tracer%ntrac_met)=0.
+
+        gfs_phy_tracer%fscav(1:gfs_phy_tracer%ntrac_met) = 0.
 
 !--- fill in chem tracers
-      if ( gfs_phy_tracer%ntrac_chem > 0 ) then      
-       do i = 1,gfs_phy_tracer%ntrac_chem
-        j = i + gfs_phy_tracer%ntrac_met
-        rgname = trim(gfs_phy_tracer%chem_name(i))
-        if(me==0)print *, 'LU_TRC_phy: vname=',j,rgname
-        gfs_phy_tracer%vname(j)=rgname
-       enddo
-      endif
+        if ( gfs_phy_tracer%ntrac_chem > 0 ) then      
+          do i = 1,gfs_phy_tracer%ntrac_chem
+            j = i + gfs_phy_tracer%ntrac_met
+            rgname = trim(gfs_phy_tracer%chem_name(i))
+            if(me==0)print *, 'LU_TRC_phy: vname=',j,rgname
+                         gfs_phy_tracer%vname(j) = rgname
+          enddo
+        endif
 
       endif     !!
 
       return
-
-999   print *,'LU_TRC: error in allocate gfs_phy_tracer :',status,me
 
       end subroutine tracer_config_init
 ! -------------------------------------------------------------------

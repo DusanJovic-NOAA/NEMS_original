@@ -108,7 +108,8 @@
 ! integer, parameter :: max_lon=16000, max_lat=8000, min_lon=192, min_lat=94
 ! integer, parameter :: max_lon=5000,  max_lat=2500, min_lon=192, min_lat=94 ! current opr
   integer, parameter :: max_lon=5000,  max_lat=2000, min_lon=192, min_lat=94 ! current opr
-  real(kind=kind_phys), parameter:: rlapse  = 0.65e-2, rhc_max = 0.9999      ! current opr
+! real(kind=kind_phys), parameter:: rlapse  = 0.65e-2, rhc_max = 0.9999      ! current opr
+  real(kind=kind_phys), parameter:: rlapse  = 0.65e-2, rhc_max = 0.9999999   ! new
 ! real(kind=kind_phys), parameter:: rlapse  = 0.65e-2, rhc_max = 0.9900
   real(kind=kind_phys), parameter:: cb2mb   = 10.0, pa2mb   = 0.01
 

@@ -182,7 +182,8 @@
       implicit none
       SAVE
 !
-      logical REVAP, CUMFRC
+!     logical REVAP, CUMFRC
+      logical        CUMFRC
       LOGICAL WRKFUN, CALKBL, CRTFUN, UPDRET, BOTOP, vsmooth
 
       real(kind=kind_phys), parameter :: frac=0.5,    crtmsf=0.0        &
@@ -206,7 +207,8 @@
 !     PARAMETER (MAX_NEG_BOUY=0.30, REVAP=.true., CUMFRC=.true.)
 !!    PARAMETER (MAX_NEG_BOUY=0.05, REVAP=.true., CUMFRC=.true.)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      PARAMETER (                   REVAP  = .true.,  CUMFRC=.true.)
+!     PARAMETER (                   REVAP  = .true.,  CUMFRC=.true.)
+      PARAMETER (                                     CUMFRC=.true.)
       PARAMETER (WRKFUN = .FALSE.,  UPDRET = .FALSE., vsmooth=.false.)
 !     PARAMETER (CRTFUN = .TRUE.,   CALKBL = .false., BOTOP=.true.)
       PARAMETER (CRTFUN = .TRUE.,   CALKBL = .true.,  BOTOP=.true.)
@@ -235,8 +237,10 @@
      &,                 prsi,  prsl,   prsik,  prslk, phil,  phii       &
      &,                 KPBL,  CDRAG,  RAINC,  kbot,  ktop,  kcnv       &
      &,                 DDVEL, FLIPV,  facmb,  me,    garea, lmh, ccwfac&
-     &,                 nrcm,  rhc,    ud_mf, dd_mf,  det_mf, dlqfac    &
-     &,                 lprnt, ipr, kdt)
+     &,                 nrcm,  rhc,    ud_mf,  dd_mf, det_mf, dlqfac    &
+     &,                 lprnt, ipr,    kdt,    revap                    &
+     &,                 QLCN, QICN, w_upi, cf_upi, CNV_MFD, CNV_PRC3    &
+     &,                 CNV_DQLDT,CLCN,CNV_FICE,CNV_NDROP,CNV_NICE,ncld)
 !    &,                 lprnt, ipr, kdt, fscav, ctei_r, ctei_rm)
 !
 !*********************************************************************
@@ -260,18 +264,22 @@
       use module_rascnv
       Implicit none
 !
-      LOGICAL FLIPV, lprnt
+      LOGICAL FLIPV, lprnt,revap
 !
 !      input
 !
-      Integer IM, IX, k, ncrnd, me, trac, ipr, nrcm, kdt
+      Integer IM, IX, k, ncrnd, me, trac, ipr, nrcm, ncld, kdt
       integer, dimension(im) :: kbot, ktop, kcnv, kpbl, lmh
 !
       real(kind=kind_phys), dimension(ix,k)   :: tin, qin,  uin, vin    &
      &,                                          prsl, prslk, phil
       real(kind=kind_phys), dimension(ix,k+1) :: prsi, prsik, phii
       real(kind=kind_phys), dimension(im,k)   :: ud_mf, dd_mf, det_mf   &
-     &,                                          rhc
+     &,                                          rhc, qlcn, qicn, w_upi &
+     &,                                          cnv_mfd, cnv_prc3      &
+     &,                                          cnv_dqldt, clcn        &
+     &,                                          cnv_fice, cnv_ndrop    &
+     &,                                          cnv_nice, cf_upi
       real(kind=kind_phys), dimension(im)     :: ccwfac, rainc, cdrag   &
      &,                                          ddvel, garea
       real(kind=kind_phys), dimension(ix,nrcm):: rannum
@@ -303,7 +311,7 @@
       real(kind=kind_phys)                  dtvd(2,4)
 !    &,                    DPI(K),    psjp(k+1)              
       real(kind=kind_phys) CFAC, TEM,  sgc, ccwf, tem1, tem2            &
-     &,                    rain,wfnc,tla,pl
+     &,                    rain,wfnc,tla,pl,qiid,qlid
 !
       Integer              KCR,  KFX, NCMX, NC,  KTEM, I,   L, lm1      &
      &,                    ntrc, ia,  ll,   km1, kp1,  ipt, lv, KBL, n  &
@@ -326,8 +334,8 @@
         enddo
       endif
 
-!     if (lprnt) write(0,*)' in RAS fscav=',fscav_,' ccwfac=',
-!    &                      ccwfac(ipr)
+      if (lprnt) write(0,*)' in RAS fscav=',fscav_,' ccwfac=',
+     &                      ccwfac(ipr),' ncld=',ncld
 !
       km1     = k - 1
       kp1     = k + 1
@@ -349,6 +357,25 @@
           do l=1,k
             trcfac(l,n) = 1.0         !  For other tracers
             rcu(l,n)    = 0.0
+          enddo
+        enddo
+      endif
+!
+!!!!! initialization for microphysics ACheng
+      if(ncld == 2) then
+        do l=1,K
+          do i=1,im
+            QLCN(i,l)      = 0.0
+            QICN(i,l)      = 0.0
+            w_upi(i,l)     = 0.0
+            cf_upi(i,l)    = 0.0
+            CNV_MFD(i,l)   = 0.0
+            CNV_PRC3(i,l)  = 0.0
+            CNV_DQLDT(i,l) = 0.0
+            CLCN(i,l)      = 0.0
+            CNV_FICE(i,l)  = 0.0
+            CNV_NDROP(i,l) = 0.0
+            CNV_NICE(i,l)  = 0.0
           enddo
         enddo
       endif
@@ -774,6 +801,9 @@
 !
           TLA = -10.0
 !
+          qiid = qii(ib)         ! cloud top level ice before convection
+          qlid = qli(ib)         ! cloud top level water before convection
+!
           CALL CLOUD(lmhij, IB, ntrc, kblmx                             &
      &,              FRAC,  MAX_NEG_BOUY, vsmooth                       &
      &,              REVAP, WRKFUN, CALKBL, CRTFUN, DNDRFT, lprint      &
@@ -806,6 +836,20 @@
           ll = ib
           if (flipv) ll  = kp1 - ib
           det_mf(ipt,ll) = det_mf(ipt,ll) + flx(ib)
+
+!         Anning Cheng for microphysics 11/14/2015
+          if (ncld == 2) then
+      if (lprint) write(0,*)' ib=',ib,' flx=',flx(ib),' ll=',ll
+     &,' ud_mf=',ud_mf(ipt,:)
+            CNV_MFD(ipt,ll)   = CNV_MFD(ipt,ll)   + flx(ib)/dt
+      if (lprint) write(0,*)' ib=',ib,' CNV_MFD=',CNV_MFD(ipt,ll)
+     &,' ll=',ll,' kp1=',kp1
+            CNV_DQLDT(ipt,ll) = CNV_DQLDT(ipt,ll) + flx(ib)*
+     &                          max(0.,(QLI(ib)+QII(ib)-qiid-qlid))/dt
+!    &                                max(0.,(QLI(ib)+QII(ib)))/dt/3.
+            if(flx(ib)<0) write(*,*)"AAA666", flx(ib),QLI(ib),QII(ib)
+     &                                       ,ipt,ll
+          end if
 ! 
 !
 !   Warining!!!!
@@ -840,6 +884,32 @@
           qin(ipt,ll)    = qoi(l)                   ! Specific humidity
           uin(ipt,ll)    = uvi(l,trac+1)            ! U momentum
           vin(ipt,ll)    = uvi(l,trac+2)            ! V momentum
+
+!!        for 2M microphysics, always output these variables
+          if (ncld == 2) then
+            qli(l)           = max(qli(l),0.)
+            qii(l)           = max(qii(l),0.)
+            if (advcld) then
+              QLCN(ipt,ll)     = max(qli(l)-ccin(ipt,ll,2), 0.0)
+              QICN(ipt,ll)     = max(qii(l)-ccin(ipt,ll,1), 0.0)
+              CNV_FICE(ipt,ll) = QICN(ipt,ll)
+     &                         / max(1.e-10,QLCN(ipt,ll)+QICN(ipt,ll))
+            else
+              QLCN(ipt,ll)     = qli(l)
+              QICN(ipt,ll)     = qii(l)
+              CNV_FICE(ipt,ll) = qii(l)/max(1.e-10,qii(l)+qli(l))
+            endif
+!           CNV_PRC3(ipt,ll) = PCU(l)/dt
+            CNV_PRC3(ipt,ll) = 0.0
+            if(PCU(l)<0.) write(*,*)"AAA777",PCU(l),ipt,ll
+            cf_upi(ipt,ll)   = max(0.0,min(0.01*log(1.0+
+     &                           500*ud_mf(ipt,ll)/dt),0.25))
+!    &                           500*ud_mf(ipt,ll)/dt),0.60))
+            CLCN(ipt,ll)     = cf_upi(ipt,ll)  !downdraft is below updraft
+            w_upi(ipt,ll)    = ud_mf(ipt,ll)*toi(l)*rgas /
+     &                      (dt*max(cf_upi(ipt,ll),1.e-12)*prsl(ipt,ll))
+          endif
+
           if (trac > 0) then
             do n=1,trac
               ccin(ipt,ll,n+2) = uvi(l,n)           ! Tracers
@@ -2374,6 +2444,7 @@
           avr    = avr + rnn(l)
 !     if(lprnt) print *,' avr=',avr,' rnn=',rnn(l),' l=',l
         ENDDO
+        pcu(k) = pcu(k) + dof
 !
 !===> TEMPARATURE AND Q CHANGE AND CLOUD MASS FLUX DUE TO CLOUD TYPE KD
 !
@@ -3971,6 +4042,7 @@
       ENDIF                       ! SKPDD endif
 !
 
+      dof     = max(dof, 0.0)
       RNN(KD) = RNTP
       TX1     = EVP(KD)
       TX2     = RNTP + RNB + DOF

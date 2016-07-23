@@ -42,31 +42,31 @@ XML_LIB     = -L/nwprod/lib -lxmlparse
 SIGIO_LIB   = -L/nwprod/lib -lsigio_4
 SFCIO_LIB   = -L/nwprod/lib -lsfcio_4
 
-EXTLIBS     = $(NEMSIO_LIB) \
-              $(W3_LIB) \
-              $(BACIO_LIB) \
-              $(SP_LIB) \
-              $(ESMF_LIB) \
-              $(NETCDF_LIB) \
-              $(SYS_LIB)
+EXTLIBS     = $(NEMSIO_LIB)   \
+              $(W3_LIB)       \
+              $(BACIO_LIB)    \
+              $(SP_LIB)       \
+              $(ESMF_LIB)     \
+              $(NETCDF_LIB)   \
+              $(SYS_LIB) -lm
 
 
-EXTLIBS_POST = $(POST_LIB) \
-               $(NEMSIO_LIB) \
+EXTLIBS_POST = $(POST_LIB)    \
+               $(NEMSIO_LIB)  \
                $(W3_POST_LIB) \
-               $(XML_LIB) \
-               $(G2_LIB) \
-               $(BACIO_LIB) \
-               $(SIGIO_LIB) \
-               $(SFCIO_LIB) \
-               $(SP_LIB) \
-               $(CRTM_LIB) \
-               $(ESMF_LIB) \
-               $(NETCDF_LIB) \
+               $(XML_LIB)     \
+               $(G2_LIB)      \
+               $(BACIO_LIB)   \
+               $(SIGIO_LIB)   \
+               $(SFCIO_LIB)   \
+               $(SP_LIB)      \
+               $(CRTM_LIB)    \
+               $(ESMF_LIB)    \
+               $(NETCDF_LIB)  \
                $(SYS_LIB)
 
-FC          = mpiifort -g -openmp -mkl=sequential -align -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -diag-disable 8290,8291
-# FC          = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+FC          = mpiifort -g -openmp -mkl=sequential -align -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -diag-disable 8290,8291
+# FC        = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 FPP         = -fpp
 FREE        = -free
 FIXED       = -fixed
@@ -74,25 +74,27 @@ R8          = -r8
 
 FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS       = 
-#TRAPS       = -ftrapuv -check all -fp-stack-check
-#TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
+#TRAPS      = -ftrapuv -check all -fp-stack-check
+#TRAPS      = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 
 OPTS_NMM    = -O2
-# OPTS_GFS    = -O0 -traceback
-OPTS_GFS    = -O3
+#OPTS_GFS   = -O0 -traceback
+ OPTS_GFS   = -O3 -traceback
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2
 
 FFLAGS_NMM  = $(OPTS_NMM) $(FFLAGS)
 FFLAGS_GFS  = $(OPTS_GFS) $(FFLAGS) $(FREE)
+LDFLAGS_GFS = $(FFLAGS_GFS)
+LDFLAGS_MAP =
 FFLAGS_GFSF = $(OPTS_GFS) $(FFLAGS) $(FIXED)
 FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8
+CPPFLAGS    = -DENABLE_SMP -DCHNK_RRTM=8 -DNEMS_GSM
 
 AR          = ar
 ARFLAGS     = -r

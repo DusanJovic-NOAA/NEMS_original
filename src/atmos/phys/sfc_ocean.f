@@ -90,7 +90,7 @@
 
 !  ---  locals:
 
-      real (kind=kind_phys) :: theta1, tv1, q0, qss, rch, rho, wind, tem
+      real (kind=kind_phys) :: q0, qss, rch, rho, wind, tem
 
       integer :: i
 
@@ -100,23 +100,19 @@
 !
 !  --- ...  flag for open water
       do i = 1, im
-         flag(i) = ( islimsk(i) == 0 .and. flag_iter(i) )
-      enddo
+        flag(i) = ( islimsk(i) == 0 .and. flag_iter(i) )
 
 !  --- ...  initialize variables. all units are supposedly m.k.s. unless specified
-!           ps is in pascals, wind is wind speed, theta1 is the surface air
-!           temp from level 1, rho is density, qss is sat. hum. at surface
+!           ps is in pascals, wind is wind speed, 
+!           rho is density, qss is sat. hum. at surface
 
-      do i = 1, im
         if ( flag(i) ) then
 
-          wind     = sqrt(u1(i)*u1(i) + v1(i)*v1(i))                     &
-     &             + max( 0.0, min( ddvel(i), 30.0 ) )
-          wind     = max( wind , 1.0 )
+          wind     = max(sqrt(u1(i)*u1(i) + v1(i)*v1(i))                &
+     &                 + max( 0.0, min( ddvel(i), 30.0 ) ), 1.0)
 
           q0       = max( q1(i), 1.0e-8 )
-          tv1      = t1(i) * (1.0 + rvrdm1*q0)
-          rho      = prsl1(i) / (rd*tv1)
+          rho      = prsl1(i) / (rd*t1(i)*(1.0 + rvrdm1*q0))
 
           qss      = fpvs( tskin(i) )
           qss      = eps*qss / (ps(i) + epsm1*qss)
@@ -134,8 +130,7 @@
 
 !  --- ...  sensible and latent heat flux over open water
 
-          theta1   = t1(i) * prslki(i)
-          hflx(i)  = rch * (tskin(i) - theta1)
+          hflx(i)  = rch * (tskin(i) - t1(i) * prslki(i))
 
           evap(i)  = elocp*rch * (qss - q0)
           qsurf(i) = qss

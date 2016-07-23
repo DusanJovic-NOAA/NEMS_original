@@ -39,7 +39,7 @@
 !       cwm(ix,km) : condensate mixing ratio (updated in the code)
 !       t(ix,km)   : temperature       (updated in the code)
 !       rn(im)     : precipitation over one time-step dt (m/dt)
-!old      sr(im)     : index (=-1 snow, =0 rain/snow, =1 rain)
+!old    sr(im)     : index (=-1 snow, =0 rain/snow, =1 rain)
 !new    sr(im)     : "snow ratio", ratio of snow to total precipitation
 !       cll(ix,km) : cloud cover
 !hchuang rn(im) unit in m per time step
