@@ -78,6 +78,7 @@
         do i=1,im
           colo3(i,l) = colo3(i,l+1) + ozi(i,l)  * delp(i,l)*gravi
           coloz(i,l) = coloz(i,l+1) + prod(i,6) * delp(i,l)*gravi
+          prod(i,2)  = min(prod(i,2), 0.0)
         enddo
 !       write(1000+me,*) ' colo3=',colo3(1,l),' coloz=',coloz(1,l)
 !    &,' l=',l

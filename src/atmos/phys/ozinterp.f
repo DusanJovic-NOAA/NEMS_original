@@ -123,11 +123,6 @@ cyt   if(me.eq.0) print*,'completed setindxoz for nasa prod. and diss'
           ENDDO
         ENDDO
       enddo
-      do l=1,levozp
-        do j=1,nlats
-          ozplout(l,j,2) = min(ozplout(l,j,2), 0.0)
-        enddo
-      enddo
 !
       RETURN
       END
