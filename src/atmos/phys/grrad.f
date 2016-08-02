@@ -381,7 +381,7 @@
         print *,' - Selected Control Flag settings: ICTMflg=',ictmflg,  &
      &    ' ISOLar =',isolar, ' ICO2flg=',ico2flg,' IAERflg=',iaerflg,  &
      &    ' IALBflg=',ialbflg,' IEMSflg=',iemsflg,' ICLDflg=',icldflg,  &
-     &    ' ICMPHYS=',icmphys,' IOZNflg=',ioznflg
+     &    ' ICMPHYS=',icmphys,' IOZNflg=',ioznflg 
         print *,' IVFLIP=',ivflip,' IOVRSW=',iovrsw,' IOVRLW=',iovrlw,  &
      &    ' ISUBCSW=',isubcsw,' ISUBCLW=',isubclw
 !       write(0,*)' IVFLIP=',ivflip,' IOVRSW=',iovrsw,' IOVRLW=',iovrlw,&

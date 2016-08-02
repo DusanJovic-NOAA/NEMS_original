@@ -1,9 +1,9 @@
       subroutine sfc_diff(im,ps,u1,v1,t1,q1,z1,
-     &                    tskin,z0rl,cm,ch,rb,
+     &             snwdph,tskin,z0rl,cm,ch,rb,
      &                    prsl1,prslki,islimsk,
      &                    stress,fm,fh,
      &                    ustar,wind,ddvel,fm10,fh2,
-     &                    sigmaf,vegtype,shdmax,
+     &                    sigmaf,vegtype,shdmax,ivegsrc,
      &                    tsurf,flag_iter,redrag)
 !
       use machine , only : kind_phys
@@ -14,13 +14,13 @@
 
       implicit none
 !
-      integer              im
+      integer              im, ivegsrc
       real(kind=kind_phys), dimension(im) :: ps,  u1, v1, t1
      &,                                      q1,  z1, tskin, z0rl
      &,                                      cm,  ch, rb, prsl1, prslki
      &,                                      stress,  fm, fh, ustar
      &,                                      wind, ddvel, fm10, fh2
-     &,                                      sigmaf, shdmax, tsurf  
+     &,                                   sigmaf, shdmax, tsurf, snwdph
       integer, dimension(im) ::  vegtype, islimsk
 
       logical   flag_iter(im) ! added by s.lu
@@ -35,7 +35,8 @@
      &                     thv1,   tvs,    z1i,    z0,  z0max, ztmax,
      &                     fms,    fhs,    hl0,    hl0inf, hlinf,
      &                     hl110,  hlt,    hltinf, olinf,
-     &                     restar, czilc,  tem1,   tem2
+     &                     restar, czilc,  tem1,   tem2,
+     &                     ztmin1, ztmax1, beta,   hmgn
 !
       real(kind=kind_phys), parameter ::
      &              charnock=.014, ca=.4  ! ca - von karman constant
@@ -111,6 +112,24 @@
             tem2 = tem1 * tem1
             tem1 = 1.0  - tem2
           
+         if( ivegsrc == 1 ) then
+
+          if (vegtype(i) == 10) then
+            z0max = exp( tem2*log01 + tem1*log07 )
+          elseif (vegtype(i) == 6) then
+            z0max = exp( tem2*log01 + tem1*log05 )
+          elseif (vegtype(i) == 7) then
+!           z0max = exp( tem2*log01 + tem1*log01 )
+            z0max = 0.01
+          elseif (vegtype(i) == 16) then
+!           z0max = exp( tem2*log01 + tem1*log01 )
+            z0max = 0.01
+          else
+            z0max = exp( tem2*log01 + tem1*log(z0max) )
+          endif
+
+         elseif (ivegsrc == 2 ) then
+
             if (vegtype(i) == 7) then
               z0max = exp( tem2*log01 + tem1*log07 )
             elseif (vegtype(i) == 8) then
@@ -124,13 +143,21 @@
             else
               z0max = exp( tem2*log01 + tem1*log(z0max) )
             endif
+
+         endif
             z0max = max(z0max,1.0e-6)
 !
-            czilc = 10.0 ** (- (0.40/0.07) * z0) ! fei's canopy height dependance of czil
+!           czilc = 10.0 ** (- (0.40/0.07) * z0) ! fei's canopy height dependance of czil
+            czilc = 0.8
 
             tem1 = 1.0 - sigmaf(i)
             ztmax = z0max*exp( - tem1*tem1
      &                         * czilc*ca*sqrt(ustar(i)*(0.01/1.5e-05)))
+
+            ztmin1 = -999.0
+            beta   = 1.0
+            hmgn   = beta*log(z1(i)/z0max)/(2.*alpha*(1.-z0max/z1(i)))
+            if( z0max.lt.0.05 .and. snwdph(i).lt.10.0 ) hmgn = 99.0
 
           endif
           ztmax = max(ztmax,1.0e-6)
@@ -149,6 +176,8 @@
           fm10(i) = log((z0max+10.)   * tem1)
           fh2(i)  = log((ztmax+2.)    * tem2)
           hlinf   = rb(i) * fm(i) * fm(i) / fh(i)
+          ztmax1  = hmgn
+          hlinf   = min(max(hlinf,ztmin1),ztmax1)
 !
 !  stable case
 !
@@ -167,6 +196,8 @@
               fms    = fm(i) - pm
               fhs    = fh(i) - ph
               hl1    = fms * fms * rb(i) / fhs
+              ztmax1 = hmgn
+              hl1    = min(max(hl1, ztmin1), ztmax1)
             endif
 !
 !  second iteration
@@ -181,9 +212,12 @@
             pm    = aa0 - aa + log( (1.0+aa)/(1.0+aa0) )
             ph    = bb0 - bb + log( (1.0+bb)/(1.0+bb0) )
             hl110 = hl1 * 10. * z1i
+            ztmax1= hmgn
+            hl110 = min(max(hl110, ztmin1), ztmax1)
             aa    = sqrt(1. + alpha4 * hl110)
             pm10  = aa0 - aa + log( (1.0+aa)/(1.0+aa0) )
             hl12  = (hl1+hl1) * z1i
+            hl12  = min(max(hl12,ztmin1),ztmax1)
 !           aa    = sqrt(1. + alpha4 * hl12)
             bb    = sqrt(1. + alpha4 * hl12)
             ph2   = bb0 - bb + log( (1.0+bb)/(1.0+bb0) )
@@ -195,17 +229,22 @@
             tem1  = 50.0 * z0max
             if(abs(olinf) <= tem1) then
               hlinf = -z1(i) / tem1
+              ztmax1=hmgn
+              hlinf = min(max(hlinf,ztmin1),ztmax1)
             endif
 !
 !  get pm and ph
 !
             if (hlinf >= -0.5) then
+              ztmax1= hmgn
               hl1   = hlinf
               pm    = (a0  + a1*hl1)  * hl1   / (1.+ (b1+b2*hl1)  *hl1)
               ph    = (a0p + a1p*hl1) * hl1   / (1.+ (b1p+b2p*hl1)*hl1)
               hl110 = hl1 * 10. * z1i
+              hl110 = min(max(hl110, ztmin1), ztmax1)
               pm10  = (a0 + a1*hl110) * hl110 / (1.+(b1+b2*hl110)*hl110)
               hl12  = (hl1+hl1) * z1i
+              hl12  = min(max(hl12, ztmin1), ztmax1)
               ph2   = (a0p + a1p*hl12) * hl12 / (1.+(b1p+b2p*hl12)*hl12)
             else                       ! hlinf < 0.05
               hl1   = -hlinf
@@ -215,9 +254,11 @@
 !             pm    = log(hl1) + 2.0 * hl1 ** (-.25) - .8776
 !             ph    = log(hl1) + 0.5 * hl1 ** (-.5) + 1.386
               hl110 = hl1 * 10. * z1i
+              hl110 = min(max(hl110, ztmin1), ztmax1)
               pm10  = log(hl110) + 2.0 / sqrt(sqrt(hl110)) - .8776
 !             pm10  = log(hl110) + 2. * hl110 ** (-.25) - .8776
               hl12  = (hl1+hl1) * z1i
+              hl12  = min(max(hl12, ztmin1), ztmax1)
               ph2   = log(hl12) + 0.5 / sqrt(hl12) + 1.386
 !             ph2   = log(hl12) + .5 * hl12 ** (-.5) + 1.386
             endif
@@ -232,6 +273,8 @@
           fh2(i)    = fh2(i) - ph2
           cm(i)     = ca * ca / (fm(i) * fm(i))
           ch(i)     = ca * ca / (fm(i) * fh(i))
+          cm(i) = max(cm(i), 0.00001/z1(i))
+          ch(i) = max(ch(i), 0.00001/z1(i))
           stress(i) = cm(i) * wind(i) * wind(i)
           ustar(i)  = sqrt(stress(i))
 !

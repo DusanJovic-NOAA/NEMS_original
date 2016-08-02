@@ -115,7 +115,7 @@
 
 !  ---  input:
       integer,  intent(in) :: levr, ictm, isol, ico2, iaer,             &
-     &       ntcw, ialb, iems, num_p3d, npdf3d, ntoz, iovr_sw, iovr_lw, &  
+     &       ntcw, ialb, iems, num_p3d, npdf3d, ntoz, iovr_sw, iovr_lw, &
      &       isubc_sw, isubc_lw, iflip, me, idate(4)
 
       real (kind=kind_phys), intent(in) :: si(levr+1)

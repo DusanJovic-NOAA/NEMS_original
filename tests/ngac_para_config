@@ -66,10 +66,12 @@ elif [ $SCHEDULER = 'pbs' ]; then
    if [ $machine = 'theia' ]; then
     export nemsioget=/scratch4/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
     export PARM_NGAC=/scratch4/NCEPDEV/nems/save/Jun.Wang/NGAC/v2.0.0/parm
+    export FNSOTC=/scratch4/NCEPDEV/da/save/George.Gayno/gfs_soil_veg_alb_fy17_2/global_shared.v14.1.0/fix/fix_am/global_soiltype.1x1.grb
    fi
 elif [ $SCHEDULER = 'lsf' ]; then
   export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
   export PARM_NGAC=/nems/noscrub/Jun.Wang/NGAC/v2.0.0/parm
+  export FNSOTC=/global/save/George.Gayno/gfs_soil_veg_alb_fy17_2/global_shared.v14.1.0/fix/fix_am/global_soiltype.1x1.grb
 fi
 
 ### specify utilscript and utilexec

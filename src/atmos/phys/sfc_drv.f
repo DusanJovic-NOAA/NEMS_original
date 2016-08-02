@@ -9,13 +9,14 @@
 !            sfcemis, dlwflx, dswsfc, snet, delt, tg3, cm, ch,          !
 !            prsl1, prslki, zf, islimsk, ddvel, slopetyp,               !
 !            shdmin, shdmax, snoalb, sfalb, flag_iter, flag_guess,      !
+!            isot, ivegsrc,                                             !
 !  ---  in/outs:                                                        !
 !            weasd, snwdph, tskin, tprcp, srflag, smc, stc, slc,        !
-!            canopy, trans, tsurf,                                      !
+!            canopy, trans, tsurf, zorl,                                !
 !  ---  outputs:                                                        !
 !            sncovr1, qsurf, gflux, drain, evap, hflx, ep, runoff,      !
 !            cmm, chh, evbs, evcw, sbsno, snowc, stm, snohf,            !
-!            smcwlt2, smcref2, zorl, wet1 )                             !
+!            smcwlt2, smcref2, wet1 )                                   !
 !                                                                       !
 !                                                                       !
 !  subprogram called:  sflx                                             !
@@ -62,6 +63,8 @@
 !     sfalb    - real, mean sfc diffused sw albedo (fractional)    im   !
 !     flag_iter- logical,                                          im   !
 !     flag_guess-logical,                                          im   !
+!     isot     - integer, sfc soil type data source zobler or statsgo   !
+!     ivegsrc  - integer, sfc veg type data source umd or igbp          !
 !                                                                       !
 !  input/outputs:                                                       !
 !     weasd    - real, water equivalent accumulated snow depth (mm) im  !
@@ -108,13 +111,14 @@
      &       sfcemis, dlwflx, dswsfc, snet, delt, tg3, cm, ch,          &
      &       prsl1, prslki, zf, islimsk, ddvel, slopetyp,               &
      &       shdmin, shdmax, snoalb, sfalb, flag_iter, flag_guess,      &
+     &       isot, ivegsrc,                                             &
 !  ---  in/outs:
      &       weasd, snwdph, tskin, tprcp, srflag, smc, stc, slc,        &
-     &       canopy, trans, tsurf,                                      &
+     &       canopy, trans, tsurf, zorl,                                &
 !  ---  outputs:
      &       sncovr1, qsurf, gflux, drain, evap, hflx, ep, runoff,      &
      &       cmm, chh, evbs, evcw, sbsno, snowc, stm, snohf,            &
-     &       smcwlt2, smcref2, zorl, wet1                               &
+     &       smcwlt2, smcref2, wet1                                     &
      &     )
 !
       use machine , only : kind_phys
@@ -140,7 +144,7 @@
       data zsoil_noah / -0.1, -0.4, -1.0, -2.0 /
 
 !  ---  input:
-      integer, intent(in) :: im, km
+      integer, intent(in) :: im, km, isot, ivegsrc
 
       integer, dimension(im), intent(in) :: soiltyp, vegtype, slopetyp
 
@@ -386,23 +390,26 @@
           chh(i) = chx * rho(i)
           cmm(i) = cmx
 
+!  ---- ... outside sflx, roughness uses cm as unit
+          z0 = zorl(i)/100.
+
 !  --- ...  call noah lsm
 
           call sflx                                                     &
 !  ---  inputs:
      &     ( nsoil, couple, ice, ffrozp, delt, zlvl, sldpth,            &
      &       swdn, solnet, lwdn, sfcems, sfcprs, sfctmp,                &
-     &       sfcspd, prcp, q2, q2sat, dqsdt2, th2,                      &
+     &       sfcspd, prcp, q2, q2sat, dqsdt2, th2, ivegsrc,             &
      &       vtype, stype, slope, shdmin1d, alb, snoalb1d,              &
 !  ---  input/outputs:
      &       tbot, cmc, tsea, stsoil, smsoil, slsoil, sneqv, chx, cmx,  &
+     &       z0,                                                        & 
 !  ---  outputs:
      &       nroot, shdfac, snowh, albedo, eta, sheat, ec,              &
      &       edir, et, ett, esnow, drip, dew, beta, etp, ssoil,         &
      &       flx1, flx2, flx3, runoff1, runoff2, runoff3,               &
      &       snomlt, sncovr, rc, pc, rsmin, xlai, rcs, rct, rcq,        &
-     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax,      &
-     &       z0 )
+     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax) 
 
 !  --- ...  noah: prepare variables for return to parent mode
 !   6. output (o):
@@ -449,7 +456,8 @@
           snwdph(i)  = snowh * 1000.0
           weasd(i)   = sneqv * 1000.0
           sncovr1(i) = sncovr
-!  ---- ... outside sflx, roughness uses cm as unit
+!  ---- ... outside sflx, roughness uses cm as unit (update after snow's
+!  effect)
           zorl(i) = z0*100.
 
 !  --- ...  do not return the following output fields to parent model

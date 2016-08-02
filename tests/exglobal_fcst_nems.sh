@@ -186,6 +186,8 @@
 #                   FNVETC must be set to sib file: ${FIXGLOBAL}/global_vegtype.1x1.grb)
 #     FNALBC        Input albedo climatology GRIB file
 #                   defaults to ${FIXGLOBAL}/global_albedo4.1x1.grb
+#     FNALBC2       Input 'facsf' and 'facwf' albedo climatology GRIB file
+#                   defaults to ${FIXgsm}/global_albedo4.1x1.grb
 #     FNAISC        Input sea ice climatology GRIB file
 #                   defaults to ${FIXGLOBAL}/global_iceclim.2x2.grb
 #     FNTG3C        Input deep soil temperature climatology GRIB file
@@ -574,7 +576,7 @@ export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
 export FIX_IDEA=${FIX_IDEA:-$FIXGLOBAL}
 export FIX_NGAC=${FIX_NGAC:-$NWPROD/fix/fix_ngac}
 export PARMGLOBAL=${PARMGLOBAL:-$NWPROD/${PARMSUBDA:-parm/parm_am}}
-export PARM_NGAC=${PARM_NGAC:-$NWPROD/parm/parm_ngac}
+export PARM_NGAC=${PARM_NGAC:-$NWPROD/ngac.v1.0.2/parm}
 export EXECGLOBAL=${EXECGLOBAL:-$NWPROD/exec}
 export DATA=${DATA:-$(pwd)}
 export COMOUT=${COMOUT:-$(pwd)}
@@ -684,6 +686,7 @@ export FNSNOC=${FNSNOC:-${FIXGLOBAL}/global_snoclim.1.875.grb}
 #export FNZORC=${FNZORC:-${FIXGLOBAL}/global_zorclim.1x1.grb}
 export FNZORC=${FNZORC:-sib}
 export FNALBC=${FNALBC:-${FIXGLOBAL}/global_albedo4.1x1.grb}
+export FNALBC2=${FNALBC2:-${FIXGLOBAL}/global_albedo4.1x1.grb}
 #export FNAISC=${FNAISC:-${FIXGLOBAL}/cfs_ice1x1monclim19822001.grb}
 export FNAISC=${FNAISC:-${FIXGLOBAL}/CFSR.SEAICE.1982.2012.monthly.clim.grb}
 export FNTG3C=${FNTG3C:-${FIXGLOBAL}/global_tg3clim.2.6x1.5.grb}
@@ -766,7 +769,7 @@ export FHLWR=${FHLWR:-3600}
 export FHSWR=${FHSWR:-3600}
 export FHROT=${FHROT:-0}
 export FHDFI=${FHDFI:-1}
-export FHCYC=${FHCYC:-0}
+export FHCYC=${FHCYC:-24}
 export nhours_dfini=${nhours_dfini:-$FHDFI}
 export GB=${GB:-0}
 export gfsio_in=${gfsio_in:-.false.}
@@ -1725,6 +1728,7 @@ cat  > atm_namelist <<EOF
   FNSNOC="$FNSNOC",
   FNZORC="$FNZORC",
   FNALBC="$FNALBC",
+  FNALBC2="$FNALBC2",
   FNAISC="$FNAISC",
   FNTG3C="$FNTG3C",
   FNVEGC="$FNVEGC",

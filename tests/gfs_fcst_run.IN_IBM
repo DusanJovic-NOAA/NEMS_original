@@ -49,10 +49,9 @@ fi
 
 ## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
 
- export IAER=_IAER_
- export IEMS=_IEMS_
- export ICO2=_ICO2_
- export ISOL=_ISOL_
+#jw export IEMS=_IEMS_
+#jw export ICO2=_ICO2_
+#jw export ISOL=_ISOL_
  export SLG=_SLG_
  export F107_KP_SIZE=_F107_KP_SIZE_
  export F107_KP_INTERVAL=_F107_KP_INTERVAL_
@@ -84,7 +83,7 @@ fi
    export FNTG3C="$FIXDIR/global_tg3clim.2.6x1.5.grb"
    export FNVEGC="$FIXDIR/global_vegfrac.0.144.decpercent.grb"
    export FNVETC="$FIXDIR/global_vegtype.1x1.grb"
-   export FNSOTC="$FIXDIR/global_soiltype.1x1.grb"
+#jw    export FNSOTC="$FIXDIR/global_soiltype.1x1.grb"
    if [ $wave -eq 62 ]; then
      export FNSMCC="$FIXDIR/global_soilmgldas.t${wave}.192.94.grb"
    elif [ $wave -eq 574 ]; then
@@ -104,6 +103,7 @@ fi
    export FSNOL=99999
    export FSICL=99999
  fi
+ export FNSOTC=/global/save/George.Gayno/gfs_soil_veg_alb_fy17_2/global_shared.v14.1.0/fix/fix_am/global_soiltype.1x1.grb
 
 # GSM export fields
  export NGRID_A2OI=_NGRID_A2OI_
@@ -401,8 +401,10 @@ export nsout=_NSOUT_
 export lsm=${lsm:-1}
 
 ## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
- export IAER=_IAER_
- export IALB=_IALB_
+export IAER=_IAER_
+export IALB=_IALB_
+export isot=_ISOT_
+export ivegsrc=_IVEGSRC_
 
 grid_aldata=_CP2_
 #
@@ -450,6 +452,7 @@ if [ $SCHEDULER = 'moab' ]; then
    export FCST_LAUNCHER='aprun -n _TASKS_'
 elif [ $SCHEDULER = 'pbs' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/scratch4/NCEPDEV/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am}
+   
 
    export OMP_NUM_THREADS=$NTHREADS
    mpiexec=`which mpiexec_mpt`
@@ -461,6 +464,15 @@ elif [ $SCHEDULER = 'pbs' ]; then
 elif [ $SCHEDULER = 'lsf' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am}
    export FCST_LAUNCHER=mpirun.lsf
+   if [ $IALB -eq 1 -a $isot -eq 1 -a $ivegsrc -eq 1 ]; then
+     export FIX_LANDSFC=/global/save/George.Gayno/gfs_soil_veg_alb_fy17_2/global_shared.v14.1.0/fix/fix_am
+     export FNABSC=${FIX_LANDSFC}/global_mxsnoalb.uariz.t$JCAP.$LONB.$LATB.rg.grb
+     export FNALBC=${FIX_LANDSFC}/global_snowfree_albedo.bosu.t$JCAP.$LONB.$LATB.rg.grb
+     export FNVETC=${FIX_LANDSFC}/global_vegtype.igbp.t$JCAP.$LONB.$LATB.rg.grb
+     export FNSOTC=${FIX_LANDSFC}/global_soiltype.statsgo.t$JCAP.$LONB.$LATB.rg.grb
+     export FNZORC="igbp"
+     export FNALBC2=${FIX_LANDSFC}/global_albedo4.1x1.grb
+   fi
 fi
 #export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
  export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
@@ -555,7 +567,7 @@ if [[ $nhourb -lt $nhours ]] ; then
 #
   export FHOUT=${FHOUT:-$fout}
   export FHZER=${FHZER:-$fzer}
-  export FHCYC=$fcyc
+  export FHCYC=${FHCYC:-$fcyc}
   export FHDFI=$fdfi
   export FHLWR=${FHLWR:-3600}
   export FHSWR=${FHSWR:-3600}

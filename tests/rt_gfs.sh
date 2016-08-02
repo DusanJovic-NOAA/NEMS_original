@@ -30,12 +30,14 @@ export SHOWQ=${SHOWQ:-/opt/moab/default/bin/showq}
 export MSUB=${MSUB:-/opt/moab/default/bin/msub}
 export pex=${pex:-1}
 
-export IALB=0
 export IEMS=0
 export ISOL=1
 export ICO2=2
 export IAER=111
-export fcyc=0
+export fcyc=24
+export IALB=${IALB:-0}
+export isot=${isot:-0}
+export ivegsrc=${ivegsrc:-2}
 export FHOUT_HF=${FHOUT_HF:-1}
 export FHMAX_HF=${FHMAX_HF:-0}
 
@@ -87,6 +89,8 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_QUILT_:${QUILT}:g                   \
                      | sed s:_IAER_:${IAER}:g                     \
                      | sed s:_IALB_:${IALB}:g                     \
+                     | sed s:_ISOT_:${isot}:g                     \
+                     | sed s:_IVEGSRC_:${ivegsrc}:g               \
                      | sed s:_wave_:${wave}:g                     \
                      | sed s:_lm_:${lm}:g                         \
                      | sed s:_lsoil_:${lsoil}:g                   \
@@ -94,7 +98,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_CP2_:${CP2}:g                       \
                      | sed s:_RUNDIR_:${RUNDIR}:g                 \
                      | sed s:_RESTART_:${RESTART}:g               \
-                     | sed s:_FCST_BEGIN_:${fcst_begin}:g               \
+                     | sed s:_FCST_BEGIN_:${fcst_begin}:g         \
                      | sed s:_PATHTR_:${PATHTR}:g                 \
                      | sed s:_FDFI_:${FDFI}:g                     \
                      | sed s:_FHOUT_:${FHOUT}:g                   \
@@ -105,7 +109,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_FHMAXHF_:${FHMAX_HF}:g              \
                      | sed s:_fcyc_:${fcyc}:g                     \
                      | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g       \
-                     | sed s:_ADIABATIC_:${ADIABATIC}:g                   \
+                     | sed s:_ADIABATIC_:${ADIABATIC}:g           \
                      | sed s:_NSTFCST_:${NST_FCST}:g              \
                      | sed s:_NSTSPINUP_:${NST_SPINUP}:g          \
                      | sed s:_NSTREV_:${NST_RESERVED}:g           \

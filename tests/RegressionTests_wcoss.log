@@ -1,4 +1,4 @@
-Tue Jul 26 11:37:48 UTC 2016
+Mon Aug  1 16:46:04 UTC 2016
 Start Regression test
 
 
@@ -7,7 +7,7 @@ Test 1 nmm_cntrl Compare NMMB-global results with previous trunk version
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_cntrl
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_cntrl
 Checking test 1 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -25,7 +25,7 @@ Test 2 nmm_rest_nio Test NMMB-global restart run from NEMSIO file
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_rest_nio
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_rest_nio
 Checking test 2 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 2 PASS 
@@ -36,7 +36,7 @@ Test 3 nmm_decomp Test NMMB-global different decomposition
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_decomp
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_decomp
 Checking test 3 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -50,7 +50,7 @@ Test 4 nmm_thread Test NMMB-global threading
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_thread
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_thread
 Checking test 4 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -66,7 +66,7 @@ Test 5 nmm_reg_nemsio Test NMMB-regional NEMSIO as input file
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_reg_nemsio
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_reg_nemsio
 Checking test 5 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -80,7 +80,7 @@ Test 6 nmm_reg_rst Test NMMB-regional restart run
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_reg_rst
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_reg_rst
 Checking test 6 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 6 PASS 
@@ -91,7 +91,7 @@ Test 7 nmm_nest_rest Test NMMB-regional static nests with restart
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_nests
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_nest_rest
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_nest_rest
 Checking test 7 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -109,7 +109,7 @@ Test 8 nmm_reg_rst_nio_debug Test NMMB-regional restart run with NEMSIO file DEB
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_reg_rst_nio_debug
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_reg_rst_nio_debug
 Checking test 8 results ....
 Test 8 PASS 
 
@@ -119,7 +119,7 @@ Test 9 nmm_reg_rst_debug Test NMMB-regional restart run DEBUG
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_reg_rst_debug
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_reg_rst_debug
 Checking test 9 results ....
 Test 9 PASS 
 
@@ -129,7 +129,7 @@ Test 10 nmm_reg_ctl_debug Compare NMMB-regional results with previous trunk vers
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_reg_ctl_debug
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_reg_ctl_debug
 Checking test 10 results ....
 Test 10 PASS 
 
@@ -139,7 +139,7 @@ Test 11 nmm_2way_nests_debug Test NMMB-regional with 2-way moving nests DEBUG
 
 
 baseline dir = /meso/noscrub/Ratko.Vasic/REGRESSION_TEST/NMMB_2way_nests
-working dir  = /ptmpp1/Jun.Wang/rt_18300/nmm_2way_nests_debug
+working dir  = /ptmpp1/Jun.Wang/rt_21261/nmm_2way_nests_debug
 Checking test 11 results ....
 Test 11 PASS 
 
@@ -151,8 +151,8 @@ GFS eulerian dycore,32 total proc (tasks), 1 thread, quilt, digital filter on re
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_EULERIAN
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_eulerian
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_EULERIAN
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_eulerian
 Checking test 12 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -179,8 +179,8 @@ WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no q
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/WAM_gh_l150
-working dir  = /ptmpp1/Jun.Wang/rt_18300/wam_gh_l150
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/WAM_gh_l150
+working dir  = /ptmpp1/Jun.Wang/rt_12193/wam_gh_l150
 Checking test 13 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -207,8 +207,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_SLG
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_slg
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg
 Checking test 14 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -229,8 +229,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_SLG_NSST
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_slg_nsst
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG_NSST
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg_nsst
 Checking test 15 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -254,8 +254,8 @@ Run SLG adiabatic test with NEMSIO and digital filter from NEMSIO initial condit
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_SLG_ADIABATIC
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_slg_adiabatic
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG_ADIABATIC
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg_adiabatic
 Checking test 16 results ....
  Comparing sigf00.........OK
  Comparing sigf06.........OK
@@ -271,8 +271,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 48 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_SLG_48PE
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_slg_48pe
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG_48PE
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg_48pe
 Checking test 17 results ....
  Comparing sigf00.........OK
  Comparing sigf06.........OK
@@ -296,8 +296,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 32 proc, 2 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_SLG
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_slg_2thread
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg_2thread
 Checking test 18 results ....
  Comparing sigf00.........OK
  Comparing SIG.F06.........OK
@@ -318,8 +318,8 @@ Run SLG restart from history file non-adiabatic test with NEMSIO and digital fil
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_SLG_RSTHST
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_slg_rsthst
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG_RSTHST
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg_rsthst
 Checking test 19 results ....
  Comparing sigf30.........OK
  Comparing sigf48.........OK
@@ -337,8 +337,8 @@ Run T574 SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initi
 GFS, 96 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_SLG_T574
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_slg_t574
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG_T574
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg_t574
 Checking test 20 results ....
  Comparing sigf00.........OK
  Comparing SIG.F06.........OK
@@ -362,8 +362,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter and stochastic physics
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160718/GFS_SLG_STOCHY
-working dir  = /ptmpp1/Jun.Wang/rt_18300/gfs_slg_stochy
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG_STOCHY
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg_stochy
 Checking test 21 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -378,15 +378,37 @@ Test 21 PASS
 
 
 
-Test 22 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 22 gfs_slg_land Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions
 Test 22
+Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial conditions
+GFS, 33 proc, 1 thread
+
+
+baseline dir = /nems/noscrub/Jun.Wang/REGRESSION_TEST_20160727/GFS_SLG_LAND
+working dir  = /ptmpp1/Jun.Wang/rt_12193/gfs_slg_land
+Checking test 22 results ....
+ Comparing sigf00.........OK
+ Comparing sigf01.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf01.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf00.........OK
+ Comparing flxf01.........OK
+ Comparing flxf24.........OK
+Test 22 PASS 
+
+
+
+Test 23 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 23
 GFS_GOCART with NEMSIO
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 22 results ....
+Checking test 23 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -402,10 +424,10 @@ Checking test 22 results ....
  Comparing ngac.t00z.aerf06.........OK
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
-Test 22 PASS 
+Test 23 PASS 
 
 
 
 
 REGRESSION TEST WAS SUCCESSFUL
-Tue Jul 26 15:37:23 UTC 2016
+Mon Aug  1 21:58:03 UTC 2016

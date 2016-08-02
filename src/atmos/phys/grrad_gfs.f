@@ -11,7 +11,7 @@
 !      'radinit'    -- initialization routine                          !
 !         input:                                                       !
 !           ( si, NLAY, iflip, idate, jdate, ICTM, ISOL, ICO2,         !
-!             IAER, IALB, IEMS, ICWP, NP3D, isubcsw, isubclw,          !
+!             IAER, IALB, IEMS, ICWP, NP3D, isubcsw, isubclw,          ! 
 !             iovrsw, iovrlw, me )                                     !
 !         output:                                                      !
 !           ( none )                                                   !
@@ -209,7 +209,7 @@
 
 !  ---  inputs:
      &     ( si, NLAY, iflip, idate, jdate, ICTM, ISOL, ICO2,           &
-     &       IAER, IALB, IEMS, ICWP, NP3D, isubcsw, isubclw,            &
+     &       IAER, IALB, IEMS, ICWP, NP3D, isubcsw, isubclw,            & 
      &       iovrsw, iovrlw, me, raddt, fdaer )
 !  ---  outputs:
 !          ( none )
@@ -445,7 +445,7 @@
 
 !  --- ...  call surface initialization routine
 
-        call sfcinit ( NLAY, iflip, IALB, iemslw, me )
+        call sfcinit ( NLAY, iflip, IALB,iemslw,me )
 
 !  --- ...  call cloud initialization routine
 

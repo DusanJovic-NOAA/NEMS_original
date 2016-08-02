@@ -127,7 +127,12 @@ export hybedmf=${hybedmf:-.false.}
 export dspheat=${dspheat:-.false.}
 export pdfcld=${pdfcld:-.false.}
 export shcnvcw=${shcnvcw:-.false.}
+export IEMS=${IEMS:-0}
+export ISOL=${ISOL:-1}
+export ICO2=${ICO2:-2}
 export IALB=${IALB:-0}
+export isot=${isot:-0}
+export ivegsrc=${ivegsrc:-2}
 export isubc_sw=${isubc_sw:-2}
 export isubc_lw=${isubc_lw:-2}
 
@@ -261,7 +266,7 @@ export DYNVARS=nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sigio_out=$SIGIO_OUT,
 
 #export PHYVARS=liope=$liope,grid_aldata=$grid_aldata,ras=.false.,zhao_mic=.true.,lsm=1,old_monin=.false.,lmfshalcnv=.true.,lmfdeepcnv=.true.,shal_cnv=.true.,shuff_lats_r=.true.,ialb=0,pre_rad=.false.,random_clds=.false.,iovr_lw=1,iovr_sw=1,IEMS=$IEMS,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=0,nsout=0,ldiag3d=.false.,sfcio_out=$SFCIO_OUT,ncw=20,120,crtrh=0.85,0.85,0.85,flgmin=0.200,0.300,cnvgwd=.false.,ctei_rm=,mstrat=.false.,ccnorm=.false.,mom4ice=.false.,A2OI_OUT=$A2OI_OUT,CPLFLX=$CPLFLX,NGRID_A2OI=$NGRID_A2OI,NST_FCST=0,NST_SPINUP=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,bkgd_vdif_m=3.0,bkgd_vdif_h=1.0,bkgd_vdif_s=0.2,climate=$CLIMATE,psautco=4.0e-4,4.0e-4,prautco=1.0e-4,1.0e-4,evpco=2.0e-5,wminco=1.0e-5,1.0e-5,CCWF=1.0,1.0,dlqf=0.0,0.0,shal_cnv=.true.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,cdmbgwd=1.0,1.0,grid_aldata=.false.
 
-export PHYVARS=ras=$ras,zhao_mic=$zhao_mic,lsm=$lsm,old_monin=$old_monin,imfshalcnv=$imfshalcnv,imfdeepcnv=$imfdeepcnv,shal_cnv=$shal_cnv,shuff_lats_r=$shuff_lats_r,ialb=$IALB,pre_rad=$pre_rad,random_clds=$random_clds,iovr_lw=1,iovr_sw=1,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=$ictm,use_ufo=$use_ufo,ldiag3d=$ldiag3d,ncw=$ncw,crtrh=$crtrh,flgmin=$flgmin,cnvgwd=$cnvgwd,cgwf=$cgwf,ctei_rm=$ctei_rm,mstrat=$mstrat,ccnorm=$ccnorm,mom4ice=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=$cal_pre,bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,bkgd_vdif_s=$bkgd_vdif_s,climate=$climate,psautco=$psautco,prautco=$prautco,evpco=$evpco,wminco=$wminco,CCWF=$ccwf,dlqf=$dlqf,shal_cnv=$shal_cnv,nemsio_in=${NEMSIO_IN},nemsio_out=$NEMSIO_OUT,cdmbgwd=$cdmbgwd,grid_aldata=$grid_aldata,sfcio_out=$SFCIO_OUT,dtphys=$dtphys,DELTIM=$DELTIM,semilag=$semilag,redrag=$redrag,hybedmf=$hybedmf,dspheat=$dspheat,cnvcld=$cnvcld,pdfcld=$pdfcld,shcnvcw=$shcnvcw,isubc_lw=$isubc_lw,isubc_sw=$isubc_sw,fixtrc=$fixtrc,gg_tracers=$gg_tracers,A2OI_OUT=$A2OI_OUT,CPLFLX=$CPLFLX,NGRID_A2OI=$NGRID_A2OI
+export PHYVARS=ras=$ras,zhao_mic=$zhao_mic,lsm=$lsm,old_monin=$old_monin,imfshalcnv=$imfshalcnv,imfdeepcnv=$imfdeepcnv,shal_cnv=$shal_cnv,shuff_lats_r=$shuff_lats_r,ialb=$IALB,isot=$isot,ivegsrc=$ivegsrc,pre_rad=$pre_rad,random_clds=$random_clds,iovr_lw=1,iovr_sw=1,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=$ictm,use_ufo=$use_ufo,ldiag3d=$ldiag3d,ncw=$ncw,crtrh=$crtrh,flgmin=$flgmin,cnvgwd=$cnvgwd,cgwf=$cgwf,ctei_rm=$ctei_rm,mstrat=$mstrat,ccnorm=$ccnorm,mom4ice=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=$cal_pre,bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,bkgd_vdif_s=$bkgd_vdif_s,climate=$climate,psautco=$psautco,prautco=$prautco,evpco=$evpco,wminco=$wminco,CCWF=$ccwf,dlqf=$dlqf,shal_cnv=$shal_cnv,nemsio_in=${NEMSIO_IN},nemsio_out=$NEMSIO_OUT,cdmbgwd=$cdmbgwd,grid_aldata=$grid_aldata,sfcio_out=$SFCIO_OUT,dtphys=$dtphys,DELTIM=$DELTIM,semilag=$semilag,redrag=$redrag,hybedmf=$hybedmf,dspheat=$dspheat,cnvcld=$cnvcld,pdfcld=$pdfcld,shcnvcw=$shcnvcw,isubc_lw=$isubc_lw,isubc_sw=$isubc_sw,fixtrc=$fixtrc,gg_tracers=$gg_tracers,A2OI_OUT=$A2OI_OUT,CPLFLX=$CPLFLX,NGRID_A2OI=$NGRID_A2OI
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #

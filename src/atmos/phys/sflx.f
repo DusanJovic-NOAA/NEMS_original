@@ -4,17 +4,16 @@
 !  ---  inputs:
      &     ( nsoil, couple, icein, ffrozp, dt, zlvl, sldpth,            &
      &       swdn, swnet, lwdn, sfcems, sfcprs, sfctmp,                 &
-     &       sfcspd, prcp, q2, q2sat, dqsdt2, th2,                      &
+     &       sfcspd, prcp, q2, q2sat, dqsdt2, th2, ivegsrc,             &
      &       vegtyp, soiltyp, slopetyp, shdmin, alb, snoalb,            &
 !  ---  input/outputs:
-     &       tbot, cmc, t1, stc, smc, sh2o, sneqv, ch, cm,              &
+     &       tbot, cmc, t1, stc, smc, sh2o, sneqv, ch, cm,z0,           &
 !  ---  outputs:
      &       nroot, shdfac, snowh, albedo, eta, sheat, ec,              &
      &       edir, et, ett, esnow, drip, dew, beta, etp, ssoil,         &
      &       flx1, flx2, flx3, runoff1, runoff2, runoff3,               &
      &       snomlt, sncovr, rc, pc, rsmin, xlai, rcs, rct, rcq,        &
-     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax,      &
-     &       z0)
+     &       rcsoil, soilw, soilm, smcwlt, smcdry, smcref, smcmax)
 
 ! ===================================================================== !
 !  description:                                                         !
@@ -33,7 +32,7 @@
 !  ---  inputs:                                                         !
 !          ( nsoil, couple, icein, ffrozp, dt, zlvl, sldpth,            !
 !            swdn, swnet, lwdn, sfcems, sfcprs, sfctmp,                 !
-!            sfcspd, prcp, q2, q2sat, dqsdt2, th2,                      !
+!            sfcspd, prcp, q2, q2sat, dqsdt2, th2,ivegsrc,              !
 !            vegtyp, soiltyp, slopetyp, shdmin, alb, snoalb,            !
 !  ---  input/outputs:                                                  !
 !            tbot, cmc, t1, stc, smc, sh2o, sneqv, ch, cm,              !
@@ -50,7 +49,7 @@
 !                                                                       !
 !                                                                       !
 !  program history log:                                                 !
-!    jun  2003  -- K. Mitchell et. al -- created version 2.7            !
+!    jun  2003  -- k. mitchell et. al -- created version 2.7            !
 !         200x  -- sarah lu    modified the code including:             !
 !                       added passing argument, couple; replaced soldn  !
 !                       and solnet by radflx; call sfcdif if couple=0;  !
@@ -88,6 +87,7 @@
 !     dqsdt2   - real, slope of sat specific humidity curve at     1    !
 !                      t=sfctmp (kg kg-1 k-1)                           !
 !     th2      - real, air potential temp at zlvl abv grnd (k)     1    !
+!     ivegsrc  - integer, sfc veg type data source umd or igbp          !
 !     vegtyp   - integer, vegetation type (integer index)          1    !
 !     soiltyp  - integer, soil type (integer index)                1    !
 !     slopetyp - integer, class of sfc slope (integer index)       1    !
@@ -193,7 +193,7 @@
 
 !  ---  inputs:
       integer, intent(in) :: nsoil, couple, icein, vegtyp, soiltyp,     &
-     &       slopetyp
+     &       slopetyp, ivegsrc
 
       real (kind=kind_phys), intent(in) :: ffrozp, dt, zlvl, lwdn,      &
      &       sldpth(nsoil), swdn, swnet, sfcems, sfcprs, sfctmp,        &
@@ -242,15 +242,24 @@
 !             sea-ice case,          ice =  1
 !             non-glacial land,      ice =  0
 !             glacial-ice land,      ice = -1
-!             if vegtype=13 (glacial-ice), re-set ice flag = -1 (glacial-ice)
+!             if vegtype=15 (glacial-ice), re-set ice flag = -1 (glacial-ice)
 !    note - for open-sea, sflx should *not* have been called. set green
 !           vegetation fraction (shdfac) = 0.
 
       ice = icein
 
-      if (vegtyp == 13) then
+      if(ivegsrc == 2) then
+       if (vegtyp == 13) then
         ice = -1
         shdfac = 0.0
+       endif
+      endif
+
+      if(ivegsrc == 1) then
+       if (vegtyp == 15) then
+        ice = -1
+        shdfac = 0.0
+       endif
       endif
 
       if (ice == 1) then
@@ -282,6 +291,19 @@
 !           set shdfac=0.0 for bare soil surfaces
 
       call redprm
+        if(ivegsrc == 1) then
+!only igbp type has urban
+!urban
+         if(vegtyp == 13)then
+              shdfac=0.05
+              rsmin=400.0
+              smcmax = 0.45
+              smcref = 0.42
+              smcwlt = 0.40
+              smcdry = 0.40
+         endif
+        endif
+
 !  ---  inputs:                                                            !
 !          ( nsoil, vegtyp, soiltyp, slopetyp, sldpth, zsoil,              !
 !  ---  outputs:                                                           !
@@ -475,6 +497,11 @@
 !  ---  outputs:
      &       df1                                                        &
      &     )
+        if(ivegsrc == 1) then
+!only igbp type has urban
+!urban
+            if ( vegtyp == 13 ) df1=3.24
+        endif
 
 !  --- ...  next add subsurface heat flux reduction effect from the 
 !           overlying green canopy, adapted from section 2.1.2 of 
@@ -1270,6 +1297,10 @@
 !  ---  outputs:
      &       df1                                                        &
      &     )
+       if(ivegsrc == 1) then
+!urban
+         if ( vegtyp == 13 ) df1=3.24
+       endif
 
 !  --- ... vegetation greenness fraction reduction in subsurface heat
 !          flux via reduction factor, which is convenient to apply here
@@ -1289,7 +1320,7 @@
       call shflx                                                        &
 !  ---  inputs:
      &     ( nsoil, smc, smcmax, dt, yy, zz1, zsoil, zbot,              &
-     &       psisat, bexp, df1, ice, quartz, csoil,                     &
+     &       psisat, bexp, df1, ice, quartz, csoil, vegtyp,             &
 !  ---  input/outputs:
      &       stc, t1, tbot, sh2o,                                       &
 !  ---  outputs:
@@ -1462,6 +1493,26 @@
 !     13:        glacial-ice (no longer use these parameters), now      !
 !                treated as ice-only surface and sub-surface            !
 !                (in subroutine hrtice)                                 !
+!  upgraded to statsgo (19-type)
+!     1: sand
+!     2: loamy sand
+!     3: sandy loam
+!     4: silt loam
+!     5: silt
+!     6:loam
+!     7:sandy clay loam
+!     8:silty clay loam
+!     9:clay loam
+!     10:sandy clay
+!     11: silty clay
+!     12: clay
+!     13: organic material
+!     14: water
+!     15: bedrock
+!     16: other (land-ice)
+!     17: playa
+!     18: lava
+!     19: white sand
 !                                                                       !
 !  ssib vegetation types (dorman and sellers, 1989; jam)                !
 !      1:  broadleaf-evergreen trees  (tropical forest)                 !
@@ -1479,6 +1530,27 @@
 !     13: <old>- glacial (the same parameters as for type 11) -<old>    !
 !     13:  glacial-ice (no longer use these parameters), now treated as !
 !          ice-only surface and sub-surface (in subroutine hrtice)      !
+!  upgraded to IGBP (20-type)
+!      1:Evergreen Needleleaf Forest
+!      2:Evergreen Broadleaf Forest
+!      3:Deciduous Needleleaf Forest
+!      4:Deciduous Broadleaf Forest
+!      5:Mixed Forests
+!      6:Closed Shrublands
+!      7:Open Shrublands
+!      8:Woody Savannas
+!      9:Savannas
+!      10:Grasslands
+!      11:Permanent wetlands
+!      12:Croplands
+!      13:Urban and Built-Up
+!      14:Cropland/natural vegetation mosaic
+!      15:Snow and Ice
+!      16:Barren or Sparsely Vegetated
+!      17:Water
+!      18:Wooded Tundra
+!      19:Mixed Tundra
+!      20:Bare Ground Tundra
 !                                                                       !
 !  slopetyp is to estimate linear reservoir coefficient slope to the    !
 !  baseflow runoff out of the bottom layer. lowest class (slopetyp=0)   !
@@ -1574,7 +1646,8 @@
 !===> ...  begin here
 !
       if (soiltyp > defined_soil) then
-        write(*,*) 'warning: too many soil types'
+        write(*,*) 'warning: too many soil types,soiltyp=',soiltyp,     &
+     &   'defined_soil=',defined_soil
         stop 333
       endif
 
@@ -1634,7 +1707,8 @@
 
       rgl = rgltbl(vegtyp)
       hs  = hstbl(vegtyp)
-      z0  = z0_data(vegtyp)
+! roughness lengthe is defined in sfcsub
+!     z0  = z0_data(vegtyp)
       xlai= lai_data(vegtyp)
 
       if (vegtyp == bare) shdfac = 0.0
@@ -2296,7 +2370,8 @@
       if (t12 <= tfreez) then
 
         t1 = t12
-        ssoil = df1 * (t1 - stc(1)) / dtot
+!       ssoil = df1 * (t1 - stc(1)) / dtot
+        ssoil = (t1 - stc (1)) * max(7.0, df1/dtot)
         sneqv = max(0.0, sneqv-esnow2)
         flx3 = 0.0
         ex = 0.0
@@ -2439,7 +2514,7 @@
       call shflx                                                        &
 !  ---  inputs:
      &     ( nsoil, smc, smcmax, dt, yy, zz1, zsoil, zbot,              &
-     &       psisat, bexp, df1, ice, quartz, csoil,                     &
+     &       psisat, bexp, df1, ice, quartz, csoil, vegtyp,             &
 !  ---  input/outputs:
      &       stc, t11, tbot, sh2o,                                      &
 !  ---  outputs:
@@ -2944,7 +3019,7 @@
 !...................................
 !  ---  inputs:
      &     ( nsoil, smc, smcmax, dt, yy, zz1, zsoil, zbot,              &
-     &       psisat, bexp, df1, ice, quartz, csoil,                     &
+     &       psisat, bexp, df1, ice, quartz, csoil, vegtyp,             &
 !  ---  input/outputs:
      &       stc, t1, tbot, sh2o,                                       &
 !  ---  outputs:
@@ -2978,6 +3053,7 @@
 !     ice      - integer, sea-ice flag (=1: sea-ice, =0: land)     1    !
 !     quartz   - real, soil quartz content                         1    !
 !     csoil    - real, soil heat capacity                          1    !
+!     vegtyp   - integer, vegtation type                           1    !
 !                                                                       !
 !  input/outputs:                                                       !
 !     stc      - real, soil temp                                 nsoil  !
@@ -2995,7 +3071,7 @@
       real (kind=kind_phys), parameter :: ctfil2 = 1.0 - ctfil1
 
 !  ---  inputs:
-      integer, intent(in) :: nsoil, ice
+      integer, intent(in) :: nsoil, ice, vegtyp
 
       real (kind=kind_phys), intent(in) :: smc(nsoil), smcmax, dt, yy,  &
      &       zz1, zsoil(nsoil), zbot, psisat, bexp, df1, quartz, csoil
@@ -3052,7 +3128,7 @@
         call hrt                                                        &
 !  ---  inputs:
      &     ( nsoil, stc, smc, smcmax, zsoil, yy, zz1, tbot,             &
-     &       zbot, psisat, dt, bexp, df1, quartz, csoil,                &
+     &       zbot, psisat, dt, bexp, df1, quartz, csoil,vegtyp,         &
 !  ---  input/outputs:
      &       sh2o,                                                      &
 !  ---  outputs:
@@ -3692,7 +3768,7 @@
 !...................................
 !  ---  inputs:
      &     ( nsoil, stc, smc, smcmax, zsoil, yy, zz1, tbot,             &
-     &       zbot, psisat, dt, bexp, df1, quartz, csoil,                &
+     &       zbot, psisat, dt, bexp, df1, quartz, csoil, vegtyp,        &
 !  ---  input/outputs:
      &       sh2o,                                                      &
 !  ---  outputs:
@@ -3728,6 +3804,7 @@
 !     df1      - real, thermal diffusivity                         1    !
 !     quartz   - real, soil quartz content                         1    !
 !     csoil    - real, soil heat capacity                          1    !
+!     vegtyp   - integer, vegetation type                          1    !
 !                                                                       !
 !  input/outputs:                                                       !
 !     sh2o     - real, unfrozen soil moisture                    nsoil  !
@@ -3741,7 +3818,7 @@
 !  ====================    end of description    =====================  !
 !
 !  ---  inputs:
-      integer, intent(in) :: nsoil
+      integer, intent(in) :: nsoil, vegtyp
 
       real (kind=kind_phys),  intent(in) :: stc(nsoil), smc(nsoil),     &
      &       smcmax, zsoil(nsoil), yy, zz1, tbot, zbot, psisat, dt,     &
@@ -3757,7 +3834,7 @@
 !  ---  locals:
       real (kind=kind_phys) :: ddz, ddz2, denom, df1n, df1k, dtsdz,     &
      &       dtsdz2, hcpct, qtot, ssoil, sice, tavg, tbk, tbk1,         &
-     &       tsnsr, tsurf
+     &       tsnsr, tsurf, csoil_loc
 
       integer :: i, k
 
@@ -3766,6 +3843,15 @@
 !
 !===> ...  begin here
 !
+        csoil_loc=csoil
+
+       if (ivegsrc == 1)then
+!urban
+        if( vegtyp == 13 ) then
+            csoil_loc=3.0e6
+        endif
+       endif
+
 !  --- ...  initialize logical for soil layer temperature averaging.
 
       itavg = .true.
@@ -3775,7 +3861,7 @@
 
 !  --- ...  calc the heat capacity of the top soil layer
 
-      hcpct = sh2o(1)*cph2o2 + (1.0 - smcmax)*csoil                     &
+      hcpct = sh2o(1)*cph2o2 + (1.0 - smcmax)*csoil_loc                 &
      &      + (smcmax - smc(1))*cp2 + (smc(1) - sh2o(1))*cpice1
 
 !  --- ...  calc the matrix coefficients ai, bi, and ci for the top layer
@@ -3879,7 +3965,7 @@
 
 !  --- ...  calculate heat capacity for this soil layer.
 
-        hcpct = sh2o(k)*cph2o2 + (1.0 - smcmax)*csoil                   &
+        hcpct = sh2o(k)*cph2o2 + (1.0 - smcmax)*csoil_loc               &
      &        + (smcmax - smc(k))*cp2 + (smc(k) - sh2o(k))*cpice1
 
         if (k /= nsoil) then
@@ -3893,6 +3979,10 @@
 !  ---  outputs:
      &       df1n                                                       &
      &     )
+!urban
+      if (ivegsrc == 1)then
+       if ( vegtyp == 13 ) df1n = 3.24
+      endif
 
 !  --- ...  calc the vertical soil temp gradient thru this layer
 
@@ -3929,6 +4019,10 @@
 !  ---  outputs:
      &       df1n                                                       &
      &     )
+!urban
+      if (ivegsrc == 1)then
+       if ( vegtyp == 13 ) df1n = 3.24
+      endif
 
 !  --- ...  calc the vertical soil temp gradient thru bottom layer.
 
@@ -4450,6 +4544,10 @@
 !  ---  external functions:
 !     real (kind=kind_phys) :: frh2o
 
+!urban
+       if (ivegsrc == 1)then
+            if ( vegtyp == 13 ) df1=3.24
+       endif
 !
 !===> ...  begin here
 !

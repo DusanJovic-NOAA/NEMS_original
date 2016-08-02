@@ -19,6 +19,7 @@
 !           tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             !
 !           rann,prdoz,poz,dpshc,hprime,xlon,xlat,                      !
 !           h2o_phys,levh2o,h2opl,h2o_pres,h2o_coeff,                   !
+!           isot,ivegsrc,                                               !
 !           slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 !
 !           vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         !
 !           sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                    !
@@ -249,6 +250,8 @@
 !     h2opl    - real,                                                  !
 !     h2o_pres - real,                                                  !
 !     h2o_coeff- integer                                                !
+!     isot     - integer, sfc soil type data source zobler or statsgo   !
+!     ivegsrc  - integer, sfc veg type data source umd or igbp          !
 !     slope    - real, sfc slope type for lsm                      im   !
 !     shdmin   - real, min fractional coverage of green veg        im   !
 !     shdmax   - real, max fractnl cover of green veg (not used)   im   !
@@ -536,6 +539,7 @@
      &      tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             &
      &      rann,prdoz,poz,dpshc,fscav,fswtr,hprime,xlon,xlat,          &
      &      h2o_phys,levh2o,h2opl,h2o_pres,h2o_coeff,                   &
+     &      isot, ivegsrc,                                              &
      &      slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 &
      &      vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         &
 
@@ -621,7 +625,8 @@
      &                       lonr, latr, jcap, num_p3d, num_p2d, kdt,   &
      &                       me,   pl_coeff, lat, npdf3d, ncnvcld3d,    &
      &                       thermodyn_id, sfcpress_id, levr, nnp, nctp,&
-     &                       ntke, ntot3d, ntot2d,  h2o_coeff, levh2o
+     &                       ntke, ntot3d, ntot2d,  h2o_coeff, levh2o,  &
+     &                       isot, ivegsrc
 
 
       integer, intent(in) :: nlons(im), ncw(2)
@@ -1017,8 +1022,16 @@
         islmsk(i)   = nint(slmsk(i))
 
         if (islmsk(i) == 2) then
+         if (isot == 1) then
+          soiltyp(i)  = 16
+         else
           soiltyp(i)  = 9
+         endif
+         if (ivegsrc == 1) then
+          vegtype(i)  = 15
+         elseif(ivegsrc == 2) then
           vegtype(i)  = 13
+         endif
           slopetyp(i) = 9                      !! clu: qa(slopetyp)
         else
           soiltyp(i)  = int( stype(i)+0.5 )
@@ -1341,11 +1354,11 @@
 !
 !     if (lprnt) write(0,*)' tsea=',tsea(ipr),' tsurf=',tsurf(ipr),iter
         call sfc_diff(im,pgr,ugrs,vgrs,tgrs,qgrs,zlvl,                  &
-     &                tsea,zorl,cd,cdq,rb,                              &
+     &         snwdph,tsea,zorl,cd,cdq,rb,                              &
      &                prsl(1,1),work3,islmsk,                           &
      &                stress,ffmm,ffhh,                                 &
      &                uustar,wind,phy_f2d(1,num_p2d),fm10,fh2,          &
-     &                sigmaf,vegtype,shdmax,                            &
+     &                sigmaf,vegtype,shdmax,ivegsrc,                    &
      &                tsurf, flag_iter, redrag)
 
 !       if (lprnt) write(0,*)' cdq=',cdq(ipr),' iter=',iter             &
@@ -1449,13 +1462,14 @@
      &       sfcemis,gabsbdlw,adjsfcdsw,adjsfcnsw,dtf,tg3,cd,cdq,       &
      &       prsl(1,1),work3,zlvl,islmsk,phy_f2d(1,num_p2d),slopetyp,   &
      &       shdmin,shdmax,snoalb,sfalb,flag_iter,flag_guess,           &
+     &       isot,ivegsrc,                                              &
 !  ---  in/outs:
      &       weasd,snwdph,tsea,tprcp,srflag,smsoil,stsoil,slsoil,       &
-     &       canopy,trans,tsurf,                                        &
+     &       canopy,trans,tsurf,zorl,                                   &
 !  ---  outputs:
      &       sncovr,qss,gflx,drain,evap,hflx,ep1d,runof,                &
      &       cmm,chh,evbs,evcw,sbsno,snowc,soilm,snohf,                 &
-     &       smcwlt2,smcref2,zorl,wet1                                  &
+     &       smcwlt2,smcref2,wet1                                       &
      &     )
 
 !     if (lprnt) write(0,*)' tseae=',tsea(ipr),' tsurf=',tsurf(ipr),iter

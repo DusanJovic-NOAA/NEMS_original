@@ -44,10 +44,6 @@ fi
 
 ## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
 
- export IAER=_IAER_
- export IEMS=_IEMS_
- export ICO2=_ICO2_
- export ISOL=_ISOL_
  export SLG=_SLG_
  echo SLG=$SLG
  export F107_KP_SIZE=_F107_KP_SIZE_
@@ -318,7 +314,7 @@ export ntrc=3  ; export varid=21  ; export numcld=1
 export fmax=${NHRS:-$nhours}
 export fout=3
 export fzer=6
-export fcyc=0
+export fcyc=_fcyc_
 export fdfi=_FDFI_
 #
 #    Forecast model : horizontal truncation  and vertical levels
@@ -349,14 +345,17 @@ export NTINC=${NTINC:-0}
 export NTO=${NTO:-0}
 export NTO2=${NTO2:-0}
 export NMTVR=${NMTVR:-14}
+export FNSOTC=/scratch4/NCEPDEV/da/save/George.Gayno/gfs_soil_veg_alb_fy17_2/global_shared.v14.1.0/fix/fix_am/global_soiltype.1x1.grb
 #
 #export nsout=${nsout:-0}
 export nsout=_NSOUT_
 export lsm=${lsm:-1}
 
 ## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
- export IAER=_IAER_
- export IALB=_IALB_
+export IAER=_IAER_
+export IALB=_IALB_
+export isot=_ISOT_
+export ivegsrc=_IVEGSRC_
 
 grid_aldata=_CP2_
 #
@@ -404,6 +403,15 @@ if [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
   if [ $MACHINE_ID = 'theia' ]; then
     export FIXGLOBAL=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
+    if [ $IALB -eq 1 -a $isot -eq 1 -a $ivegsrc -eq 1 ]; then
+      export FIX_LANDSFC=/scratch4/NCEPDEV/da/save/George.Gayno/gfs_soil_veg_alb_fy17_2/global_shared.v14.1.0/fix/fix_am
+      export FNABSC=${FIX_LANDSFC}/global_mxsnoalb.uariz.t$JCAP.$LONB.$LATB.rg.grb
+      export FNALBC=${FIX_LANDSFC}/global_snowfree_albedo.bosu.t$JCAP.$LONB.$LATB.rg.grb
+      export FNVETC=${FIX_LANDSFC}/global_vegtype.igbp.t$JCAP.$LONB.$LATB.rg.grb
+      export FNSOTC=${FIX_LANDSFC}/global_soiltype.statsgo.t$JCAP.$LONB.$LATB.rg.grb
+      export FNZORC="igbp"
+      export FNALBC2=${FIX_LANDSFC}/global_albedo4.1x1.grb
+    fi
   fi
    export OMP_NUM_THREADS=$NTHREADS
    if [ $machine = 'theia' ]; then
@@ -515,7 +523,7 @@ if [[ $nhourb -lt $nhours ]] ; then
 #
   export FHOUT=${FHOUT:-$fout}
   export FHZER=${FHZER:-$fzer}
-  export FHCYC=$fcyc
+  export FHCYC=${FHCYC:-$fcyc}
   export FHDFI=$fdfi
   export FHLWR=${FHLWR:-3600}
   export FHSWR=${FHSWR:-3600}

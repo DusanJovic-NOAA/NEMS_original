@@ -6,7 +6,7 @@ ESMF_LIB   =  $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 ## ESMF_LIB    = -L /gpfs/hps/emc/global/noscrub/Shrinivas.Moorthi/ESMF_7_0_0/lib -lesmf
 MALLOC_LIB = /u/James.A.Abeles/gperftools-2.2.1/lib/libtcmalloc_minimal.a
 #MPI_LIB =  /u/James.A.Abeles/mpitrace/lib/libmpitrace.a
-MEM =  /u/James.A.Abeles/print_memory.o
+#MEM =  /u/James.A.Abeles/print_memory.o
 STDC_LIB= -lstdc++
 
 gfs=gsm
