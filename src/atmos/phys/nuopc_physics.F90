@@ -7,26 +7,23 @@
 ! Abstract: Wrapper for GFS physics
 ! History Log: 
 !   Tripp - 5/2015 - Initial release
-!   Tripp    - 8/2015 - Added nems_slg_shoc updates
-!   Tripp    - 9/2015 - Added more output on read and save, some code cleanup
-!   Hang Lei - 1/2016 - change the newsas and sashal into integer variables
-!   Hang Lei - 2/2016 - Adjust the radiation calculation based on levr
-!   Hang Lei - 3/2016 - Fix the WAM driving data flow
-!   Hang Lei - 4/2016 - Adjust to fit new features in clouds, convections, and sst 
+!   Tripp - 8/2015 - Added nems_slg_shoc updates
+!   Hang  - 1/2016 - change the newsas and sashal into integer variables
+!   Hang  - 2/2016 - Adjust the radiation calculation based on levr
+!   Hang  - 3/2016 - Fix the WAM driving data flow
+!   Hang  - 4/2016 - Adjust to fit new features in clouds, convections, and sst 
 !
-!                       NEW model parameters: cscnv, nctp, ntke, do_shoc, shocaftcnv,
-!                       ntot3d, ntot2d, shoc_cld
-!                       NEW nuopc_phys_init arguments
-!                       NEW grrad arguments shoc_cld
-!                       NEW gbphys arguments cscnv, nctp, ntke, do_shoc, shocaftcnv,
-!                       ntot3d, ntot2d
-!                       NEW phy_fctd array for CS convection in gbphys
-!   Hang Lei - 3/2016 : Change the data types of newsas and sashal
-!                       into logical variables. Add new physics variables into the
-!                       physics driver.
-!   Hang Lei - 4/2016 : Reorganize the functions for DDTs defined in
-!                       this drver. Adopt levr in radation calculations and
-!                       levs in surface process calculations. 
+!     NEW model parameters: cscnv, nctp, ntke, do_shoc, shocaftcnv, ntot3d, ntot2d, shoc_cld
+!     NEW nuopc_phys_init arguments
+!     NEW grrad arguments shoc_cld
+!     NEW gbphys arguments cscnv, nctp, ntke, do_shoc, shocaftcnv, ntot3d, ntot2d
+!     NEW phy_fctd array for CS convection in gbphys
+!   Tripp      - 9/2015 - Added more output on read and save, some code cleanup
+!   Hang Lei   - 3/2016 : Change the data types of newsas and sashal
+!   into logical variables. Add new physics variables into the physics driver.
+!   Hang Lei   - 4/2016 : Reorganize the functions for DDTs defined in
+!   this drver. Adopt levr in radation calculations and levs in surface
+!   process calculations. 
 !
 ! Public Variables:
 !   
@@ -107,6 +104,9 @@
        public :: nuopc_phys_run         ! wrapper for gbphys
        public :: nuopc_rad_run          ! wrapper for grrad
        public :: nuopc_rad_update       ! wrapper for radupdate - updates some fields between timesteps
+       public :: nuopc_sppt_phys        ! stochastic physics
+       public :: ozoneini
+       public :: h2oini
 
 !       public :: dyn_param_setphys
 !       public :: state_fld_setphys_in
@@ -134,8 +134,8 @@
 
 
        integer :: myme                              ! My mpi mpe - set in initialize
-       ! logical, parameter :: debug = .false.         ! Flag toggle for debug print output
-       logical, parameter :: debug = .true.
+        logical, parameter :: debug = .false.         ! Flag toggle for debug print output
+       !logical, parameter :: debug = .true.
        logical, parameter :: use_nuopc = .false.
        !logical, parameter :: use_nuopc = .true.     ! Flag to use this wrapper
 
@@ -149,7 +149,11 @@
 
 ! In
          real (kind=kind_phys), pointer :: dpshc (:) => null()     !              maximum pressure depth for shallow convection
+         real (kind=kind_phys), pointer :: o3out(:,:,:) => null()   ! ozplout       ozone output data
+         integer, pointer :: lan
          real (kind=kind_phys), pointer :: prdout(:,:,:) => null() ! ozplout_v    ozone forcing data
+         real (kind=kind_phys), pointer :: h2oplout(:,:,:) => null() 
+         real (kind=kind_phys), pointer :: h2oplout_v(:,:,:) => null()
          real (kind=kind_phys), pointer :: poz(:) => null()        ! pl_pres      ozone forcing data level pressure (ln(Pa))
          real (kind=kind_phys), pointer :: rann(:,:) => null()     !              random number array (0-1)
          real (kind=kind_phys) :: xkzm_m                           ! bkgd_vdif_m  background vertical diffusion for momentum
@@ -255,6 +259,8 @@
          real (kind=kind_phys), pointer :: tracer(:,:,:) => null()  ! layer prognostic tracer amount/mixing-ratio    !
                                                                     ! incl: oz, cwc, aeros, etc.                     !
          real (kind=kind_phys), pointer :: vvl(:,:)      => null()  ! layer mean vertical velocity in pa/sec         !
+         integer          ::  ntl
+         logical          ::  uni_cld
 
          !! Inputs only in phys
          real (kind=kind_phys), pointer :: pgr   (:)     => null()  ! surface pressure (Pa) real                       
@@ -576,6 +582,35 @@
          real (kind=kind_phys), pointer :: psurfi_cpl (:) => null()  ! aoi_fld%psurfi   sfc pressure at time step AOI cpl        
          real (kind=kind_phys), pointer :: oro_cpl    (:) => null()  ! aoi_fld%oro      orography AOI cpl                        
          real (kind=kind_phys), pointer :: slmsk_cpl  (:) => null()  ! aoi_fld%slimsk   Land/Sea/Ice AOI cpl                     
+         ! Input/Output - stochastic physics only
+         real (kind=kind_phys), pointer :: s_shum_wts(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_sppt_wts(:,:) => null()  !
+!         real (kind=kind_phys), pointer :: s_sppt_wts
+         real (kind=kind_phys), pointer :: s_skebu_wts(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_skebv_wts(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_vcu_wts(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_vcv_wts(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_uphys(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_vphys(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_tphys(:,:) => null()  !
+!         real (kind=kind_phys), pointer :: s_qphys(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_qphys(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_tpphys(:) => null()  !
+         real (kind=kind_phys), pointer :: s_cpphys(:) => null()  !
+         real (kind=kind_phys), pointer :: s_cplrain0(:) => null()  !
+         real (kind=kind_phys), pointer :: s_cplsnow0(:) => null()  !
+         real (kind=kind_phys), pointer :: s_raincpl(:) => null()  !
+         real (kind=kind_phys), pointer :: s_snowcpl(:) => null()  !
+         real (kind=kind_phys), pointer :: s_totprcp0(:) => null()  !
+         real (kind=kind_phys), pointer :: s_cnvprcp0(:) => null()  !
+         real (kind=kind_phys), pointer :: s_gu0(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_gv0(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_gt0(:,:) => null()  !
+         real (kind=kind_phys), pointer :: s_gr0(:,:,:) => null()  !
+         logical               :: s_do_sppt
+         logical               :: s_do_shum
+         logical               :: s_do_skeb
+         logical               :: s_do_vc
 
        contains
          procedure :: setrad => interface_fld_setrad
@@ -663,11 +698,15 @@
          real (kind=kind_phys), pointer :: hlwd (:,:,:) => null()  ! idea sky lw heating rates ( k/s )
          real (kind=kind_phys), pointer :: dtdtr(:,:)   => null()  ! temperature change due to radiative heating per time step (K)
 
-         real (kind=kind_phys), pointer :: swhc (:,:)   => null()  ! clear sky sw heating rates ( k/s ) 
-         real (kind=kind_phys), pointer :: hlwc (:,:)   => null()  ! clear sky lw heating rates ( k/s ) 
+         real (kind=kind_phys), pointer :: swhc(:,:)    => null()  ! clear sky sw heating rates ( k/s ) 
+         real (kind=kind_phys), pointer :: hlwc(:,:)    => null()  ! clear sky lw heating rates ( k/s ) 
+
+         real (kind=kind_phys), pointer :: hlwc_v(:,:)   => null()
+         real (kind=kind_phys), pointer :: swhc_v(:,:)   => null()
 
          contains
-           procedure :: set => rad_tend_set
+           procedure :: setrad => rad_tend_set
+           procedure :: setphys => rad_phys_set 
            !procedure :: print => rad_tend_print
        end type
 
@@ -759,10 +798,14 @@
          integer :: levs        ! vertical layer dimension
          integer :: me          ! control flag for parallel process
          integer :: lsoil       ! number of soil layers
+         integer :: ntiw
+         integer :: ntlnc
+         integer :: ntinc
          integer :: lsm         ! flag for land surface model to use =0  for osu lsm; =1  for noah lsm
          integer :: nmtvr       ! number of topographic variables such as variance etc used in the GWD parameterization
          integer :: nrcm        ! second dimension for the random number array rann
          integer :: levozp      ! ko3 - number of layers for ozone data
+         integer :: levh2o      ! h2o layers
          integer :: lonr        ! number of lon/lat points
          integer :: latr        ! number of lon/lat points
          integer :: jcap        ! number of spectral wave trancation used only by sascnv shalcnv
@@ -775,6 +818,13 @@
          integer :: idate(4)    ! initial date
          integer :: idat(8)     ! initial date but different size and ordering
                                 ! used by radupdate
+         integer :: h2o_coeff    ! number coefficients in h2o stratosphere
+         integer :: lats_node_r
+         integer, pointer :: jindx1(:) => null() !
+         integer, pointer :: jindx2(:) => null() !
+         integer, pointer :: jindx1_h(:) => null() !
+         integer, pointer :: jindx2_h(:) => null() !
+
 
          ! NEW in nems_slg_shoc branch
          integer :: nctp        ! number of cloud types in CS scheme
@@ -783,6 +833,8 @@
          integer :: ntot2d      ! number of total 2d fields for phy_f2d
          integer :: imfshalcnv             ! flag for new shallow convscheme
          integer :: imfdeepcnv             ! flag for new sas conv scheme
+         integer :: isot
+         integer :: ivegsrc
 
          real (kind=kind_phys) :: crtrh(3)    ! critical relative humidity at the surface  PBL top and at the top of the atmosphere
          real (kind=kind_phys) :: cdmbgwd(2)  ! multiplication factors for cdmb and gwd
@@ -792,6 +844,12 @@
          real (kind=kind_phys) :: cgwf(2)     ! multiplication factor for convective GWD
          real (kind=kind_phys) :: prslrd0     ! pressure level from which Rayleigh Damping is applied
          real (kind=kind_phys) :: ral_ts      ! time scale for Rayleigh damping in days
+         real (kind=kind_phys), pointer :: ozplin(:,:,:,:) => null()   !ozplin       ozone input data
+         real (kind=kind_phys), pointer :: ddy(:) => null() !
+         real (kind=kind_phys), pointer :: h2oplin(:,:,:,:) => null() !h2oplin       h2o stratosphere input data
+         real (kind=kind_phys), pointer :: ddy_h(:) => null()
+         real (kind=kind_phys), pointer :: h2o_lat(:) => null()
+         real (kind=kind_phys), pointer :: h2o_pres(:) => null()
 
          logical :: ras                ! flag for ras convection scheme
          logical :: pre_rad            ! flag for testing purpose
@@ -822,6 +880,7 @@
          logical :: redrag             ! flag for reduced drag coeff. over sea
          logical :: hybedmf            ! flag for hybrid edmf pbl scheme
          logical :: dspheat            ! flag for tke dissipative heating
+         logical :: h2o_phys           ! flag for stratosphere h2o
 
          ! NEW
          logical :: shoc_cld           ! flag for SHOC in grrad
@@ -851,8 +910,9 @@
 ! tbd_ddt methods
 !******************************************
 
-      subroutine tbd_set ( this, dpshc, prdout, poz, rann, xkzm_m, xkzm_h, xkzm_s, psautco,  &
-                 prautco, evpco, wminco, &
+      subroutine tbd_set ( this, dpshc, o3out, lan, prdout, h2oplout, h2oplout_v, &
+                 poz, rann, &
+                 xkzm_m, xkzm_h, xkzm_s, psautco, prautco, evpco, wminco, &
                  acv, acvb, acvt, slc, smc, stc,  &
                  upd_mf, dwn_mf, det_mf, phy_f3d, phy_f2d, tprcp,  &
                  srflag, tref, z_c, c_0, c_d, w_0, w_d, fscav, fswtr, phy_fctd)
@@ -861,7 +921,11 @@
 
 ! In
          real (kind=kind_phys), target :: dpshc (:)     !            maximum pressure depth for shallow convection
+         real (kind=kind_phys), target :: o3out(:,:,:)
+         integer, target :: lan
          real (kind=kind_phys), target :: prdout(:,:,:) ! ozplout_v  ozone forcing data
+         real (kind=kind_phys), target :: h2oplout(:,:,:)
+         real (kind=kind_phys), target ::  h2oplout_v(:,:,:)
          real (kind=kind_phys), target :: poz(:)        ! pl_pres    ozone forcing data level pressure (ln(Pa))
          real (kind=kind_phys), target :: rann(:,:)     !            random number array (0-1)
 
@@ -916,7 +980,11 @@
 
 
          this%dpshc => dpshc
+         this%o3out => o3out
+         this%lan => lan
          this%prdout => prdout
+         this%h2oplout => h2oplout
+         this%h2oplout_v => h2oplout_v
          this%poz => poz
          this%rann => rann
 
@@ -953,7 +1021,6 @@
          this%fswtr => fswtr
 
          this%phy_fctd => phy_fctd
-
       end subroutine
 
 
@@ -964,7 +1031,7 @@
 ! State field methods
 !******************************************
 
-       subroutine state_fld_setrad_in (this, prsi, prsl, prslk, tgrs, qgrs_rad, tracer, vvl)
+       subroutine state_fld_setrad_in (this, prsi, prsl, prslk, tgrs, qgrs_rad, tracer, vvl, ntl, uni_cld)
 
          implicit none
 
@@ -977,7 +1044,8 @@
          real (kind=kind_phys), target :: qgrs_rad (:,:)
          real (kind=kind_phys), target :: tracer(:,:,:)
          real (kind=kind_phys), target :: vvl  (:,:)
-
+         integer          ::  ntl
+         logical          ::  uni_cld
          call dbgprint("state_fld_setradin")
 
          select type (this)
@@ -989,6 +1057,8 @@
              this%qgrs_rad   => qgrs_rad
              this%tracer => tracer
              this%vvl    => vvl
+             this%ntl    = ntl
+             this%uni_cld = uni_cld
          end select
 
        end subroutine
@@ -1055,7 +1125,7 @@
          class(state_fields_out) :: this
 
          !! Outputs (only in physics)
-         real (kind=kind_phys), intent(out), target :: gt0    (:,:)
+         real (kind=kind_phys), target :: gt0    (:,:)
          real (kind=kind_phys), target :: gq0    (:,:,:)
          real (kind=kind_phys), target :: gu0    (:,:)
          real (kind=kind_phys), target :: gv0    (:,:)
@@ -1481,7 +1551,16 @@
                  dlwsfci_cpl, dswsfci_cpl, dnirbmi_cpl, dnirdfi_cpl,      &
                  dvisbmi_cpl, dvisdfi_cpl, nlwsfci_cpl, nswsfci_cpl, &
                  nnirbmi_cpl, nnirdfi_cpl, nvisbmi_cpl, nvisdfi_cpl,  &
-                 t2mi_cpl, q2mi_cpl, u10mi_cpl, v10mi_cpl, tseai_cpl, psurfi_cpl, oro_cpl, slmsk_cpl)
+                 t2mi_cpl, q2mi_cpl, u10mi_cpl, v10mi_cpl, tseai_cpl, psurfi_cpl, &   !oro_cpl, slmsk_cpl, &
+!                 s_shum_wts,  &
+                 s_sppt_wts,   &
+!                 s_skebu_wts,s_skebv_wts,s_vcu_wts,s_vcv_wts,s_uphys,s_vphys,s_tphys, &
+                 s_qphys,  &
+!                 s_tpphys,s_cpphys,  &
+                 s_cplrain0,s_cplsnow0, &
+!                 s_raincpl,s_snowcpl,   &
+                 s_totprcp0,s_cnvprcp0, &
+                 s_gu0,s_gv0,s_gt0,s_gr0,s_do_sppt,s_do_shum,s_do_skeb,s_do_vc)
 
          implicit none
 
@@ -1565,9 +1644,36 @@
          real (kind=kind_phys), optional, target :: v10mi_cpl(:)
          real (kind=kind_phys), optional, target :: tseai_cpl(:)
          real (kind=kind_phys), optional, target :: psurfi_cpl(:)
-         real (kind=kind_phys), optional, target :: oro_cpl(:)
-         real (kind=kind_phys), optional, target :: slmsk_cpl(:)
+!         real (kind=kind_phys), optional, target :: oro_cpl(:)
+!         real (kind=kind_phys), optional, target :: slmsk_cpl(:)
 
+         !for stochastic physics
+!         real (kind=kind_phys), target :: s_shum_wts(:,:)   
+         real (kind=kind_phys), target :: s_sppt_wts(:,:)  
+!         real (kind=kind_phys), target :: s_skebu_wts(:,:) 
+!         real (kind=kind_phys), target :: s_skebv_wts(:,:) 
+!         real (kind=kind_phys), target :: s_vcu_wts(:,:) 
+!         real (kind=kind_phys), target :: s_vcv_wts(:,:) 
+!         real (kind=kind_phys), target :: s_uphys(:,:) 
+!         real (kind=kind_phys), target :: s_vphys(:,:) 
+!         real (kind=kind_phys), target :: s_tphys(:,:) 
+         real (kind=kind_phys), target  :: s_qphys(:,:) 
+!         real (kind=kind_phys), target :: s_tpphys(:) 
+!         real (kind=kind_phys), target :: s_cpphys(:) 
+         real (kind=kind_phys), target :: s_cplrain0(:) 
+         real (kind=kind_phys), target :: s_cplsnow0(:)
+!         real (kind=kind_phys), target :: s_raincpl(:) 
+!         real (kind=kind_phys), target :: s_snowcpl(:) 
+         real (kind=kind_phys), target :: s_totprcp0(:) 
+         real (kind=kind_phys), target :: s_cnvprcp0(:)
+         real (kind=kind_phys), target :: s_gu0(:,:)
+         real (kind=kind_phys), target :: s_gv0(:,:) 
+         real (kind=kind_phys), target :: s_gt0(:,:)
+         real (kind=kind_phys), target :: s_gr0(:,:,:)
+         logical      :: s_do_sppt
+         logical      :: s_do_shum
+         logical      :: s_do_skeb
+         logical      :: s_do_vc
 
          call dbgprint("interface_fld_setphys")
 
@@ -1649,9 +1755,38 @@
          if (present(tseai_cpl)) this%tseai_cpl => tseai_cpl
          if (present(psurfi_cpl)) this%psurfi_cpl => psurfi_cpl
          ! call dbgprint('setting oro_cpl')
-         if (present(oro_cpl)) this%oro_cpl => oro_cpl
+!         if (present(oro_cpl)) this%oro_cpl => oro_cpl
          ! call dbgprint('setting slmsk_cpl')
-         if (present(slmsk_cpl)) this%slmsk_cpl => slmsk_cpl
+!         if (present(slmsk_cpl)) this%slmsk_cpl => slmsk_cpl
+
+         !for stochastic physics
+!         this%s_shum_wts => s_shum_wts
+         this%s_sppt_wts => s_sppt_wts
+!         this%s_skebu_wts => s_skebu_wts
+!         this%s_skebv_wts => s_skebv_wts
+!         this%s_vcu_wts => s_vcu_wts
+!         this%s_vcv_wts => s_vcv_wts
+!         this%s_uphys => s_uphys
+!         this%s_vphys => s_vphys
+!         this%s_tphys => s_tphys
+         this%s_qphys => s_qphys
+!         this%s_tpphys => s_tpphys
+!         this%s_cpphys => s_cpphys
+         this%s_cplrain0 => s_cplrain0
+         this%s_cplsnow0 =>s_cplsnow0
+!         this%s_raincpl => s_raincpl
+!         this%s_snowcpl => s_snowcpl
+         this%s_totprcp0 => s_totprcp0
+         this%s_cnvprcp0 => s_cnvprcp0
+         this%s_gu0 => s_gu0
+         this%s_gv0 => s_gv0
+         this%s_gt0 => s_gt0
+         this%s_gr0 => s_gr0
+         this%s_do_sppt = s_do_sppt
+         this%s_do_shum = s_do_shum
+         this%s_do_skeb = s_do_skeb
+         this%s_do_vc   = s_do_vc
+         
 
        end subroutine
 
@@ -1735,10 +1870,52 @@
 !******************************************
 ! Radiation tendencies methods
 !******************************************
+       subroutine rad_phys_set (this, htrsw, sfalb, coszen, htrlw, &
+          tsflw, semis, rqtk, hlwd, dtdtr, swhc, hlwc)
+         implicit none
+         class(radiation_tendencies) :: this
+         real (kind=kind_phys), target :: htrsw (:,:)
+         real (kind=kind_phys), target :: sfalb (:)
+
+         real (kind=kind_phys), target :: coszen(:)
+         real (kind=kind_phys), target :: htrlw (:,:)
+         real (kind=kind_phys), target :: tsflw (:)
+         real (kind=kind_phys), target :: semis (:)
+
+         ! Optional, used only by gbphys
+         real (kind=kind_phys),  target :: rqtk (:)
+         real (kind=kind_phys),  target :: hlwd (:,:,:)
+         real (kind=kind_phys),  target :: dtdtr(:,:)
+
+         real (kind=kind_phys),  target :: swhc(:,:)
+         real (kind=kind_phys),  target :: hlwc(:,:)
+
+         select type (this)
+           class is (radiation_tendencies)
+             this%htrsw => htrsw
+             this%sfalb => sfalb
+             this%coszen => coszen
+             this%htrlw => htrlw
+             this%tsflw => tsflw
+             this%semis => semis
+
+             this%rqtk => rqtk
+             this%hlwd => hlwd
+             this%dtdtr => dtdtr
+
+             this%swhc => swhc
+             this%hlwc => hlwc
+         end select
+
+!            where(this%dtdtr(:,:) >=  10.0 .or. this%dtdtr(:,:) .lt. 0.)
+!            print*,'rad%dtdtr', rad%dtdtr
+!            this%dtdtr=0.0444
+!            end where
+!           print*,'this%dtdtr', this%dtdtr
+       end subroutine rad_phys_set
 
                                       ! swh                 ! hlw
-       subroutine rad_tend_set (this, htrsw, sfalb, coszen, htrlw, tsflw, semis, coszdg,  &
-                                rqtk, hlwd, dtdtr, swhc, hlwc )
+       subroutine rad_tend_set (this, htrsw, sfalb, coszen, htrlw, tsflw, semis, coszdg,hlwc_v, swhc_v)
                                 
          implicit none
 
@@ -1752,17 +1929,12 @@
          real (kind=kind_phys), target :: htrlw (:,:)
          real (kind=kind_phys), target :: tsflw (:)
          real (kind=kind_phys), target :: semis (:)
+         real (kind=kind_phys), target :: coszdg(:)
+         real (kind=kind_phys), target :: hlwc_v(:,:)
+         real (kind=kind_phys), target :: swhc_v(:,:)
 
          ! Optional, used only by grrad
-         real (kind=kind_phys), optional, target :: coszdg(:)
-
-         ! Optional, used only by gbphys
-         real (kind=kind_phys), optional, target :: rqtk (:)
-         real (kind=kind_phys), optional, target :: hlwd (:,:,:)
-         real (kind=kind_phys), optional, target :: dtdtr(:,:)
-
-         real (kind=kind_phys), optional, target :: swhc (:,:)
-         real (kind=kind_phys), optional, target :: hlwc (:,:)
+!         real (kind=kind_phys), optional, target :: coszdg(:)
 
          call dbgprint("rad_tend_set")
 
@@ -1774,15 +1946,10 @@
              this%htrlw => htrlw
              this%tsflw => tsflw
              this%semis => semis
-
-             if (present(coszdg)) this%coszdg => coszdg
-
-             if (present(rqtk)) this%rqtk => rqtk
-             if (present(hlwd)) this%hlwd => hlwd
-             if (present(dtdtr)) this%dtdtr => dtdtr
-
-             if (present(swhc)) this%swhc => swhc
-             if (present(hlwc)) this%hlwc => hlwc
+             this%hlwc_v => hlwc_v
+             this%swhc_v => swhc_v
+             this%coszdg => coszdg
+!             if (present(coszdg)) this%coszdg => coszdg
          end select
 
        end subroutine rad_tend_set
@@ -1860,6 +2027,10 @@
            print *,"redrag : ", this%redrag
            print *,"hybedmf : ", this%hybedmf
            print *,"dspheat : ", this%dspheat
+!           print *,"LATS_NODE_R :", this%lats_node_r
+!           print *,"JINDX1 :", this%jindx1
+!           print *,"JINDX2 :", this%jindx2
+!           print *,"ddy :", this%ddy
 
          endif
 
@@ -2023,19 +2194,20 @@
 !******************************************
 
 
-       subroutine nuopc_phys_init (mdl, ntcw, ncld, ntoz, NTRAC, levs, me, lsoil, lsm, nmtvr, nrcm, levozp,  &
+       subroutine nuopc_phys_init (mdl, ntcw, ncld, ntoz, NTRAC, levs, me, lsoil, &
+                                 ntiw, ntlnc, ntinc, lsm, nmtvr, nrcm, levozp, levh2o, &
                                  lonr, latr, jcap, num_p3d, num_p2d, npdf3d, ncnvcld3d, pl_coeff, ncw, crtrh, cdmbgwd,  &
                                  ccwf, dlqf, ctei_rm, cgwf, prslrd0, ral_ts, ras, pre_rad, ldiag3d, lgocart,  &
                                  lssav_cpl, flipv, old_monin, cnvgwd, shal_cnv, imfshalcnv, imfdeepcnv, cal_pre, mom4ice,  &
                                  mstrat, trans_trac, nstf_name, moist_adj, thermodyn_id, sfcpress_id,  &
                                  gen_coord_hybrid, levr, lsidea, pdfcld, shcnvcw, redrag, hybedmf, dspheat, &
-                                 dxmaxin, dxminin, dxinvin, &
+                                 dxmaxin, dxminin, dxinvin, h2o_phys, h2o_coeff,&
                                  ! NEW from nems_slg_shoc
                                  cscnv, nctp, ntke, do_shoc, shocaftcnv, ntot3d, ntot2d,   &
                                  ! For radiation
-                                 si, ictm, isol, ico2, iaer, ialb, iems,                    &
+                                 si, ictm, isol, ico2, iaer, ialb, iems, isot, ivegsrc,                    &
                                  iovr_sw,iovr_lw,isubc_sw,isubc_lw, shoc_cld,  &
-                                 crick_proof,ccnorm,norad_precip,idate,iflip, nlunit)
+                                 crick_proof,ccnorm,norad_precip,idate,iflip, nlunit,lats_node_r)
 
          ! use physcons, only: dxmin, dxmax, dxinv
 
@@ -2051,10 +2223,14 @@
          integer :: levs
          integer :: me
          integer :: lsoil
+         integer :: ntiw
+         integer :: ntlnc
+         integer :: ntinc
          integer :: lsm
          integer :: nmtvr
          integer :: nrcm
          integer :: levozp
+         integer :: levh2o
          integer :: lonr
          integer :: latr
          integer :: jcap
@@ -2063,7 +2239,11 @@
          integer :: npdf3d
          integer :: ncnvcld3d
          integer :: pl_coeff
+         integer :: h2o_coeff
          integer :: ncw(2)
+         integer :: lats_node_r
+         integer :: isot
+         integer :: ivegsrc
 
          ! NEW 9/2015
          integer :: nctp
@@ -2108,6 +2288,7 @@
          logical :: redrag
          logical :: hybedmf
          logical :: dspheat
+         logical :: h2o_phys
 
          ! NEW 9/2015
          logical :: shoc_cld
@@ -2116,9 +2297,9 @@
          logical :: shocaftcnv
 
          real(kind=kind_phys) :: dxmaxin, dxminin, dxinvin
-
          ! For rad_initialize
          real (kind=kind_phys), intent(in) :: si(levr+1)
+
          integer, intent(in) :: ictm, isol, ico2, iaer, ialb, iems
          integer, intent(in) :: iovr_sw, iovr_lw, isubc_sw, isubc_lw
 
@@ -2143,6 +2324,9 @@
 
          myme = me
          call dbgprint("entering nuopc_phys_init")
+!         if (.not.associated(mdl%jindx1)) allocate(mdl%jindx1(lats_node_r))
+!         if (.not.associated(mdl%jindx2)) allocate(mdl%jindx2(lats_node_r))
+!         if (.not.associated(mdl%ddy)) allocate(mdl%ddy(lats_node_r))
 
          mdl%idate            = idate
          mdl%idat             = idat
@@ -2153,10 +2337,14 @@
          mdl%levs             = levs
          mdl%me               = me
          mdl%lsoil            = lsoil
+         mdl%ntiw             = ntiw
+         mdl%ntlnc            = ntlnc
+         mdl%ntinc            = ntinc
          mdl%lsm              = lsm
          mdl%nmtvr            = nmtvr
          mdl%nrcm             = nrcm
          mdl%levozp           = levozp
+         mdl%levh2o           = levh2o
          mdl%lonr             = lonr
          mdl%latr             = latr
          mdl%jcap             = jcap
@@ -2165,7 +2353,9 @@
          mdl%npdf3d           = npdf3d
          mdl%ncnvcld3d        = ncnvcld3d
          mdl%pl_coeff         = pl_coeff
+         mdl%h2o_coeff        = h2o_coeff
          mdl%ncw              = ncw
+         mdl%lats_node_r      = lats_node_r
          mdl%crtrh            = crtrh
          mdl%cdmbgwd          = cdmbgwd
          mdl%ccwf             = ccwf
@@ -2201,7 +2391,9 @@
          mdl%redrag           = redrag
          mdl%hybedmf          = hybedmf
          mdl%dspheat          = dspheat
-   
+         mdl%isot             = isot
+         mdl%ivegsrc          = ivegsrc
+         mdl%h2o_phys         = h2o_phys   
          ! NEW CS Scheme 
          mdl%cscnv            = cscnv
          mdl%nctp             = nctp
@@ -2226,11 +2418,53 @@
      &       crick_proof,ccnorm,norad_precip,idate,iflip,me )
 !   ---  outputs: ( none )
 
-         call set_soilveg(me,nlunit)
+         call set_soilveg(me,isot, ivegsrc,nlunit)
 
        end subroutine
 
+       subroutine ozoneini(this,jindx1,jindx2,ozplin,ddy)
+       implicit none
+         class(model_parameters) :: this
 
+         integer, target :: jindx1 (:)
+         integer, target :: jindx2 (:)
+         real (kind=kind_phys), target :: ozplin(:,:,:,:)
+         real (kind=kind_phys), target :: ddy (:)
+ 
+         select type (this)
+           class is (model_parameters)
+             this%jindx1 => jindx1
+             this%jindx2 => jindx2
+             this%ozplin => ozplin
+             this%ddy   => ddy
+           class default
+         end select
+
+       end subroutine
+
+       subroutine h2oini(this,jindx1_h,jindx2_h,h2oplin,ddy_h, h2o_pres)
+       implicit none
+         class(model_parameters) :: this
+
+         integer, target :: jindx1_h (:)
+         integer, target :: jindx2_h (:)
+         real (kind=kind_phys), target :: h2oplin(:,:,:,:)
+         real (kind=kind_phys), target :: ddy_h (:)
+!         real (kind=kind_phys), target :: h2o_lat(:) 
+         real (kind=kind_phys), target ::  h2o_pres(:)
+
+         select type (this)
+           class is (model_parameters)
+             this%jindx1_h => jindx1_h
+             this%jindx2_h => jindx2_h
+             this%h2oplin => h2oplin
+             this%ddy_h   => ddy_h
+!             this%h2o_lat  => h2o_lat
+             this%h2o_pres => h2o_pres
+           class default
+         end select
+
+       end subroutine
 
        subroutine phys_init_savein ( levr, ntcw, ncld, ntoz, NTRAC, levs, me, lsoil, lsm, nmtvr, nrcm, levozp,  &
                                  lonr, latr, jcap, num_p3d, num_p2d, npdf3d, ncnvcld3d, pl_coeff, ncw, nstf_name, &
@@ -2876,8 +3110,8 @@
                     cld_prop%frain, cld_prop%rrime,        &
                     cld_prop%flgmin, dyn_parm%icsdsw, dyn_parm%icsdlw, &
                     mdl_parm%ntcw-1, mdl_parm%ncld, mdl_parm%ntoz-1,  &
-                    mdl_parm%NTRAC-1, diags%NFXR, dyn_parm%dtlw, dyn_parm%dtsw,  &
-                    dyn_parm%lsswr, dyn_parm%lslwr, dyn_parm%lssav, mdl_parm%shoc_cld, &
+                    statein%ntl, diags%NFXR, dyn_parm%dtlw, dyn_parm%dtsw,  &
+                    dyn_parm%lsswr, dyn_parm%lslwr, dyn_parm%lssav, statein%uni_cld, &                   !mdl_parm%shoc_cld,
                     dyn_parm%lmfshal, dyn_parm%lmfdeep2, dyn_parm%IX, dyn_parm%IM,   &
                     mdl_parm%levr, mdl_parm%me, dyn_parm%lprnt, &
                     dyn_parm%ipt, dyn_parm%kdt,    &
@@ -2889,7 +3123,7 @@
                     diags%topflw, intrfc_fld%sfcflw,&
                     rad_tend%tsflw, rad_tend%semis, cld_prop%cldcov, &
 ! In/Out
-                    diags%fluxr)
+                    diags%fluxr, htrlw0=rad_tend%hlwc_v,htrsw0=rad_tend%swhc_v)
 
 !         intrfc_fld%sfcnsw(:) = intrfc_fld%sfcfsw(:)%dnfxc - intrfc_fld%sfcfsw(:)%upfxc
 !         intrfc_fld%sfcdsw(:) = intrfc_fld%sfcfsw(:)%dnfxc
@@ -2900,10 +3134,128 @@
        end subroutine
 
 
+       subroutine nuopc_sppt_phys ( stateout,  diag, intr, rad, mdl, tbd, dyn)
 
+         implicit none
 
+!         type(state_fields_in)      :: statein
+         type(state_fields_out)     :: stateout
+!         type(sfc_properties)       :: sfc
+         type(diagnostics)          :: diag
+         type(interface_fields)     :: intr
+!         type(cloud_properties)     :: cld
+         type(radiation_tendencies) :: rad
+         type(model_parameters)     :: mdl
+         type(tbd_ddt)              :: tbd
+         type(dynamic_parameters)   :: dyn
 
+         if (intr%s_do_sppt) then
+!============original code==================================         
+!            do j=1,dyn%im
+!              do k=1,mdl%levs
+!                sppt_wts(j,k)  = grid_fld%sppt_wts(lon+j-1,lan,k)
+!              enddo
+!            enddo    !stateout%gt0, stateout%gq0, stateout%gu0,
+!            stateout%gv0
+!            where(rad%dtdtr(:,:) >=  10.0 .or. rad%dtdtr(:,:) .lt. 0.)
+!            print*,'rad%dtdtr', rad%dtdtr
+!            rad%dtdtr=0.0333
+!            end where
+!            print*,'rad%dtdtr', rad%dtdtr
+!!=            intr%s_tphys = stateout%gt0 - intr%s_gt0  - rad%dtdtr ! remove radiation contribution
+!            intr%s_uphys = stateout%gu0 - intr%s_gu0
+!            intr%s_vphys = stateout%gv0 - intr%s_gv0
+!            intr%s_qphys = stateout%gq0(:,:,1) - intr%s_gr0(:,:,1)
+!!   perturb increments (adding radiation contribution back in)
+!            intr%s_tphys(:,:) = intr%s_tphys(:,:)*intr%s_sppt_wts(:,:) + intr%s_gt0 + rad%dtdtr
+!            intr%s_uphys(:,:) = intr%s_uphys(:,:)*intr%s_sppt_wts(:,:) + intr%s_gu0
+!            intr%s_vphys(:,:) = intr%s_vphys(:,:)*intr%s_sppt_wts(:,:) + intr%s_gv0
+!            intr%s_qphys(:,:) = intr%s_qphys(:,:)*intr%s_sppt_wts(:,:) + intr%s_gr0(:,:,1)
+!!   precip perturbations
+!            intr%s_tpphys(:)= diag%totprcp(:)- intr%s_totprcp0(:)
+!            intr%s_cpphys(:)= diag%cnvprcp(:)- intr%s_cnvprcp0(:)
+!            intr%s_raincpl(:)= intr%rain_cpl(:)-intr%s_cplrain0(:)
+!            intr%s_snowcpl(:)= intr%snow_cpl(:)-intr%s_cplsnow0(:)
+!            diag%totprcp(:) = intr%s_tpphys(:)*intr%s_sppt_wts(:,3)+intr%s_totprcp0(:)
+!            diag%cnvprcp(:) = intr%s_cpphys(:)*intr%s_sppt_wts(:,3)+intr%s_cnvprcp0(:)
+!            tbd%tprcp(:)=tbd%tprcp(:)*intr%s_sppt_wts(:,3)
+!            intr%rain_cpl(:)=intr%s_raincpl(:)*intr%s_sppt_wts(:,3)+intr%s_cplrain0(:)
+!            intr%snow_cpl(:)=intr%s_snowcpl(:)*intr%s_sppt_wts(:,3)+intr%s_cplsnow0(:)
+!            intr%Qrain(:)=intr%Qrain(:)*intr%s_sppt_wts(:,3)
+!
+!!   check for negative humidities
+!            where(intr%s_qphys(:,:) <=  0)
+!              intr%s_tphys(:,:)  = stateout%gt0(:,:)
+!              intr%s_qphys(:,:) = stateout%gq0(:,:,1)
+!!            elsewhere
+!!              stateout%gt0(:,:) = intr%s_tphys(:,:)
+!!              stateout%gq0(:,:,1) = intr%s_qphys(:,:)
+!            end where
+!! put new grid back into adjusted variables
+!            stateout%gu0   = intr%s_uphys
+!            stateout%gv0   = intr%s_vphys
+!            stateout%gt0   = intr%s_tphys
+!!!=            stateout%gq0(:,:,1) = intr%s_qphys(:,:)
+!==========new simplified====================
+        stateout%gu0 = intr%s_gu0+  &
+              (stateout%gu0-intr%s_gu0)*intr%s_sppt_wts
+        stateout%gv0 = intr%s_gv0 +  &
+              (stateout%gv0 - intr%s_gv0)*intr%s_sppt_wts
 
+        where(intr%s_qphys(:,:) .gt.  0.0)
+           stateout%gt0(:,:) = intr%s_gt0 +rad%dtdtr + &
+            (stateout%gt0(:,:)-intr%s_gt0-rad%dtdtr)*intr%s_sppt_wts
+           stateout%gq0(:,:,1) = intr%s_gr0(:,:,1) +  &
+            (stateout%gq0(:,:,1)-intr%s_gr0(:,:,1))*intr%s_sppt_wts
+        end where
+          diag%totprcp(:)=(diag%totprcp(:)-intr%s_totprcp0(:))*  &
+                 intr%s_sppt_wts(:,3)+intr%s_totprcp0(:)
+          diag%cnvprcp(:) = (diag%cnvprcp(:)- intr%s_cnvprcp0(:))*  &
+                 intr%s_sppt_wts(:,3)+intr%s_cnvprcp0(:)
+          tbd%tprcp(:)=tbd%tprcp(:)*intr%s_sppt_wts(:,3)
+          intr%rain_cpl(:)=(intr%rain_cpl(:)-intr%s_cplrain0(:))*  &
+                 intr%s_sppt_wts(:,3)+intr%s_cplrain0(:)
+          intr%snow_cpl(:)=(intr%snow_cpl(:)-intr%s_cplsnow0(:))*  &
+                 intr%s_sppt_wts(:,3)+intr%s_cplsnow0(:)
+          intr%Qrain(:)=intr%Qrain(:)*intr%s_sppt_wts(:,3)
+          endif
+! do_sppt
+! code section for SHUM stocastic perturbations
+         if (intr%s_do_shum) then
+!            do j=1,dyn%im
+!              do k=1,mdl%levs
+!                shum_wts(j,k)  = grid_fld%shum_wts(lon+j-1,lan,k)
+!              enddo
+!            enddo
+           stateout%gq0(:,:,1) = stateout%gq0(:,:,1)*(1. + intr%s_shum_wts)
+          endif
+! do_shum
+!!! code section for additive noise (SKEB) perturbation
+         if (intr%s_do_skeb) then
+!            do j=1,dyn%im
+!              do k=1,mdl%levs
+!                skebu_wts(j,k)  = grid_fld%skebu_wts(lon+j-1,lan,k)
+!                skebv_wts(j,k)  = grid_fld%skebv_wts(lon+j-1,lan,k)
+!              enddo
+!            enddo
+            stateout%gu0 = stateout%gu0 + intr%s_skebu_wts
+            stateout%gv0 = stateout%gv0 + intr%s_skebv_wts
+          endif ! do_skeb
+!!! code section for vorticity confinement perturbation.
+          if (intr%s_do_vc) then
+!            do j=1,dyn%im
+!              do k=1,mdl%levs
+!                vcu_wts(j,k)  = grid_fld%vcu_wts(lon+j-1,lan,k)
+!                vcv_wts(j,k)  = grid_fld%vcv_wts(lon+j-1,lan,k)
+!              enddo
+!            enddo
+            stateout%gu0 = stateout%gu0 + intr%s_vcu_wts
+            stateout%gv0 = stateout%gv0 + intr%s_vcv_wts
+          endif ! do_vc
+
+!! end of stochastic physics code
+
+       end subroutine
 
        subroutine nuopc_phys_run (statein, stateout, sfc, diag, intr, cld, rad, mdl, tbd, dyn)
 
@@ -2919,95 +3271,157 @@
          type(model_parameters)     :: mdl
          type(tbd_ddt)              :: tbd
          type(dynamic_parameters)   :: dyn
+         integer :: i,j,k,l
+!-----initialize for stochastic physics---
+            intr%s_gt0=statein%tgrs
+            intr%s_gr0=statein%qgrs
+            intr%s_gu0=statein%ugrs
+            intr%s_gv0=statein%vgrs
+            intr%s_cplrain0(:)=intr%rain_cpl(:)
+            intr%s_cplsnow0(:)=intr%snow_cpl(:)
+            intr%s_totprcp0(:)=diag%totprcp(:)
+            intr%s_cnvprcp0(:)=diag%cnvprcp(:)
+!----------------------------------------
 
 
          if (mdl%me .eq. 1) call dbgprint("entering nuopc_phys_run")
-!         print*, 'lhnpc2873'
+      if (mdl%ntoz > 0) then
+       call ozinterpol( mdl%me,mdl%lats_node_r,mdl%lats_node_r,mdl%idate,dyn%fhour, &
+                      mdl%jindx1,mdl%jindx2,mdl%ozplin,tbd%o3out,mdl%ddy)
+!        print*,'lats_node_r', tbd%lats_node_r
+            do j=1,mdl%pl_coeff
+              do k=1,mdl%levozp
+                do i=1,dyn%im
+                  tbd%prdout(i,k,j) = tbd%o3out(k,tbd%lan,j)
+                enddo
+              enddo
+            enddo
+      endif
+
+      if (mdl%h2o_phys) then
+       call h2ointerpol(mdl%me,mdl%lats_node_r,mdl%lats_node_r,mdl%idate,dyn%fhour, &
+                       mdl%jindx1_h,mdl%jindx2_h,mdl%h2oplin,tbd%h2oplout,mdl%ddy_h)
+             do j=1,mdl%h2o_coeff
+              do k=1,mdl%levh2o
+                do i=1,dyn%ix
+                  tbd%h2oplout_v(i,k,j) = tbd%h2oplout(k,tbd%lan,j)
+                enddo
+              enddo
+            enddo
+      endif
+
          call gbphys ( dyn%im, dyn%ix, mdl%levs, &
                  mdl%lsoil, mdl%lsm, mdl%ntrac,  &
-                 mdl%ncld, mdl%ntoz, mdl%ntcw, mdl%ntke, &
-                 mdl%nmtvr, mdl%nrcm, mdl%levozp,  &
-                 mdl%lonr, mdl%latr, mdl%jcap, mdl%num_p3d,&
-                 mdl%num_p2d, mdl%npdf3d, mdl%ncnvcld3d, dyn%kdt,  &
-                 dyn%lat, mdl%me, mdl%pl_coeff, dyn%nlons, mdl%ncw, cld%flgmin,  &
-                 mdl%crtrh, mdl%cdmbgwd, mdl%ccwf, mdl%dlqf, mdl%ctei_rm, dyn%clstp,  &
-                 mdl%cgwf, mdl%prslrd0, mdl%ral_ts, dyn%dtp, dyn%dtf, dyn%fhour, dyn%solhr, &
-                 dyn%slag, dyn%sdec, dyn%cdec, dyn%sinlat, dyn%coslat, statein%pgr,  &
-                 statein%ugrs, statein%vgrs, statein%tgrs, &
-                 statein%qgrs, statein%vvl, statein%prsi,  &
-                 statein%prsl, statein%prslk, statein%prsik, & 
-                 statein%phii, statein%phil, tbd%rann,  &
-                 tbd%prdout, tbd%poz, tbd%dpshc, tbd%fscav, tbd%fswtr, sfc%hprime2,   &
-                 dyn%xlon, dyn%xlat,  &
-                 sfc%slope, sfc%shdmin, sfc%shdmax, sfc%snoalb, sfc%tg3, sfc%slmsk,  &
-                 sfc%vfrac, sfc%vtype, sfc%stype, sfc%uustar, sfc%oro, sfc%oro_uf,  &
-                 rad%coszen, intr%sfcdsw, intr%sfcnsw, intr%sfcnirbmd, &
-                 intr%sfcnirdfd, intr%sfcvisbmd,  &
-                 intr%sfcvisdfd, intr%sfcnirbmu, intr%sfcnirdfu, &
-                 intr%sfcvisbmu, intr%sfcvisdfu, intr%slimskin_cpl,       &
-                 intr%ulwsfcin_cpl, intr%dusfcin_cpl, intr%dvsfcin_cpl, &
-                 intr%dtsfcin_cpl, intr%dqsfcin_cpl, &
-                 intr%sfcdlw, rad%tsflw, rad%semis, rad%sfalb, rad%htrsw, &
-                 rad%swhc, rad%htrlw, rad%hlwc, rad%hlwd, mdl%lsidea, mdl%ras,  &   !mdl%lsidea
-                 mdl%pre_rad, mdl%ldiag3d, mdl%lgocart, dyn%lssav,  &
+                 mdl%ncld, mdl%ntoz, mdl%ntcw, &
+                 mdl%ntke, mdl%ntiw, mdl%ntlnc, &
+                 mdl%ntinc, mdl%nmtvr, mdl%nrcm, &
+                 mdl%levozp, mdl%lonr, mdl%latr, &
+                 mdl%jcap, mdl%num_p3d, mdl%num_p2d, &
+                 mdl%npdf3d, mdl%ncnvcld3d, dyn%kdt,  &
+                 dyn%lat, mdl%me, mdl%pl_coeff, &
+                 dyn%nlons, mdl%ncw, cld%flgmin, &
+                 mdl%crtrh, mdl%cdmbgwd, mdl%ccwf, &
+                 mdl%dlqf, mdl%ctei_rm, dyn%clstp, &
+                 mdl%cgwf, mdl%prslrd0, mdl%ral_ts, &
+                 dyn%dtp, dyn%dtf, dyn%fhour, &
+                 dyn%solhr, dyn%slag, dyn%sdec, &
+                 dyn%cdec, dyn%sinlat, dyn%coslat, &
+                 statein%pgr, statein%ugrs, statein%vgrs, &
+                 statein%tgrs, statein%qgrs, statein%vvl, &
+                 statein%prsi, statein%prsl, statein%prslk, &
+                 statein%prsik, statein%phii, statein%phil, &
+                 tbd%rann, tbd%prdout, tbd%poz, &
+                 tbd%dpshc, tbd%fscav, tbd%fswtr, &
+                 sfc%hprime2, dyn%xlon, dyn%xlat, &
+                 mdl%h2o_phys, mdl%levh2o, tbd%h2oplout_v, &
+                 mdl%h2o_pres, mdl%h2o_coeff, mdl%isot, &
+                 mdl%ivegsrc, sfc%slope, sfc%shdmin, &
+                 sfc%shdmax, sfc%snoalb, sfc%tg3, &
+                 sfc%slmsk, sfc%vfrac, sfc%vtype, &
+                 sfc%stype, sfc%uustar, sfc%oro, &
+                 sfc%oro_uf, rad%coszen, intr%sfcdsw, &
+                 intr%sfcnsw, intr%sfcnirbmd, intr%sfcnirdfd, &
+                 intr%sfcvisbmd, intr%sfcvisdfd, intr%sfcnirbmu, &
+                 intr%sfcnirdfu, intr%sfcvisbmu, intr%sfcvisdfu, &
+                 intr%slimskin_cpl,intr%ulwsfcin_cpl, intr%dusfcin_cpl,&
+                 intr%dvsfcin_cpl, intr%dtsfcin_cpl, intr%dqsfcin_cpl, &
+                 intr%sfcdlw, rad%tsflw, rad%semis, &
+                 rad%sfalb, rad%htrsw, rad%swhc, &
+                 rad%htrlw, rad%hlwc, rad%hlwd, &
+                 mdl%lsidea, mdl%ras, mdl%pre_rad, &   !mdl%lsidea
+                 mdl%ldiag3d, mdl%lgocart, dyn%lssav,  &
                  mdl%lssav_cpl, tbd%xkzm_m, tbd%xkzm_h, &
                  tbd%xkzm_s, tbd%psautco, tbd%prautco,  &
-                 tbd%evpco, tbd%wminco, mdl%pdfcld, mdl%shcnvcw, &
-                 cld%sup, mdl%redrag, mdl%hybedmf, mdl%dspheat,  &
-                 mdl%flipv, mdl%old_monin, mdl%cnvgwd, mdl%shal_cnv,  &
-                 mdl%imfshalcnv, mdl%imfdeepcnv, mdl%cal_pre, &
+                 tbd%evpco, tbd%wminco, mdl%pdfcld, &
+                 mdl%shcnvcw, cld%sup, mdl%redrag, &
+                 mdl%hybedmf, mdl%dspheat, mdl%flipv, &
+                 mdl%old_monin, mdl%cnvgwd, mdl%shal_cnv,  &
+                 mdl%imfshalcnv, mdl%imfdeepcnv, mdl%cal_pre, .false., &
                  mdl%mom4ice, mdl%mstrat, mdl%trans_trac,  &
                  mdl%nstf_name, mdl%moist_adj, mdl%thermodyn_id, &
-                 mdl%sfcpress_id, mdl%gen_coord_hybrid,  &
-                 mdl%levr, statein%adjtrc, dyn%nnp,    &
+                 mdl%sfcpress_id, mdl%gen_coord_hybrid, mdl%levr, &
+                 statein%adjtrc, dyn%nnp,    &
 ! Add new nems_slg_shoc arguments
                  mdl%cscnv, mdl%nctp, mdl%do_shoc, &
                  mdl%shocaftcnv, mdl%ntot3d, mdl%ntot2d,  &
 ! In/Out
-                 sfc%hice, sfc%fice, sfc%tisfc, sfc%tsfc, tbd%tprcp, cld%cv,  &
-                 cld%cvb, cld%cvt, tbd%srflag, sfc%snowd, sfc%weasd, sfc%sncovr,  &
-                 sfc%zorl, sfc%canopy, sfc%ffmm, sfc%ffhh, sfc%f10m, diag%srunoff,  &
+                 sfc%hice, sfc%fice, sfc%tisfc, &
+                 sfc%tsfc, tbd%tprcp, cld%cv,  &
+                 cld%cvb, cld%cvt, tbd%srflag, &
+                 sfc%snowd, sfc%weasd, sfc%sncovr,  &
+                 sfc%zorl, sfc%canopy, sfc%ffmm, &
+                 sfc%ffhh, sfc%f10m, diag%srunoff,  &
                  diag%evbsa, diag%evcwa, diag%snohfa, &
                  diag%transa, diag%sbsnoa, diag%snowca,  &
                  diag%soilm, diag%tmpmin, diag%tmpmax, &
                  diag%dusfc, diag%dvsfc, diag%dtsfc,  &
                  diag%dqsfc, diag%totprcp, diag%gflux, &
                  diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
-                 diag%runoff, diag%ep, diag%cldwrk, diag%dugwd, diag%dvgwd, diag%psmean,  &
-                 diag%cnvprcp, diag%spfhmin, diag%spfhmax, diag%rain, diag%rainc, diag%dt3dt,  &
-                 diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, &
-                 cld%cnvqc_v, tbd%acv, tbd%acvb,  &
-                 tbd%acvt, tbd%slc, tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
-                 tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
-                 intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
+                 diag%runoff, diag%ep, diag%cldwrk, &
+                 diag%dugwd, diag%dvgwd, diag%psmean,  &
+                 diag%cnvprcp, diag%spfhmin, diag%spfhmax, &
+                 diag%rain, diag%rainc, diag%dt3dt,  &
+                 diag%dq3dt, diag%du3dt, diag%dv3dt, &
+                 diag%dqdt_v, cld%cnvqc_v, tbd%acv, &
+                 tbd%acvb, tbd%acvt, tbd%slc, &
+                 tbd%smc, tbd%stc, tbd%upd_mf, &
+                 tbd%dwn_mf, tbd%det_mf, tbd%phy_f3d, &
+                 tbd%phy_f2d, intr%dusfc_cpl, intr%dvsfc_cpl, &
+                 intr%dtsfc_cpl, intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
                  intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, &
                  intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
                  intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, &
                  intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl,  &
-                 intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, intr%xz, intr%zm,  &
-                 intr%xtts, intr%xzts, intr%d_conv, intr%ifd, intr%dt_cool, intr%Qrain,  &
+                 intr%snow_cpl, intr%xt, intr%xs, &
+                 intr%xu, intr%xv, intr%xz, &
+                 intr%zm, intr%xtts, intr%xzts, &
+                 intr%d_conv, intr%ifd, intr%dt_cool, &
+                 intr%Qrain, tbd%tref, tbd%z_c, &
+                 tbd%c_0, tbd%c_d, tbd%w_0, &
+                 tbd%w_d,  &
 ! NEW
                  tbd%phy_fctd,  &
 ! Out
-                 stateout%gt0, stateout%gq0, stateout%gu0, stateout%gv0, sfc%t2m, sfc%q2m,  &
-                 diag%u10m, diag%v10m, diag%zlvl, diag%psurf, diag%hpbl, diag%pwat,  &
-                 diag%t1, diag%q1, diag%u1, diag%v1, diag%chh, diag%cmm,  &
+                 stateout%gt0, stateout%gq0, stateout%gu0, &
+                 stateout%gv0, sfc%t2m, sfc%q2m,  &
+                 diag%u10m, diag%v10m, diag%zlvl, &
+                 diag%psurf, diag%hpbl, diag%pwat,  &
+                 diag%t1, diag%q1, diag%u1, &
+                 diag%v1, diag%chh, diag%cmm,  &
                  diag%dlwsfci, diag%ulwsfci, diag%dswsfci, &
                  diag%uswsfci, diag%dusfci, diag%dvsfci,  &
                  diag%dtsfci, diag%dqsfci, diag%gfluxi, &
                  diag%epi, diag%smcwlt2, diag%smcref2,  &
-                 diag%wet1, diag%sr, rad%rqtk, rad%dtdtr, &
-                 intr%dusfci_cpl, intr%dvsfci_cpl, intr%dtsfci_cpl,  &
-                 intr%dqsfci_cpl, intr%dlwsfci_cpl, intr%dswsfci_cpl, &
-                 intr%dnirbmi_cpl, intr%dnirdfi_cpl, intr%dvisbmi_cpl,  &
-                 intr%dvisdfi_cpl, intr%nlwsfci_cpl, intr%nswsfci_cpl, &
-                 intr%nnirbmi_cpl, intr%nnirdfi_cpl, intr%nvisbmi_cpl,  &
-                 intr%nvisdfi_cpl, intr%t2mi_cpl, intr%q2mi_cpl, &
-                 intr%u10mi_cpl, intr%v10mi_cpl, intr%tseai_cpl,  &
-                 intr%psurfi_cpl, tbd%tref, tbd%z_c, tbd%c_0,  &
-                 tbd%c_d, tbd%w_0, tbd%w_d  &
+                 diag%wet1, diag%sr, rad%rqtk, &
+                 rad%dtdtr, intr%dusfci_cpl, intr%dvsfci_cpl, &
+                 intr%dtsfci_cpl, intr%dqsfci_cpl, intr%dlwsfci_cpl, &
+                 intr%dswsfci_cpl, intr%dnirbmi_cpl, intr%dnirdfi_cpl, &
+                 intr%dvisbmi_cpl, intr%dvisdfi_cpl, intr%nlwsfci_cpl, &
+                 intr%nswsfci_cpl, intr%nnirbmi_cpl, intr%nnirdfi_cpl, &
+                 intr%nvisbmi_cpl, intr%nvisdfi_cpl, intr%t2mi_cpl, &
+                 intr%q2mi_cpl, intr%u10mi_cpl, intr%v10mi_cpl, &
+                 intr%tseai_cpl, intr%psurfi_cpl  &
          )
-!             print*,'lhnup2933'
        end subroutine
 
 
@@ -3037,22 +3451,31 @@
 
          ! write each record
          write (funit, iostat=ios, err=900)   &
-                        statein%prsi, statein%prsl, statein%prslk, statein%tgrs, statein%qgrs_rad,   &
-                        statein%tracer, statein%vvl, sfc_prop%slmsk, dyn_parm%xlon, dyn_parm%xlat,     &
-                        sfc_prop%tsfc, sfc_prop%snowd, sfc_prop%sncovr, sfc_prop%snoalb, sfc_prop%zorl,    &
-                        sfc_prop%hprim, sfc_prop%alvsf, sfc_prop%alnsf, sfc_prop%alvwf, sfc_prop%alnwf,    &
-                        sfc_prop%facsf, sfc_prop%facwf, sfc_prop%fice, sfc_prop%tisfc, dyn_parm%sinlat,    &
-                        dyn_parm%coslat, dyn_parm%solhr, dyn_parm%jdate, dyn_parm%solcon, cld_prop%cv,     &
-                        cld_prop%cvt, cld_prop%cvb, cld_prop%fcice, cld_prop%frain, cld_prop%rrime,        &
-                        cld_prop%flgmin, dyn_parm%icsdsw, dyn_parm%icsdlw,                                 &
-                        mdl_parm%ntcw, mdl_parm%ncld, mdl_parm%ntoz,  &
-                        mdl_parm%NTRAC, diags%NFXR, dyn_parm%dtlw, dyn_parm%dtsw,       &
-                        dyn_parm%lsswr, dyn_parm%lslwr, dyn_parm%lssav, dyn_parm%lmfshal, dyn_parm%lmfdeep2, &
-                        dyn_parm%IX, dyn_parm%IM,          &
-                        mdl_parm%levs, mdl_parm%me, dyn_parm%lprnt, dyn_parm%ipt, dyn_parm%kdt,              &
-                        cld_prop%deltaq, cld_prop%sup, cld_prop%cnvw, cld_prop%cnvc, dyn_parm%deltim,      &
-                        ! NEW 9/1/2015
-                        mdl_parm%shoc_cld
+               statein%prsi, statein%prsl, statein%prslk, &
+               statein%tgrs, statein%qgrs_rad,   &
+               statein%tracer, statein%vvl, sfc_prop%slmsk, &
+               dyn_parm%xlon, dyn_parm%xlat,     &
+               sfc_prop%tsfc, sfc_prop%snowd, sfc_prop%sncovr, &
+               sfc_prop%snoalb, sfc_prop%zorl,    &
+               sfc_prop%hprim, sfc_prop%alvsf, sfc_prop%alnsf, &
+               sfc_prop%alvwf, sfc_prop%alnwf,    &
+               sfc_prop%facsf, sfc_prop%facwf, sfc_prop%fice, &
+               sfc_prop%tisfc, dyn_parm%sinlat,    &
+               dyn_parm%coslat, dyn_parm%solhr, dyn_parm%jdate, &
+               dyn_parm%solcon, cld_prop%cv,     &
+               cld_prop%cvt, cld_prop%cvb, cld_prop%fcice, &
+               cld_prop%frain, cld_prop%rrime,        &
+               cld_prop%flgmin, dyn_parm%icsdsw, dyn_parm%icsdlw, &
+               mdl_parm%ntcw-1, mdl_parm%ncld, mdl_parm%ntoz-1,  &
+               mdl_parm%NTRAC-1, diags%NFXR, dyn_parm%dtlw, &
+               dyn_parm%dtsw, dyn_parm%lsswr, dyn_parm%lslwr, &
+               dyn_parm%lssav, mdl_parm%shoc_cld, dyn_parm%lmfshal, &
+               dyn_parm%lmfdeep2, dyn_parm%IX, dyn_parm%IM,   &
+               mdl_parm%levr, mdl_parm%me, dyn_parm%lprnt, &
+               dyn_parm%ipt, dyn_parm%kdt, cld_prop%deltaq, &
+               cld_prop%sup, cld_prop%cnvw, cld_prop%cnvc, &
+! In/Out
+               diags%fluxr
 
          flush (funit, iostat=ios, err=900)
 
@@ -3157,21 +3580,32 @@
 
          ! read each record
          read (funit, iostat=ios, err=900)   &
-                        statein%prsi, statein%prsl, statein%prslk, statein%tgrs, statein%qgrs_rad,   &
-                        statein%tracer, statein%vvl, sfc_prop%slmsk, dyn_parm%xlon, dyn_parm%xlat,     &
-                        sfc_prop%tsfc, sfc_prop%snowd, sfc_prop%sncovr, sfc_prop%snoalb, sfc_prop%zorl,    &
-                        sfc_prop%hprim, sfc_prop%alvsf, sfc_prop%alnsf, sfc_prop%alvwf, sfc_prop%alnwf,    &
-                        sfc_prop%facsf, sfc_prop%facwf, sfc_prop%fice, sfc_prop%tisfc, dyn_parm%sinlat,    &
-                        dyn_parm%coslat, dyn_parm%solhr, dyn_parm%jdate, dyn_parm%solcon, cld_prop%cv,     &
-                        cld_prop%cvt, cld_prop%cvb, cld_prop%fcice, cld_prop%frain, cld_prop%rrime,        &
-                        cld_prop%flgmin, dyn_parm%icsdsw, dyn_parm%icsdlw,                                 &
-                        mdl_parm%ntcw, mdl_parm%ncld, mdl_parm%ntoz,  &
-                        mdl_parm%NTRAC, diags%NFXR, dyn_parm%dtlw, dyn_parm%dtsw,       &
-                        dyn_parm%lsswr, dyn_parm%lslwr, dyn_parm%lssav, dyn_parm%lmfshal, dyn_parm%lmfdeep2, &
-                        dyn_parm%IX, dyn_parm%IM,          &
-                        mdl_parm%levr, mdl_parm%me, dyn_parm%lprnt, dyn_parm%ipt, dyn_parm%kdt,              &
-                        cld_prop%deltaq, cld_prop%sup, cld_prop%cnvw, cld_prop%cnvc, dyn_parm%deltim,      &
-                        mdl_parm%shoc_cld
+               statein%prsi, statein%prsl, statein%prslk, &
+               statein%tgrs, statein%qgrs_rad,   &
+               statein%tracer, statein%vvl, sfc_prop%slmsk, &
+               dyn_parm%xlon, dyn_parm%xlat,     &
+               sfc_prop%tsfc, sfc_prop%snowd, sfc_prop%sncovr, &
+               sfc_prop%snoalb, sfc_prop%zorl,    &
+               sfc_prop%hprim, sfc_prop%alvsf, sfc_prop%alnsf, &
+               sfc_prop%alvwf, sfc_prop%alnwf,    &
+               sfc_prop%facsf, sfc_prop%facwf, sfc_prop%fice, &
+               sfc_prop%tisfc, dyn_parm%sinlat,    &
+               dyn_parm%coslat, dyn_parm%solhr, dyn_parm%jdate, &
+               dyn_parm%solcon, cld_prop%cv,     &
+               cld_prop%cvt, cld_prop%cvb, cld_prop%fcice, &
+               cld_prop%frain, cld_prop%rrime,        &
+               cld_prop%flgmin, dyn_parm%icsdsw, dyn_parm%icsdlw, &
+               mdl_parm%ntcw, mdl_parm%ncld, mdl_parm%ntoz,  &
+               mdl_parm%NTRAC, diags%NFXR, dyn_parm%dtlw, &
+               dyn_parm%dtsw, dyn_parm%lsswr, dyn_parm%lslwr, &
+               dyn_parm%lssav, mdl_parm%shoc_cld, dyn_parm%lmfshal, &
+               dyn_parm%lmfdeep2, dyn_parm%IX, dyn_parm%IM,   &
+               mdl_parm%levr, mdl_parm%me, dyn_parm%lprnt, &
+               dyn_parm%ipt, dyn_parm%kdt, cld_prop%deltaq, &
+               cld_prop%sup, cld_prop%cnvw, cld_prop%cnvc, &
+! In/Out
+               diags%fluxr
+
 
          ! close file
          close (funit, iostat=ios)
@@ -3272,12 +3706,13 @@
          ! write each record
          write (funit, iostat=ios, err=900)   &
 ! Outputs
-                        rad_tend%htrsw, diags%topfsw, intrfc_fld%sfcfsw, diags%dswcmp, diags%uswcmp,    &
-                        rad_tend%sfalb, &
-                        rad_tend%coszen, rad_tend%coszdg, rad_tend%htrlw, diags%topflw, intrfc_fld%sfcflw,&
-                        rad_tend%tsflw, rad_tend%semis, cld_prop%cldcov, &
+               rad_tend%htrsw, diags%topfsw, intrfc_fld%sfcfsw, &
+               diags%dswcmp, diags%uswcmp, rad_tend%sfalb, &
+               rad_tend%coszen, rad_tend%coszdg, rad_tend%htrlw, &
+               diags%topflw, intrfc_fld%sfcflw,&
+               rad_tend%tsflw, rad_tend%semis, cld_prop%cldcov, &
 ! In/Out
-                        diags%fluxr
+               diags%fluxr
 
          flush (funit, iostat=ios, err=900)
 
@@ -3332,12 +3767,13 @@
          ! read each record
          read (funit, iostat=ios, err=900)   &
 ! Outputs
-                        rad_tend%htrsw, diags%topfsw, intrfc_fld%sfcfsw, diags%dswcmp, diags%uswcmp,    &
-                        rad_tend%sfalb, &
-                        rad_tend%coszen, rad_tend%coszdg, rad_tend%htrlw, diags%topflw, intrfc_fld%sfcflw,&
-                        rad_tend%tsflw, rad_tend%semis, cld_prop%cldcov, &
+               rad_tend%htrsw, diags%topfsw, intrfc_fld%sfcfsw, &
+               diags%dswcmp, diags%uswcmp, rad_tend%sfalb, &
+               rad_tend%coszen, rad_tend%coszdg, rad_tend%htrlw, &
+               diags%topflw, intrfc_fld%sfcflw,&
+               rad_tend%tsflw, rad_tend%semis, cld_prop%cldcov, &
 ! In/Out
-                        diags%fluxr
+               diags%fluxr
 
          ! close file
          close (funit, iostat=ios)
@@ -3392,52 +3828,87 @@
          open (funit, file='physrun_savein.dat', status='new', form='unformatted', iostat=ios)
 
          ! write each record
-         write (funit, iostat=ios, err=900) dyn%im, dyn%ix, mdl%levs, mdl%lsoil, mdl%lsm, mdl%ntrac,   &
-                 mdl%ncld, mdl%ntoz, mdl%ntcw, mdl%nmtvr, mdl%nrcm, mdl%levozp,  &
-                 mdl%lonr, mdl%latr, mdl%jcap, mdl%num_p3d, mdl%num_p2d, mdl%npdf3d, mdl%ncnvcld3d, dyn%kdt,  &
-                 dyn%lat, mdl%me, mdl%pl_coeff, dyn%nlons, mdl%ncw, cld%flgmin,  &
-                 mdl%crtrh, mdl%cdmbgwd, mdl%ccwf, mdl%dlqf, mdl%ctei_rm, dyn%clstp,  &
-                 mdl%cgwf, mdl%prslrd0, mdl%ral_ts, dyn%dtp, dyn%dtf, dyn%fhour, dyn%solhr,  &
-                 dyn%slag, dyn%sdec, dyn%cdec, dyn%sinlat, dyn%coslat, statein%pgr,  &
-                 statein%ugrs, statein%vgrs, statein%tgrs, statein%qgrs, statein%vvl, statein%prsi,  &
-                 statein%prsl, statein%prslk, statein%prsik, statein%phii, statein%phil, tbd%rann,  &
-                 tbd%prdout, tbd%poz, tbd%dpshc, sfc%hprime2, dyn%xlon, dyn%xlat,  &
-                 sfc%slope, sfc%shdmin, sfc%shdmax, sfc%snoalb, sfc%tg3, sfc%slmsk,  &
-                 sfc%vfrac, sfc%vtype, sfc%stype, sfc%uustar, sfc%oro, sfc%oro_uf,  &
-                 rad%coszen, intr%sfcdsw, intr%sfcnsw, intr%sfcnirbmd, intr%sfcnirdfd, intr%sfcvisbmd,  &
-                 intr%sfcvisdfd, intr%sfcnirbmu, intr%sfcnirdfu, intr%sfcvisbmu, intr%sfcvisdfu, intr%slimskin_cpl,       &
-                 intr%ulwsfcin_cpl, intr%dusfcin_cpl, intr%dvsfcin_cpl, intr%dtsfcin_cpl, intr%dqsfcin_cpl, & 
-                 intr%sfcdlw, rad%tsflw, rad%semis, rad%sfalb, rad%htrsw, &
-                 rad%swhc, rad%htrlw, rad%hlwc, rad%hlwd, mdl%lsidea, mdl%ras,  &
-                 mdl%pre_rad, mdl%ldiag3d, mdl%lgocart, dyn%lssav,  &
-                 mdl%lssav_cpl, tbd%xkzm_m, tbd%xkzm_h, tbd%xkzm_s, tbd%psautco, tbd%prautco,  &
-                 tbd%evpco, tbd%wminco, mdl%pdfcld, mdl%shcnvcw, cld%sup, mdl%redrag, mdl%hybedmf, mdl%dspheat,  &
-                 mdl%flipv, mdl%old_monin, mdl%cnvgwd, mdl%shal_cnv,  &
-                 mdl%imfshalcnv, mdl%imfdeepcnv, mdl%cal_pre, mdl%mom4ice, mdl%mstrat, mdl%trans_trac,  &
-                 mdl%nstf_name, mdl%moist_adj, mdl%thermodyn_id, mdl%sfcpress_id, mdl%gen_coord_hybrid,  &
-                 mdl%levr, statein%adjtrc, dyn%nnp,    &
-
+         write (funit, iostat=ios, err=900)   &
+          dyn%im, dyn%ix, mdl%levs, &
+          mdl%lsoil, mdl%lsm, mdl%ntrac,  &
+          mdl%ncld, mdl%ntoz, mdl%ntcw, mdl%ntke, &
+          mdl%nmtvr, mdl%nrcm, mdl%levozp,  &
+          mdl%lonr, mdl%latr, mdl%jcap, mdl%num_p3d,&
+          mdl%num_p2d, mdl%npdf3d, mdl%ncnvcld3d, dyn%kdt,  &
+          dyn%lat, mdl%me, mdl%pl_coeff, &
+          dyn%nlons, mdl%ncw, cld%flgmin,  &
+          mdl%crtrh, mdl%cdmbgwd, mdl%ccwf, &
+          mdl%dlqf, mdl%ctei_rm, dyn%clstp,  &
+          mdl%cgwf, mdl%prslrd0, mdl%ral_ts, dyn%dtp, &
+          dyn%dtf, dyn%fhour, dyn%solhr, &
+          dyn%slag, dyn%sdec, dyn%cdec, &
+          dyn%sinlat, dyn%coslat, statein%pgr,  &
+          statein%ugrs, statein%vgrs, statein%tgrs, &
+          statein%qgrs, statein%vvl, statein%prsi,  &
+          statein%prsl, statein%prslk, statein%prsik, &
+          statein%phii, statein%phil, tbd%rann,  &
+          tbd%prdout, tbd%poz, tbd%dpshc, &
+          tbd%fscav, tbd%fswtr,sfc%hprime2,   &
+          dyn%xlon, dyn%xlat, sfc%slope, sfc%shdmin, &
+          sfc%shdmax, sfc%snoalb, sfc%tg3, sfc%slmsk,  &
+          sfc%vfrac, sfc%vtype, sfc%stype, &
+          sfc%uustar, sfc%oro,sfc%oro_uf,  &
+          rad%coszen, intr%sfcdsw, intr%sfcnsw, intr%sfcnirbmd, &
+          intr%sfcnirdfd, intr%sfcvisbmd,  &
+          intr%sfcvisdfd, intr%sfcnirbmu, intr%sfcnirdfu, &
+          intr%sfcvisbmu, intr%sfcvisdfu, intr%slimskin_cpl, &
+          intr%ulwsfcin_cpl, intr%dusfcin_cpl, intr%dvsfcin_cpl, &
+          intr%dtsfcin_cpl, intr%dqsfcin_cpl, intr%sfcdlw, &
+          rad%tsflw, rad%semis, rad%sfalb, rad%htrsw, &
+          rad%swhc, rad%htrlw, rad%hlwc, &
+          rad%hlwd, mdl%lsidea, mdl%ras,  &   !mdl%lsidea
+          mdl%pre_rad, mdl%ldiag3d, mdl%lgocart, dyn%lssav,  &
+          mdl%lssav_cpl, tbd%xkzm_m, tbd%xkzm_h, &
+          tbd%xkzm_s, tbd%psautco, tbd%prautco,  &
+          tbd%evpco, tbd%wminco, mdl%pdfcld, mdl%shcnvcw, &
+          cld%sup, mdl%redrag, mdl%hybedmf, mdl%dspheat,  &
+          mdl%flipv, mdl%old_monin, mdl%cnvgwd, mdl%shal_cnv,  &
+          mdl%imfshalcnv, mdl%imfdeepcnv, mdl%cal_pre, &
+          mdl%mom4ice, mdl%mstrat, mdl%trans_trac,  &
+          mdl%nstf_name, mdl%moist_adj, mdl%thermodyn_id, &
+          mdl%sfcpress_id, mdl%gen_coord_hybrid,  &
+          mdl%levr, statein%adjtrc, dyn%nnp,    &
 ! Add new nems_slg_shoc arguments
-                 mdl%cscnv, mdl%nctp, mdl%do_shoc, mdl%shocaftcnv, mdl%ntot3d, mdl%ntot2d,  &
-!! In/Out
-                 sfc%hice, sfc%fice, sfc%tisfc, sfc%tsfc, tbd%tprcp, cld%cv,  &
-                 cld%cvb, cld%cvt, tbd%srflag, sfc%snowd, sfc%weasd, sfc%sncovr,  &
-                 sfc%zorl, sfc%canopy, sfc%ffmm, sfc%ffhh, sfc%f10m, diag%srunoff,  &
-                 diag%evbsa, diag%evcwa, diag%snohfa, diag%transa, diag%sbsnoa, diag%snowca,  &
-                 diag%soilm, diag%tmpmin, diag%tmpmax, diag%dusfc, diag%dvsfc, diag%dtsfc,  &
-                 diag%dqsfc, diag%totprcp, diag%gflux, diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
-                 diag%runoff, diag%ep, diag%cldwrk, diag%dugwd, diag%dvgwd, diag%psmean,  &
-                 diag%cnvprcp, diag%spfhmin, diag%spfhmax, diag%rain, diag%rainc, diag%dt3dt,  &
-                 diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, cld%cnvqc_v, &
-                 tbd%acv, tbd%acvb, tbd%acvt, &
-                 tbd%slc, tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
-                 tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
-                 intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
-                 intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
-                 intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl,  &
-                 intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, intr%xz, intr%zm,  &
-                 intr%xtts, intr%xzts, intr%d_conv, intr%ifd, intr%dt_cool, intr%Qrain,  &
-                 tbd%phy_fctd
+          mdl%cscnv, mdl%nctp, mdl%do_shoc, &
+          mdl%shocaftcnv, mdl%ntot3d, mdl%ntot2d,  &
+! In/Out
+          sfc%hice, sfc%fice, sfc%tisfc,&
+          sfc%tsfc, tbd%tprcp, cld%cv,  &
+          cld%cvb, cld%cvt, tbd%srflag, &
+          sfc%snowd, sfc%weasd,sfc%sncovr,  &
+          sfc%zorl, sfc%canopy, sfc%ffmm, &
+          sfc%ffhh, sfc%f10m, diag%srunoff,  &
+          diag%evbsa, diag%evcwa, diag%snohfa, &
+          diag%transa, diag%sbsnoa, diag%snowca,  &
+          diag%soilm, diag%tmpmin, diag%tmpmax, &
+          diag%dusfc, diag%dvsfc, diag%dtsfc,  &
+          diag%dqsfc, diag%totprcp, diag%gflux, &
+          diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
+          diag%runoff, diag%ep, diag%cldwrk, &
+          diag%dugwd, diag%dvgwd, diag%psmean,  &
+          diag%cnvprcp, diag%spfhmin, diag%spfhmax, &
+          diag%rain, diag%rainc, diag%dt3dt,  &
+          diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, &
+          cld%cnvqc_v, tbd%acv, tbd%acvb, tbd%acvt, tbd%slc, &
+          tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
+          tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
+          intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, &
+          intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
+          intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, &
+          intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
+          intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, &
+          intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl, &
+          intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, &
+          intr%xz, intr%zm, intr%xtts, intr%xzts, intr%d_conv, &
+          intr%ifd, intr%dt_cool, intr%Qrain,  &
+          tbd%tref, tbd%z_c, tbd%c_0, tbd%c_d, tbd%w_0, tbd%w_d, &
+! NEW
+          tbd%phy_fctd
 
          flush (funit, iostat=ios, err=900)
 
@@ -3482,51 +3953,87 @@
                       iostat=ios)
 
          ! read each record
-         read (funit, iostat=ios, err=900, iomsg=msg ) dyn%im, dyn%ix, mdl%levs, mdl%lsoil, mdl%lsm, mdl%ntrac,   &
-                 mdl%ncld, mdl%ntoz, mdl%ntcw, mdl%nmtvr, mdl%nrcm, mdl%levozp,  &
-                 mdl%lonr, mdl%latr, mdl%jcap, mdl%num_p3d, mdl%num_p2d, mdl%npdf3d,mdl%ncnvcld3d, dyn%kdt,  &
-                 dyn%lat, mdl%me, mdl%pl_coeff, dyn%nlons, mdl%ncw, cld%flgmin,  &
-                 mdl%crtrh, mdl%cdmbgwd, mdl%ccwf, mdl%dlqf, mdl%ctei_rm, dyn%clstp,  &
-                 mdl%cgwf, mdl%prslrd0, mdl%ral_ts, dyn%dtp, dyn%dtf, dyn%fhour, dyn%solhr,  &
-                 dyn%slag, dyn%sdec, dyn%cdec, dyn%sinlat, dyn%coslat, statein%pgr,  &
-                 statein%ugrs, statein%vgrs, statein%tgrs, statein%qgrs, statein%vvl, statein%prsi,  &
-                 statein%prsl, statein%prslk, statein%prsik, statein%phii, statein%phil, tbd%rann,  &
-                 tbd%prdout, tbd%poz, tbd%dpshc, sfc%hprime2, dyn%xlon, dyn%xlat,  &
-                 sfc%slope, sfc%shdmin, sfc%shdmax, sfc%snoalb, sfc%tg3, sfc%slmsk,  &
-                 sfc%vfrac, sfc%vtype, sfc%stype, sfc%uustar, sfc%oro, sfc%oro_uf,  &
-                 rad%coszen, intr%sfcdsw, intr%sfcnsw, intr%sfcnirbmd, intr%sfcnirdfd, intr%sfcvisbmd,  &
-                 intr%sfcvisdfd, intr%sfcnirbmu, intr%sfcnirdfu, intr%sfcvisbmu, intr%sfcvisdfu, intr%slimskin_cpl,    &
-                 intr%ulwsfcin_cpl, intr%dusfcin_cpl, intr%dvsfcin_cpl, intr%dtsfcin_cpl, intr%dqsfcin_cpl, &
-                 intr%sfcdlw, rad%tsflw, rad%semis, rad%sfalb, rad%htrsw, &
-                 rad%swhc, rad%htrlw, rad%hlwc, rad%hlwd, mdl%lsidea, mdl%ras,  &
-                 mdl%pre_rad, mdl%ldiag3d, mdl%lgocart, dyn%lssav,  &
-                 mdl%lssav_cpl, tbd%xkzm_m, tbd%xkzm_h, tbd%xkzm_s, tbd%psautco, tbd%prautco,  &
-                 tbd%evpco, tbd%wminco, mdl%pdfcld, mdl%shcnvcw, cld%sup, mdl%redrag, mdl%hybedmf, mdl%dspheat,  &
-                 mdl%flipv, mdl%old_monin, mdl%cnvgwd, mdl%shal_cnv,  &
-                 mdl%imfshalcnv, mdl%imfdeepcnv, mdl%cal_pre, mdl%mom4ice, mdl%mstrat, mdl%trans_trac,  &
-                 mdl%nstf_name, mdl%moist_adj, mdl%thermodyn_id, mdl%sfcpress_id, mdl%gen_coord_hybrid,  &
-                 mdl%levr, statein%adjtrc, dyn%nnp,    &
-
+         read (funit, iostat=ios, err=900, iomsg=msg ) & 
+          dyn%im, dyn%ix, mdl%levs, &
+          mdl%lsoil, mdl%lsm, mdl%ntrac,  &
+          mdl%ncld, mdl%ntoz, mdl%ntcw, mdl%ntke, &
+          mdl%nmtvr, mdl%nrcm, mdl%levozp,  &
+          mdl%lonr, mdl%latr, mdl%jcap, mdl%num_p3d,&
+          mdl%num_p2d, mdl%npdf3d, mdl%ncnvcld3d, dyn%kdt,  &
+          dyn%lat, mdl%me, mdl%pl_coeff, &
+          dyn%nlons, mdl%ncw, cld%flgmin,  &
+          mdl%crtrh, mdl%cdmbgwd, mdl%ccwf, &
+          mdl%dlqf, mdl%ctei_rm, dyn%clstp,  &
+          mdl%cgwf, mdl%prslrd0, mdl%ral_ts, dyn%dtp, &
+          dyn%dtf, dyn%fhour, dyn%solhr, &
+          dyn%slag, dyn%sdec, dyn%cdec, &
+          dyn%sinlat, dyn%coslat, statein%pgr,  &
+          statein%ugrs, statein%vgrs, statein%tgrs, &
+          statein%qgrs, statein%vvl, statein%prsi,  &
+          statein%prsl, statein%prslk, statein%prsik, &
+          statein%phii, statein%phil, tbd%rann,  &
+          tbd%prdout, tbd%poz, tbd%dpshc, &
+          tbd%fscav, tbd%fswtr,sfc%hprime2,   &
+          dyn%xlon, dyn%xlat, sfc%slope, sfc%shdmin, &
+          sfc%shdmax, sfc%snoalb, sfc%tg3, sfc%slmsk,  &
+          sfc%vfrac, sfc%vtype, sfc%stype, &
+          sfc%uustar, sfc%oro,sfc%oro_uf,  &
+          rad%coszen, intr%sfcdsw, intr%sfcnsw, intr%sfcnirbmd, &
+          intr%sfcnirdfd, intr%sfcvisbmd,  &
+          intr%sfcvisdfd, intr%sfcnirbmu, intr%sfcnirdfu, &
+          intr%sfcvisbmu, intr%sfcvisdfu, intr%slimskin_cpl, &
+          intr%ulwsfcin_cpl, intr%dusfcin_cpl, intr%dvsfcin_cpl, &
+          intr%dtsfcin_cpl, intr%dqsfcin_cpl, intr%sfcdlw, &
+          rad%tsflw, rad%semis, rad%sfalb, rad%htrsw, &
+          rad%swhc, rad%htrlw, rad%hlwc, &
+          rad%hlwd, mdl%lsidea, mdl%ras,  &   !mdl%lsidea
+          mdl%pre_rad, mdl%ldiag3d, mdl%lgocart, dyn%lssav,  &
+          mdl%lssav_cpl, tbd%xkzm_m, tbd%xkzm_h, &
+          tbd%xkzm_s, tbd%psautco, tbd%prautco,  &
+          tbd%evpco, tbd%wminco, mdl%pdfcld, mdl%shcnvcw, &
+          cld%sup, mdl%redrag, mdl%hybedmf, mdl%dspheat,  &
+          mdl%flipv, mdl%old_monin, mdl%cnvgwd, mdl%shal_cnv,  &
+          mdl%imfshalcnv, mdl%imfdeepcnv, mdl%cal_pre, &
+          mdl%mom4ice, mdl%mstrat, mdl%trans_trac,  &
+          mdl%nstf_name, mdl%moist_adj, mdl%thermodyn_id, &
+          mdl%sfcpress_id, mdl%gen_coord_hybrid,  &
+          mdl%levr, statein%adjtrc, dyn%nnp,    &
 ! Add new nems_slg_shoc arguments
-                 mdl%cscnv, mdl%nctp, mdl%do_shoc, mdl%shocaftcnv, mdl%ntot3d, mdl%ntot2d,  &
-!! In/Out
-                 sfc%hice, sfc%fice, sfc%tisfc, sfc%tsfc, tbd%tprcp, cld%cv,  &
-                 cld%cvb, cld%cvt, tbd%srflag, sfc%snowd, sfc%weasd, sfc%sncovr,  &
-                 sfc%zorl, sfc%canopy, sfc%ffmm, sfc%ffhh, sfc%f10m, diag%srunoff,  &
-                 diag%evbsa, diag%evcwa, diag%snohfa, diag%transa, diag%sbsnoa, diag%snowca,  &
-                 diag%soilm, diag%tmpmin, diag%tmpmax, diag%dusfc, diag%dvsfc, diag%dtsfc,  &
-                 diag%dqsfc, diag%totprcp, diag%gflux, diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
-                 diag%runoff, diag%ep, diag%cldwrk, diag%dugwd, diag%dvgwd, diag%psmean,  &
-                 diag%cnvprcp, diag%spfhmin, diag%spfhmax, diag%rain, diag%rainc, diag%dt3dt,  &
-                 diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, cld%cnvqc_v, &
-                 tbd%acv, tbd%acvb, tbd%acvt, &
-                 tbd%slc, tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
-                 tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
-                 intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
-                 intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
-                 intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl,  &
-                 intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, intr%xz, intr%zm,  &
-                 intr%xtts, intr%xzts, intr%d_conv, intr%ifd, intr%dt_cool, intr%Qrain, tbd%phy_fctd
+          mdl%cscnv, mdl%nctp, mdl%do_shoc, &
+          mdl%shocaftcnv, mdl%ntot3d, mdl%ntot2d,  &
+! In/Out
+          sfc%hice, sfc%fice, sfc%tisfc,&
+          sfc%tsfc, tbd%tprcp, cld%cv,  &
+          cld%cvb, cld%cvt, tbd%srflag, &
+          sfc%snowd, sfc%weasd,sfc%sncovr,  &
+          sfc%zorl, sfc%canopy, sfc%ffmm, &
+          sfc%ffhh, sfc%f10m, diag%srunoff,  &
+          diag%evbsa, diag%evcwa, diag%snohfa, &
+          diag%transa, diag%sbsnoa, diag%snowca,  &
+          diag%soilm, diag%tmpmin, diag%tmpmax, &
+          diag%dusfc, diag%dvsfc, diag%dtsfc,  &
+          diag%dqsfc, diag%totprcp, diag%gflux, &
+          diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
+          diag%runoff, diag%ep, diag%cldwrk, &
+          diag%dugwd, diag%dvgwd, diag%psmean,  &
+          diag%cnvprcp, diag%spfhmin, diag%spfhmax, &
+          diag%rain, diag%rainc, diag%dt3dt,  &
+          diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, &
+          cld%cnvqc_v, tbd%acv, tbd%acvb, tbd%acvt, tbd%slc, &
+          tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
+          tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
+          intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, &
+          intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
+          intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, &
+          intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
+          intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, &
+          intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl, &
+          intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, &
+          intr%xz, intr%zm, intr%xtts, intr%xzts, intr%d_conv, &
+          intr%ifd, intr%dt_cool, intr%Qrain,  &
+          tbd%tref, tbd%z_c, tbd%c_0, tbd%c_d, tbd%w_0, tbd%w_d, &
+! NEW
+          tbd%phy_fctd
 
          ! close file
          close (funit, iostat=ios)
@@ -3803,37 +4310,56 @@
 
          write (funit, iostat=ios, err=900)   &
 ! In/Out
-                 sfc%hice, sfc%fice, sfc%tisfc, sfc%tsfc, tbd%tprcp, cld%cv,  &
-                 cld%cvb, cld%cvt, tbd%srflag, sfc%snowd, sfc%weasd, sfc%sncovr,  &
-                 sfc%zorl, sfc%canopy, sfc%ffmm, sfc%ffhh, sfc%f10m, diag%srunoff,  &
-                 diag%evbsa, diag%evcwa, diag%snohfa, diag%transa, diag%sbsnoa, diag%snowca,  &
-                 diag%soilm, diag%tmpmin, diag%tmpmax, diag%dusfc, diag%dvsfc, diag%dtsfc,  &
-                 diag%dqsfc, diag%totprcp, diag%gflux, diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
-                 diag%runoff, diag%ep, diag%cldwrk, diag%dugwd, diag%dvgwd, diag%psmean,  &
-                 diag%cnvprcp, diag%spfhmin, diag%spfhmax, diag%rain, diag%rainc, diag%dt3dt,  &
-                 diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, cld%cnvqc_v, &
-! PT - Possible bug in gsm for these fields
-                 tbd%acv, tbd%acvb, tbd%acvt, &
-                 tbd%slc, tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
-                 tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
-                 intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
-                 intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
-                 intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl,  &
-                 intr%slimskin_cpl, intr%ulwsfcin_cpl, intr%dusfcin_cpl, intr%dvsfcin_cpl, intr%dtsfcin_cpl, intr%dqsfcin_cpl, &
-                 intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, intr%xz, intr%zm,  &
-                 intr%xtts, intr%xzts, intr%d_conv, intr%ifd, intr%dt_cool, intr%Qrain, tbd%phy_fctd, &
+          sfc%hice, sfc%fice, sfc%tisfc,&
+          sfc%tsfc, tbd%tprcp, cld%cv,  &
+          cld%cvb, cld%cvt, tbd%srflag, &
+          sfc%snowd, sfc%weasd,sfc%sncovr,  &
+          sfc%zorl, sfc%canopy, sfc%ffmm, &
+          sfc%ffhh, sfc%f10m, diag%srunoff,  &
+          diag%evbsa, diag%evcwa, diag%snohfa, &
+          diag%transa, diag%sbsnoa, diag%snowca,  &
+          diag%soilm, diag%tmpmin, diag%tmpmax, &
+          diag%dusfc, diag%dvsfc, diag%dtsfc,  &
+          diag%dqsfc, diag%totprcp, diag%gflux, &
+          diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
+          diag%runoff, diag%ep, diag%cldwrk, &
+          diag%dugwd, diag%dvgwd, diag%psmean,  &
+          diag%cnvprcp, diag%spfhmin, diag%spfhmax, &
+          diag%rain, diag%rainc, diag%dt3dt,  &
+          diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, &
+          cld%cnvqc_v, tbd%acv, tbd%acvb, tbd%acvt, tbd%slc, &
+          tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
+          tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
+          intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, &
+          intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
+          intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, &
+          intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
+          intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, &
+          intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl, &
+          intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, &
+          intr%xz, intr%zm, intr%xtts, intr%xzts, intr%d_conv, &
+          intr%ifd, intr%dt_cool, intr%Qrain,  &
+          tbd%tref, tbd%z_c, tbd%c_0, tbd%c_d, tbd%w_0, tbd%w_d, &
+! NEW
+          tbd%phy_fctd, &
 ! Out
-                 stateout%gt0, stateout%gq0, stateout%gu0, stateout%gv0, sfc%t2m, sfc%q2m,  &
-                 diag%u10m, diag%v10m, diag%zlvl, diag%psurf, diag%hpbl, diag%pwat,  &
-                 diag%t1, diag%q1, diag%u1, diag%v1, diag%chh, diag%cmm,  &
-                 diag%dlwsfci, diag%ulwsfci, diag%dswsfci, diag%uswsfci, diag%dusfci, diag%dvsfci,  &
-                 diag%dtsfci, diag%dqsfci, diag%gfluxi, diag%epi, diag%smcwlt2, diag%smcref2,  &
-                 diag%wet1, diag%sr, rad%rqtk, rad%dtdtr, intr%dusfci_cpl, intr%dvsfci_cpl, intr%dtsfci_cpl,  &
-                 intr%dqsfci_cpl, intr%dlwsfci_cpl, intr%dswsfci_cpl, intr%dnirbmi_cpl, intr%dnirdfi_cpl, intr%dvisbmi_cpl,  &
-                 intr%dvisdfi_cpl, intr%nlwsfci_cpl, intr%nswsfci_cpl, intr%nnirbmi_cpl, intr%nnirdfi_cpl, intr%nvisbmi_cpl,  &
-                 intr%nvisdfi_cpl, intr%t2mi_cpl, intr%q2mi_cpl, intr%u10mi_cpl, intr%v10mi_cpl, intr%tseai_cpl,  &
-                 intr%psurfi_cpl, tbd%tref, tbd%z_c, tbd%c_0,  &
-                 tbd%c_d, tbd%w_0, tbd%w_d
+          stateout%gt0, stateout%gq0, stateout%gu0, stateout%gv0, &
+          sfc%t2m, sfc%q2m, diag%u10m, diag%v10m, diag%zlvl, &
+          diag%psurf, diag%hpbl, diag%pwat,  &
+          diag%t1, diag%q1, diag%u1, diag%v1, diag%chh, diag%cmm, &
+          diag%dlwsfci, diag%ulwsfci, diag%dswsfci, &
+          diag%uswsfci, diag%dusfci, diag%dvsfci,  &
+          diag%dtsfci, diag%dqsfci, diag%gfluxi, &
+          diag%epi, diag%smcwlt2, diag%smcref2,  &
+          diag%wet1, diag%sr, rad%rqtk, rad%dtdtr, &
+          intr%dusfci_cpl, intr%dvsfci_cpl, intr%dtsfci_cpl,  &
+          intr%dqsfci_cpl, intr%dlwsfci_cpl, intr%dswsfci_cpl, &
+          intr%dnirbmi_cpl, intr%dnirdfi_cpl, intr%dvisbmi_cpl, &
+          intr%dvisdfi_cpl, intr%nlwsfci_cpl, intr%nswsfci_cpl, &
+          intr%nnirbmi_cpl, intr%nnirdfi_cpl, intr%nvisbmi_cpl, &
+          intr%nvisdfi_cpl, intr%t2mi_cpl, intr%q2mi_cpl, &
+          intr%u10mi_cpl, intr%v10mi_cpl, intr%tseai_cpl,  &
+          intr%psurfi_cpl
 
          flush (funit, iostat=ios, err=900)
 
@@ -3939,35 +4465,56 @@
 
          read (funit, iostat=ios, err=900)   &
 ! In/Out
-                 sfc%hice, sfc%fice, sfc%tisfc, sfc%tsfc, tbd%tprcp, cld%cv,  &
-                 cld%cvb, cld%cvt, tbd%srflag, sfc%snowd, sfc%weasd, sfc%sncovr,  &
-                 sfc%zorl, sfc%canopy, sfc%ffmm, sfc%ffhh, sfc%f10m, diag%srunoff,  &
-                 diag%evbsa, diag%evcwa, diag%snohfa, diag%transa, diag%sbsnoa, diag%snowca,  &
-                 diag%soilm, diag%tmpmin, diag%tmpmax, diag%dusfc, diag%dvsfc, diag%dtsfc,  &
-                 diag%dqsfc, diag%totprcp, diag%gflux, diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
-                 diag%runoff, diag%ep, diag%cldwrk, diag%dugwd, diag%dvgwd, diag%psmean,  &
-                 diag%cnvprcp, diag%spfhmin, diag%spfhmax, diag%rain, diag%rainc, diag%dt3dt,  &
-                 diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, cld%cnvqc_v, tbd%acv, tbd%acvb,  &
-                 tbd%acvt, tbd%slc, tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
-                 tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
-                 intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
-                 intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
-                 intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl,  &
-                 intr%slimskin_cpl, intr%dusfcin_cpl, intr%dvsfcin_cpl, intr%dtsfcin_cpl, intr%dqsfcin_cpl, intr%ulwsfcin_cpl, &
-                 intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, intr%xz, intr%zm,  &
-                 intr%xtts, intr%xzts, intr%d_conv, intr%ifd, intr%dt_cool, intr%Qrain, tbd%phy_fctd, &
+          sfc%hice, sfc%fice, sfc%tisfc,&
+          sfc%tsfc, tbd%tprcp, cld%cv,  &
+          cld%cvb, cld%cvt, tbd%srflag, &
+          sfc%snowd, sfc%weasd,sfc%sncovr,  &
+          sfc%zorl, sfc%canopy, sfc%ffmm, &
+          sfc%ffhh, sfc%f10m, diag%srunoff,  &
+          diag%evbsa, diag%evcwa, diag%snohfa, &
+          diag%transa, diag%sbsnoa, diag%snowca,  &
+          diag%soilm, diag%tmpmin, diag%tmpmax, &
+          diag%dusfc, diag%dvsfc, diag%dtsfc,  &
+          diag%dqsfc, diag%totprcp, diag%gflux, &
+          diag%dlwsfc, diag%ulwsfc, diag%suntim,  &
+          diag%runoff, diag%ep, diag%cldwrk, &
+          diag%dugwd, diag%dvgwd, diag%psmean,  &
+          diag%cnvprcp, diag%spfhmin, diag%spfhmax, &
+          diag%rain, diag%rainc, diag%dt3dt,  &
+          diag%dq3dt, diag%du3dt, diag%dv3dt, diag%dqdt_v, &
+          cld%cnvqc_v, tbd%acv, tbd%acvb, tbd%acvt, tbd%slc, &
+          tbd%smc, tbd%stc, tbd%upd_mf, tbd%dwn_mf,  &
+          tbd%det_mf, tbd%phy_f3d, tbd%phy_f2d, &
+          intr%dusfc_cpl, intr%dvsfc_cpl, intr%dtsfc_cpl, &
+          intr%dqsfc_cpl, intr%dlwsfc_cpl,  &
+          intr%dswsfc_cpl, intr%dnirbm_cpl, intr%dnirdf_cpl, &
+          intr%dvisbm_cpl, intr%dvisdf_cpl, intr%rain_cpl,  &
+          intr%nlwsfc_cpl, intr%nswsfc_cpl, intr%nnirbm_cpl, &
+          intr%nnirdf_cpl, intr%nvisbm_cpl, intr%nvisdf_cpl, &
+          intr%snow_cpl, intr%xt, intr%xs, intr%xu, intr%xv, &
+          intr%xz, intr%zm, intr%xtts, intr%xzts, intr%d_conv, &
+          intr%ifd, intr%dt_cool, intr%Qrain,  &
+          tbd%tref, tbd%z_c, tbd%c_0, tbd%c_d, tbd%w_0, tbd%w_d, &
+! NEW
+          tbd%phy_fctd, &
 ! Out
-                 stateout%gt0, stateout%gq0, stateout%gu0, stateout%gv0, sfc%t2m, sfc%q2m,  &
-                 diag%u10m, diag%v10m, diag%zlvl, diag%psurf, diag%hpbl, diag%pwat,  &
-                 diag%t1, diag%q1, diag%u1, diag%v1, diag%chh, diag%cmm,  &
-                 diag%dlwsfci, diag%ulwsfci, diag%dswsfci, diag%uswsfci, diag%dusfci, diag%dvsfci,  &
-                 diag%dtsfci, diag%dqsfci, diag%gfluxi, diag%epi, diag%smcwlt2, diag%smcref2,  &
-                 diag%wet1, diag%sr, rad%rqtk, rad%dtdtr, intr%dusfci_cpl, intr%dvsfci_cpl, intr%dtsfci_cpl,  &
-                 intr%dqsfci_cpl, intr%dlwsfci_cpl, intr%dswsfci_cpl, intr%dnirbmi_cpl, intr%dnirdfi_cpl, intr%dvisbmi_cpl,  &
-                 intr%dvisdfi_cpl, intr%nlwsfci_cpl, intr%nswsfci_cpl, intr%nnirbmi_cpl, intr%nnirdfi_cpl, intr%nvisbmi_cpl,  &
-                 intr%nvisdfi_cpl, intr%t2mi_cpl, intr%q2mi_cpl, intr%u10mi_cpl, intr%v10mi_cpl, intr%tseai_cpl,  &
-                 intr%psurfi_cpl, tbd%tref, tbd%z_c, tbd%c_0,  &
-                 tbd%c_d, tbd%w_0, tbd%w_d
+          stateout%gt0, stateout%gq0, stateout%gu0, stateout%gv0, &
+          sfc%t2m, sfc%q2m, diag%u10m, diag%v10m, diag%zlvl, &
+          diag%psurf, diag%hpbl, diag%pwat,  &
+          diag%t1, diag%q1, diag%u1, diag%v1, diag%chh, diag%cmm, &
+          diag%dlwsfci, diag%ulwsfci, diag%dswsfci, &
+          diag%uswsfci, diag%dusfci, diag%dvsfci,  &
+          diag%dtsfci, diag%dqsfci, diag%gfluxi, &
+          diag%epi, diag%smcwlt2, diag%smcref2,  &
+          diag%wet1, diag%sr, rad%rqtk, rad%dtdtr, &
+          intr%dusfci_cpl, intr%dvsfci_cpl, intr%dtsfci_cpl,  &
+          intr%dqsfci_cpl, intr%dlwsfci_cpl, intr%dswsfci_cpl, &
+          intr%dnirbmi_cpl, intr%dnirdfi_cpl, intr%dvisbmi_cpl, &
+          intr%dvisdfi_cpl, intr%nlwsfci_cpl, intr%nswsfci_cpl, &
+          intr%nnirbmi_cpl, intr%nnirdfi_cpl, intr%nvisbmi_cpl, &
+          intr%nvisdfi_cpl, intr%t2mi_cpl, intr%q2mi_cpl, &
+          intr%u10mi_cpl, intr%v10mi_cpl, intr%tseai_cpl,  &
+          intr%psurfi_cpl
 
          ! close file
          close (funit, iostat=ios)

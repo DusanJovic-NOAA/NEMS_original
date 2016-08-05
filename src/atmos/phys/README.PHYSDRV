@@ -1,5 +1,20 @@
 NCEP GFS Physics Driver/Wrapper 
 ----------------------------------------------------------
+Aug 3, 2016
+NGGPS Distribution v 2.6.0
+The physics driver is updated in NEMS/GSM. 
+With the requirement of EMC developers the physics driver is temperally turned off as the default option. Turing it on can be made in GSM/phys/compns_physics.f   by changing the use_nuopc = .true.
+
+In this update, the modification above the previous commit include:
+1, ozone physics and ozoine initialization in included in the physics driver.  Associated functions include ozoneini called in gfs_physics_initialize_mod.f. and ozone interploate in nuopc_phys_run.
+
+2, Stratospheric H2O parameterization is also included in the physics driver. Associated functions include h2oini called in gfs_physics_initialize_mod.f. and stratospheric h2o interploate over vertical levels in nuopc_phys_run.
+
+3, Add stochastic physics into the physics driver. This include the new subroutine nuopc_sppt_phys, which summarize all calculation of stochastic physics in the orginal code.
+
+4, add other update include the nsst and aerol calling into the physics driver.
+
+5, the data savein function for the standalone physics driver is also updated. To use it, users have to comment out the savein functions in gloopb and gloopr. Further update in the standalone driver will be made in the branch before the physics is fullly connected to the physics driver.  
 
 April 12, 2016
 
