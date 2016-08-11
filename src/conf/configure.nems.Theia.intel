@@ -5,6 +5,14 @@
 
 SHELL           = /bin/sh
 
+###################### PHYS_MODE ##### CHEM_MODE ###############################
+#
+#    
+#
+
+PHYS_MODE	= compile
+CHEM_MODE	= compile
+
 ################################################################################
 ## Include the common configuration parts
 

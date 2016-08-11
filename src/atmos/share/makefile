@@ -10,8 +10,8 @@ MODULES_F90  = module_ERR_MSG.o \
 	       check_esmf_pet.o \
                module_TIMERS.o 
 
-MODULES_F77 = idea_composition.o \
-	       mersenne_twister.o  \
+#MODULES_F77 = idea_composition.o \
+#	       mersenne_twister.o  \
 
 MODULES_ALL = $(MODULES_F90) $(MODULES_F77)
 

@@ -20,11 +20,12 @@ copy_diff_files(){
 #
 # Standard
 #
+
 if [[ $1 = nmmb_intel_theia ]]; then
      set -x
      copy_diff_files conf/configure.nems.Theia.intel_nmmb conf/configure.nems
      touch conf/externals.nems
-     copy_diff_files conf/modules.nems.Theia_ESMF_7_nmmb conf/modules.nems
+     copy_diff_files conf/modules.nems.Theia_ESMF_700_nmmb conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      set +x
      echo "NEMS/NMMB build on Theia using Intel and ESMF v7.0.0"
@@ -40,7 +41,7 @@ elif [[ $1 = gsm_intel_theia ]]; then
      set -x
      copy_diff_files conf/configure.nems.Theia.intel_gsm conf/configure.nems
      touch conf/externals.nems
-     copy_diff_files conf/modules.nems.Theia_ESMF_7_gsm conf/modules.nems
+     copy_diff_files conf/modules.nems.Theia_ESMF_700_gsm conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      set +x
      echo "NEMS/GSM build on Theia using Intel and ESMF v7.0.0"

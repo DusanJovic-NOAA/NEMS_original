@@ -25,6 +25,6 @@ export TPN=$TPN_fltr
 export INPES=$INPES_fltr
 export JNPES=$JNPES_fltr
 export WTPG=$WTPG_fltr
-export WLCLK=10
+export WLCLK=15
 
 RUN_SCRIPT=rt_nmm.sh

@@ -6,6 +6,15 @@ ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 gfs=gsm
 gfsdir=atmos/$(gfs)
+###################### PHYS_MODE ##### CHEM_MODE ###############################
+#
+#
+#
+#
+PHYS_MODE       =compile
+CHEM_MODE       =compile
+#
+################################################################################
 
  NETCDF_INC = -I/usrx/local/NetCDF/4.2/serial/include
 ##NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a

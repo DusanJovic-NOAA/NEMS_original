@@ -10,6 +10,14 @@ SHELL           = /bin/sh
 
 include         $(TOP)/conf/configure.nems.NUOPC
 
+###################### PHYS_MODE ##### CHEM_MODE ###############################
+#
+#
+#
+
+PHYS_MODE       =compile
+CHEM_MODE       =compile
+
 ################################################################################
 ## Other settings
 

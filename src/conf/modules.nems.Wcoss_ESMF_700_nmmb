@@ -2,6 +2,10 @@ module purge
 module load ics/15.0.3 ibmpe lsf NetCDF/4.2/serial
 module use /nems/save/Patrick.Tripp/modulefiles
 module load esmf/7.0.0
+#module use ESMF/700
+module use -a /usrx/local/nceplibs/NEMSmodulefiles
+module load chem/10.0.10wcoss phys/10.0.10wcoss
+
 
 
 ##

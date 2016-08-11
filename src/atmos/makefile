@@ -2,7 +2,7 @@ include ../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCS = -Ishare -Inmm -I$(gfs) -Ifim -Iphys -Igen
+UTILINCS = -Ishare -Inmm -I$(gfs) -Ifim -I$(PHYS_INC) -Igen
 
 LIBRARY  = libatmos.a
 
@@ -23,7 +23,9 @@ $(MODULES): %.o: %.f90
 
 clean:
 	cd share        && gmake clean
-	cd phys         && gmake clean
+ifeq ($(PHYS_MODE),compile)
+	cd gsm/gsmphys         && gmake clean
+endif
 	cd nmm          && gmake clean
 	cd io           && gmake clean
 	cd $(gfs)       && gmake clean

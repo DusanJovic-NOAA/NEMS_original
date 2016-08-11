@@ -37,6 +37,6 @@ export TPN=$TPN_mvg2
 export INPES=$INPES_mvg2
 export JNPES=$JNPES_mvg2
 export WTPG=$WTPG_mvg2
-export WLCLK=10
+export WLCLK=13
 
 RUN_SCRIPT=rt_nmm.sh

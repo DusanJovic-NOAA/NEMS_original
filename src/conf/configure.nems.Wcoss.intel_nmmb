@@ -6,6 +6,15 @@ ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 gfs=gsm
 gfsdir=atmos/$(gfs)
+###################### PHYS_MODE ##### CHEM_MODE ###############################
+#
+#
+#
+
+PHYS_MODE       =compile
+CHEM_MODE       =compile
+
+################################################################################
 
 NETCDF_INC  = $(NETCDF_INCLUDE)
 NETCDF_LIB  = $(NETCDF_LDFLAGS)
@@ -13,6 +22,16 @@ NETCDF_LIB  = $(NETCDF_LDFLAGS)
 W3_LIB      = ${W3NCO_LIBd} ${W3EMC_LIBd}
 BACIO_LIB   = ${BACIO_LIB4}
 SP_LIB      = ${SP_LIBd}
+
+###################### PHYS_MODE ##### CHEM_MODE ###############################
+#
+#
+#
+#
+PHYS_MODE       =compile
+CHEM_MODE       =compile
+#
+################################################################################
 
 POSTDIR     = /global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
 POSTMOD     = ${POSTDIR}/incmod/post_4

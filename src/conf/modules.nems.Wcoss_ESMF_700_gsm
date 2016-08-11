@@ -1,3 +1,7 @@
 module purge
-module load EnvVars/1.0.0 ics/15.0.3 lsf NetCDF/4.2/serial ibmpe ESMF/700
-#module load EnvVars/1.0.0 ics/15.0.3 lsf ics/14.0.1 NetCDF/4.2/serial ibmpe ESMF/700
+module load EnvVars/1.0.0 ibmpe lsf ics/14.0.1 NetCDF/4.2/serial
+module use /nems/save/Patrick.Tripp/modulefiles
+module load esmf/7.0.0
+#module load ESMF/700
+module use -a /usrx/local/nceplibs/NEMSmodulefiles
+module load chem/10.0.10wcoss phys/10.0.10wcoss

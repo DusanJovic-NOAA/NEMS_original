@@ -1,4 +1,4 @@
-SHELL = /bin/sh
+SHELL = /bin/sh -x
 
 export TOP := $(shell pwd)
 
@@ -269,19 +269,40 @@ ifneq (,$(findstring $(COMMA)wrfhydro$(COMMA),$(COMP)))
 endif
 ################################################################################
 
+# development with NEMS phys to be compiled every time. Assumes std phys location
+# no pre-build libphys.a will be used 
+#  PHYS_MODE must be set as "compile"
+
+ifeq ($(PHYS_MODE),compile)
+	PHYS_LIB = $(TOP)/atmos/gsm/gsmphys
+	PHYS_INC = $(TOP)/atmos/gsm/gsmphys
+	PHYS_DIR = $(TOP)/atmos/gsm/gsmphys
+endif
+ifeq ($(CHEM_MODE),compile)
+        CHEM_LIB = $(TOP)/chem
+        CHEM_INC = $(TOP)/chem/gocart/src/Config/
+        CHEM_DIR = $(TOP)/chem
+	CHEM_MOD = $(TOP)/chem/gocart/${ARCH}/include
+ESMADIR=chem/gocart
+include $(ESMADIR)/src/Config/NCEP_base.mk
+endif
+
+
 CPPFLAGS += $(DEP_FRONTS)
 
 TARGET = ../exe/NEMS.x
 
 INCS = -Iatmos \
-       -Ichem \
+	-I$(CHEM_MOD) \
        -Iatmos/share \
        -IENS_Cpl \
        -Iatmos/nmm \
        -Iatmos/fim \
        -I$(gfsdir) \
-       -Iatmos/phys \
+       -I$(PHYS_INC) \
+	-I. \
        -Iatmos/gen \
+	-Iatmos/share \
        $(DEP_INCS)
 
 MAIN = MAIN_NEMS.o
@@ -304,7 +325,7 @@ LIBS = atmos/libatmos.a                 \
        atmos/fim/libfimtop.a            \
        $(gfsdir)/libutil/gfs_libutil.a  \
        $(gfsdir)/phys/gfs_physics.a     \
-       atmos/phys/libphys.a             \
+       $(PHYS_LIB)/libphys.a             \
        $(gfsdir)/dyn/gfs_dynamics.a     \
        atmos/share/libshare.a           \
        atmos/post/libpost.a             \
@@ -318,7 +339,7 @@ LIBS_NMM = atmos/libatmos.a             \
            $(gfsdir)/libgfs.a           \
            atmos/fim/libfimtop.a        \
            atmos/gen/libgen.a           \
-           atmos/phys/libphys.a         \
+           $(PHYS_LIB)/libphys.a         \
            atmos/share/libshare.a       \
            atmos/post/libpost.a         \
            $(DEP_LINK_OBJS)             \
@@ -330,7 +351,7 @@ LIBS_GEN = atmos/libatmos.a             \
            $(gfsdir)/libgfs.a           \
            atmos/fim/libfimtop.a        \
            atmos/gen/libgen.a           \
-           atmos/phys/libphys.a         \
+           $(PHYS_LIB)/libphys.a         \
            atmos/share/libshare.a       \
            atmos/post/libpost.a         \
            $(DEP_LINK_OBJS)             \
@@ -371,17 +392,40 @@ MAKEFILE = makefile
 # GOCART specific compilation variables/flags
 #
 GOCART_MODE=stub
-ESMADIR=chem/gocart
-include $(ESMADIR)/src/Config/NCEP_base.mk
+ESMADIR=$(CHEM_DIR)
+include $(CHEM_INC)/NCEP_base.mk
 
 ifeq ($(GOCART_MODE),stub)
 	LIBGOCART=
 else
 	LIBGOCART=$(LIB_GOCART)
+		CHEM_LIB=$(CHEM_DIR)_full/$(CHEM_VER)
+		CHEM_MOD=$(CHEM_LIB)/mod
+		CHEM_INC=$(CHEM_LIB)/include
+		PHYS_LIB=$(PHYS_DIR)_full/$(CHEM_VER)
+		PHYS_MOD=$(PHYS_LIB)/mod
+		PHYS_INC=$(PHYS_LIB)/include
 endif
+
+ifeq ($(PHYS_MODE),compile)
+        PHYS_LIB = $(TOP)/atmos/gsm/gsmphys
+        PHYS_INC = $(TOP)/atmos/gsm/gsmphys
+        PHYS_DIR = $(TOP)/atmos/gsm/gsmphys
+endif
+ifeq ($(CHEM_MODE),compile)
+        CHEM_LIB = $(TOP)/chem/gocart
+        CHEM_INC = $(TOP)/chem/gocart/src/Config
+        CHEM_DIR = $(TOP)/chem
+	CHEM_MOD = $(TOP)/chem/gocart/${ARCH}/include
+ESMADIR=chem/gocart
+include $(ESMADIR)/src/Config/NCEP_base.mk
+endif
+
+
+
 export GOCART_MODE
-
-
+ESMADIR=$(CHEM_LIB)
+include $(CHEM_INC)/NCEP_base.mk
 #
 # log info
 #
@@ -407,7 +451,7 @@ endif
 #
 ################################################################################
 all:
-	@echo
+	@echo "       CHEM_MODi----------->" $(CHEM_MOD)
 	@echo " gmake nmm_gsm ----------------------------- NMM and GSM - without the GOCART"
 	@echo " gmake gen --------------------------------- GEN "
 	@echo " gmake gsm_gen_post GOCART_MODE=full ------- GEN and GSM - with the GOCART and post"
@@ -445,8 +489,11 @@ nmm: nmm_libs $(OBJS) $(COBJS) $(MAIN)
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_libs:
+	@echo "       CHEM_MODi----------->" $(CHEM_MOD)
 	cd atmos/share         && gmake $(J)
-	cd atmos/phys          && gmake $(J) gocart_stub
+ifeq ($(PHYS_MODE),compile)
+	cd atmos/gsm/gsmphys          && gmake $(J) gocart_stub
+endif
 	cd atmos/nmm           && gmake $(J)
 	cd $(gfsdir)           && gmake stub
 	cd atmos/gen           && gmake stub
@@ -467,7 +514,9 @@ nmm_post: nmm_post_libs $(OBJS) $(COBJS) $(MAIN)
 
 nmm_post_libs:
 	cd atmos/share         && gmake $(J)
-	cd atmos/phys          && gmake $(J) gocart_stub
+ifeq ($(PHYS_MODE),compile)
+	cd atmos/gsm/gsmphys          && gmake $(J) gocart_stub
+endif
 	cd atmos/nmm           && gmake $(J)
 	cd $(gfsdir)           && gmake stub
 	cd atmos/gen           && gmake stub
@@ -483,20 +532,30 @@ nmm_post_libs:
 ################################################################################
 
 gsm: gsm_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(LDFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS) $(LDFLAGS_MAP)
-
-#	$(FC) $(LDFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS) -Wl,--print-map
+	@echo "       CHEM_MODE ----------->"$(CHEM_MODE)
+	@echo "       PHYS_MODE ----------->"$(PHYS_MODE)
+	@echo "       PHYS_INC----------->"$(PHYS_INC)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a  $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
 	@echo "NEMS.x successfully created for GSM core."
 
 gsm_libs:
 ifeq ($(GOCART_MODE),full)
+ifeq ($(CHEM_MODE),compile)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
+endif
+	@echo "       CHEM_MODE ----------->" $(CHEM_MODE)
+	@echo "       PHYS_MODE ----------->" $(PHYS_MODE)
+	 @echo "       PHYS_INC----------->"$(PHYS_INC)
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
+ifeq ($(PHYS_MODE),compile)
+	@echo "       CHEM_MODi----before phys------->" $(CHEM_MOD)
+	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
+endif
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/io            && gmake
+	echo "       CHEM_MODi----------->ediri" $(CHEM_MOD)
 	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
@@ -515,10 +574,14 @@ gsm_post: gsm_post_libs $(OBJS) $(COBJS) $(MAIN)
 
 gsm_post_libs:
 ifeq ($(GOCART_MODE),full)
+	ifeq ($(CHEM_MODE),compile)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	endif
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
+ifeq ($(PHYS_MODE),compile)
+	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
+endif
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/io            && gmake
@@ -540,7 +603,9 @@ gen: gen_libs $(OBJS) $(COBJS) $(MAIN)
 
 gen_libs:
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake
+ifeq ($(PHYS_MODE),compile)
+	cd atmos/gsm/gsmphys          && gmake
+endif
 	cd atmos/nmm           && gmake stub
 	cd $(gfsdir)     && gmake stub
 	cd atmos/fim           && gmake stub
@@ -562,10 +627,14 @@ nmm_gsm_gen: nmm_gsm_gen_libs $(OBJS) $(COBJS) $(MAIN)
 
 nmm_gsm_gen_libs:
 ifeq ($(GOCART_MODE),full)
+	ifeq ($(CHEM_MODE),compile)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	endif
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
+ifeq ($(PHYS_MODE),compile)
+	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
+endif
 	cd atmos/nmm           && gmake
 	cd atmos/io            && gmake
 	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
@@ -587,11 +656,16 @@ gsm_gen_post: gsm_gen_post_libs $(OBJS) $(COBJS) $(MAIN)
 
 gsm_gen_post_libs:
 ifeq ($(GOCART_MODE),full)
+	ifeq ($(CHEM_MODE),compile)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	endif
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
+ifeq ($(PHYS_MODE),compile)
+	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
+endif
 	cd atmos/nmm           && gmake stub
+
 	cd atmos/io            && gmake
 	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/gen           && gmake
@@ -612,10 +686,14 @@ nmm_gsm: nmm_gsm_libs $(OBJS) $(COBJS) $(MAIN)
 
 nmm_gsm_libs:
 ifeq ($(GOCART_MODE),full)
+	ifeq ($(CHEM_MODE),compile)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	endif
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
+ifeq ($(PHYS_MODE),compile)
+	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
+endif
 	cd atmos/nmm           && gmake
 	cd atmos/io            && gmake
 	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
@@ -680,7 +758,9 @@ fim_gsm_libs:
 clean:
 	cd atmos               && gmake clean
 	cd ENS_Cpl             && gmake clean
-	cd chem                && gmake clean GOCART_MODE=full
+ifeq ($(CHEM_MODE),compile)
+		cd chem                && gmake clean GOCART_MODE=full
+endif
 	$(RM) -f *.f90 *.lst *.o *.mod lm map $(TARGET)
 
 .SUFFIXES:
