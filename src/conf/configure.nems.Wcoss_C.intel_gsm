@@ -11,17 +11,6 @@ STDC_LIB= -lstdc++
 
 gfs=gsm
 gfsdir=atmos/$(gfs)
-###################### PHYS_MODE ##### CHEM_MODE ###############################
-#	E.Mirvis 8/15/16
-#      prebld options work fine on WCOSS ph I & II 
-#      but not yet on Crays yet - under development, however with default options 
-#      "compile" it should work on Crays as before
-#
-#
-PHYS_MODE       =compile
-CHEM_MODE       =compile
-#
-################################################################################
 
 ##NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
  NETCDF_INC  = /gpfs/hps/usrx/local/prod/NetCDF/3.6.3/intel/haswell/include
