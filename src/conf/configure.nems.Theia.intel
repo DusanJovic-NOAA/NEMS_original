@@ -37,12 +37,12 @@ SP_LIB       = -L${LIBDIR} -lsp_d
 SYS_LIB      =
  
 EXTLIBS      = $(NEMSIO_LIB) \
-               $(BACIO_LIB) \
-               $(W3_LIB) \
-               $(SP_LIB) \
+               $(BACIO_LIB)  \
+               $(W3_LIB)     \
+               $(SP_LIB)     \
                $(NETCDF_LIB) \
-               $(ESMF_LIB) \
-               $(SYS_LIB)
+               $(ESMF_LIB)   \
+               $(SYS_LIB) -lm
 
 ## for the post quilting option
 POSTMOD     = ${POSTDIR}/incmod/post_4
@@ -55,18 +55,18 @@ XML_LIB     = -L${PARADIR} -lxmlparse
 SIGIO_LIB   = -L${LIBDIR} -lsigio_4
 SFCIO_LIB   = -L${LIBDIR} -lsfcio
 
-EXTLIBS_POST = $(NEMSIO_LIB) \
-               $(POST_LIB) \
+EXTLIBS_POST = $(NEMSIO_LIB)  \
+               $(POST_LIB)    \
                $(W3_POST_LIB) \
-               $(XML_LIB) \
-               $(G2_LIB) \
-               $(BACIO_LIB) \
-               $(SIGIO_LIB) \
-               $(SFCIO_LIB) \
-               $(SP_LIB) \
-               $(CRTM_LIB) \
-               $(ESMF_LIB) \
-               $(NETCDF_LIB) \
+               $(XML_LIB)     \
+               $(G2_LIB)      \
+               $(BACIO_LIB)   \
+               $(SIGIO_LIB)   \
+               $(SFCIO_LIB)   \
+               $(SP_LIB)      \
+               $(CRTM_LIB)    \
+               $(ESMF_LIB)    \
+               $(NETCDF_LIB)  \
                $(SYS_LIB)
 ###
 FC          = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -openmp -convert big_endian -assume byterecl -mkl=sequential
@@ -97,7 +97,7 @@ FFLAGS_FIM   = $(OPTS_FIM) $(FFLAGS)
 
 FPP          = -fpp
 CPP          = /lib/cpp -P -traditional
-CPPFLAGS     = -DCHNK_RRTM=8  -DENABLE_SMP -DTHREAD_2D
+CPPFLAGS     = -DENABLE_SMP -DCHNK_RRTM=8 -DNEMS_GSM
 
 AR           = ar
 ARFLAGS      = -r

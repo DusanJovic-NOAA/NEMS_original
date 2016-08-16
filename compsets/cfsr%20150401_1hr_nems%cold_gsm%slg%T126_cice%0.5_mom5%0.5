@@ -10,9 +10,13 @@
 
 export TEST_DESCR="NUOPC: SLG GSM <-900s-> MED <-900s-> CICE <-900s-> MED <-1800s-> MOM5 ... 1 hour"
 
+# - NEMS configuration ---
+export NEMS_CASE=cfsr%20150401
+export NEMS_GRID=gsm%slg%T126_cice%0.5_mom5%0.5
 
 # - gsm configuration ---
 export_gsm
+export IC_DIR=$DATADIR/GSM/T126_CFSR_mask%0.5
 export TASKS=40
 export WLCLK=30
 export CDATE=2015040100
@@ -26,8 +30,6 @@ export FHZER=1
 export FHOUT=1
 # export FHRES=1440    # set to a somewhat arbitrary large number for now
 # export FHROT=0
-export NEMS_GRID='T126_mx5'
-#export NEMS_GRID='T126_nx1'
 export FHOUT_HF=1
 export FHMAX_HF=0
 export DELTIM=900
@@ -36,17 +38,17 @@ export SLG=.true.
 export ADIABATIC=.false.
 export IAER=111
 
-# export NEMSIOIN=.true.
-# export NEMSIOOUT=.true.
-# export SIGIOIN=.false.
-# export SIGIOOUT=.false.
-# export SFCIOOUT=.false.
+export NEMSIOIN=.true.
+export NEMSIOOUT=.true.
+export SIGIOIN=.false.
+export SIGIOOUT=.false.
+export SFCIOOUT=.false.
 
-export NEMSIOIN=.false.
-export NEMSIOOUT=.false.
-export SIGIOIN=.true.
-export SIGIOOUT=.true.
-export SFCIOOUT=.true.
+#export NEMSIOIN=.false.
+#export NEMSIOOUT=.false.
+#export SIGIOIN=.true.
+#export SIGIOOUT=.true.
+#export SFCIOOUT=.true.
 
 export WTPG=1
 export WRTGP=1
@@ -101,6 +103,13 @@ export med_model=nems
 export med_petlist_bounds="0 39"    #40
 export coupling_interval_slow_sec=1800.0
 export coupling_interval_fast_sec=900.0
+if [ $MACHINE_ID = yellowstone ]; then
+export TASKS=84
+export atm_petlist_bounds="0 31"     #32
+export ocn_petlist_bounds="32 63"    #32
+export ice_petlist_bounds="64 83"    #20
+export med_petlist_bounds="64 83"    #20
+fi
 
 # - component specific setup calls ---
 setup_cice
@@ -110,7 +119,7 @@ setup_mom5
 RUN_SCRIPT=rt_gfs.sh
 
 # - validation
-export CNTL_DIR=cfsr%20150401_1hr_nems%cold_gsm%slg%T126_cice%0.5_mom5%0.5_V0008
+export CNTL_DIR=cfsr%20150401_1hr_nems%cold_gsm%slg%T126_cice%0.5_mom5%0.5_V0010
 export LIST_FILES=" \
  sigf00 sigf01 \
  sfcf00 sfcf01 \

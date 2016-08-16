@@ -129,7 +129,7 @@ fi
 
 # -- component specific setup functions
 
-setup_med_nems(){
+setup_med_nems_old(){
   echo "setup_med_nems ... "
   nemsgrid="nx1"
   nemsgridinp=""
@@ -152,6 +152,19 @@ setup_med_nems(){
   fi
   echo "NEMSCompsetRun setup_med_nems MED_INPUT = ${MED_INPUT}"
 
+  cp -pf ${MED_INPUT}/* ${RUNDIR}
+  echo  "...done."
+}
+
+setup_med_nems(){
+  echo "setup_med_nems ... "
+  VERSION=03
+  SV=${VERSION}.0
+  if [ -n "$V_FILES_MED" ] ; then
+    SV=${V_FILES_MED}
+  fi
+  MED_INPUT=${DATADIR}/MED_NEMS/V${VERSION}/${NEMS_CASE}/${NEMS_GRID}/V${SV}
+  echo "NEMSCompsetRun setup_med_nems MED_INPUT = ${MED_INPUT}"
   cp -pf ${MED_INPUT}/* ${RUNDIR}
   echo  "...done."
 }
@@ -214,7 +227,7 @@ setup_hycom_Core2-1.6(){
   echo  "done."
 }
 
-setup_mom5(){
+setup_mom5_old(){
   ocngrid="nx1"
   inpversion=""
   echo "NEMS_GRID = $NEMS_GRID"
@@ -229,14 +242,12 @@ setup_mom5(){
   #echo "NEMSCompsetRun ocngrid = ${ocngrid}"
   #echo "NEMSCompsetRun ocn inpversion = ${inpversion}"
 
-  if [ $MACHINE_ID = zeus ] ; then
-    OCN_INPUT=/scratch1/portfolios/NCEPDEV/ocean/noscrub/Fei.Liu/global_box1/INPUT
-  elif [ $MACHINE_ID = gaea ] ; then
+  if [ $MACHINE_ID = gaea ] ; then
     OCN_INPUT=/lustre/f1/unswept/ncep/Gerhard.Theurich/global_box1/INPUT
   elif [ $MACHINE_ID = theia ] ; then
     OCN_INPUT=${DATADIR}/MOM/${ocngrid}${inpversion}/INPUT
   elif [ $MACHINE_ID = yellowstone ] ; then
-    OCN_INPUT=/glade/p/cgd/cseg/people/tcraig/NEMS_DATA/mom5/${ocngrid}${inpversion}/INPUT
+    OCN_INPUT=${DATADIR}/MOM/${ocngrid}${inpversion}/INPUT
   elif [ $MACHINE_ID = wcoss ] ; then
     OCN_INPUT=${DATADIR}/MOM/${ocngrid}${inpversion}/INPUT
   fi
@@ -255,7 +266,34 @@ setup_mom5(){
   mkdir ${dst_dir}/RESTART
 }
 
-setup_cice(){
+setup_mom5(){
+  echo "setup_mom5 ... "
+  VERSION=01
+  SV=${VERSION}.0
+  if [ -n "$V_FILES_MOM5" ] ; then
+    SV=${V_FILES_MOM5}
+  fi
+  if [ -n "$NEMS_GRID" ] ; then
+    if [[ $NEMS_GRID = *mom5%0.5* ]] ; then
+      OCN_GRID=mom5%0.5
+    fi
+  fi
+  OCN_INPUT=${DATADIR}/MOM5/V${VERSION}/${NEMS_CASE}/${OCN_GRID}/V${SV}
+  echo "NEMSCompsetRun setup_mom5 OCN_INPUT = ${OCN_INPUT}"
+  mkdir ${RUNDIR}/INPUT
+  cp -pf ${OCN_INPUT}/* ${RUNDIR}/INPUT
+  cp ${OCN_INPUT}/input.nml ${RUNDIR}
+  cp ${OCN_INPUT}/diag_table.1hr ${RUNDIR}/diag_table
+  if [ $FHOUT = 6 ] ; then
+    cp ${OCN_INPUT}/diag_table.6hr ${RUNDIR}/diag_table
+  fi
+  cp ${OCN_INPUT}/field_table ${RUNDIR}
+  cp ${OCN_INPUT}/data_table ${RUNDIR}
+  mkdir ${RUNDIR}/RESTART
+  echo  "...done."
+}
+
+setup_cice_old(){
   icegrid="nx1"
   inpversion=""
   echo "NEMS_GRID = $NEMS_GRID"
@@ -270,14 +308,12 @@ setup_cice(){
   #echo "NEMSCompsetRun icegrid = ${icegrid}"
   #echo "NEMSCompsetRun ice inpversion = ${inpversion}"
 
-  if [ $MACHINE_ID = zeus ] ; then
-    ICE_INPUT=/home/Anthony.Craig/lanl_cice_data
-  elif [ $MACHINE_ID = gaea ] ; then
+  if [ $MACHINE_ID = gaea ] ; then
     ICE_INPUT=/lustre/f1/unswept/ncep/Gerhard.Theurich/lanl_cice_data
   elif [ $MACHINE_ID = theia ] ; then
     ICE_INPUT=${DATADIR}/CICE/${icegrid}${inpversion}
   elif [ $MACHINE_ID = yellowstone ] ; then
-    ICE_INPUT=/glade/p/cgd/cseg/people/tcraig/NEMS_DATA/cice/${icegrid}${inpversion}
+    ICE_INPUT=${DATADIR}/CICE/${icegrid}${inpversion}
   elif [ $MACHINE_ID = wcoss ] ; then
     ICE_INPUT=${DATADIR}/CICE/${icegrid}${inpversion}
   fi
@@ -294,6 +330,31 @@ setup_cice(){
 
   mkdir ${dst_dir}/restart
   mkdir ${dst_dir}/history
+}
+
+setup_cice(){
+  echo "setup_cice ... "
+  VERSION=01
+  SV=${VERSION}.0
+  if [ -n "$V_FILES_CICE" ] ; then
+    SV=${V_FILES_CICE}
+  fi
+  if [ -n "$NEMS_GRID" ] ; then
+    if [[ $NEMS_GRID = *cice%0.5* ]] ; then
+      ICE_GRID=cice%0.5
+    fi
+  fi
+  ICE_INPUT=${DATADIR}/CICE/V${VERSION}/${NEMS_CASE}/${ICE_GRID}/V${SV}
+  echo "NEMSCompsetRun setup_cice ICE_INPUT = ${ICE_INPUT}"
+  cp -pf ${ICE_INPUT}/* ${RUNDIR}
+  if [ $SLG = .true. ] ; then
+    cp -f ${ICE_INPUT}/ice_in_slg ${RUNDIR}/ice_in
+  else
+    cp -f ${ICE_INPUT}/ice_in ${RUNDIR}/ice_in
+  fi
+  mkdir ${RUNDIR}/restart
+  mkdir ${RUNDIR}/history
+  echo  "...done."
 }
 
 setup_ipe(){
@@ -316,9 +377,7 @@ setup_ipe(){
 }
 
 setup_spaceweather(){
-  if [ $MACHINE_ID = zeus ] ; then
-    ln -s /scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/SpaceWeatherResources/data ${RUNDIR}/.
-  elif [ $MACHINE_ID = gaea ] ; then
+  if [ $MACHINE_ID = gaea ] ; then
     ln -s /lustre/f1/unswept/ncep/Gerhard.Theurich/SpaceWeatherResources/data ${RUNDIR}/.
   elif [ $MACHINE_ID = theia ] ; then
     ln -s /scratch4/NCEPDEV/nems/noscrub/Gerhard.Theurich/SpaceWeatherResources/data ${RUNDIR}/.
@@ -587,7 +646,6 @@ if [ $MACHINE_ID = wcoss ]; then
   cp $PATHRT/gfs_fcst_run.IN_IBM $PATHRT/gfs_fcst_run.IN
   cp $PATHRT/gfs_bsub.IN_wcoss $PATHRT/gfs_bsub.IN
   cp $PATHRT/nmm_conf/nmm_bsub.IN_wcoss $PATHRT/nmm_conf/nmm_bsub.IN
-  export IC_DIR=$DATADIR/GSM_INITIAL_CONDITIONS_v002
   export RTPWD=$DATADIR/RT-Baselines
   export FIXGLOBAL=/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am
   export ICS_VERSION=15.0.3
@@ -601,7 +659,6 @@ elif [ $MACHINE_ID = gaea ]; then
   export SIGHDR=/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para_branch/para_new/sorc/global_sighdr.fd/global_sighdr
   # -
   cp $PATHRT/gfs_fcst_run.IN_Linux $PATHRT/gfs_fcst_run.IN
-  export IC_DIR=$DATADIR/GSM_INITIAL_CONDITIONS_v002
   export RTPWD=$DATADIR/RT-Baselines
   export FIXGLOBAL=/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para_branch/para_new/fix/fix_am
 elif [ $MACHINE_ID = theia ]; then
@@ -620,7 +677,6 @@ elif [ $MACHINE_ID = theia ]; then
   export SLG=.false.
   # -
   cp $PATHRT/gfs_fcst_run.IN_Linux $PATHRT/gfs_fcst_run.IN
-  export IC_DIR=$DATADIR/GSM_INITIAL_CONDITIONS_v002
   export RTPWD=$DATADIR/RT-Baselines
   export FIXGLOBAL=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
 elif [ $MACHINE_ID = yellowstone ]; then
@@ -638,7 +694,6 @@ elif [ $MACHINE_ID = yellowstone ]; then
   cp $PATHRT/gfs_fcst_run.IN_Linux $PATHRT/gfs_fcst_run.IN
   cp $PATHRT/gfs_bsub.IN_yellowstone $PATHRT/gfs_bsub.IN
   cp $PATHRT/nmm_conf/nmm_bsub.IN_yellowstone $PATHRT/nmm_conf/nmm_bsub.IN
-  export IC_DIR=$DATADIR/GSM_INITIAL_CONDITIONS_v002
   export RTPWD=$DATADIR/RT-Baselines
   export FIXGLOBAL=/glade/p/work/theurich/para/fix_am
 elif [ $MACHINE_ID = linux_gnu ]; then
@@ -651,7 +706,6 @@ elif [ $MACHINE_ID = linux_gnu ]; then
   cp $PATHRT/gfs_fcst_run.IN_Linux $PATHRT/gfs_fcst_run.IN
   cp $PATHRT/gfs_bsub.IN_yellowstone $PATHRT/gfs_bsub.IN
   cp $PATHRT/nmm_conf/nmm_bsub.IN_yellowstone $PATHRT/nmm_conf/nmm_bsub.IN
-  export IC_DIR=/ptmp/gerhard/GSM_INITIAL_CONDITIONS_v002
   export RTPWD=/ptmp/gerhard/REGRESSION_TEST_NUOPC_development_v0020
   export FIXGLOBAL=/ptmp/gerhard/para/fix_am
 else
@@ -762,6 +816,8 @@ for compset in $compsets; do
     mkdir -p ${RUNDIR}
     let i++
     export JBNME=`basename $RUNDIR_ROOT`_$i
+    unset IC_DIR
+    unset passive_tracer
     source $compsetdir/$compset
     echo "RUNDIR: '$RUNDIR'."
     echo "RUNDIR: '$RUNDIR'." >> $REGRESSIONTEST_LOG

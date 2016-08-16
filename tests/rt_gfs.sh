@@ -126,6 +126,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_WAM_IPE_COUPLING_:${WAM_IPE_COUPLING}:g       \
                      | sed s:_HEIGHT_DEPENDENT_G_:${HEIGHT_DEPENDENT_G}:g   \
                      | sed s:_F107_KP_SKIP_SIZE_:${F107_KP_SKIP_SIZE}:g   \
+                     | sed s:_DELTIM_:${DELTIM}:g                 \
                      | sed s:_CDATE_:${CDATE}:g                   \
                      | sed s:_IEMS_:${IEMS}:g                     \
                      | sed s:_ISOL_:${ISOL}:g                     \

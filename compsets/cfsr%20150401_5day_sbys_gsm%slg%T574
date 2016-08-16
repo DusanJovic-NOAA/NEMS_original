@@ -1,28 +1,30 @@
 ###############################################################################
 #
 # TEST   - GSM Semilgrangian ATM only
-#        - Starting at 2015040100, running for 1 day
+#        - Starting at 2015040100, running for 5 day
 #
 ###############################################################################
 
-export TEST_DESCR="NUOPC: SLG GSM ... 1 day"
+export TEST_DESCR="NUOPC: SLG GSM ... 5 day"
+
+# - NEMS configuration ---
+export NEMS_CASE=cfsr%20150401
+export NEMS_GRID=gsm%slg%T574
 
 # - gsm configuration ---
 export_gsm
-export IC_DIR=$DATADIR/GSM/T126_mask%0.5
-export TASKS=32
-export WLCLK=30
+export IC_DIR=$DATADIR/GSM/T574_CFSR_mask%0.5
+export TASKS=288
+export WLCLK=60
 export CDATE=2015040100
-export NDAYS=1
-export wave=126
+export NDAYS=5
+export wave=574
 export lm=64
 export lsoil=4
 export isoil=4
 export FHZER=1
 export FHOUT=1
 # export FHROT=0
-export NEMS_GRID='T126_mx5'
-#export NEMS_GRID='T126_nx1'
 export FHOUT_HF=1
 export FHMAX_HF=0
 export DELTIM=900
@@ -33,17 +35,12 @@ export IAER=111
 export CPLFLX=.false.
 export A2OI_OUT=.false.
 
-# export NEMSIOIN=.true.
-# export NEMSIOOUT=.true.
-# export SIGIOIN=.false.
-# export SIGIOOUT=.false.
-# export SFCIOOUT=.false.
-
-export NEMSIOIN=.false.
-export NEMSIOOUT=.false.
-export SIGIOIN=.true.
-export SIGIOOUT=.true.
-export SFCIOOUT=.true.
+# I/O options: I/O combo, all NEMSIO
+export NEMSIOIN=.true.
+export NEMSIOOUT=.true.
+export SIGIOIN=.false.
+export SIGIOOUT=.false.
+export SFCIOOUT=.false.
 
 export WTPG=1
 export WRTGP=1
@@ -60,9 +57,9 @@ export CP2=.false.
 export FDFI=0
 # export LDFI_SPECT=.true.
 export LDFI_SPECT=.false.
-# T126 below
-export LONR=384
-export LATR=190
+# T574 below
+export LONR=1152
+export LATR=576
 export fcyc=24
 export ENS_SPS=.false.
 export REDUCEDGRID=.true.
@@ -80,15 +77,21 @@ export ISOL=2
 export ICO2=2
 export RESTART=.false.
 # export FHRES=144
-#export DATAICDIR=GFS_SLG
-export OROGRAPHY_UF=${FIXGLOBAL}/global_orography_uf.t${wave}.${LONR}.${LATR}.grb
 
 # - nems.configure ---
 export_nems
 export nems_configure=atm
 export atm_model=gsm
-export atm_petlist_bounds="0 31"     #32
+export atm_petlist_bounds="0 287"     #288
 export coupling_interval_sec=900.0
+if [ $MACHINE_ID = yellowstone ]; then
+# - on yellowstone must switch to SIGIOIN b/c NEMSIO tools are not installed
+export NEMSIOIN=.false.
+export SIGIOIN=.true.
+# - on yellowstone 272 tasks is the minimum for this case to fit into memory
+export TASKS=272
+export atm_petlist_bounds="0 271"    #272
+fi
 
 # - component specific setup calls ---
 
@@ -96,8 +99,8 @@ export coupling_interval_sec=900.0
 RUN_SCRIPT=rt_gfs.sh
 
 # - validation
-export CNTL_DIR=cfsr%20150401_1day_sbys_gsm%slg%T126_V0002
+export CNTL_DIR=cfsr%20150401_5day_sbys_gsm%slg%T574_V0002
 export LIST_FILES=" \
- sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 \
- sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 \
- flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 "
+ sigf00 sigf24 sigf48 sigf72 sigf96 sigf120 \
+ sfcf00 sfcf24 sfcf48 sfcf72 sfcf96 sfcf120 \
+ flxf00 flxf24 flxf48 flxf72 flxf96 flxf120 "

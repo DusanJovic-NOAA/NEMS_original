@@ -5,6 +5,14 @@
 
 SHELL       = /bin/ksh
 
+###################### PHYS_MODE ##### CHEM_MODE ###############################
+#
+#    
+#
+
+PHYS_MODE       = compile
+CHEM_MODE       = compile
+
 ################################################################################
 ## Include the common configuration parts
 
@@ -21,8 +29,8 @@ NETCDF_LIB  = $(NETCDF_LDFLAGS)
 
 #NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
 #NEMSIO_LIB  = -L/nwprod/lib -lnemsio
-NEMSIO_INC  = -I/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad/incmod
-NEMSIO_LIB  = -L/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad -lnemsio
+NEMSIO_INC  = -I/nems/save/Jun.Wang/nceplibs/nemsio/nemsio_avg/incmod
+NEMSIO_LIB  = -L/nems/save/Jun.Wang/nceplibs/nemsio/nemsio_avg -lnemsio
 
 W3_LIB      = -L/nwprod/lib -lw3nco_d -lw3emc_d
 #BACIO_LIB   = -L/nwprod/lib -lbacio_4

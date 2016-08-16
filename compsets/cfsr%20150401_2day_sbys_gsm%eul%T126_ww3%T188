@@ -11,6 +11,7 @@ export TEST_DESCR="NUOPC: GSM + WW3 side-by-side from data with 6h intervals"
 
 # - gsm configuration ---
 export_gsm
+cfsr%20150401_2day_sbys_gsm%eul%T126_ww3%T188
 export TASKS=56
 export WLCLK=30
 export CDATE=2015040100

@@ -12,8 +12,8 @@ EARTH_attributes::
 MED_model:                      _med_model_
 MED_petlist_bounds:             _med_petlist_bounds_
 MED_attributes::
-  Verbosity = 0
-  DumpFields = true
+  Verbosity = 1
+  DumpFields = false
   DumpRHs = false
   coldstart = false
   restart_interval = 0

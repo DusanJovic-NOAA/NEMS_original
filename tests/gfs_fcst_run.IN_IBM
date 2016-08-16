@@ -9,6 +9,8 @@ if [[ -e  _PATHTR_/src/conf/modules.nems ]]; then
   module list
 fi
 
+ export print_esmf=.true.
+
  export MKL_NUM_THREADS=1
  export MKL_CBWR=AVX
  export MP_MPILIB=mpich2
@@ -58,6 +60,7 @@ fi
  export WAM_IPE_COUPLING=_WAM_IPE_COUPLING_
  export HEIGHT_DEPENDENT_G=_HEIGHT_DEPENDENT_G_
  export F107_KP_SKIP_SIZE=_F107_KP_SKIP_SIZE_
+ export DELTIM=_DELTIM_
 
  if [[ $SLG = .true. ]] ; then
    module load ibmpe
@@ -155,7 +158,7 @@ fi
 #
 # number of output files, default =3, for adiab num_file=1
  if [[ $ADIABATIC = .true. ]] ; then
-     export NUM_FILE=1 ;
+    export NUM_FILE=1 ;
     export FILENAME_BASE="'SIG.F'"
     export FILE_IO_FORM="'grib'"
  else

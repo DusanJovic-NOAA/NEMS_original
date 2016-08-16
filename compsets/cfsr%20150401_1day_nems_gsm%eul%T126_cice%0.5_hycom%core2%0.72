@@ -12,6 +12,7 @@ export TEST_DESCR="NUOPC: GSM <-600s-> MED <-600s-> CICE <-600s-> MED <-1800s-> 
 
 # - gsm configuration ---
 export_gsm
+export IC_DIR=$DATADIR/GSM/T126_mask%0.5
 export TASKS=144
 export WLCLK=30
 # export WLCLK=60

@@ -4,30 +4,29 @@
 # TEST   - GSM <-> Mediator <-> MOM5
 #        -    900s         1800s    coupling interval
 #        - Exchanging Fields
-#        - Starting at 2015040100, running for 1 day
+#        - Starting at 2015040100, running for 5 day
 #
 ###############################################################################
 
-export TEST_DESCR="NUOPC: SLG GSM <-900s-> MED <-900s-> CICE <-900s-> MED <-1800s-> MOM5 ... 1 day"
+export TEST_DESCR="NUOPC: SLG GSM <-900s-> MED <-900s-> CICE <-900s-> MED <-1800s-> MOM5 ... 5 day"
 
 # - NEMS configuration ---
 export NEMS_CASE=cfsr%20150401
-export NEMS_GRID=gsm%slg%T126_cice%0.5_mom5%0.5
+export NEMS_GRID=gsm%slg%T574_cice%0.5_mom5%0.5
 
 # - gsm configuration ---
 export_gsm
-export IC_DIR=$DATADIR/GSM/T126_CFSR_mask%0.5
-export TASKS=136
-export WLCLK=30
+export IC_DIR=$DATADIR/GSM/T574_CFSR_mask%0.5
+export TASKS=216
+export WLCLK=90
 export CDATE=2015040100
-export NDAYS=1
-export wave=126
+export NDAYS=5
+export wave=574
 export lm=64
 export lsoil=4
 export isoil=4
 export FHZER=1
 export FHOUT=1
-export FHRES=1440
 # export FHROT=0
 export FHOUT_HF=1
 export FHMAX_HF=0
@@ -39,17 +38,12 @@ export IAER=111
 export CPLFLX=.true.
 export A2OI_OUT=.false.
 
+# I/O options: I/O combo, all NEMSIO
 export NEMSIOIN=.true.
 export NEMSIOOUT=.true.
 export SIGIOIN=.false.
 export SIGIOOUT=.false.
 export SFCIOOUT=.false.
-
-#export NEMSIOIN=.false.
-#export NEMSIOOUT=.false.
-#export SIGIOIN=.true.
-#export SIGIOOUT=.true.
-#export SFCIOOUT=.true.
 
 export WTPG=1
 export WRTGP=1
@@ -64,17 +58,11 @@ export MEMBER_NAMES=c00
 export CP2=.false.
 # export FDFI=3
 export FDFI=0
-
-# The below have no effect - need to be added to PHYVARS and/or DYNVARS
 # export LDFI_SPECT=.true.
-# export LDFI_SPECT=.false.
-# export LONB=192
-# export LATB=94
-# export LONR=192
-# export LATR=94
-# T126 below
-export LONR=384
-export LATR=190
+export LDFI_SPECT=.false.
+# T574 below
+export LONR=1152
+export LATR=576
 export fcyc=24
 export ENS_SPS=.false.
 export REDUCEDGRID=.true.
@@ -91,20 +79,19 @@ export IEMS=1
 export ISOL=2
 export ICO2=2
 export RESTART=.false.
-#export DATAICDIR=GFS_SLG
-export OROGRAPHY_UF=${FIXGLOBAL}/global_orography_uf.t${wave}.${LONR}.${LATR}.grb
+# export FHRES=144
 
 # - nems.configure ---
 export_nems
 export nems_configure=med_atm_ocn_ice
-export atm_model=gsm
-export atm_petlist_bounds="0 23"     #24
 export ocn_model=mom5
-export ocn_petlist_bounds="24 55"    #32
+export ocn_petlist_bounds="0 31"      #32
+export atm_model=gsm
+export atm_petlist_bounds="32 195"    #164
 export ice_model=cice
-export ice_petlist_bounds="56 75"      #20
+export ice_petlist_bounds="196 215"   #20
 export med_model=nems
-export med_petlist_bounds="76 135"
+export med_petlist_bounds="32 215"    #184
 export coupling_interval_slow_sec=1800.0
 export coupling_interval_fast_sec=900.0
 
@@ -117,11 +104,11 @@ setup_med_nems
 RUN_SCRIPT=rt_gfs.sh
 
 # - validation
-export CNTL_DIR=cfsr%20150401_1day_nems_gsm%slg%T126_cice%0.5_mom5%0.5_V0011
+export CNTL_DIR=cfsr%20150401_5day_nems_gsm%slg%T574_cice%0.5_mom5%0.5_V0004
 export LIST_FILES=" \
- sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 \
- sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 \
- flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 "
+ sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 sigf48 sigf72 sigf96 sigf120 \
+ sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 sfcf48 sfcf72 sfcf96 sfcf120 \
+ flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 flxf48 flxf72 flxf96 flxf120 "
 LIST_FILES+=" \
  init_field_ocn_export_freezing_melting_potential.nc              \
  init_field_ocn_export_ocean_mask.nc                              \
@@ -302,3 +289,4 @@ LIST_FILES+=" \
  field_med_to_ocn_mean_salt_rate.nc                               \
  field_med_to_ocn_mean_sensi_heat_flx.nc                          \
  field_med_to_ocn_mean_zonal_moment_flx.nc                        "
+ 

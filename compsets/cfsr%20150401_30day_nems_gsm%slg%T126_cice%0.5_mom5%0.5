@@ -10,8 +10,13 @@
 
 export TEST_DESCR="NUOPC: SLG GSM <-900s-> MED <-900s-> CICE <-900s-> MED <-1800s-> MOM5 ... 30 days"
 
+# - NEMS configuration ---
+export NEMS_CASE=cfsr%20150401
+export NEMS_GRID=gsm%slg%T126_cice%0.5_mom5%0.5
+
 # - gsm configuration ---
 export_gsm
+export IC_DIR=$DATADIR/GSM/T126_CFSR_mask%0.5
 export TASKS=136
 export WLCLK=360
 export CDATE=2015040100
@@ -24,8 +29,6 @@ export FHZER=6
 export FHOUT=6
 export FHRES=1440
 # export FHROT=0
-export NEMS_GRID='T126_mx5'
-#export NEMS_GRID='T126_nx1'
 export DELTIM=900
 
 export SLG=.true.
@@ -34,17 +37,17 @@ export IAER=111
 export CPLFLX=.true.
 export A2OI_OUT=.false.
 
-# export NEMSIOIN=.true.
-# export NEMSIOOUT=.true.
-# export SIGIOIN=.false.
-# export SIGIOOUT=.false.
-# export SFCIOOUT=.false.
+export NEMSIOIN=.true.
+export NEMSIOOUT=.true.
+export SIGIOIN=.false.
+export SIGIOOUT=.false.
+export SFCIOOUT=.false.
 
-export NEMSIOIN=.false.
-export NEMSIOOUT=.false.
-export SIGIOIN=.true.
-export SIGIOOUT=.true.
-export SFCIOOUT=.true.
+#export NEMSIOIN=.false.
+#export NEMSIOOUT=.false.
+#export SIGIOIN=.true.
+#export SIGIOOUT=.true.
+#export SFCIOOUT=.true.
 
 export WTPG=1
 export WRTGP=1
@@ -112,12 +115,12 @@ setup_med_nems
 RUN_SCRIPT=rt_gfs.sh
 
 # - validation
-export CNTL_DIR=cfsr%20150401_30day_nems_gsm%slg%T126_cice%0.5_mom5%0.5_V0003
+export CNTL_DIR=cfsr%20150401_30day_nems_gsm%slg%T126_cice%0.5_mom5%0.5_V0004
 
 export LIST_FILES=" \
- sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 sigf48 sigf72 sigf96 sigf120 sigf240 sigf480 sigf720 \
- sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 sfcf48 sfcf72 sfcf96 sfcf120 sfcf240 sfcf480 sfcf720 \
- flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 flxf48 flxf72 flxf96 flxf120 flxf240 flxf480 flxf720"
+ sigf00 sigf06 sigf12 sigf24 sigf48 sigf72 sigf96 sigf120 sigf240 sigf480 sigf720 \
+ sfcf00 sfcf06 sfcf12 sfcf24 sfcf48 sfcf72 sfcf96 sfcf120 sfcf240 sfcf480 sfcf720 \
+ flxf00 flxf06 flxf12 flxf24 flxf48 flxf72 flxf96 flxf120 flxf240 flxf480 flxf720"
 LIST_FILES+=" \
  grid_cice_NEMS_mx5.nc                                            \
  init_field_ocn_export_freezing_melting_potential.nc              \

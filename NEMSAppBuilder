@@ -872,7 +872,7 @@ fi
 if [[ -f ../exe/NEMS.x ]] ; then
   $tool --clear --backtitle "NEMS Application Builder" \
     --title "Alert" --yesno \
-    "Re-use parts form the previous NEMS build <Yes>, or build from scratch <No>?" \
+    "Re-use parts from the previous NEMS build <Yes>, or build from scratch <No>?" \
     8 40
   if [[ "$?" != "0" ]] ; then
   

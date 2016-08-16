@@ -9,6 +9,7 @@ export TEST_DESCR="NUOPC: GSM Eulerian ... 1 day"
 
 # - gsm configuration ---
 export_gsm
+export IC_DIR=$DATADIR/GSM/T126_mask%0.5
 export TASKS=32
 export WLCLK=30
 export CDATE=2015040100

@@ -1,6 +1,9 @@
 SHELL = /bin/sh -x
 
+# variables that need to move between makefiles on different levels of the build tree
+# via shell environment variables
 export TOP := $(shell pwd)
+export PHYS_INC
 
 # check if configure.nems file exists
 

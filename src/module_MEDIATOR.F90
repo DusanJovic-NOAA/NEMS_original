@@ -66,6 +66,7 @@ module module_MEDIATOR
     type(ESMF_FieldBundle):: FBIce_a     ! Ice export data mapped to atm grid
     type(ESMF_FieldBundle):: FBIce_o     ! Ice export data mapped to ocn grid
     type(ESMF_FieldBundle):: FBIce_i     ! Ice export data on ice grid
+    type(ESMF_FieldBundle):: FBIce_if    ! Ice export data on ice grid multiplied by ice fraction
     type(ESMF_FieldBundle):: FBLnd_a     ! Lnd export data mapped to atm grid
     type(ESMF_FieldBundle):: FBLnd_l     ! Lnd export on lnd grid
     type(ESMF_FieldBundle):: FBLnd_h     ! Lnd export data mapped to hyd grid
@@ -91,18 +92,30 @@ module module_MEDIATOR
     type(ESMF_RouteHandle):: RH_i2o_bilnr  ! ice to ocn
     type(ESMF_RouteHandle):: RH_l2h_bilnr  ! lnd to hyd
     type(ESMF_RouteHandle):: RH_h2l_bilnr  ! hyd to lnd
-    type(ESMF_RouteHandle):: RH_a2o_consv  ! atm to ocn conservative
-    type(ESMF_RouteHandle):: RH_o2a_consv  ! ocn to atm
-    type(ESMF_RouteHandle):: RH_a2i_consv  ! atm to ice
-    type(ESMF_RouteHandle):: RH_i2a_consv  ! ice to atm
-    type(ESMF_RouteHandle):: RH_a2l_consv  ! atm to lnd
-    type(ESMF_RouteHandle):: RH_l2a_consv  ! lnd to atm
-    type(ESMF_RouteHandle):: RH_a2h_consv  ! atm to hyd
-    type(ESMF_RouteHandle):: RH_h2a_consv  ! hyd to atm
-    type(ESMF_RouteHandle):: RH_o2i_consv  ! ocn to ice
-    type(ESMF_RouteHandle):: RH_i2o_consv  ! ice to ocn
-    type(ESMF_RouteHandle):: RH_l2h_consv  ! lnd to hyd
-    type(ESMF_RouteHandle):: RH_h2l_consv  ! hyd to lnd
+    type(ESMF_RouteHandle):: RH_a2o_consf  ! atm to ocn conservative fracarea
+    type(ESMF_RouteHandle):: RH_o2a_consf  ! ocn to atm
+    type(ESMF_RouteHandle):: RH_a2i_consf  ! atm to ice
+    type(ESMF_RouteHandle):: RH_i2a_consf  ! ice to atm
+    type(ESMF_RouteHandle):: RH_a2l_consf  ! atm to lnd
+    type(ESMF_RouteHandle):: RH_l2a_consf  ! lnd to atm
+    type(ESMF_RouteHandle):: RH_a2h_consf  ! atm to hyd
+    type(ESMF_RouteHandle):: RH_h2a_consf  ! hyd to atm
+    type(ESMF_RouteHandle):: RH_o2i_consf  ! ocn to ice
+    type(ESMF_RouteHandle):: RH_i2o_consf  ! ice to ocn
+    type(ESMF_RouteHandle):: RH_l2h_consf  ! lnd to hyd
+    type(ESMF_RouteHandle):: RH_h2l_consf  ! hyd to lnd
+    type(ESMF_RouteHandle):: RH_a2o_consd  ! atm to ocn conservative dstarea
+    type(ESMF_RouteHandle):: RH_o2a_consd  ! ocn to atm
+    type(ESMF_RouteHandle):: RH_a2i_consd  ! atm to ice
+    type(ESMF_RouteHandle):: RH_i2a_consd  ! ice to atm
+    type(ESMF_RouteHandle):: RH_a2l_consd  ! atm to lnd
+    type(ESMF_RouteHandle):: RH_l2a_consd  ! lnd to atm
+    type(ESMF_RouteHandle):: RH_a2h_consd  ! atm to hyd
+    type(ESMF_RouteHandle):: RH_h2a_consd  ! hyd to atm
+    type(ESMF_RouteHandle):: RH_o2i_consd  ! ocn to ice
+    type(ESMF_RouteHandle):: RH_i2o_consd  ! ice to ocn
+    type(ESMF_RouteHandle):: RH_l2h_consd  ! lnd to hyd
+    type(ESMF_RouteHandle):: RH_h2l_consd  ! hyd to lnd
     type(ESMF_RouteHandle):: RH_a2o_patch  ! atm to ocn patch
     type(ESMF_RouteHandle):: RH_o2a_patch  ! ocn to atm
     type(ESMF_RouteHandle):: RH_a2i_patch  ! atm to ice
@@ -458,245 +471,249 @@ module module_MEDIATOR
       line=__LINE__, file=__FILE__)) return  ! bail out
 
     ! AtmOcn Coupling Fields
-    call fld_list_add(fldsAtmOcn,"mean_up_lw_flx_ocn"              , "cannot provide","conserve")
-    call fld_list_add(fldsAtmOcn,"mean_sensi_heat_flx_atm_into_ocn", "cannot provide","conserve")
-    call fld_list_add(fldsAtmOcn,"mean_laten_heat_flx_atm_into_ocn", "cannot provide","conserve")
-    call fld_list_add(fldsAtmOcn,"mean_evap_rate_atm_into_ocn"     , "cannot provide","conserve")
-    call fld_list_add(fldsAtmOcn,"stress_on_air_ocn_zonal"         , "cannot provide","conserve")
-    call fld_list_add(fldsAtmOcn,"stress_on_air_ocn_merid"         , "cannot provide","conserve")
-    call fld_list_add(fldsAtmOcn,"temperature_2m"                  , "cannot provide","bilinear")
-    call fld_list_add(fldsAtmOcn,"humidity_2m"                     , "cannot provide","bilinear")
-    call fld_list_add(fldsAtmOcn,"wind_speed_squared_10m"          , "cannot provide","bilinear")
+    call fld_list_add(fldsAtmOcn,"mean_up_lw_flx_ocn"              , "cannot provide","conservefrac")
+    call fld_list_add(fldsAtmOcn,"mean_sensi_heat_flx_atm_into_ocn", "cannot provide","conservefrac")
+    call fld_list_add(fldsAtmOcn,"mean_laten_heat_flx_atm_into_ocn", "cannot provide","conservefrac")
+    call fld_list_add(fldsAtmOcn,"mean_evap_rate_atm_into_ocn"     , "cannot provide","conservefrac")
+    call fld_list_add(fldsAtmOcn,"stress_on_air_ocn_zonal"         , "cannot provide","conservefrac")
+    call fld_list_add(fldsAtmOcn,"stress_on_air_ocn_merid"         , "cannot provide","conservefrac")
+!    call fld_list_add(fldsAtmOcn,"temperature_2m"                  , "cannot provide","bilinear")
+!    call fld_list_add(fldsAtmOcn,"humidity_2m"                     , "cannot provide","bilinear")
+!    call fld_list_add(fldsAtmOcn,"wind_speed_squared_10m"          , "cannot provide","bilinear")
+    call fld_list_add(fldsAtmOcn,"temperature_2m"                  , "cannot provide","conservefrac")
+    call fld_list_add(fldsAtmOcn,"humidity_2m"                     , "cannot provide","conservefrac")
+    call fld_list_add(fldsAtmOcn,"wind_speed_squared_10m"          , "cannot provide","conservefrac")
 
     ! Fields to ATM
     call fld_list_add(fldsToAtm,"land_mask"               , "cannot provide")
-    call fld_list_add(fldsToAtm,"surface_temperature"     , "cannot provide")
-    call fld_list_add(fldsToAtm,"sea_surface_temperature" , "cannot provide")
-    call fld_list_add(fldsToAtm,"inst_ice_ir_dir_albedo"  , "cannot provide")
-    call fld_list_add(fldsToAtm,"inst_ice_ir_dif_albedo"  , "cannot provide")
-    call fld_list_add(fldsToAtm,"inst_ice_vis_dir_albedo" , "cannot provide")
-    call fld_list_add(fldsToAtm,"inst_ice_vis_dif_albedo" , "cannot provide")
-    call fld_list_add(fldsToAtm,"ice_fraction"            , "cannot provide")
-    call fld_list_add(fldsToAtm,"stress_on_air_ice_zonal" , "cannot provide")
-    call fld_list_add(fldsToAtm,"stress_on_air_ice_merid" , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_up_lw_flx_ice"      , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_sensi_heat_flx_atm_into_ice", "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_laten_heat_flx_atm_into_ice", "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_sensi_heat_flx_atm_into_lnd", "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_laten_heat_flx_atm_into_lnd", "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_evap_rate_atm_into_ice"     , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_zonal_moment_flx"   , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_merid_moment_flx"   , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_sensi_heat_flx"     , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_laten_heat_flx"     , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_up_lw_flx"          , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_evap_rate"          , "cannot provide")
-    call fld_list_add(fldsToAtm,"liquid_water_content_of_soil_layer_1", "cannot provide")
-    call fld_list_add(fldsToAtm,"liquid_water_content_of_soil_layer_2", "cannot provide")
-    call fld_list_add(fldsToAtm,"liquid_water_content_of_soil_layer_3", "cannot provide")
-    call fld_list_add(fldsToAtm,"liquid_water_content_of_soil_layer_4", "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_ice_volume"         , "cannot provide")
-    call fld_list_add(fldsToAtm,"mean_snow_volume"        , "cannot provide")
-!    call fld_list_add(fldsFrHyd,"volume_fraction_of_total_water_in_soil", "cannot provide")
-!    call fld_list_add(fldsFrHyd,"surface_snow_thickness"                , "cannot provide")
-!    call fld_list_add(fldsFrHyd,"liquid_water_content_of_surface_snow"  , "cannot provide")
+    call fld_list_add(fldsToAtm,"surface_temperature"     , "will provide")
+    call fld_list_add(fldsToAtm,"sea_surface_temperature" , "will provide")
+    call fld_list_add(fldsToAtm,"inst_ice_ir_dir_albedo"  , "will provide")
+    call fld_list_add(fldsToAtm,"inst_ice_ir_dif_albedo"  , "will provide")
+    call fld_list_add(fldsToAtm,"inst_ice_vis_dir_albedo" , "will provide")
+    call fld_list_add(fldsToAtm,"inst_ice_vis_dif_albedo" , "will provide")
+    call fld_list_add(fldsToAtm,"ice_fraction"            , "will provide")
+    call fld_list_add(fldsToAtm,"stress_on_air_ice_zonal" , "will provide")
+    call fld_list_add(fldsToAtm,"stress_on_air_ice_merid" , "will provide")
+    call fld_list_add(fldsToAtm,"mean_up_lw_flx_ice"      , "will provide")
+    call fld_list_add(fldsToAtm,"mean_sensi_heat_flx_atm_into_ice", "will provide")
+    call fld_list_add(fldsToAtm,"mean_laten_heat_flx_atm_into_ice", "will provide")
+    call fld_list_add(fldsToAtm,"mean_sensi_heat_flx_atm_into_lnd", "will provide")
+    call fld_list_add(fldsToAtm,"mean_laten_heat_flx_atm_into_lnd", "will provide")
+    call fld_list_add(fldsToAtm,"mean_evap_rate_atm_into_ice"     , "will provide")
+    call fld_list_add(fldsToAtm,"mean_zonal_moment_flx"   , "will provide")
+    call fld_list_add(fldsToAtm,"mean_merid_moment_flx"   , "will provide")
+    call fld_list_add(fldsToAtm,"mean_sensi_heat_flx"     , "will provide")
+    call fld_list_add(fldsToAtm,"mean_laten_heat_flx"     , "will provide")
+    call fld_list_add(fldsToAtm,"mean_up_lw_flx"          , "will provide")
+    call fld_list_add(fldsToAtm,"mean_evap_rate"          , "will provide")
+    call fld_list_add(fldsToAtm,"liquid_water_content_of_soil_layer_1", "will provide")
+    call fld_list_add(fldsToAtm,"liquid_water_content_of_soil_layer_2", "will provide")
+    call fld_list_add(fldsToAtm,"liquid_water_content_of_soil_layer_3", "will provide")
+    call fld_list_add(fldsToAtm,"liquid_water_content_of_soil_layer_4", "will provide")
+    call fld_list_add(fldsToAtm,"mean_ice_volume"         , "will provide")
+    call fld_list_add(fldsToAtm,"mean_snow_volume"        , "will provide")
+!    call fld_list_add(fldsFrHyd,"volume_fraction_of_total_water_in_soil", "will provide")
+!    call fld_list_add(fldsFrHyd,"surface_snow_thickness"                , "will provide")
+!    call fld_list_add(fldsFrHyd,"liquid_water_content_of_surface_snow"  , "will provide")
 
 
     ! Fields from ATM
-    call fld_list_add(fldsFrAtm,"mean_zonal_moment_flx"   , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_merid_moment_flx"   , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_sensi_heat_flx"     , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_laten_heat_flx"     , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_down_lw_flx"        , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_down_sw_flx"        , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_prec_rate"          , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_fprec_rate"         , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_zonal_moment_flx"   , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_merid_moment_flx"   , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_sensi_heat_flx"     , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_laten_heat_flx"     , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_down_lw_flx"        , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_down_sw_flx"        , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_temp_height2m"      , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_spec_humid_height2m", "cannot provide","bilinear")
+    call fld_list_add(fldsFrAtm,"mean_zonal_moment_flx"   , "cannot provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_merid_moment_flx"   , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_sensi_heat_flx"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_laten_heat_flx"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_down_lw_flx"        , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_flx"        , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_prec_rate"          , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_fprec_rate"         , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_zonal_moment_flx"   , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_merid_moment_flx"   , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_sensi_heat_flx"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_laten_heat_flx"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_down_lw_flx"        , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_flx"        , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_temp_height2m"      , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_spec_humid_height2m", "will provide","bilinear")
 #ifdef PATCH_BFB_FIXED
-    call fld_list_add(fldsFrAtm,"inst_u_wind_height10m"     , "cannot provide","patch")
-    call fld_list_add(fldsFrAtm,"inst_v_wind_height10m"     , "cannot provide","patch")
-    call fld_list_add(fldsFrAtm,"inst_zonal_wind_height10m" , "cannot provide","patch")
-    call fld_list_add(fldsFrAtm,"inst_merid_wind_height10m" , "cannot provide","patch")
+    call fld_list_add(fldsFrAtm,"inst_u_wind_height10m"     , "will provide","patch")
+    call fld_list_add(fldsFrAtm,"inst_v_wind_height10m"     , "will provide","patch")
+    call fld_list_add(fldsFrAtm,"inst_zonal_wind_height10m" , "will provide","patch")
+    call fld_list_add(fldsFrAtm,"inst_merid_wind_height10m" , "will provide","patch")
 #else
-    call fld_list_add(fldsFrAtm,"inst_u_wind_height10m"     , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_v_wind_height10m"     , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_zonal_wind_height10m" , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_merid_wind_height10m" , "cannot provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_u_wind_height10m"     , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_v_wind_height10m"     , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_zonal_wind_height10m" , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_merid_wind_height10m" , "will provide","bilinear")
 #endif
-    call fld_list_add(fldsFrAtm,"inst_temp_height_surface", "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_pres_height_surface", "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_surface_height"     , "cannot provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_temp_height_surface", "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_pres_height_surface", "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_surface_height"     , "will provide","bilinear")
     ! new imports from GSM added 04/23/14:
-    call fld_list_add(fldsFrAtm,"mean_net_lw_flx"         , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_net_sw_flx"         , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_net_lw_flx"         , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_net_sw_flx"         , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_down_sw_ir_dir_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_down_sw_ir_dif_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_down_sw_vis_dir_flx", "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_down_sw_vis_dif_flx", "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_down_sw_ir_dir_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_down_sw_ir_dif_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_down_sw_vis_dir_flx", "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_down_sw_vis_dif_flx", "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_net_sw_ir_dir_flx"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_net_sw_ir_dif_flx"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_net_sw_vis_dir_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"mean_net_sw_vis_dif_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_net_sw_ir_dir_flx"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_net_sw_ir_dif_flx"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_net_sw_vis_dir_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_net_sw_vis_dif_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_ir_dir_albedo"      , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_ir_dif_albedo"      , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_vis_dir_albedo"     , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_vis_dif_albedo"     , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_ocn_ir_dir_albedo"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_ocn_ir_dif_albedo"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_ocn_vis_dir_albedo" , "cannot provide","conserve")
-    call fld_list_add(fldsFrAtm,"inst_ocn_vis_dif_albedo" , "cannot provide","conserve")
+    call fld_list_add(fldsFrAtm,"mean_net_lw_flx"         , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_flx"         , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_net_lw_flx"         , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_flx"         , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_ir_dir_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_ir_dif_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_vis_dir_flx", "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_vis_dif_flx", "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_ir_dir_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_ir_dif_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_vis_dir_flx", "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_vis_dif_flx", "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_ir_dir_flx"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_ir_dif_flx"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_vis_dir_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_vis_dif_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_ir_dir_flx"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_ir_dif_flx"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_vis_dir_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_vis_dif_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_ir_dir_albedo"      , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_ir_dif_albedo"      , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_vis_dir_albedo"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_vis_dif_albedo"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_ocn_ir_dir_albedo"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_ocn_ir_dif_albedo"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_ocn_vis_dir_albedo" , "will provide","conservefrac")
+    call fld_list_add(fldsFrAtm,"inst_ocn_vis_dif_albedo" , "will provide","conservefrac")
     ! new imports from GSM added 06/09/15:
-    call fld_list_add(fldsFrAtm,"inst_temp_height_lowest"       , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_spec_humid_height_lowest" , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_zonal_wind_height_lowest" , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_merid_wind_height_lowest" , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_pres_height_lowest"       , "cannot provide","bilinear")
-    call fld_list_add(fldsFrAtm,"inst_height_lowest"            , "cannot provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_temp_height_lowest"       , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_spec_humid_height_lowest" , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_zonal_wind_height_lowest" , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_merid_wind_height_lowest" , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_pres_height_lowest"       , "will provide","bilinear")
+    call fld_list_add(fldsFrAtm,"inst_height_lowest"            , "will provide","bilinear")
 
     ! Fields to OCN
     call fld_list_add(fldsToOcn,"mean_zonal_moment_flx"   , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_merid_moment_flx"   , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_sensi_heat_flx"     , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_laten_heat_flx"     , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_down_lw_flx"        , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dir_flx", "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dif_flx", "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dir_flx" , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dif_flx" , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_net_sw_vis_dir_flx" , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_net_sw_vis_dif_flx" , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_net_sw_ir_dir_flx"  , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_net_sw_ir_dif_flx"  , "cannot provide")
-!   call fld_list_add(fldsToOcn,"mean_salt_flx"           , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_prec_rate"          , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_fprec_rate"         , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_evap_rate"          , "cannot provide")
-!   call fld_list_add(fldsToOcn,"mean_runoff_rate"        , "cannot provide")
-!   call fld_list_add(fldsToOcn,"mean_calving_rate"       , "cannot provide")
-!   call fld_list_add(fldsToOcn,"mean_runoff_flx"         , "cannot provide")
-!   call fld_list_add(fldsToOcn,"mean_calving_flx"        , "cannot provide")
-    call fld_list_add(fldsToOcn,"inst_pres_height_surface", "cannot provide")
-!   call fld_list_add(fldsToOcn,"mass_of_overlying_sea_ice, "cannot provide")
-    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_zonal" , "cannot provide")
-    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_merid" , "cannot provide")
-!    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_idir"  , "cannot provide")
-!    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_jdir"  , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_sw_pen_to_ocn"      , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_flx"        , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_net_sw_flx"         , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_net_lw_flx"         , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_up_lw_flx"          , "cannot provide")
-    call fld_list_add(fldsToOcn,"inst_temp_height2m"      , "cannot provide")
-    call fld_list_add(fldsToOcn,"inst_spec_humid_height2m", "cannot provide")
-    call fld_list_add(fldsToOcn,"net_heat_flx_to_ocn"     , "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_fresh_water_to_ocean_rate", "cannot provide")
-    call fld_list_add(fldsToOcn,"mean_salt_rate"          , "cannot provide")
+    call fld_list_add(fldsToOcn,"mean_merid_moment_flx"   , "will provide")
+    call fld_list_add(fldsToOcn,"mean_sensi_heat_flx"     , "will provide")
+    call fld_list_add(fldsToOcn,"mean_laten_heat_flx"     , "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_lw_flx"        , "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dir_flx", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dif_flx", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dir_flx" , "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dif_flx" , "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_vis_dir_flx" , "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_vis_dif_flx" , "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_ir_dir_flx"  , "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_ir_dif_flx"  , "will provide")
+!   call fld_list_add(fldsToOcn,"mean_salt_flx"           , "will provide")
+    call fld_list_add(fldsToOcn,"mean_prec_rate"          , "will provide")
+    call fld_list_add(fldsToOcn,"mean_fprec_rate"         , "will provide")
+    call fld_list_add(fldsToOcn,"mean_evap_rate"          , "will provide")
+!   call fld_list_add(fldsToOcn,"mean_runoff_rate"        , "will provide")
+!   call fld_list_add(fldsToOcn,"mean_calving_rate"       , "will provide")
+!   call fld_list_add(fldsToOcn,"mean_runoff_flx"         , "will provide")
+!   call fld_list_add(fldsToOcn,"mean_calving_flx"        , "will provide")
+    call fld_list_add(fldsToOcn,"inst_pres_height_surface", "will provide")
+!   call fld_list_add(fldsToOcn,"mass_of_overlying_sea_ice, "will provide")
+    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_zonal" , "will provide")
+    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_merid" , "will provide")
+!    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_idir"  , "will provide")
+!    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_jdir"  , "will provide")
+    call fld_list_add(fldsToOcn,"mean_sw_pen_to_ocn"      , "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_flx"        , "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_flx"         , "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_lw_flx"         , "will provide")
+    call fld_list_add(fldsToOcn,"mean_up_lw_flx"          , "will provide")
+    call fld_list_add(fldsToOcn,"inst_temp_height2m"      , "will provide")
+    call fld_list_add(fldsToOcn,"inst_spec_humid_height2m", "will provide")
+    call fld_list_add(fldsToOcn,"net_heat_flx_to_ocn"     , "will provide")
+    call fld_list_add(fldsToOcn,"mean_fresh_water_to_ocean_rate", "will provide")
+    call fld_list_add(fldsToOcn,"mean_salt_rate"          , "will provide")
  
     ! Fields from OCN
-    call fld_list_add(fldsFrOcn,"ocean_mask"              , "cannot provide","conserve")
-    call fld_list_add(fldsFrOcn,"sea_surface_temperature" , "cannot provide","copy")
-    call fld_list_add(fldsFrOcn,"s_surf"                  , "cannot provide","copy")
+    call fld_list_add(fldsFrOcn,"ocean_mask"              , "cannot provide","conservedst")
+    call fld_list_add(fldsFrOcn,"sea_surface_temperature" , "will provide","copy")
+    call fld_list_add(fldsFrOcn,"s_surf"                  , "will provide","copy")
 #ifdef PATCH_BFB_FIXED
-    call fld_list_add(fldsFrOcn,"ocn_current_zonal"       , "cannot provide","patch")
-    call fld_list_add(fldsFrOcn,"ocn_current_merid"       , "cannot provide","patch")
+    call fld_list_add(fldsFrOcn,"ocn_current_zonal"       , "will provide","patch")
+    call fld_list_add(fldsFrOcn,"ocn_current_merid"       , "will provide","patch")
 #else
-    call fld_list_add(fldsFrOcn,"ocn_current_zonal"       , "cannot provide","copy")
-    call fld_list_add(fldsFrOcn,"ocn_current_merid"       , "cannot provide","copy")
+    call fld_list_add(fldsFrOcn,"ocn_current_zonal"       , "will provide","copy")
+    call fld_list_add(fldsFrOcn,"ocn_current_merid"       , "will provide","copy")
 #endif
-!    call fld_list_add(fldsFrOcn,"ocn_current_idir"        , "cannot provide","copy")
-!    call fld_list_add(fldsFrOcn,"ocn_current_jdir"        , "cannot provide","copy")
-    call fld_list_add(fldsFrOcn,"sea_lev"                 , "cannot provide","copy")
-    call fld_list_add(fldsFrOcn,"freezing_melting_potential", "cannot provide","copy")
+!    call fld_list_add(fldsFrOcn,"ocn_current_idir"        , "will provide","copy")
+!    call fld_list_add(fldsFrOcn,"ocn_current_jdir"        , "will provide","copy")
+    call fld_list_add(fldsFrOcn,"sea_lev"                 , "will provide","copy")
+    call fld_list_add(fldsFrOcn,"freezing_melting_potential", "will provide","copy")
     call fld_list_add(fldsFrOcn,"upward_sea_ice_basal_available_heat_flux" &
-                                                          , "cannot provide","conserve")
-    call fld_list_add(fldsFrOcn,"mixed_layer_depth"       , "cannot provide","copy")
-    call fld_list_add(fldsFrOcn,"sea_surface_slope_zonal" , "cannot provide","copy")
-    call fld_list_add(fldsFrOcn,"sea_surface_slope_merid" , "cannot provide","copy")
+                                                          , "will provide","conservefrac")
+    call fld_list_add(fldsFrOcn,"mixed_layer_depth"       , "will provide","copy")
+    call fld_list_add(fldsFrOcn,"sea_surface_slope_zonal" , "will provide","copy")
+    call fld_list_add(fldsFrOcn,"sea_surface_slope_merid" , "will provide","copy")
 
     ! Fields to ICE
     call fld_list_add(fldsToIce,"dummyfield"               , "cannot provide")
     call fld_list_add(fldsToIce,"inst_temp_height2m"       , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_spec_humid_height2m" , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_zonal_wind_height10m", "cannot provide")
-    call fld_list_add(fldsToIce,"inst_merid_wind_height10m", "cannot provide")
-    call fld_list_add(fldsToIce,"inst_temp_height_surface" , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_surface_height"      , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_pres_height_surface" , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_down_lw_flx"         , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_down_sw_vis_dir_flx" , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_down_sw_vis_dif_flx" , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_down_sw_ir_dir_flx"  , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_down_sw_ir_dif_flx"  , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_prec_rate"           , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_fprec_rate"          , "cannot provide")
-    call fld_list_add(fldsToIce,"sea_surface_temperature"  , "cannot provide")
-    call fld_list_add(fldsToIce,"s_surf"                   , "cannot provide")
-    call fld_list_add(fldsToIce,"sea_lev"                  , "cannot provide")
-    call fld_list_add(fldsToIce,"sea_surface_slope_zonal"  , "cannot provide")
-    call fld_list_add(fldsToIce,"sea_surface_slope_merid"  , "cannot provide")
-    call fld_list_add(fldsToIce,"ocn_current_zonal"        , "cannot provide")
-    call fld_list_add(fldsToIce,"ocn_current_merid"        , "cannot provide")
-!    call fld_list_add(fldsToIce,"ocn_current_idir"         , "cannot provide")
-!    call fld_list_add(fldsToIce,"ocn_current_jdir"         , "cannot provide")
-    call fld_list_add(fldsToIce,"freezing_melting_potential", "cannot provide")
-    call fld_list_add(fldsToIce,"mixed_layer_depth"        , "cannot provide")
+    call fld_list_add(fldsToIce,"inst_spec_humid_height2m" , "will provide")
+    call fld_list_add(fldsToIce,"inst_zonal_wind_height10m", "will provide")
+    call fld_list_add(fldsToIce,"inst_merid_wind_height10m", "will provide")
+    call fld_list_add(fldsToIce,"inst_temp_height_surface" , "will provide")
+    call fld_list_add(fldsToIce,"inst_surface_height"      , "will provide")
+    call fld_list_add(fldsToIce,"inst_pres_height_surface" , "will provide")
+    call fld_list_add(fldsToIce,"mean_down_lw_flx"         , "will provide")
+    call fld_list_add(fldsToIce,"mean_down_sw_vis_dir_flx" , "will provide")
+    call fld_list_add(fldsToIce,"mean_down_sw_vis_dif_flx" , "will provide")
+    call fld_list_add(fldsToIce,"mean_down_sw_ir_dir_flx"  , "will provide")
+    call fld_list_add(fldsToIce,"mean_down_sw_ir_dif_flx"  , "will provide")
+    call fld_list_add(fldsToIce,"mean_prec_rate"           , "will provide")
+    call fld_list_add(fldsToIce,"mean_fprec_rate"          , "will provide")
+    call fld_list_add(fldsToIce,"sea_surface_temperature"  , "will provide")
+    call fld_list_add(fldsToIce,"s_surf"                   , "will provide")
+    call fld_list_add(fldsToIce,"sea_lev"                  , "will provide")
+    call fld_list_add(fldsToIce,"sea_surface_slope_zonal"  , "will provide")
+    call fld_list_add(fldsToIce,"sea_surface_slope_merid"  , "will provide")
+    call fld_list_add(fldsToIce,"ocn_current_zonal"        , "will provide")
+    call fld_list_add(fldsToIce,"ocn_current_merid"        , "will provide")
+!    call fld_list_add(fldsToIce,"ocn_current_idir"         , "will provide")
+!    call fld_list_add(fldsToIce,"ocn_current_jdir"         , "will provide")
+    call fld_list_add(fldsToIce,"freezing_melting_potential", "will provide")
+    call fld_list_add(fldsToIce,"mixed_layer_depth"        , "will provide")
     ! new exports from GSM added 06/09/15:
-    call fld_list_add(fldsToIce,"inst_temp_height_lowest"       , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_spec_humid_height_lowest" , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_zonal_wind_height_lowest" , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_merid_wind_height_lowest" , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_pres_height_lowest"       , "cannot provide")
-    call fld_list_add(fldsToIce,"inst_height_lowest"            , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_zonal_moment_flx"         , "cannot provide")
-    call fld_list_add(fldsToIce,"mean_merid_moment_flx"         , "cannot provide")
-    call fld_list_add(fldsToIce,"air_density_height_lowest"     , "cannot provide")
+    call fld_list_add(fldsToIce,"inst_temp_height_lowest"       , "will provide")
+    call fld_list_add(fldsToIce,"inst_spec_humid_height_lowest" , "will provide")
+    call fld_list_add(fldsToIce,"inst_zonal_wind_height_lowest" , "will provide")
+    call fld_list_add(fldsToIce,"inst_merid_wind_height_lowest" , "will provide")
+    call fld_list_add(fldsToIce,"inst_pres_height_lowest"       , "will provide")
+    call fld_list_add(fldsToIce,"inst_height_lowest"            , "will provide")
+    call fld_list_add(fldsToIce,"mean_zonal_moment_flx"         , "will provide")
+    call fld_list_add(fldsToIce,"mean_merid_moment_flx"         , "will provide")
+    call fld_list_add(fldsToIce,"air_density_height_lowest"     , "will provide")
 
     ! Fields from ICE
     call fld_list_add(fldsFrIce,"dummyfield"              , "cannot provide","bilinear")
-    call fld_list_add(fldsFrIce,"ice_mask"                , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"sea_ice_temperature"     , "cannot provide","bilinear")
-    call fld_list_add(fldsFrIce,"inst_ice_ir_dir_albedo"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"inst_ice_ir_dif_albedo"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"inst_ice_vis_dir_albedo" , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"inst_ice_vis_dif_albedo" , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"ice_fraction"            , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"stress_on_air_ice_zonal" , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"stress_on_air_ice_merid" , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_zonal" , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_merid" , "cannot provide","conserve")
-!    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_idir"  , "cannot provide","copy")
-!    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_jdir"  , "cannot provide","copy")
-    call fld_list_add(fldsFrIce,"mean_sw_pen_to_ocn"      , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_net_sw_vis_dir_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_net_sw_vis_dif_flx" , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_net_sw_ir_dir_flx"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_net_sw_ir_dif_flx"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_up_lw_flx_ice"      , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_sensi_heat_flx_atm_into_ice", "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_laten_heat_flx_atm_into_ice", "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_evap_rate_atm_into_ice"     , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"net_heat_flx_to_ocn"     , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_fresh_water_to_ocean_rate"  , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_salt_rate"          , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_ice_volume"         , "cannot provide","conserve")
-    call fld_list_add(fldsFrIce,"mean_snow_volume"        , "cannot provide","conserve")
+    call fld_list_add(fldsFrIce,"ice_mask"                , "cannot provide","conservedst")
+!    call fld_list_add(fldsFrIce,"sea_ice_temperature"     , "will provide","bilinear")
+    call fld_list_add(fldsFrIce,"sea_ice_temperature"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"inst_ice_ir_dir_albedo"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"inst_ice_ir_dif_albedo"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"inst_ice_vis_dir_albedo" , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"inst_ice_vis_dif_albedo" , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"ice_fraction"            , "will provide","conservedst")
+    call fld_list_add(fldsFrIce,"stress_on_air_ice_zonal" , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"stress_on_air_ice_merid" , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_zonal" , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_merid" , "will provide","conservefrac")
+!    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_idir"  , "will provide","copy")
+!    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_jdir"  , "will provide","copy")
+    call fld_list_add(fldsFrIce,"mean_sw_pen_to_ocn"      , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_net_sw_vis_dir_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_net_sw_vis_dif_flx" , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_net_sw_ir_dir_flx"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_net_sw_ir_dif_flx"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_up_lw_flx_ice"      , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_sensi_heat_flx_atm_into_ice", "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_laten_heat_flx_atm_into_ice", "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_evap_rate_atm_into_ice"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"net_heat_flx_to_ocn"     , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_fresh_water_to_ocean_rate"  , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_salt_rate"          , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_ice_volume"         , "will provide","conservefrac")
+    call fld_list_add(fldsFrIce,"mean_snow_volume"        , "will provide","conservefrac")
  
     ! Required met forcing fields to LND
     call fld_list_add(fldsToLnd,"inst_down_lw_flx"                      , "cannot provide")
@@ -746,56 +763,56 @@ module module_MEDIATOR
 !    call fld_list_add(fldsToLnd,"surface_microwave_emissivity"          , "cannot provide")
 
     ! Forcing fields to hydrology
-    call fld_list_add(fldsFrLnd,"temperature_of_soil_layer_1"             , "cannot provide","conserve")
-    call fld_list_add(fldsFrLnd,"temperature_of_soil_layer_2"             , "cannot provide","conserve")
-    call fld_list_add(fldsFrLnd,"temperature_of_soil_layer_3"             , "cannot provide","conserve")
-    call fld_list_add(fldsFrLnd,"temperature_of_soil_layer_4"             , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"moisture_content_of_soil_layer_1"        , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"moisture_content_of_soil_layer_2"        , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"moisture_content_of_soil_layer_3"        , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"moisture_content_of_soil_layer_4"        , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_soil_layer_1"  , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_soil_layer_2"  , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_soil_layer_3"  , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_soil_layer_4"  , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"surface_runoff_flux"                   , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"subsurface_runoff_flux"                , "cannot provide","conserve")
+    call fld_list_add(fldsFrLnd,"temperature_of_soil_layer_1"             , "cannot provide","conservefrac")
+    call fld_list_add(fldsFrLnd,"temperature_of_soil_layer_2"             , "cannot provide","conservefrac")
+    call fld_list_add(fldsFrLnd,"temperature_of_soil_layer_3"             , "cannot provide","conservefrac")
+    call fld_list_add(fldsFrLnd,"temperature_of_soil_layer_4"             , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"moisture_content_of_soil_layer_1"        , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"moisture_content_of_soil_layer_2"        , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"moisture_content_of_soil_layer_3"        , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"moisture_content_of_soil_layer_4"        , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_soil_layer_1"  , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_soil_layer_2"  , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_soil_layer_3"  , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_soil_layer_4"  , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"surface_runoff_flux"                   , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"subsurface_runoff_flux"                , "cannot provide","conservefrac")
     ! Feedback to atmosphere
-    call fld_list_add(fldsFrLnd,"mean_sensi_heat_flx_atm_into_lnd", "cannot provide","conserve")
-    call fld_list_add(fldsFrLnd,"mean_laten_heat_flx_atm_into_lnd", "cannot provide","conserve")
+    call fld_list_add(fldsFrLnd,"mean_sensi_heat_flx_atm_into_lnd", "cannot provide","conservefrac")
+    call fld_list_add(fldsFrLnd,"mean_laten_heat_flx_atm_into_lnd", "cannot provide","conservefrac")
     ! Other fields from LND
-!    call fld_list_add(fldsFrLnd,"aerodynamic_roughness_length"          , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"canopy_moisture_storage"               , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"exchange_coefficient_heat_height2m"    , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"exchange_coefficient_moisture_height2m", "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"ice_mask"                              , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"inst_temp_height_lowest"               , "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"inst_temp_height_surface"              , "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"mean_grnd_sensi_heat_flx"              , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"mean_laten_heat_flx_kinematic"         , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"mean_net_lw_flx"                       , "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"mean_net_sw_flx"                       , "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"mean_surface_albedo"                   , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"mean_surface_skin_temp"                , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"mixing_ratio_surface"                  , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"root_moisture"                         , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"surface_snow_area_fraction"            , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"surface_snow_melt_flux"                , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_surface_snow"  , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"surface_snow_thickness"                , "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"soil_hydraulic_conductivity_at_saturation", "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"soil_porosity"                         , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"soil_temperature_bottom"               , "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"soil_type"                             , "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"soil_moisture_content"                 , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"subsurface_basin_mask"                 , "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"surface_microwave_emissivity"          , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"vegetation_type"                       , "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"volume_fraction_of_frozen_water_in_soil", "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"volume_fraction_of_total_water_in_soil", "cannot provide","conserve")
-!    call fld_list_add(fldsFrLnd,"volume_fraction_of_total_water_in_soil_at_critical_point", "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"volume_fraction_of_total_water_in_soil_at_field_capacity", "cannot provide","conserve") ! Missing
-!    call fld_list_add(fldsFrLnd,"volume_fraction_of_total_water_in_soil_at_wilting_point" , "cannot provide","conserve") ! Missing
+!    call fld_list_add(fldsFrLnd,"aerodynamic_roughness_length"          , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"canopy_moisture_storage"               , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"exchange_coefficient_heat_height2m"    , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"exchange_coefficient_moisture_height2m", "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"ice_mask"                              , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"inst_temp_height_lowest"               , "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"inst_temp_height_surface"              , "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"mean_grnd_sensi_heat_flx"              , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"mean_laten_heat_flx_kinematic"         , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"mean_net_lw_flx"                       , "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"mean_net_sw_flx"                       , "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"mean_surface_albedo"                   , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"mean_surface_skin_temp"                , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"mixing_ratio_surface"                  , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"root_moisture"                         , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"surface_snow_area_fraction"            , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"surface_snow_melt_flux"                , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"liquid_water_content_of_surface_snow"  , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"surface_snow_thickness"                , "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"soil_hydraulic_conductivity_at_saturation", "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"soil_porosity"                         , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"soil_temperature_bottom"               , "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"soil_type"                             , "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"soil_moisture_content"                 , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"subsurface_basin_mask"                 , "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"surface_microwave_emissivity"          , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"vegetation_type"                       , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"volume_fraction_of_frozen_water_in_soil", "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"volume_fraction_of_total_water_in_soil", "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrLnd,"volume_fraction_of_total_water_in_soil_at_critical_point", "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"volume_fraction_of_total_water_in_soil_at_field_capacity", "cannot provide","conservefrac") ! Missing
+!    call fld_list_add(fldsFrLnd,"volume_fraction_of_total_water_in_soil_at_wilting_point" , "cannot provide","conservefrac") ! Missing
 
     ! Required LND forcing fields to HYD
     call fld_list_add(fldsToHyd,"temperature_of_soil_layer_1"         , "cannot provide")
@@ -823,15 +840,15 @@ module module_MEDIATOR
 !    call fld_list_add(fldsToHyd,"mean_prec_rate"                        , "cannot provide")
 
     ! Fields from HYD to LND and ATM
-    call fld_list_add(fldsFrHyd,"liquid_water_content_of_soil_layer_1"        , "cannot provide","conserve")
-    call fld_list_add(fldsFrHyd,"liquid_water_content_of_soil_layer_2"        , "cannot provide","conserve")
-    call fld_list_add(fldsFrHyd,"liquid_water_content_of_soil_layer_3"        , "cannot provide","conserve")
-    call fld_list_add(fldsFrHyd,"liquid_water_content_of_soil_layer_4"        , "cannot provide","conserve")
-!    call fld_list_add(fldsFrHyd,"volume_fraction_of_total_water_in_soil"      , "cannot provide","conserve")
-!    call fld_list_add(fldsFrHyd,"surface_snow_thickness"                      , "cannot provide","conserve")
-!    call fld_list_add(fldsFrHyd,"liquid_water_content_of_surface_snow"        , "cannot provide","conserve")
+    call fld_list_add(fldsFrHyd,"liquid_water_content_of_soil_layer_1"        , "cannot provide","conservefrac")
+    call fld_list_add(fldsFrHyd,"liquid_water_content_of_soil_layer_2"        , "cannot provide","conservefrac")
+    call fld_list_add(fldsFrHyd,"liquid_water_content_of_soil_layer_3"        , "cannot provide","conservefrac")
+    call fld_list_add(fldsFrHyd,"liquid_water_content_of_soil_layer_4"        , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrHyd,"volume_fraction_of_total_water_in_soil"      , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrHyd,"surface_snow_thickness"                      , "cannot provide","conservefrac")
+!    call fld_list_add(fldsFrHyd,"liquid_water_content_of_surface_snow"        , "cannot provide","conservefrac")
     ! Other fields from HYD
-!    call fld_list_add(fldsFrHyd,"water_surface_height_above_reference_datum"  , "cannot provide","conserve")
+!    call fld_list_add(fldsFrHyd,"water_surface_height_above_reference_datum"  , "cannot provide","conservefrac")
 
    if (dbug_flag > 5) then
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -1331,6 +1348,7 @@ module module_MEDIATOR
 
           else   ! provide
 
+#ifdef NUOPC_DOES_SMART_GRID_TRANSFER
             ! realize the connected Field using the internal coupling Field
             if (.not.present(grid)) then
               call ESMF_LogWrite(trim(subname)//trim(string)//": ERROR grid expected", ESMF_LOGMSG_INFO, rc=rc)
@@ -1343,6 +1361,13 @@ module module_MEDIATOR
             call NUOPC_Realize(state, field=field, rc=rc)
             call ESMF_LogWrite(trim(subname)//trim(string)//" field connected      "//trim(fieldNameList(n)), ESMF_LOGMSG_INFO, rc=dbrc)
 
+#else
+            call NUOPC_SetAttribute(field, name="TransferActionGeomObject", &
+              value="accept-internal", rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+            
+#endif
           endif   ! transferAction
 
         else   ! StateIsFieldConnected
@@ -1480,7 +1505,8 @@ module module_MEDIATOR
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       allocate(fieldNameList(fieldCount))
-      call ESMF_StateGet(State, itemNameList=fieldNameList, rc=rc)
+      call ESMF_StateGet(State, itemNameList=fieldNameList, &
+        itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -2046,6 +2072,11 @@ module module_MEDIATOR
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
 
+    call fieldBundle_init(is_local%wrap%FBIce_if, grid=gridIce, &
+      state=NState_IceImp, name='FBIce_if', rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
     !--- lnd
 
     call fieldBundle_init(is_local%wrap%FBLnd_a, grid=gridAtm, &
@@ -2323,7 +2354,8 @@ module module_MEDIATOR
     if (is_local%wrap%a2o_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBAtm_a, FBdst=is_local%wrap%FBAtm_o, &
         bilnrmap=is_local%wrap%RH_a2o_bilnr, &
-        consvmap=is_local%wrap%RH_a2o_consv, &
+        consfmap=is_local%wrap%RH_a2o_consf, &
+        consdmap=is_local%wrap%RH_a2o_consd, &
         patchmap=is_local%wrap%RH_a2o_patch, &
         fcopymap=is_local%wrap%RH_a2o_fcopy, &
         dstMaskValue=0, &
@@ -2335,7 +2367,8 @@ module module_MEDIATOR
     if (is_local%wrap%a2i_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBAtm_a, FBdst=is_local%wrap%FBAtm_i, &
         bilnrmap=is_local%wrap%RH_a2i_bilnr, &
-        consvmap=is_local%wrap%RH_a2i_consv, &
+        consfmap=is_local%wrap%RH_a2i_consf, &
+        consdmap=is_local%wrap%RH_a2i_consd, &
         patchmap=is_local%wrap%RH_a2i_patch, &
         fcopymap=is_local%wrap%RH_a2i_fcopy, &
         dstMaskValue=0, &
@@ -2347,7 +2380,8 @@ module module_MEDIATOR
     if (is_local%wrap%a2l_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBAtm_a, FBdst=is_local%wrap%FBAtm_l, &
         bilnrmap=is_local%wrap%RH_a2l_bilnr, &
-        consvmap=is_local%wrap%RH_a2l_consv, &
+        consfmap=is_local%wrap%RH_a2l_consf, &
+        consdmap=is_local%wrap%RH_a2l_consd, &
         patchmap=is_local%wrap%RH_a2l_patch, &
         fcopymap=is_local%wrap%RH_a2l_fcopy, &
         fldlist1=FldsFrAtm, string='a2l_weights', rc=rc)
@@ -2358,7 +2392,8 @@ module module_MEDIATOR
     if (is_local%wrap%a2h_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBAtm_a, FBdst=is_local%wrap%FBAtm_h, &
         bilnrmap=is_local%wrap%RH_a2h_bilnr, &
-        consvmap=is_local%wrap%RH_a2h_consv, &
+        consfmap=is_local%wrap%RH_a2h_consf, &
+        consdmap=is_local%wrap%RH_a2h_consd, &
         patchmap=is_local%wrap%RH_a2h_patch, &
         fcopymap=is_local%wrap%RH_a2h_fcopy, &
         fldlist1=FldsFrAtm, string='a2h_weights', rc=rc)
@@ -2369,7 +2404,8 @@ module module_MEDIATOR
     if (is_local%wrap%o2a_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBOcn_o, FBdst=is_local%wrap%FBOcn_a, &
         bilnrmap=is_local%wrap%RH_o2a_bilnr, &
-        consvmap=is_local%wrap%RH_o2a_consv, &
+        consfmap=is_local%wrap%RH_o2a_consf, &
+        consdmap=is_local%wrap%RH_o2a_consd, &
         patchmap=is_local%wrap%RH_o2a_patch, &
         fcopymap=is_local%wrap%RH_o2a_fcopy, &
         srcMaskValue=0, &
@@ -2381,7 +2417,8 @@ module module_MEDIATOR
     if (is_local%wrap%o2i_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBOcn_o, FBdst=is_local%wrap%FBOcn_i, &
         bilnrmap=is_local%wrap%RH_o2i_bilnr, &
-        consvmap=is_local%wrap%RH_o2i_consv, &
+        consfmap=is_local%wrap%RH_o2i_consf, &
+        consdmap=is_local%wrap%RH_o2i_consd, &
         patchmap=is_local%wrap%RH_o2i_patch, &
         fcopymap=is_local%wrap%RH_o2i_fcopy, &
         srcMaskValue=0, dstMaskValue=0, &
@@ -2393,7 +2430,8 @@ module module_MEDIATOR
     if (is_local%wrap%i2a_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBIce_i, FBdst=is_local%wrap%FBIce_a, &
         bilnrmap=is_local%wrap%RH_i2a_bilnr, &
-        consvmap=is_local%wrap%RH_i2a_consv, &
+        consfmap=is_local%wrap%RH_i2a_consf, &
+        consdmap=is_local%wrap%RH_i2a_consd, &
         patchmap=is_local%wrap%RH_i2a_patch, &
         fcopymap=is_local%wrap%RH_i2a_fcopy, &
         srcMaskValue=0, &
@@ -2405,7 +2443,8 @@ module module_MEDIATOR
     if (is_local%wrap%i2o_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBIce_i, FBdst=is_local%wrap%FBIce_o, &
         bilnrmap=is_local%wrap%RH_i2o_bilnr, &
-        consvmap=is_local%wrap%RH_i2o_consv, &
+        consfmap=is_local%wrap%RH_i2o_consf, &
+        consdmap=is_local%wrap%RH_i2o_consd, &
         patchmap=is_local%wrap%RH_i2o_patch, &
         fcopymap=is_local%wrap%RH_i2o_fcopy, &
         srcMaskValue=0, dstMaskValue=0, &
@@ -2417,7 +2456,8 @@ module module_MEDIATOR
     if (is_local%wrap%l2a_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBLnd_l, FBdst=is_local%wrap%FBLnd_a, &
         bilnrmap=is_local%wrap%RH_l2a_bilnr, &
-        consvmap=is_local%wrap%RH_l2a_consv, &
+        consfmap=is_local%wrap%RH_l2a_consf, &
+        consdmap=is_local%wrap%RH_l2a_consd, &
         patchmap=is_local%wrap%RH_l2a_patch, &
         fcopymap=is_local%wrap%RH_l2a_fcopy, &
         fldlist1=FldsFrLnd, string='l2a_weights', rc=rc)
@@ -2428,7 +2468,8 @@ module module_MEDIATOR
     if (is_local%wrap%l2h_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBLnd_l, FBdst=is_local%wrap%FBLnd_h, &
         bilnrmap=is_local%wrap%RH_l2h_bilnr, &
-        consvmap=is_local%wrap%RH_l2h_consv, &
+        consfmap=is_local%wrap%RH_l2h_consf, &
+        consdmap=is_local%wrap%RH_l2h_consd, &
         patchmap=is_local%wrap%RH_l2h_patch, &
         fcopymap=is_local%wrap%RH_l2h_fcopy, &
         fldlist1=FldsFrLnd, string='l2h_weights', rc=rc)
@@ -2439,7 +2480,8 @@ module module_MEDIATOR
     if (is_local%wrap%h2a_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBHyd_h, FBdst=is_local%wrap%FBHyd_a, &
         bilnrmap=is_local%wrap%RH_h2a_bilnr, &
-        consvmap=is_local%wrap%RH_h2a_consv, &
+        consfmap=is_local%wrap%RH_h2a_consf, &
+        consdmap=is_local%wrap%RH_h2a_consd, &
         patchmap=is_local%wrap%RH_h2a_patch, &
         fcopymap=is_local%wrap%RH_h2a_fcopy, &
         fldlist1=FldsFrHyd, string='h2a_weights', rc=rc)
@@ -2450,7 +2492,8 @@ module module_MEDIATOR
     if (is_local%wrap%h2l_active) then
       call Compute_RHs(FBsrc=is_local%wrap%FBHyd_h, FBdst=is_local%wrap%FBHyd_l, &
         bilnrmap=is_local%wrap%RH_h2l_bilnr, &
-        consvmap=is_local%wrap%RH_h2l_consv, &
+        consfmap=is_local%wrap%RH_h2l_consf, &
+        consdmap=is_local%wrap%RH_h2l_consd, &
         patchmap=is_local%wrap%RH_h2l_patch, &
         fcopymap=is_local%wrap%RH_h2l_fcopy, &
         fldlist1=FldsFrHyd, string='h2l_weights', rc=rc)
@@ -2531,7 +2574,7 @@ module module_MEDIATOR
           enddo
           enddo
 
-          ! generate a new RH from Atm and Ocn coords, no masks, no areas.  Should not use o2a_consv mapping
+          ! generate a new RH from Atm and Ocn coords, no masks, no areas.  Should not use o2a_consd mapping
           ! because it has masks and area corrections.
 
           call ESMF_FieldRegridStore(fieldOcn, fieldAtm, routehandle=RH_mapmask, &
@@ -2616,6 +2659,9 @@ module module_MEDIATOR
       character(ESMF_MAXSTR),allocatable :: fieldNameList(:)
       character(ESMF_MAXSTR)      :: transferAction
       character(len=*),parameter  :: subname='(module_MEDIATOR:completeFieldInitialization)'
+#ifndef NUOPC_DOES_SMART_GRID_TRANSFER
+      type(ESMF_Grid)             :: grid
+#endif
 
       if (dbug_flag > 5) then
         call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -2627,7 +2673,8 @@ module module_MEDIATOR
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       allocate(fieldNameList(fieldCount))
-      call ESMF_StateGet(State, itemNameList=fieldNameList, rc=rc)
+      call ESMF_StateGet(State, itemNameList=fieldNameList, &
+        itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -2654,6 +2701,26 @@ module module_MEDIATOR
           call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
+#ifndef NUOPC_DOES_SMART_GRID_TRANSFER
+          ! access the transferred Grid to use for other fields
+          call ESMF_FieldGet(field, grid=grid, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+        elseif (trim(transferAction) == "accept-internal") then
+          if (dbug_flag > 1) then
+            call ESMF_LogWrite(subname//" is accepting INTERNAL grid for field "//trim(fieldNameList(n)), &
+              ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=__FILE__)) return  ! bail out
+          endif
+          ! now use the Grid object in other fields
+          call ESMF_FieldEmptySet(field, grid=grid, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+          call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+#endif
         endif   ! accept
 
         call FldGrid_Print(field,fieldNameList(n),rc=rc)
@@ -2920,10 +2987,6 @@ module module_MEDIATOR
     type(ESMF_Field)            :: field
     type(InternalState)         :: is_local
     real(ESMF_KIND_R8), pointer :: dataPtr1(:,:),dataPtr2(:,:),dataPtr3(:,:)
-    real(ESMF_KIND_R8), pointer :: temperature(:,:), humidity(:,:), pressure(:,:)
-    real(ESMF_KIND_R8), pointer :: air_density(:,:)
-    real(ESMF_KIND_R8), pointer :: ocnwgt(:,:),icewgt(:,:),customwgt(:,:)
-    real(ESMF_KIND_R8)          :: masko, maski, maskoi, maskl
     integer                     :: i,j,n
     character(len=*),parameter :: subname='(module_MEDIATOR:MedPhase_fast_before)'
     
@@ -2969,11 +3032,13 @@ module module_MEDIATOR
     type(ESMF_State)            :: importState, exportState
     type(ESMF_Field)            :: field
     type(InternalState)         :: is_local
-    real(ESMF_KIND_R8), pointer :: dataPtr1(:,:),dataPtr2(:,:),dataPtr3(:,:)
-    real(ESMF_KIND_R8), pointer :: temperature(:,:), humidity(:,:), pressure(:,:)
-    real(ESMF_KIND_R8), pointer :: air_density(:,:)
+    real(ESMF_KIND_R8), pointer :: dataPtr1(:,:),dataPtr2(:,:),dataPtr3(:,:),dataPtr4(:,:)
+    real(ESMF_KIND_R8), pointer :: ifrac_i(:,:)                   ! ice fraction on ice grid
+    real(ESMF_KIND_R8), pointer :: ifrac_af(:,:), ifrac_afr(:,:)  ! ice fraction on atm grid consf map
+    real(ESMF_KIND_R8), pointer :: ifrac_ad(:,:), ifrac_adr(:,:)  ! ice fraction on atm grid consd map
+    real(ESMF_KIND_R8), pointer :: ifrac_ab(:,:), ifrac_abr(:,:)  ! ice fraction on atm grid bilnr map
+    real(ESMF_KIND_R8), pointer :: ifrac_ap(:,:), ifrac_apr(:,:)  ! ice fraction on atm grid patch map
     real(ESMF_KIND_R8), pointer :: ocnwgt(:,:),icewgt(:,:),customwgt(:,:)
-    real(ESMF_KIND_R8)          :: masko, maski, maskoi, maskl
     integer                     :: i,j,n
     character(len=*),parameter :: subname='(module_MEDIATOR:MedPhase_prep_atm)'
     
@@ -3001,10 +3066,16 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-    call ESMF_ClockPrint(clock, options="currTime", &
-      preString="-------->"//trim(subname)//" mediating for: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (dbug_flag > 1) then
+      call ESMF_ClockPrint(clock, options="currTime", &
+        preString="-------->"//trim(subname)//" mediating for: ", &
+        unit=msgString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     !---------------------------------------
     !--- this is fast, no accumulator needed
@@ -3046,21 +3117,24 @@ module module_MEDIATOR
 
     call fieldBundle_reset(is_local%wrap%FBOcn_a, value=czero, rc=rc)
     call fieldBundle_reset(is_local%wrap%FBIce_a, value=czero, rc=rc)
+    call fieldBundle_reset(is_local%wrap%FBIce_if, value=czero, rc=rc)
     call fieldBundle_reset(is_local%wrap%FBLnd_a, value=czero, rc=rc)
     call fieldBundle_reset(is_local%wrap%FBHyd_a, value=czero, rc=rc)
     call fieldBundle_reset(is_local%wrap%FBAtmOcn_a, value=czero, rc=rc)
 
     if (is_local%wrap%o2a_active) then
       call Fieldbundle_Regrid(fldsFrOcn, is_local%wrap%FBOcn_o, is_local%wrap%FBOcn_a, &
-         consvmap=is_local%wrap%RH_o2a_consv, &
+         consfmap=is_local%wrap%RH_o2a_consf, &
+         consdmap=is_local%wrap%RH_o2a_consd, &
          bilnrmap=is_local%wrap%RH_o2a_bilnr, &
          patchmap=is_local%wrap%RH_o2a_patch, &
          string='o2a', rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
 
-      call Fieldbundle_Regrid(fldsFrOcn, is_local%wrap%FBAtmOcn_o, is_local%wrap%FBAtmOcn_a, &
-         consvmap=is_local%wrap%RH_o2a_consv, &
+      call Fieldbundle_Regrid(fldsAtmOcn, is_local%wrap%FBAtmOcn_o, is_local%wrap%FBAtmOcn_a, &
+         consfmap=is_local%wrap%RH_o2a_consf, &
+         consdmap=is_local%wrap%RH_o2a_consd, &
          bilnrmap=is_local%wrap%RH_o2a_bilnr, &
          patchmap=is_local%wrap%RH_o2a_patch, &
          string='o2aatmocn', rc=rc)
@@ -3069,18 +3143,254 @@ module module_MEDIATOR
     endif
 
     if (is_local%wrap%i2a_active) then
-      call Fieldbundle_Regrid(fldsFrIce, is_local%wrap%FBIce_i, is_local%wrap%FBIce_a, &
-         consvmap=is_local%wrap%RH_i2a_consv, &
-         bilnrmap=is_local%wrap%RH_i2a_bilnr, &
-         patchmap=is_local%wrap%RH_i2a_patch, &
-         string='i2a', rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
+      if (FieldBundle_FldChk(is_local%wrap%FBIce_i, 'ice_fraction', rc=rc) .and. &
+          FieldBundle_FldChk(is_local%wrap%FBIce_a, 'ice_fraction', rc=rc)) then
+        !--- tcraig, need to weight the ice2atm regrid by the ice fraction
+        !--- need to compute weight by the frac mapped with the correct mapping
+        !--- first compute the ice fraction on the atm grid for all active mappings
+
+        call FieldBundle_GetFldPtr(is_local%wrap%FBIce_i, 'ice_fraction', dataPtr1, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        allocate(ifrac_i (lbound(dataPtr1,1):ubound(dataPtr1,1),lbound(dataPtr1,2):ubound(dataPtr1,2)))
+
+        !--- conservative frac
+        if (ESMF_RouteHandleIsCreated(is_local%wrap%RH_i2a_consf, rc=rc)) then
+          call FieldBundle_FieldRegrid(is_local%wrap%FBIce_i,'ice_fraction', &
+                                       is_local%wrap%FBIce_a,'ice_fraction', &
+                                       is_local%wrap%RH_i2a_consf, rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          !--- copy out the ifrac on ice grid and ifrac on atm grid
+          call FieldBundle_GetFldPtr(is_local%wrap%FBIce_a, 'ice_fraction', dataPtr2, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          allocate(ifrac_afr(lbound(dataptr2,1):ubound(dataptr2,1),lbound(dataptr2,2):ubound(dataptr2,2)))
+          allocate(ifrac_af (lbound(dataptr2,1):ubound(dataptr2,1),lbound(dataptr2,2):ubound(dataptr2,2)))
+
+          do j=lbound(dataptr1,2),ubound(dataptr1,2)
+          do i=lbound(dataptr1,1),ubound(dataptr1,1)
+            ifrac_i(i,j) = dataPtr1(i,j)
+          enddo
+          enddo
+
+          do j=lbound(dataptr2,2),ubound(dataptr2,2)
+          do i=lbound(dataptr2,1),ubound(dataptr2,1)
+            !--- compute ice fraction on atm grid and reciprocal
+            ifrac_af(i,j) = dataPtr2(i,j)
+            if (dataPtr2(i,j) == 0._ESMF_KIND_R8) then
+              ifrac_afr(i,j) = 1.0_ESMF_KIND_R8
+            else
+              ifrac_afr(i,j) = 1.0_ESMF_KIND_R8/dataPtr2(i,j)
+            endif
+          enddo
+          enddo
+        endif
+
+        !--- conservative dst
+        if (ESMF_RouteHandleIsCreated(is_local%wrap%RH_i2a_consd, rc=rc)) then
+          call FieldBundle_FieldRegrid(is_local%wrap%FBIce_i,'ice_fraction', &
+                                       is_local%wrap%FBIce_a,'ice_fraction', &
+                                       is_local%wrap%RH_i2a_consd, rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          !--- copy out the ifrac on ice grid and ifrac on atm grid
+          call FieldBundle_GetFldPtr(is_local%wrap%FBIce_a, 'ice_fraction', dataPtr2, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          allocate(ifrac_adr(lbound(dataptr2,1):ubound(dataptr2,1),lbound(dataptr2,2):ubound(dataptr2,2)))
+          allocate(ifrac_ad (lbound(dataptr2,1):ubound(dataptr2,1),lbound(dataptr2,2):ubound(dataptr2,2)))
+
+          do j=lbound(dataptr1,2),ubound(dataptr1,2)
+          do i=lbound(dataptr1,1),ubound(dataptr1,1)
+            ifrac_i(i,j) = dataPtr1(i,j)
+          enddo
+          enddo
+
+          do j=lbound(dataptr2,2),ubound(dataptr2,2)
+          do i=lbound(dataptr2,1),ubound(dataptr2,1)
+            !--- compute ice fraction on atm grid and reciprocal
+            ifrac_ad(i,j) = dataPtr2(i,j)
+            if (dataPtr2(i,j) == 0._ESMF_KIND_R8) then
+              ifrac_adr(i,j) = 1.0_ESMF_KIND_R8
+            else
+              ifrac_adr(i,j) = 1.0_ESMF_KIND_R8/dataPtr2(i,j)
+            endif
+          enddo
+          enddo
+        endif
+
+        !--- bilinear
+        if (ESMF_RouteHandleIsCreated(is_local%wrap%RH_i2a_bilnr, rc=rc)) then
+          call FieldBundle_FieldRegrid(is_local%wrap%FBIce_i,'ice_fraction', &
+                                       is_local%wrap%FBIce_a,'ice_fraction', &
+                                       is_local%wrap%RH_i2a_bilnr, rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          !--- copy out the ifrac on ice grid and ifrac on atm grid
+          call FieldBundle_GetFldPtr(is_local%wrap%FBIce_a, 'ice_fraction', dataPtr2, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          allocate(ifrac_abr(lbound(dataptr2,1):ubound(dataptr2,1),lbound(dataptr2,2):ubound(dataptr2,2)))
+          allocate(ifrac_ab (lbound(dataptr2,1):ubound(dataptr2,1),lbound(dataptr2,2):ubound(dataptr2,2)))
+
+          do j=lbound(dataptr1,2),ubound(dataptr1,2)
+          do i=lbound(dataptr1,1),ubound(dataptr1,1)
+            ifrac_i(i,j) = dataPtr1(i,j)
+          enddo
+          enddo
+
+          do j=lbound(dataptr2,2),ubound(dataptr2,2)
+          do i=lbound(dataptr2,1),ubound(dataptr2,1)
+            !--- compute ice fraction on atm grid and reciprocal
+            ifrac_ab(i,j) = dataPtr2(i,j)
+            if (dataPtr2(i,j) == 0._ESMF_KIND_R8) then
+              ifrac_abr(i,j) = 1.0_ESMF_KIND_R8
+            else
+              ifrac_abr(i,j) = 1.0_ESMF_KIND_R8/dataPtr2(i,j)
+            endif
+          enddo
+          enddo
+        endif
+
+        !--- patch
+        if (ESMF_RouteHandleIsCreated(is_local%wrap%RH_i2a_patch, rc=rc)) then
+          call FieldBundle_FieldRegrid(is_local%wrap%FBIce_i,'ice_fraction', &
+                                       is_local%wrap%FBIce_a,'ice_fraction', &
+                                       is_local%wrap%RH_i2a_patch, rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          !--- copy out the ifrac on ice grid and ifrac on atm grid
+          call FieldBundle_GetFldPtr(is_local%wrap%FBIce_a, 'ice_fraction', dataPtr2, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+          allocate(ifrac_apr(lbound(dataptr2,1):ubound(dataptr2,1),lbound(dataptr2,2):ubound(dataptr2,2)))
+          allocate(ifrac_ap (lbound(dataptr2,1):ubound(dataptr2,1),lbound(dataptr2,2):ubound(dataptr2,2)))
+
+          do j=lbound(dataptr1,2),ubound(dataptr1,2)
+          do i=lbound(dataptr1,1),ubound(dataptr1,1)
+            ifrac_i(i,j) = dataPtr1(i,j)
+          enddo
+          enddo
+
+          do j=lbound(dataptr2,2),ubound(dataptr2,2)
+          do i=lbound(dataptr2,1),ubound(dataptr2,1)
+            !--- compute ice fraction on atm grid and reciprocal
+            ifrac_ap(i,j) = dataPtr2(i,j)
+            if (dataPtr2(i,j) == 0._ESMF_KIND_R8) then
+              ifrac_apr(i,j) = 1.0_ESMF_KIND_R8
+            else
+              ifrac_apr(i,j) = 1.0_ESMF_KIND_R8/dataPtr2(i,j)
+            endif
+          enddo
+          enddo
+        endif
+
+        !--- multiply FBIce_i by ifrac_i
+
+        do n = 1,fldsFrIce%num
+          if (FieldBundle_FldChk(is_local%wrap%FBIce_i, fldsFrIce%shortname(n), rc=rc) .and. &
+              FieldBundle_FldChk(is_local%wrap%FBIce_if,fldsFrIce%shortname(n), rc=rc)) then
+            call FieldBundle_GetFldPtr(is_local%wrap%FBIce_i , fldsFrIce%shortname(n), dataPtr3, rc=rc)
+            call FieldBundle_GetFldPtr(is_local%wrap%FBIce_if, fldsFrIce%shortname(n), dataPtr4, rc=rc)
+            do j=lbound(dataptr3,2),ubound(dataptr3,2)
+            do i=lbound(dataptr3,1),ubound(dataptr3,1)
+              dataPtr4(i,j) = dataPtr3(i,j) * ifrac_i(i,j)
+            enddo
+            enddo
+          endif
+        enddo
+
+        !--- regrid FBIce_if, fields with fraction multiplied
+
+        call Fieldbundle_Regrid(fldsFrIce, is_local%wrap%FBIce_if, is_local%wrap%FBIce_a, &
+           consfmap=is_local%wrap%RH_i2a_consf, &
+           consdmap=is_local%wrap%RH_i2a_consd, &
+           bilnrmap=is_local%wrap%RH_i2a_bilnr, &
+           patchmap=is_local%wrap%RH_i2a_patch, &
+           string='i2a', rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+
+        !--- divide FBIce_a by ifrac_a, interpolated ice fraction
+        !--- actually multiply by reciprocal of ifrac_a, ifrac_ar
+
+        do n = 1,fldsFrIce%num
+          if (FieldBundle_FldChk(is_local%wrap%FBIce_a, fldsFrIce%shortname(n), rc=rc)) then
+            call FieldBundle_GetFldPtr(is_local%wrap%FBIce_a, fldsFrIce%shortname(n), dataPtr3, rc=rc)
+            if (fldsFrIce%mapping(n) == "conservefrac") then
+              do j=lbound(dataptr3,2),ubound(dataptr3,2)
+              do i=lbound(dataptr3,1),ubound(dataptr3,1)
+                dataPtr3(i,j) = dataPtr3(i,j) * ifrac_afr(i,j)
+              enddo
+              enddo
+            elseif (fldsFrIce%mapping(n) == "conservedst") then
+              do j=lbound(dataptr3,2),ubound(dataptr3,2)
+              do i=lbound(dataptr3,1),ubound(dataptr3,1)
+                dataPtr3(i,j) = dataPtr3(i,j) * ifrac_adr(i,j)
+              enddo
+              enddo
+            elseif (fldsFrIce%mapping(n) == 'bilinear') then
+              do j=lbound(dataptr3,2),ubound(dataptr3,2)
+              do i=lbound(dataptr3,1),ubound(dataptr3,1)
+                dataPtr3(i,j) = dataPtr3(i,j) * ifrac_abr(i,j)
+              enddo
+              enddo
+            elseif (fldsFrIce%mapping(n) == 'patch') then
+              do j=lbound(dataptr3,2),ubound(dataptr3,2)
+              do i=lbound(dataptr3,1),ubound(dataptr3,1)
+                dataPtr3(i,j) = dataPtr3(i,j) * ifrac_apr(i,j)
+              enddo
+              enddo
+            else
+              call ESMF_LogWrite(trim(subname)//": mapping name error "//trim(fldsFrIce%mapping(n)), ESMF_LOGMSG_INFO, rc=rc)
+              rc=ESMF_FAILURE
+              return
+            endif
+          endif
+        enddo
+        !--- make sure ifrac_a in the mapped bundle is correct
+        call FieldBundle_GetFldPtr(is_local%wrap%FBIce_a, 'ice_fraction', dataPtr3, rc=rc)
+        do j=lbound(dataptr3,2),ubound(dataptr3,2)
+        do i=lbound(dataptr3,1),ubound(dataptr3,1)
+          dataPtr3(i,j) = ifrac_af(i,j)
+        enddo
+        enddo
+
+        deallocate(ifrac_i)
+        if (ESMF_RouteHandleIsCreated(is_local%wrap%RH_i2a_consf, rc=rc)) &
+          deallocate(ifrac_af, ifrac_afr)
+        if (ESMF_RouteHandleIsCreated(is_local%wrap%RH_i2a_consd, rc=rc)) &
+          deallocate(ifrac_ad, ifrac_adr)
+        if (ESMF_RouteHandleIsCreated(is_local%wrap%RH_i2a_bilnr, rc=rc)) &
+          deallocate(ifrac_ab, ifrac_abr)
+        if (ESMF_RouteHandleIsCreated(is_local%wrap%RH_i2a_patch, rc=rc)) &
+          deallocate(ifrac_ap, ifrac_apr)
+
+      else
+        call Fieldbundle_Regrid(fldsFrIce, is_local%wrap%FBIce_i, is_local%wrap%FBIce_a, &
+           consfmap=is_local%wrap%RH_i2a_consf, &
+           consdmap=is_local%wrap%RH_i2a_consd, &
+           bilnrmap=is_local%wrap%RH_i2a_bilnr, &
+           patchmap=is_local%wrap%RH_i2a_patch, &
+           string='i2a', rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      endif
     endif
 
     if (is_local%wrap%l2a_active) then
       call Fieldbundle_Regrid(fldsFrLnd, is_local%wrap%FBLnd_l, is_local%wrap%FBLnd_a, &
-         consvmap=is_local%wrap%RH_l2a_consv, &
+         consfmap=is_local%wrap%RH_l2a_consf, &
+         consdmap=is_local%wrap%RH_l2a_consd, &
          bilnrmap=is_local%wrap%RH_l2a_bilnr, &
          patchmap=is_local%wrap%RH_l2a_patch, &
          string='l2a', rc=rc)
@@ -3090,7 +3400,8 @@ module module_MEDIATOR
 
     if (is_local%wrap%h2a_active) then
       call Fieldbundle_Regrid(fldsFrHyd, is_local%wrap%FBHyd_h, is_local%wrap%FBHyd_a, &
-         consvmap=is_local%wrap%RH_h2a_consv, &
+         consfmap=is_local%wrap%RH_h2a_consf, &
+         consdmap=is_local%wrap%RH_h2a_consd, &
          bilnrmap=is_local%wrap%RH_h2a_bilnr, &
          patchmap=is_local%wrap%RH_h2a_patch, &
          string='h2a', rc=rc)
@@ -3116,6 +3427,21 @@ module module_MEDIATOR
       call FieldBundle_diagnose(is_local%wrap%FBforAtm, trim(subname)//' FBforAtm ', rc=rc)
     endif
 
+    if (statewrite_flag) then
+      ! write the fields imported from ocn to file
+      call ESMF_FieldBundleWrite(is_local%wrap%FBOcn_a, 'fields_med_ocn_a.nc', &
+        singleFile=.true., overwrite=.true., timeslice=is_local%wrap%fastcntr, &
+        iofmt=ESMF_IOFMT_NETCDF, rc=rc)  
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+      call ESMF_FieldBundleWrite(is_local%wrap%FBIce_a, 'fields_med_ice_a.nc', &
+        singleFile=.true., overwrite=.true., timeslice=is_local%wrap%fastcntr, &
+        iofmt=ESMF_IOFMT_NETCDF, rc=rc)  
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
+
     !---------------------------------------
     !--- custom calculations to atm
     !---------------------------------------
@@ -3129,25 +3455,6 @@ module module_MEDIATOR
     do j=lbound(icewgt,2),ubound(icewgt,2)
     do i=lbound(icewgt,1),ubound(icewgt,1)
       ocnwgt = 1.0_ESMF_KIND_R8 - icewgt
-    enddo
-    enddo
-
-    !--- fill sst and sit with 271 before merge, temporary
-
-    call FieldBundle_GetFldPtr(is_local%wrap%FBOcn_a, 'sea_surface_temperature', dataPtr1, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    do j=lbound(dataPtr1,2),ubound(dataPtr1,2)
-    do i=lbound(dataPtr1,1),ubound(dataPtr1,1)
-      if (dataPtr1(i,j) < 150._ESMF_KIND_R8) dataPtr1(i,j) = 271.0_ESMF_KIND_R8
-    enddo
-    enddo
-    call FieldBundle_GetFldPtr(is_local%wrap%FBIce_a, 'sea_ice_temperature', dataPtr1, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-    do j=lbound(dataPtr1,2),ubound(dataPtr1,2)
-    do i=lbound(dataPtr1,1),ubound(dataPtr1,1)
-      if (dataPtr1(i,j) < 150._ESMF_KIND_R8) dataPtr1(i,j) = 271.0_ESMF_KIND_R8
     enddo
     enddo
 
@@ -3333,6 +3640,7 @@ module module_MEDIATOR
         call ESMF_StateGet(NState_AtmExp, itemNameList=fieldNameList, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
+        nullify(fieldList)
         call NUOPC_GetStateMemberLists(NState_AtmExp, fieldList=fieldList, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
@@ -3343,6 +3651,7 @@ module module_MEDIATOR
                line=__LINE__, file=__FILE__)) return  ! bail out
           endif
         enddo
+        if (associated(fieldList)) deallocate(fieldList)
         deallocate(fieldNameList)
       endif
     endif
@@ -3403,10 +3712,16 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-    call ESMF_ClockPrint(clock, options="currTime", &
-      preString="-------->"//trim(subname)//" mediating for: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (dbug_flag > 1) then
+      call ESMF_ClockPrint(clock, options="currTime", &
+        preString="-------->"//trim(subname)//" mediating for: ", &
+        unit=msgString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     !---------------------------------------
     !--- this is fast, no accumulator needed
@@ -3451,7 +3766,8 @@ module module_MEDIATOR
 
     if (is_local%wrap%a2i_active) then
       call Fieldbundle_Regrid(fldsFrAtm, is_local%wrap%FBAtm_a, is_local%wrap%FBAtm_i, &
-         consvmap=is_local%wrap%RH_a2i_consv, &
+         consfmap=is_local%wrap%RH_a2i_consf, &
+         consdmap=is_local%wrap%RH_a2i_consd, &
          bilnrmap=is_local%wrap%RH_a2i_bilnr, &
          patchmap=is_local%wrap%RH_a2i_patch, &
          string='a2i', rc=rc)
@@ -3461,7 +3777,8 @@ module module_MEDIATOR
 
     if (is_local%wrap%o2i_active) then
       call Fieldbundle_Regrid(fldsFrOcn, is_local%wrap%FBOcn_o, is_local%wrap%FBOcn_i, &
-         consvmap=is_local%wrap%RH_o2i_consv, &
+         consfmap=is_local%wrap%RH_o2i_consf, &
+         consdmap=is_local%wrap%RH_o2i_consd, &
          bilnrmap=is_local%wrap%RH_o2i_bilnr, &
          patchmap=is_local%wrap%RH_o2i_patch, &
          fcopymap=is_local%wrap%RH_o2i_fcopy, &
@@ -3603,10 +3920,16 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-    call ESMF_ClockPrint(clock, options="currTime", &
-      preString="-------->"//trim(subname)//" mediating for: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (dbug_flag > 1) then
+      call ESMF_ClockPrint(clock, options="currTime", &
+        preString="-------->"//trim(subname)//" mediating for: ", &
+        unit=msgString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     !---------------------------------------
     !--- this is fast, no accumulator needed
@@ -3651,7 +3974,8 @@ module module_MEDIATOR
 
     if (is_local%wrap%a2l_active) then
       call Fieldbundle_Regrid(fldsFrAtm, is_local%wrap%FBAtm_a, is_local%wrap%FBAtm_l, &
-         consvmap=is_local%wrap%RH_a2l_consv, &
+         consfmap=is_local%wrap%RH_a2l_consf, &
+         consdmap=is_local%wrap%RH_a2l_consd, &
          bilnrmap=is_local%wrap%RH_a2l_bilnr, &
          patchmap=is_local%wrap%RH_a2l_patch, &
          string='a2l', rc=rc)
@@ -3661,7 +3985,8 @@ module module_MEDIATOR
 
     if (is_local%wrap%h2l_active) then
       call Fieldbundle_Regrid(fldsFrHyd, is_local%wrap%FBHyd_h, is_local%wrap%FBHyd_l, &
-         consvmap=is_local%wrap%RH_h2l_consv, &
+         consfmap=is_local%wrap%RH_h2l_consf, &
+         consdmap=is_local%wrap%RH_h2l_consd, &
          bilnrmap=is_local%wrap%RH_h2l_bilnr, &
          patchmap=is_local%wrap%RH_h2l_patch, &
          string='h2l', rc=rc)
@@ -3777,10 +4102,16 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-    call ESMF_ClockPrint(clock, options="currTime", &
-      preString="-------->"//trim(subname)//" mediating for: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (dbug_flag > 1) then
+      call ESMF_ClockPrint(clock, options="currTime", &
+        preString="-------->"//trim(subname)//" mediating for: ", &
+        unit=msgString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     !---------------------------------------
     !--- this is fast, no accumulator needed
@@ -3825,7 +4156,8 @@ module module_MEDIATOR
 
     if (is_local%wrap%a2h_active) then
       call Fieldbundle_Regrid(fldsFrAtm, is_local%wrap%FBAtm_a, is_local%wrap%FBAtm_h, &
-         consvmap=is_local%wrap%RH_a2h_consv, &
+         consfmap=is_local%wrap%RH_a2h_consf, &
+         consdmap=is_local%wrap%RH_a2h_consd, &
          bilnrmap=is_local%wrap%RH_a2h_bilnr, &
          patchmap=is_local%wrap%RH_a2h_patch, &
          string='a2h', rc=rc)
@@ -3835,7 +4167,8 @@ module module_MEDIATOR
 
     if (is_local%wrap%l2h_active) then
       call Fieldbundle_Regrid(fldsFrLnd, is_local%wrap%FBLnd_l, is_local%wrap%FBLnd_h, &
-         consvmap=is_local%wrap%RH_l2h_consv, &
+         consfmap=is_local%wrap%RH_l2h_consf, &
+         consdmap=is_local%wrap%RH_l2h_consd, &
          bilnrmap=is_local%wrap%RH_l2h_bilnr, &
          patchmap=is_local%wrap%RH_l2h_patch, &
          string='l2h', rc=rc)
@@ -3994,10 +4327,16 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-    call ESMF_ClockPrint(clock, options="currTime", &
-      preString="-------->"//trim(subname)//" mediating for: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (dbug_flag > 1) then
+      call ESMF_ClockPrint(clock, options="currTime", &
+        preString="-------->"//trim(subname)//" mediating for: ", &
+        unit=msgString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     if (statewrite_flag) then
       ! write the fields imported from atm to file
@@ -4145,10 +4484,16 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-    call ESMF_ClockPrint(clock, options="currTime", &
-      preString="-------->"//trim(subname)//" mediating for: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (dbug_flag > 1) then
+      call ESMF_ClockPrint(clock, options="currTime", &
+        preString="-------->"//trim(subname)//" mediating for: ", &
+        unit=msgString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     ! Get the internal state from Component.
     nullify(is_local%wrap)
@@ -4172,7 +4517,8 @@ module module_MEDIATOR
       endif
 
       call FieldBundle_Regrid(fldsFrAtm, is_local%wrap%FBAtm_a, is_local%wrap%FBAtm_o, &
-        consvmap=is_local%wrap%RH_a2o_consv, &
+        consfmap=is_local%wrap%RH_a2o_consf, &
+        consdmap=is_local%wrap%RH_a2o_consd, &
         bilnrmap=is_local%wrap%RH_a2o_bilnr, &
         patchmap=is_local%wrap%RH_a2o_patch, &
         string='a2oflx', rc=rc)
@@ -4393,10 +4739,16 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-    call ESMF_ClockPrint(clock, options="currTime", &
-      preString="-------->"//trim(subname)//" mediating for: ", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+    if (dbug_flag > 1) then
+      call ESMF_ClockPrint(clock, options="currTime", &
+        preString="-------->"//trim(subname)//" mediating for: ", &
+        unit=msgString, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    endif
 
     if (statewrite_flag) then
       ! write the fields imported from ocn to file
@@ -4455,7 +4807,8 @@ module module_MEDIATOR
     if (is_local%wrap%a2o_active) then
       call ESMF_LogWrite(trim(subname)//' calling FBRegrid FBaccumAtm to FBAtm_o', ESMF_LOGMSG_INFO, rc=rc)
       call FieldBundle_Regrid(fldsFrAtm, is_local%wrap%FBaccumAtm, is_local%wrap%FBAtm_o, &
-        consvmap=is_local%wrap%RH_a2o_consv, &
+        consfmap=is_local%wrap%RH_a2o_consf, &
+        consdmap=is_local%wrap%RH_a2o_consd, &
         bilnrmap=is_local%wrap%RH_a2o_bilnr, &
         patchmap=is_local%wrap%RH_a2o_patch, &
         string='a2o', rc=rc)
@@ -4466,7 +4819,8 @@ module module_MEDIATOR
     if (is_local%wrap%i2o_active) then
       call ESMF_LogWrite(trim(subname)//' calling FBRegrid FBaccumIce to FBIce_o', ESMF_LOGMSG_INFO, rc=rc)
       call FieldBundle_Regrid(fldsFrIce, is_local%wrap%FBaccumIce, is_local%wrap%FBIce_o, &
-        consvmap=is_local%wrap%RH_i2o_consv, &
+        consfmap=is_local%wrap%RH_i2o_consf, &
+        consdmap=is_local%wrap%RH_i2o_consd, &
         bilnrmap=is_local%wrap%RH_i2o_bilnr, &
         patchmap=is_local%wrap%RH_i2o_patch, &
         fcopymap=is_local%wrap%RH_i2o_fcopy, &
@@ -5105,13 +5459,14 @@ module module_MEDIATOR
 
   !-----------------------------------------------------------------------------
 
-  subroutine Compute_RHs(FBsrc, FBdst, bilnrmap, consvmap, patchmap, fcopymap, &
+  subroutine Compute_RHs(FBsrc, FBdst, bilnrmap, consfmap, consdmap, patchmap, fcopymap, &
                          srcMaskValue, dstMaskValue, &
                          fldlist1, fldlist2, fldlist3, fldlist4, string, rc)
     type(ESMF_FieldBundle) :: FBsrc
     type(ESMF_FieldBundle) :: FBdst
     type(ESMF_Routehandle),optional :: bilnrmap
-    type(ESMF_Routehandle),optional :: consvmap
+    type(ESMF_Routehandle),optional :: consfmap
+    type(ESMF_Routehandle),optional :: consdmap
     type(ESMF_Routehandle),optional :: patchmap
     type(ESMF_Routehandle),optional :: fcopymap
     integer               ,optional :: srcMaskValue
@@ -5126,11 +5481,12 @@ module module_MEDIATOR
     ! local variables
     integer :: n
     character(len=128) :: lstring
-    logical :: do_consv, do_bilnr, do_patch, do_fcopy
+    logical :: do_consf, do_consd, do_bilnr, do_patch, do_fcopy
     integer :: lsrcMaskValue, ldstMaskValue
     type(ESMF_Field)            :: fldsrc, flddst
     real(ESMF_KIND_R8), pointer :: factorList(:)
     character(len=*),parameter :: subname='(module_MEDIATOR:Compute_RHs)'
+type(ESMF_VM):: vm
 
     rc = ESMF_SUCCESS
     if (dbug_flag > 5) then
@@ -5170,54 +5526,61 @@ module module_MEDIATOR
     if (.not.present(fldlist1) .and. .not.present(fldlist2) .and. &
         .not.present(fldlist3) .and. .not.present(fldlist4)) then
       do_bilnr = .true.
-      do_consv = .true.
+      do_consf = .true.
+      do_consd = .true.
       do_patch = .true.
       do_fcopy = .true.
     else
       do_bilnr = .false.
-      do_consv = .false.
+      do_consf = .false.
+      do_consd = .false.
       do_patch = .false.
       do_fcopy = .false.
     endif
 
     if (present(fldlist1)) then
       do n = 1,fldlist1%num
-        if (fldlist1%mapping(n) == 'bilinear') do_bilnr = .true.
-        if (fldlist1%mapping(n) == 'conserve') do_consv = .true.
-        if (fldlist1%mapping(n) == 'patch')    do_patch = .true.
-        if (fldlist1%mapping(n) == 'copy')     do_fcopy = .true.
+        if (fldlist1%mapping(n) == 'bilinear'    ) do_bilnr = .true.
+        if (fldlist1%mapping(n) == "conservefrac") do_consf = .true.
+        if (fldlist1%mapping(n) == "conservedst" ) do_consd = .true.
+        if (fldlist1%mapping(n) == 'patch'       ) do_patch = .true.
+        if (fldlist1%mapping(n) == 'copy'        ) do_fcopy = .true.
       enddo
     endif
 
     if (present(fldlist2)) then
       do n = 1,fldlist2%num
-        if (fldlist2%mapping(n) == 'bilinear') do_bilnr = .true.
-        if (fldlist2%mapping(n) == 'conserve') do_consv = .true.
-        if (fldlist2%mapping(n) == 'patch')    do_patch = .true.
-        if (fldlist2%mapping(n) == 'copy')     do_fcopy = .true.
+        if (fldlist2%mapping(n) == 'bilinear'    ) do_bilnr = .true.
+        if (fldlist2%mapping(n) == "conservefrac") do_consf = .true.
+        if (fldlist2%mapping(n) == "conservedst" ) do_consd = .true.
+        if (fldlist2%mapping(n) == 'patch'       ) do_patch = .true.
+        if (fldlist2%mapping(n) == 'copy'        ) do_fcopy = .true.
       enddo
     endif
 
     if (present(fldlist3)) then
       do n = 1,fldlist3%num
-        if (fldlist3%mapping(n) == 'bilinear') do_bilnr = .true.
-        if (fldlist3%mapping(n) == 'conserve') do_consv = .true.
-        if (fldlist3%mapping(n) == 'patch')    do_patch = .true.
-        if (fldlist3%mapping(n) == 'copy')     do_fcopy = .true.
+        if (fldlist3%mapping(n) == 'bilinear'    ) do_bilnr = .true.
+        if (fldlist3%mapping(n) == "conservefrac") do_consf = .true.
+        if (fldlist3%mapping(n) == "conservedst" ) do_consd = .true.
+        if (fldlist3%mapping(n) == 'patch'       ) do_patch = .true.
+        if (fldlist3%mapping(n) == 'copy'        ) do_fcopy = .true.
       enddo
     endif
 
     if (present(fldlist4)) then
       do n = 1,fldlist4%num
-        if (fldlist4%mapping(n) == 'bilinear') do_bilnr = .true.
-        if (fldlist4%mapping(n) == 'conserve') do_consv = .true.
-        if (fldlist4%mapping(n) == 'patch')    do_patch = .true.
-        if (fldlist4%mapping(n) == 'copy')     do_fcopy = .true.
+        if (fldlist4%mapping(n) == 'bilinear'    ) do_bilnr = .true.
+        if (fldlist4%mapping(n) == "conservefrac") do_consf = .true.
+        if (fldlist4%mapping(n) == "conservedst" ) do_consd = .true.
+        if (fldlist4%mapping(n) == 'patch'       ) do_patch = .true.
+        if (fldlist4%mapping(n) == 'copy'        ) do_fcopy = .true.
       enddo
     endif
 
     if (.not.present(bilnrmap)) do_bilnr = .false.
-    if (.not.present(consvmap)) do_consv = .false.
+    if (.not.present(consfmap)) do_consf = .false.
+    if (.not.present(consdmap)) do_consd = .false.
     if (.not.present(patchmap)) do_patch = .false.
     if (.not.present(fcopymap)) do_fcopy = .false.
 
@@ -5248,6 +5611,13 @@ module module_MEDIATOR
         unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
+#if 0
+if (trim(string)=="o2a_weights") then 
+  call ESMF_VMGetCurrent(vm)
+  call ESMF_VMBarrier(vm)
+  call ESMF_Finalize(endflag=ESMF_END_ABORT)
+endif
+#endif
       if (rhprint_flag) then
         call NUOPC_Write(factorList, "array_med_"//trim(lstring)//"_bilnr.nc", rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -5264,30 +5634,67 @@ module module_MEDIATOR
     endif
       
     !---------------------------------------------------
-    !--- conservative
+    !--- conservative frac
     !---------------------------------------------------
 
-    if (do_consv) then
-      call ESMF_FieldRegridStore(fldsrc, flddst, routehandle=consvmap, &
+    if (do_consf) then
+      call ESMF_FieldRegridStore(fldsrc, flddst, routehandle=consfmap, &
         srcMaskValues=(/lsrcMaskValue/), dstMaskValues=(/ldstMaskValue/), &
         regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
+        normType=ESMF_NORMTYPE_FRACAREA, &
+        srcTermProcessing=srcTermProcessing_Value, &
+        factorList=factorList, ignoreDegenerate=.true., &
+        unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+#if 0
+if (trim(string)=="o2a_weights") then
+  call ESMF_VMGetCurrent(vm)
+  call ESMF_VMBarrier(vm)
+  call ESMF_Finalize(endflag=ESMF_END_ABORT)
+endif
+#endif
+      if (rhprint_flag) then
+        call NUOPC_Write(factorList, "array_med_"//trim(lstring)//"_consf.nc", rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+        call ESMF_RouteHandlePrint(consfmap, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      endif
+      if (ESMF_RouteHandleIsCreated(consfmap, rc=rc)) then
+        call ESMF_LogWrite(trim(subname)//trim(lstring)//": computed RH consf", ESMF_LOGMSG_INFO, rc=dbrc)
+      else
+        call ESMF_LogWrite(trim(subname)//trim(lstring)//": failed   RH consf", ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+     endif
+      
+    !---------------------------------------------------
+    !--- conservative dst
+    !---------------------------------------------------
+
+    if (do_consd) then
+      call ESMF_FieldRegridStore(fldsrc, flddst, routehandle=consdmap, &
+        srcMaskValues=(/lsrcMaskValue/), dstMaskValues=(/ldstMaskValue/), &
+        regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
+        normType=ESMF_NORMTYPE_DSTAREA, &
         srcTermProcessing=srcTermProcessing_Value, &
         factorList=factorList, ignoreDegenerate=.true., &
         unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
       if (rhprint_flag) then
-        call NUOPC_Write(factorList, "array_med_"//trim(lstring)//"_consv.nc", rc)
+        call NUOPC_Write(factorList, "array_med_"//trim(lstring)//"_consd.nc", rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
-        call ESMF_RouteHandlePrint(consvmap, rc=rc)
+        call ESMF_RouteHandlePrint(consdmap, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=__FILE__)) return  ! bail out
       endif
-      if (ESMF_RouteHandleIsCreated(consvmap, rc=rc)) then
-        call ESMF_LogWrite(trim(subname)//trim(lstring)//": computed RH consv", ESMF_LOGMSG_INFO, rc=dbrc)
+      if (ESMF_RouteHandleIsCreated(consdmap, rc=rc)) then
+        call ESMF_LogWrite(trim(subname)//trim(lstring)//": computed RH consd", ESMF_LOGMSG_INFO, rc=dbrc)
       else
-        call ESMF_LogWrite(trim(subname)//trim(lstring)//": failed   RH consv", ESMF_LOGMSG_INFO, rc=dbrc)
+        call ESMF_LogWrite(trim(subname)//trim(lstring)//": failed   RH consd", ESMF_LOGMSG_INFO, rc=dbrc)
       endif
      endif
       
@@ -5910,12 +6317,13 @@ module module_MEDIATOR
 
   !-----------------------------------------------------------------------------
 
-  subroutine Fieldbundle_Regrid(fldlist, FBin, FBout, consvmap, bilnrmap, patchmap, &
+  subroutine Fieldbundle_Regrid(fldlist, FBin, FBout, consfmap, consdmap, bilnrmap, patchmap, &
                                 fcopymap, string, rc)
     type(fld_list_type)    :: fldlist
     type(ESMF_FieldBundle) :: FBin
     type(ESMF_FieldBundle) :: FBout
-    type(ESMF_Routehandle),optional :: consvmap
+    type(ESMF_Routehandle),optional :: consfmap
+    type(ESMF_Routehandle),optional :: consdmap
     type(ESMF_Routehandle),optional :: bilnrmap
     type(ESMF_Routehandle),optional :: patchmap
     type(ESMF_Routehandle),optional :: fcopymap
@@ -5925,7 +6333,7 @@ module module_MEDIATOR
     ! local variables
     integer :: n
     character(len=64) :: lstring
-    logical :: okconsv, okbilnr, okpatch, okfcopy
+    logical :: okconsf, okconsd, okbilnr, okpatch, okfcopy
     character(len=*),parameter :: subname='(module_MEDIATOR:Fieldbundle_Regrid)'
 
     rc = ESMF_SUCCESS
@@ -5944,9 +6352,14 @@ module module_MEDIATOR
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
     endif
 
-    okconsv = .false.
-    if (present(consvmap)) then
-      if (ESMF_RouteHandleIsCreated(consvmap, rc=rc)) okconsv = .true.
+    okconsf = .false.
+    if (present(consfmap)) then
+      if (ESMF_RouteHandleIsCreated(consfmap, rc=rc)) okconsf = .true.
+    endif
+
+    okconsd = .false.
+    if (present(consdmap)) then
+      if (ESMF_RouteHandleIsCreated(consdmap, rc=rc)) okconsd = .true.
     endif
 
     okbilnr = .false.
@@ -5986,8 +6399,8 @@ module module_MEDIATOR
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
 
-        elseif (fldlist%mapping(n) == 'conserve') then
-          if (.not. okconsv) then
+        elseif (fldlist%mapping(n) == "conservefrac") then
+          if (.not. okconsf) then
             call ESMF_LogWrite(trim(subname)//trim(lstring)//": ERROR RH not available for "//trim(fldlist%mapping(n))// &
               ": fld="//trim(fldlist%shortname(n)), ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=dbrc)
             rc = ESMF_FAILURE
@@ -5995,7 +6408,20 @@ module module_MEDIATOR
           endif
           call FieldBundle_FieldRegrid(FBin ,fldlist%shortname(n), &
                                        FBout,fldlist%shortname(n), &
-                                       consvmap, rc)
+                                       consfmap, rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return  ! bail out
+
+        elseif (fldlist%mapping(n) == "conservedst") then
+          if (.not. okconsd) then
+            call ESMF_LogWrite(trim(subname)//trim(lstring)//": ERROR RH not available for "//trim(fldlist%mapping(n))// &
+              ": fld="//trim(fldlist%shortname(n)), ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=dbrc)
+            rc = ESMF_FAILURE
+            return
+          endif
+          call FieldBundle_FieldRegrid(FBin ,fldlist%shortname(n), &
+                                       FBout,fldlist%shortname(n), &
+                                       consdmap, rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return  ! bail out
 
@@ -6015,20 +6441,20 @@ module module_MEDIATOR
         elseif (fldlist%mapping(n) == 'copy') then
           !-------------------------------------------
           ! copy will not exist for some grid combinations
-          ! so fall back to bilinear as a secondary option
+          ! so fall back to conservative frac as a secondary option
           !-------------------------------------------
           if (.not. okfcopy) then
-            if (.not. okbilnr) then
+            if (.not. okconsf) then
               call ESMF_LogWrite(trim(subname)//trim(lstring)//": ERROR RH not available for "//trim(fldlist%mapping(n))// &
                 ": fld="//trim(fldlist%shortname(n)), ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=dbrc)
               rc = ESMF_FAILURE
               return
             else
-              call ESMF_LogWrite(trim(subname)//trim(lstring)//": NOTE using bilinear instead of copy for"// &
-                " fld="//trim(fldlist%shortname(n)), ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=dbrc)
+              call ESMF_LogWrite(trim(subname)//trim(lstring)//": NOTE using conservative instead of copy for"// &
+                " fld="//trim(fldlist%shortname(n)), ESMF_LOGMSG_INFO, line=__LINE__, file=__FILE__, rc=dbrc)
               call FieldBundle_FieldRegrid(FBin ,fldlist%shortname(n), &
                                            FBout,fldlist%shortname(n), &
-                                           bilnrmap,rc)
+                                           consfmap,rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=__FILE__)) return  ! bail out
             endif
@@ -6164,7 +6590,6 @@ module module_MEDIATOR
     ub1 = ubound(dataOut,1)
     lb2 = lbound(dataOut,2)
     ub2 = ubound(dataOut,2)
-    allocate(wgt(lb1:ub1,lb2:ub2))
 
     dataOut = czero
 
@@ -7440,7 +7865,8 @@ module module_MEDIATOR
     fldlist%shortname     (fldlist%num) = trim(stdname)
     fldlist%transferOffer (fldlist%num) = trim(transferOffer)
     if (present(mapping)) then
-       if (trim(mapping) /= 'conserve' .and. trim(mapping) /= 'bilinear' .and. &
+       if (trim(mapping) /= "conservefrac" .and. trim(mapping) /= 'bilinear' .and. &
+           trim(mapping) /= 'conservedst'  .and. &
            trim(mapping) /= 'patch'    .and. trim(mapping) /= 'copy') then
           call ESMF_LogWrite(trim(subname)//": ERROR mapping not allowed "//trim(mapping), ESMF_LOGMSG_ERROR, rc=rc)
           call ESMF_Finalize(endflag=ESMF_END_ABORT)
@@ -7988,6 +8414,7 @@ module module_MEDIATOR
 
     rc = ESMF_SUCCESS
 
+    nullify(fieldList)
     call NUOPC_GetStateMemberLists(state, fieldList=fieldList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -8001,6 +8428,8 @@ module module_MEDIATOR
         file=__FILE__)) &
         return  ! bail out
     enddo
+
+    if (associated(fieldList)) deallocate(fieldList)
     
   end subroutine NUOPCplus_UpdateTimestampS
 
