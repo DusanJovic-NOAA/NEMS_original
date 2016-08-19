@@ -538,7 +538,7 @@ gsm: gsm_libs $(OBJS) $(COBJS) $(MAIN)
 	@echo "       CHEM_MODE ----------->"$(CHEM_MODE)
 	@echo "       PHYS_MODE ----------->"$(PHYS_MODE)
 	@echo "       PHYS_INC----------->"$(PHYS_INC)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a  $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
+	$(FC) $(LDFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS) $(LDFLAGS_MAP)
 	@echo "NEMS.x successfully created for GSM core."
 
 gsm_libs:

@@ -105,6 +105,7 @@ else
      echo " 'configure nmmb_intel_theia'  : NEMS/NMMB build on Theia using Intel and ESMF v7.0.0"
      echo " 'configure gsm_intel_wcoss'   : NEMS/GSM build on Wcoss using Intel and ESMF v7.0.0"
      echo " 'configure gsm_intel_theia'   : NEMS/GSM build on Theia using Intel and ESMF v7.0.0"
+     echo " 'configure gsm_intel_wcoss_c' : NEMS/GSM build on Crays using Intel and ESMF v7.0.0"
      echo;
      echo " 'configure coupled_intel_wcoss'       : Coupled NEMS build on Wcoss using Intel and ESMF v7.0.0"
      echo " 'configure coupled_intel_gaea'        : Coupled NEMS build on Gaea using Intel and ESMF v7.0.0"
