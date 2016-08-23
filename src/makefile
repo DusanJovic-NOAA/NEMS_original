@@ -3,7 +3,6 @@ SHELL = /bin/sh -x
 # variables that need to move between makefiles on different levels of the build tree
 # via shell environment variables
 export TOP := $(shell pwd)
-export PHYS_INC
 
 # check if configure.nems file exists
 
@@ -271,25 +270,6 @@ ifneq (,$(findstring $(COMMA)wrfhydro$(COMMA),$(COMP)))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
 ################################################################################
-
-# development with NEMS phys to be compiled every time. Assumes std phys location
-# no pre-build libphys.a will be used 
-#  PHYS_MODE must be set as "compile"
-
-ifeq ($(PHYS_MODE),compile)
-	PHYS_LIB = $(TOP)/atmos/gsm/gsmphys
-	PHYS_INC = $(TOP)/atmos/gsm/gsmphys
-	PHYS_DIR = $(TOP)/atmos/gsm/gsmphys
-endif
-ifeq ($(CHEM_MODE),compile)
-        CHEM_LIB = $(TOP)/chem
-        CHEM_INC = $(TOP)/chem/gocart/src/Config/
-        CHEM_DIR = $(TOP)/chem
-	CHEM_MOD = $(TOP)/chem/gocart/${ARCH}/include
-ESMADIR=chem/gocart
-include $(ESMADIR)/src/Config/NCEP_base.mk
-endif
-
 
 CPPFLAGS += $(DEP_FRONTS)
 

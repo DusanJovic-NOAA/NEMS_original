@@ -36,4 +36,6 @@ module purge
 
  module use /usrx/local/dev/modulefiles
  module load ESMF-intel-haswell/7_0_0
+module use -a /usrx/local/nceplibs/NEMSmodulefiles
+module load chem/10.0.10wcoss phys/10.0.10wcoss
 

@@ -13,6 +13,19 @@ gfsdir=atmos/$(gfs)
 #
 PHYS_MODE       =compile
 CHEM_MODE       =compile
+ifeq ($(PHYS_MODE),compile)
+       PHYS_LIB = $(TOP)/atmos/gsm/gsmphys
+       PHYS_INC = $(TOP)/atmos/gsm/gsmphys
+       PHYS_DIR = $(TOP)/atmos/gsm/gsmphys
+endif
+ifeq ($(CHEM_MODE),compile)
+        CHEM_LIB = $(TOP)/chem
+        CHEM_INC = $(TOP)/chem/gocart/src/Config/
+        CHEM_DIR = $(TOP)/chem
+       CHEM_MOD = $(TOP)/chem/gocart/${ARCH}/include
+      ESMADIR = chem/gocart
+endif
+
 #
 ################################################################################
 

@@ -1,0 +1,4 @@
+module purge
+module load EnvVars/1.0.0 ics/15.0.3 lsf NetCDF/4.2/serial ibmpe ESMF/700
+module use -a /usrx/local/nceplibs/NEMSmodulefiles
+module load chem/10.0.10wcoss phys/10.0.10wcoss
