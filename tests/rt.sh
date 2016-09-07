@@ -149,6 +149,7 @@ if [[ $CREATE_BASELINE == true ]]; then
     echo "copy gfs"
     cp ${RTPWD}/GFS_EULERIAN/*             ${RTPWD_U}/GFS_EULERIAN/.
     cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
+    cp ${RTPWD}/WAM_gh_l150_nemsio/*       ${RTPWD_U}/WAM_gh_l150_nemsio/.
     cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
     cp ${RTPWD}/GFS_SLG_ADIABATIC/*        ${RTPWD_U}/GFS_SLG_ADIABATIC/.
     cp ${RTPWD}/GFS_SLG/*                  ${RTPWD_U}/GFS_SLG/.

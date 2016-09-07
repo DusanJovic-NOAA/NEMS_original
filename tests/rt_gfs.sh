@@ -126,6 +126,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_WAM_IPE_COUPLING_:${WAM_IPE_COUPLING}:g       \
                      | sed s:_HEIGHT_DEPENDENT_G_:${HEIGHT_DEPENDENT_G}:g   \
                      | sed s:_F107_KP_SKIP_SIZE_:${F107_KP_SKIP_SIZE}:g   \
+                     | sed s:_F107_KP_DATA_SIZE_:${F107_KP_DATA_SIZE}:g   \
                      | sed s:_DELTIM_:${DELTIM}:g                 \
                      | sed s:_CDATE_:${CDATE}:g                   \
                      | sed s:_IEMS_:${IEMS}:g                     \
@@ -238,11 +239,19 @@ fi
      export nemsioget=${nemsioget:-/scratch3/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
   fi
   export SIGHDR=$nemsioget
-  if [ $fcst_begin = YES ]; then
-    cp $IC_DIR/gfsanl.$CDATE $RUNDIR
-    cp $IC_DIR/sfnanl.$CDATE $RUNDIR
-    if [ $NST_FCST -gt 0 ] ; then
-      cp $IC_DIR/nsnanl.$CDATE $RUNDIR
+  if [ "$IDEA" = ".true." ]; then
+    if [ $MACHINE_ID = wcoss ] ; then
+      cp /nems/noscrub/Weiyu.Yang/REGRESSION_TEST/WAM_gh_l150_nemsio/*anl*${CDATE} ${RUNDIR}/.
+    elif [ $MACHINE_ID = theia ] ; then
+      cp /scratch4/NCEPDEV/nems/noscrub/Weiyu.Yang/REGRESSION_TEST/WAM_gh_l150_nemsio/*anl*${CDATE} ${RUNDIR}/.
+    fi
+  else
+    if [ $fcst_begin = YES ]; then
+      cp $IC_DIR/gfsanl.$CDATE $RUNDIR
+      cp $IC_DIR/sfnanl.$CDATE $RUNDIR
+      if [ $NST_FCST -gt 0 ] ; then
+        cp $IC_DIR/nsnanl.$CDATE $RUNDIR
+      fi
     fi
   fi
 

@@ -781,8 +781,11 @@ export IDEA=${IDEA:-.false.}
 export WAM_IPE_COUPLING=${WAM_IPE_COUPLING:-.false.}
 export WAM_IPE_COUPLING=${WAM_IPE_COUPLING:-.false.}
 export HEIGHT_DEPENDENT_G=${HEIGHT_DEPENDENT_G:-.false.}
-export F107_KP_SIZE=${F107_KP_SIZE:-56}
+# F107_KP_SIZE is the forecast run required f107 data size.
+#----------------------------------------------------------
+export F107_KP_SIZE=${F107_KP_SIZE:-16}
 export F107_KP_SKIP_SIZE=${F107_KP_SKIP_SIZE:-0}
+export F107_KP_DATA_SIZE=${F107_KP_DATA_SIZE:-56}
 export F107_KP_INTERVAL=${F107_KP_INTERVAL:-10800}
 
 #
@@ -1711,6 +1714,7 @@ cat  > atm_namelist <<EOF
   f107_kp_size=$F107_KP_SIZE, 
   f107_kp_interval=$F107_KP_INTERVAL,
   f107_kp_skip_size=$F107_KP_SKIP_SIZE,
+  f107_kp_data_size=$F107_KP_DATA_SIZE,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
