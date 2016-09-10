@@ -180,11 +180,7 @@ if [ $mfcnvcld = .true. ] ; then
   export imfdeepcnv=2
   export imfshalcnv=2
   export prautco='1.0e-4,1.0e-4'
-  if [ $imfdeepcnv -eq 2 ]; then
-    export psautco='8.0e-4,8.0e-4'
-  else
-    export psautco='6.0e-4,3.0e-4'
-  fi
+  export psautco='6.0e-4,3.0e-4'
 #
 # imfdeepcnv - integer, flag for mass-flux deep conv scheme
 #     1: July 2010 version of SAS conv scheme (operational in 2016)
