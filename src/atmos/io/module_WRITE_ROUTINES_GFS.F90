@@ -1718,6 +1718,7 @@
                                   ,NF_HOURS                       &
                                   ,NF_MINUTES                     &
                                   ,NF_SECONDS                     &
+                                  ,NF_HOURS_IAU                   &
                                   ,DIM1,DIM2,NFRAME               &
                                   ,LEAD_WRITE_TASK)
 
@@ -1730,7 +1731,7 @@
       TYPE(NEMSIO_GFILE),INTENT(INOUT)             :: NEMSIOFILE                !<-- The nemsio file handler
 !
       INTEGER,INTENT(IN)  :: IYEAR_FCST, IMONTH_FCST, IDAY_FCST, IHOUR_FCST  &
-                            ,IMINUTE_FCST, NF_HOURS, NF_MINUTES              &
+                            ,IMINUTE_FCST, NF_HOURS, NF_MINUTES,NF_HOURS_IAU &
                             ,LEAD_WRITE_TASK, NBDL
 
       INTEGER,INTENT(OUT) :: DIM1,DIM2,NFRAME
@@ -2316,7 +2317,7 @@
 !
       CALL NEMSIO_OPEN(NEMSIOFILE,trim(FILENAME),'write',iret,           &
         modelname="GFS", gdatatype=wrt_int_state%io_form(NBDL),          &
-        idate=idate,nfhour=NF_HOURS,                                     &
+        idate=idate,nfhour=NF_HOURS_IAU,                                 &
         nfminute=NF_MINUTES,nfsecondn=nint(NF_SECONDS*100),              &
         nfsecondd=100,dimx=DIM1,dimy=DIM2,dimz=LM,nframe=NFRAME,         &
         nmeta=NMETA,jcap=JCAP,idsl=IDSL,idvm=IDVM,idvc=IDVC,idrt=IDRT,   &
@@ -2331,6 +2332,7 @@
         aryrval=ARYRVAL,recname=RECNAME,reclevtyp=RECLEVTYP,reclev=RECLEV)
 
        if(iret /= 0) print *,'nemsio_open, file=',trim(filename),' iret=',iret
+       print *,'nemsio_open, file=',trim(filename),' NF_HOURS=',NF_HOURS
 !
 !-----------------------------------------------------------------------
 !***  CLEAN UP

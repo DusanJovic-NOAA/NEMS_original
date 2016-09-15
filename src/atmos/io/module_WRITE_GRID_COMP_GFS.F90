@@ -543,12 +543,25 @@
                                               ,IMINUTE_FCST             &
                                               ,ISECOND_FCST             &
                                               ,ISECOND_NUM              &
+                                              ,IYEAR_IAU                &
+                                              ,IMONTH_IAU               &
+                                              ,IDAY_IAU                 &
+                                              ,IHOUR_IAU                &
+                                              ,IMINUTE_IAU              &
+                                              ,ISECOND_IAU              &
+                                              ,IYEAR_INI                &
+                                              ,IMONTH_INI               &
+                                              ,IDAY_INI                 &
+                                              ,IHOUR_INI                &
+                                              ,IMINUTE_INI              &
+                                              ,ISECOND_INI              &
                                               ,ISECOND_DEN
 !
       INTEGER(KIND=ESMF_KIND_I8)            :: NTIMESTEP_ESMF
       INTEGER(KIND=kind_io4)                :: NTIMESTEP
 !
       INTEGER                               :: NF_HOURS                 &
+                                              ,NF_HOURS_IAU             &
                                               ,NF_MINUTES               &
                                               ,NSECONDS                 &
                                               ,NSECONDS_NUM             &
@@ -632,6 +645,8 @@
       TYPE(WRITE_INTERNAL_STATE_GFS), POINTER :: WRT_INT_STATE
       TYPE(ESMF_LOGICAL),DIMENSION(:),POINTER :: FIRST_IO_PE
       TYPE(ESMF_Time)                         :: CURRTIME
+      TYPE(ESMF_Time)                         :: IAUINITIME
+      TYPE(ESMF_TimeInterval)                 :: IAUTIMEINTERVAL
 !
       TYPE(ESMF_TypeKind_Flag)                :: DATATYPE
 !
@@ -1589,13 +1604,68 @@
                                    ,sN          =NSECONDS_NUM           &  !<-- Numerator of fractional elapsed seconds
                                    ,sD          =NSECONDS_DEN           &  !<-- denominator of fractional elapsed seconds
                                    ,rc          =RC)
+          NF_HOURS_IAU=NF_HOURS
+          IF (wrt_int_state%iau.AND.NF_HOURS.GE. 6) THEN
+!  set forecast hours back by 6-hours and advance initiali date by 6
+!  hours
+             NF_HOURS_IAU=NF_HOURS-6
+             call esmf_timeintervalset(iautimeinterval, h = 6,m = 0, rc = rc)
+             iauinitime = wrt_int_state%IO_BASETIME + iautimeinterval
+             call esmf_timeget(wrt_int_state%IO_BASETIME                    &  !<-- IO_BASETIME
+                              ,yy  =IYEAR_INI                              &  !<-- The current forecast year (integer)
+                              ,mm  =IMONTH_INI                             &  !<-- The current forecast month (integer)
+                              ,dd  =IDAY_INI                               &  !<-- The current forecast day (integer)
+                              ,h   =IHOUR_INI                              &  !<-- The current forecast hour (integer)
+                              ,m   =IMINUTE_INI                            &  !<-- The current forecast minute (integer)
+                              ,s   =ISECOND_INI                            &  !<-- The current forecast second (integer)
+                              ,sN  =ISECOND_NUM                            &  !<-- Numerator of current fractional second (integer)
+                              ,sD  =ISECOND_DEN                            &  !<-- Denominator of current fractional second (integer)
+                              ,rc          =RC)
+             call esmf_timeget(iauinitime                               &  !<-- New initial date for IAU segment
+                              ,yy  =IYEAR_IAU                              &  !<-- The current forecast year (integer)
+                              ,mm  =IMONTH_IAU                             &  !<-- The current forecast month (integer)
+                              ,dd  =IDAY_IAU                               &  !<-- The current forecast day (integer)
+                              ,h   =IHOUR_IAU                              &  !<-- The current forecast hour (integer)
+                              ,m   =IMINUTE_IAU                            &  !<-- The current forecast minute (integer)
+                              ,s   =ISECOND_IAU                            &  !<-- The current forecast second (integer)
+                              ,sN  =ISECOND_NUM                            &  !<-- Numerator of current fractional second (integer)
+                              ,sD  =ISECOND_DEN                            &  !<-- Denominator of current fractional second (integer)
+                              ,rc          =RC)
+             if (mype.eq.lead_write_task) then
+                print*,'ini time=',IYEAR_INI,IMONTH_INI,IDAY_INI,IHOUR_INI
+                print*,'iau time=',IYEAR_IAU,IMONTH_IAU,IDAY_IAU,IHOUR_IAU
+                print*,'fct time=',IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST
+             ENDIF
+!            fill array 'IDAT' with updated initial time
+             N2 = 0                                                             !<-- Word counter for full string of integer scalar/1D data
+             DO N=1,wrt_int_state%KOUNT_I1D(NBDL)                                   !<-- Loop through all scalar/1D real data
+               NPOSN_1 = (N-1)*NAME_MAXSTR + 1
+               NPOSN_2 = N*NAME_MAXSTR
+               NAME    = wrt_int_state%NAMES_I1D_STRING(NBDL)(NPOSN_1:NPOSN_2)      !<-- The variable's name
+               LENGTH  = wrt_int_state%LENGTH_DATA_I1D(N,NBDL)                      !<-- The variable's length in words
+               IF(LENGTH == 1) THEN
+                 N2 = N2 + 1
+               ELSE
+                 DO N1=1,LENGTH
+                   N2 = N2 + 1
+                   IF (N1==1.AND.NAME=='IDAT') THEN
+                     wrt_int_state%ALL_DATA_I1D(N2,NBDL)= IHOUR_IAU 
+                     wrt_int_state%ALL_DATA_I1D(N2+2,NBDL)= IDAY_IAU
+                     wrt_int_state%ALL_DATA_I1D(N2+1,NBDL)= IMONTH_IAU
+                     wrt_int_state%ALL_DATA_I1D(N2+3,NBDL)= IYEAR_IAU
+                   ENDIF
+                 ENDDO
+               ENDIF
+             ENDDO
+           ENDIF
+          IF (wrt_int_state%iau.AND.NF_HOURS.GT. 6) NF_HOURS_IAU=NF_HOURS-6
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           NF_SECONDS=NSECONDS+REAL(NSECONDS_NUM)/REAL(NSECONDS_DEN)
-          wrt_int_state%NFHOUR=NF_HOURS
+          wrt_int_state%NFHOUR=NF_HOURS_IAU
 !
         ENDIF
 !
@@ -1631,7 +1701,7 @@
 
             CALL POST_RUN_GFS(wrt_int_state,MYPE,MPI_COMM_COMP,           &
                         LEAD_WRITE_TASK,post_gridtype,   &
-                        post_maptype,NSOIL,NBDL,NF_HOURS,NF_MINUTES)
+                        post_maptype,NSOIL,NBDL,NF_HOURS_IAU,NF_MINUTES)
 
 !           write(0,*)'af post_run_gfs'
 !
@@ -1686,6 +1756,7 @@
                                       ,NF_HOURS                         &
                                       ,NF_MINUTES                       &
                                       ,NF_SECONDS                       &
+                                      ,NF_HOURS_IAU                     &
                                       ,DIM1,DIM2,NBDR                   &
                                       ,LEAD_WRITE_TASK)
           FIELDSIZE=(DIM1+2*NBDR)*(DIM2+2*NBDR)
