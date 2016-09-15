@@ -176,7 +176,6 @@
 !-----------------------------------------
 !
       LOGICAL                :: WRITE_DOPOST
-      LOGICAL                :: IAU
       CHARACTER(ESMF_MAXSTR) :: POST_GRIBVERSION
       LOGICAL                :: GOCART_AER2POST
       integer                :: nlunit             ! post namelist unit number - Moorthi
