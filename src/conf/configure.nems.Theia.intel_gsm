@@ -38,41 +38,30 @@ NETCDF_INC   = -I$(NETCDF)/include
 NETCDF_LIB   = -L$(NETCDF)/lib -lnetcdff -lnetcdf
 
 # LIBDIR=/scratch3/NCEPDEV/nwprod/lib
-LIBDIR=/scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/libs
-PARADIR=/contrib/nceplibs_ext/lib
-POSTDIR=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
+#LIBDIR=/scratch4/NCEPDEV/meso/noscrub/Ratko.Vasic/libs
+#PARADIR=/contrib/nceplibs_ext/lib
+#POSTDIR=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/nceppost_moorthi/sorc/ncep_post.fd
 
-#jw NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
-#jw NEMSIO_LIB   = -L${LIBDIR} -lnemsio
-NEMSIO_INC   = -I/scratch4/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/20160716/nemsio_avg/incmod
-NEMSIO_LIB   = /scratch4/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/20160716/nemsio_avg/libnemsio.a
-
-BACIO_LIB    = -L${LIBDIR} -lbacio_4
-W3_LIB       = -L${LIBDIR} -lw3nco_d -lw3emc_d
-SP_LIB       = -L${LIBDIR} -lsp_d
-SYS_LIB      =
+BACIO_LIB   = ${BACIO_LIB4}
+W3_LIB      = ${W3NCO_LIBd} ${W3EMC_LIBd}
+SP_LIB      = ${SP_LIBd}
  
 EXTLIBS      = $(NEMSIO_LIB) \
-               $(BACIO_LIB)  \
                $(W3_LIB)     \
+               $(BACIO_LIB)  \
                $(SP_LIB)     \
                $(NETCDF_LIB) \
-               $(ESMF_LIB)   \
-               $(SYS_LIB) -lm  
+               $(ESMF_LIB)  
 
 ## for the post quilting option
 POSTMOD     = ${POSTDIR}/incmod/post_4
 POST_INC    = -I${POSTDIR}/incmod/post_4
 POST_LIB    = -L${POSTDIR} -lnceppost
-W3_POST_LIB = -L${LIBDIR}  -lw3nco_4 -lw3emc_4
-CRTM_LIB    = -L/home/Weiyu.Yang/bin -lcrtm
-# CRTM_LIB    = -L${PARADIR} -lcrtm
-G2_LIB      =  -L$/home/Weiyu.Yang/bin -lg2tmpl -lg2_4  -L${PARADIR} -ljasper -lpng -lz
-# G2_LIB      =  -L${LIBDIR} -lg2tmpl -lg2_4  -L${PARADIR} -ljasper -lpng -lz
-XML_LIB     = -L/home/Weiyu.Yang/bin -lxmlparse
-# XML_LIB     = -L${PARADIR} -lxmlparse
-SIGIO_LIB   = -L${LIBDIR} -lsigio_4
-SFCIO_LIB   = -L${LIBDIR} -lsfcio_4
+W3_POST_LIB = ${W3NCO_LIB4} ${W3EMC_LIB4}
+G2_LIB      = ${G2TMPL_LIB} ${G2_LIB4} ${JASPER_LIB} ${PNG_LIB} ${Z_LIB}
+XML_LIB     = ${XMLPARSE_LIB}
+SIGIO_LIB   = ${SIGIO_LIB4}
+SFCIO_LIB   = ${SFCIO_LIB4}
 
 EXTLIBS_POST = $(NEMSIO_LIB)  \
                $(POST_LIB)    \
@@ -94,7 +83,7 @@ FREE         = -free
 FIXED        = -fixed
 R8           = -r8
 
-FINCS        = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
+FINCS        = $(ESMF_INC) -I$(NEMSIO_INC) $(NETCDF_INC)
    TRAPS        = -g -traceback
 #1 TRAPS        = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
 #2 TRAPS        = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all
