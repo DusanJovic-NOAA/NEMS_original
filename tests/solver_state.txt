@@ -37,7 +37,9 @@
 'MDIMAXout'        H       -       O      -      -   -  'Max mean size of large, precipitating ice particles for use in '
 #                                                          Ferrier-based microphysics tables (microns)'
 'IVEGSRC'          H       -       O      -      -   -  'Vegetation map identifier, 0--> USGS, 1--> IGBP'
-'CU_PHYSICS'       H       -       O      -      -   -  'Convection physics, 1--> KF, 2--> BMJ, 3--> GD, 4--> SAS, 5--> RAS'
+'CU_PHYSICS'       H       R       O      -      -   -  'Convection physics, 2--> BMJ, 4--> SAS, 84--> SASHUR, 94--> SCALECU'
+'MP_PHYSICS'       H       R       O      -      -   -  'Microphysics physics'
+'SF_SURFACE_PHYSICS' H     R       O      -      -   -  'Land Surface physics'
 
 
 ###    0D real (scalar)

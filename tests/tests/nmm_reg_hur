@@ -16,14 +16,14 @@ export_nems
 export_nmm
 export GBRG=reg
 export FCSTL=24
-export WLCLK=12
-export TURBL=gfshur
-export CONVC=sashur
-export MICRO=fer
+export WLCLK=5
+export TURBL=gfsedmfhur
+export CONVC=scalecu
+export MICRO=fer_hires
 export RADTN=gfdl
 export SFC_LAYER=gfdl
-export LAND_SURFACE=gfdlslab 
-export WLCLK=12
+export LAND_SURFACE=noah 
+export WLCLK=8
 
 
 RUN_SCRIPT=rt_nmm.sh
