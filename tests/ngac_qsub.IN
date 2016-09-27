@@ -8,6 +8,7 @@
 #PBS -q _QUEUE_
 #PBS -l procs=_TASKS_
 #PBS -l walltime=00:_WLCLK_:00
+#PBS -V
 
 set -aeux
 export MPI_GROUP_MAX=96

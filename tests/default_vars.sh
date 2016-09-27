@@ -35,7 +35,7 @@ export WLCLK=15
 export GEFS_ENSEMBLE=0
 export GEN_ENSEMBLE=0
 export WRITE_DOPOST=.false.
-export POST_GRIBVERSION='"grib1"'
+export POST_GRIBVERSION='grib1'
 export QUEUE=debug
 }
 
@@ -64,7 +64,7 @@ if [ ${pex:-1} -eq 2 ] ; then
 else
  export TASKS=32  ; export PE1=32       ; export NSOUT=0       ; export QUILT=.false.
 fi
-export NDAYS=2   ; export CP2=.false.  ; export IAER=0        ; export FHRES=180
+export NDAYS=2   ; export CP2=.false.  ;  export FHRES=180
 export WRTGP=1   ; export FDFI=0       ; export ADIABATIC=.false. ; export REDUCEDGRID=.true.
 export FHZER=6
 export wave=62   ; export THRD=1
