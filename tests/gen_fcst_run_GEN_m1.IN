@@ -56,11 +56,11 @@ export MEMBER_NAMES="p01 p02 p03 c00"
 export nsout=${nsout:-0}
 export lsm=${lsm:-1}
 
- export SCHEDULER=_SCHEDULER_
+ export SCHEDULER=@[SCHEDULER]
 echo 'SCHEDULER=' $SCHEDULER
- export FCSTSCRIPT=_SRCDIR_/tests/gen_fcst.sh.sms_nems
+ export FCSTSCRIPT=@[SRCDIR]/tests/gen_fcst.sh.sms_nems
 echo 'FCSTSCRIPT=' $FCSTSCRIPT
- export FCSTEXEC=_SRCDIR_/exe/NEMS.x
+ export FCSTEXEC=@[SRCDIR]/exe/NEMS.x
 echo 'FCSTEXEC=' $FCSTEXEC
 #
  export MACHINE_ID=${MACHINE_ID:-wcoss}
@@ -72,8 +72,8 @@ echo 'FCSTEXEC=' $FCSTEXEC
 #    ____________________________________________
 #
 
-cd _RUNDIR_
- export COMOUT=_RUNDIR_
+cd @[RUNDIR]
+ export COMOUT=@[RUNDIR]
 #
   $FCSTSCRIPT > gen_fcst.sh.sms_nems.out 2>&1 || exit
 #

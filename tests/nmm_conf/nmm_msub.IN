@@ -5,16 +5,16 @@
 #MSUB -S /bin/sh
 #MSUB -o out
 #MSUB -e err
-#MSUB -N _JBNME_
+#MSUB -N @[JBNME]
 #MSUB -l partition=c1:c2
-#MSUB -l size=_TASKS_
-#MSUB -l walltime=00:_WLCLK_:00
+#MSUB -l size=@[TASKS]
+#MSUB -l walltime=00:@[WLCLK]:00
 
 set -eux
 
 echo "Model started:  " `date`
 
-aprun -n _TASKS_ ./NEMS.x
+aprun -n @[TASKS] ./NEMS.x
 
 echo "Model ended:    " `date`
 

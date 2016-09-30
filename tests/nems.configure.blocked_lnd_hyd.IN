@@ -8,22 +8,22 @@ EARTH_attributes::
 ::
 
 # LND #
-LND_model:                      _lnd_model_
-LND_petlist_bounds:             _lnd_petlist_bounds_
+LND_model:                      @[lnd_model]
+LND_petlist_bounds:             @[lnd_petlist_bounds]
 LND_attributes::
   Verbosity = max
 ::
 
 # HYD #
-HYD_model:                      _hyd_model_
-HYD_petlist_bounds:             _hyd_petlist_bounds_
+HYD_model:                      @[hyd_model]
+HYD_petlist_bounds:             @[hyd_petlist_bounds]
 HYD_attributes::
   Verbosity = max
 ::
 
 # Run Sequence #
 runSeq::
-  @_coupling_interval_sec_
+  @@[coupling_interval_sec]
     LND -> HYD :remapMethod=bilinear
     HYD -> LND :remapMethod=bilinear
     LND

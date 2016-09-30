@@ -9,15 +9,15 @@ EARTH_attributes::
 ::
 
 # ATM #
-ATM_model:                      _atm_model_
-ATM_petlist_bounds:             _atm_petlist_bounds_
+ATM_model:                      @[atm_model]
+ATM_petlist_bounds:             @[atm_petlist_bounds]
 ATM_attributes::
   Verbosity = max
 ::
 
 # Run Sequence #
 runSeq::
-  @_coupling_interval_sec_
+  @@[coupling_interval_sec]
     ATM
   @
 ::

@@ -1,33 +1,33 @@
 #! /bin/sh -l
 
-#PBS -o _RUND_/out
-#PBS -e _RUND_/err
+#PBS -o @[RUND]/out
+#PBS -e @[RUND]/err
 
-#PBS -N _JBNME_
-#PBS -A _ACCNR_
-#PBS -q _QUEUE_
-#PBS -l procs=_TASKS_
-#PBS -l walltime=00:_WLCLK_:00
+#PBS -N @[JBNME]
+#PBS -A @[ACCNR]
+#PBS -q @[QUEUE]
+#PBS -l procs=@[TASKS]
+#PBS -l walltime=00:@[WLCLK]:00
 #PBS -V
 
-set -aeux
+set -ax
 export MPI_GROUP_MAX=96
-export MACHINE_ID=_MACHINE_ID_
-export SCHEDULER=_SCHED_
+export MACHINE_ID=@[MACHINE_ID]
+export SCHEDULER=@[SCHED]
 
-cd _RUND_
+cd @[RUND]
 
 echo "Model started:  " `date`
 
-module purge
-export TASKSIZE=_TASKS_
-export NTHREADS=_THRDS_
+export TASKSIZE=@[TASKS]
+export NTHREADS=@[THRDS]
 
-export NEMSIO_IN=_NEMSIOIN_
-export NEMSIO_OUT=_NEMSIOOUT_
+export NEMSIO_IN=@[NEMSIOIN]
+export NEMSIO_OUT=@[NEMSIOOUT]
 
 export OMP_NUM_THREADS=$NTHREADS
 if [ $MACHINE_ID = 'theia' ]; then
+ module purge
  module load intel/15.1.133 impi/5.0.3.048 netcdf/4.3.0 szip
  mpiexec=`which mpirun`
 fi
@@ -41,23 +41,23 @@ fi
 export RUN_ENVIR=dev 
 export cyc=00 
 export envir=dev
-export PARA_CONFIG=_CONFIG_
-export CONFIG_FILE=_CONFIGFILE_
-export NEMSDIR=_NEMSDIR_
-export WORKDIR=_WORKDIR_
-export REGSDIR=_REGSDIR_ 
-export FCST_SCRIPT_DIR=_NEMSDIR_/tests
-export DATAICDIR=_DATAICDIR_
+export PARA_CONFIG=@[CONFIG]
+export CONFIG_FILE=@[CONFIGFILE]
+export NEMSDIR=@[NEMSDIR]
+export WORKDIR=@[WORKDIR]
+export REGSDIR=@[REGSDIR] 
+export FCST_SCRIPT_DIR=@[NEMSDIR]/tests
+export DATAICDIR=@[DATAICDIR]
 export PDY=20120717
 
 export FHSWR=3600.
 export FHLWR=3600.
 
-export GRDI=_REGSDIR_/$DATAICDIR/ngac.t00z.gfsanl
+export GRDI=@[REGSDIR]/$DATAICDIR/ngac.t00z.gfsanl
 if [ $NEMSIO_IN = .true. ] ; then
-  export SFCI=_REGSDIR_/$DATAICDIR/ngac.t00z.sfnanl
+  export SFCI=@[REGSDIR]/$DATAICDIR/ngac.t00z.sfnanl
 else
-  export SFCI=_REGSDIR_/$DATAICDIR/ngac.t00z.sfcanl
+  export SFCI=@[REGSDIR]/$DATAICDIR/ngac.t00z.sfcanl
 fi
 
 export wgrib=/home/George.Vandenberghe/nwprod/util/exec/wgrib
@@ -68,7 +68,7 @@ if [ $MACHINE_ID = 'theia' ]; then
 fi
 
 
-_RUND_/JNGAC_FORECAST.sms.para
+@[RUND]/JNGAC_FORECAST.sms.para
 
 echo "Model ended:    " `date`
 

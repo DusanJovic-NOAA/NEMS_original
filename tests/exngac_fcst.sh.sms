@@ -432,7 +432,6 @@
 ####
 ################################################################################
 #  Set environment.
-
 export VERBOSE=${VERBOSE:-"NO"}
 if [[ $VERBOSE = YES ]] ; then
    echo $(date) EXECUTING $0 $* >&2

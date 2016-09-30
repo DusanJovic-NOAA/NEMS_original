@@ -1,12 +1,12 @@
 #!/bin/sh -l
 #PBS -o out
 #PBS -e err
-#PBS -N _JBNME_
-#PBS -A _ACCNR_
-#PBS -q _QUEUE_
+#PBS -N @[JBNME]
+#PBS -A @[ACCNR]
+#PBS -q @[QUEUE]
 #PBS -d .
-#PBS -l procs=_TASKS_
-#PBS -l walltime=00:_WLCLK_:00
+#PBS -l procs=@[TASKS]
+#PBS -l walltime=00:@[WLCLK]:00
 
 set -eux
 
@@ -16,7 +16,7 @@ export ESMF_RUNTIME_COMPLIANCECHECK=OFF:depth=4
 #ulimit -s unlimited
 
 #source /apps/lmod/lmod/init/sh
-source _SRCD_/src/conf/modules.nems
+source @[SRCD]/src/conf/modules.nems
 module list
 
 pwd 
@@ -24,7 +24,7 @@ pwd
 echo "Model started:  " `date`
 
 #mpirun -prepend-rank -np $PBS_NP ./NEMS.x
-_MPIEXEC_ _MPIEXECOPTS_ -prepend-rank -np $PBS_NP ./NEMS.x
+@[MPIEXEC] @[MPIEXECOPTS] -prepend-rank -np $PBS_NP ./NEMS.x
 
 echo "Model ended:    " `date`
 

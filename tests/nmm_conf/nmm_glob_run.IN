@@ -2,23 +2,23 @@
 
 set -eu
 
-RUNDIR=_RUND_
-SRCDIR=_SRCD_
+RUNDIR=@[RUND]
+SRCDIR=@[SRCD]
 
 mkdir -p $RUNDIR
 cd $RUNDIR
 
-cp _RTPWD_/NMMB_glob/test_input_nmmb_global            input_domain_01
-cp _RTPWD_/NMMB_glob/test_input_nmmb_global.nemsio     input_domain_01_nemsio
-cp _RTPWD_/NMMB_glob/nmmb_rst_01_bin_0024h_00m_00.00s  restart_file_01
-cp _RTPWD_/NMMB_glob/nmmb_rst_01_nio_0024h_00m_00.00s  restart_file_01_nemsio
-cp _RTPWD_/NMMB_glob/GWD_bin_01 .
+cp @[RTPWD]/NMMB_glob/test_input_nmmb_global            input_domain_01
+cp @[RTPWD]/NMMB_glob/test_input_nmmb_global.nemsio     input_domain_01_nemsio
+cp @[RTPWD]/NMMB_glob/nmmb_rst_01_bin_0024h_00m_00.00s  restart_file_01
+cp @[RTPWD]/NMMB_glob/nmmb_rst_01_nio_0024h_00m_00.00s  restart_file_01_nemsio
+cp @[RTPWD]/NMMB_glob/GWD_bin_01 .
 
 cp $SRCDIR/tests/nems.configure nems.configure
 cp $SRCDIR/tests/atmos.configure atmos.configure
 cp $SRCDIR/tests/configure_file_01 .
 cp configure_file_01 model_configure
-cp _RTPWD_/data/* .
+cp @[RTPWD]/data/* .
 cp IGBP_VEGPARM.TBL VEGPARM.TBL
 cp IGBP_LANDUSE.TBL LANDUSE.TBL
 cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA

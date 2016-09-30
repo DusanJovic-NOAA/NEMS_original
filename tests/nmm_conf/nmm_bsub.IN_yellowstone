@@ -2,21 +2,21 @@
 
 #BSUB -o out
 #BSUB -e err
-#BSUB -J _JBNME_
-#BSUB -q _QUEUE_
-#BSUB -P _ACCNR_
-#BSUB -n _TASKS_
+#BSUB -J @[JBNME]
+#BSUB -q @[QUEUE]
+#BSUB -P @[ACCNR]
+#BSUB -n @[TASKS]
 #BSUB -x
-#BSUB -W 00:_WLCLK_
+#BSUB -W 00:@[WLCLK]
 
-source _SRCD_/src/conf/modules.nems
+source @[SRCD]/src/conf/modules.nems
 module list
 
  export KMP_STACKSIZE=1024m
- export OMP_NUM_THREADS=_THRD_
+ export OMP_NUM_THREADS=@[THRD]
  export MP_MPILIB=mpich2
  export MP_EUILIB=us
- export MP_TASK_AFFINITY=core:_THRD_
+ export MP_TASK_AFFINITY=core:@[THRD]
  export MP_LABELIO=yes
  export MP_STDOUTMODE=unordered
  export MP_COREFILE_FORMAT=lite

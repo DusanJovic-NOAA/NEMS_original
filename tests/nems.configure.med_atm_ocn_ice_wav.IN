@@ -9,8 +9,8 @@ EARTH_attributes::
 ::
 
 # MED #
-MED_model:                      _med_model_
-MED_petlist_bounds:             _med_petlist_bounds_
+MED_model:                      @[med_model]
+MED_petlist_bounds:             @[med_petlist_bounds]
 MED_attributes::
   Verbosity = 0
   DumpFields = true
@@ -19,32 +19,32 @@ MED_attributes::
 ::
 
 # ATM #
-ATM_model:                      _atm_model_
-ATM_petlist_bounds:             _atm_petlist_bounds_
+ATM_model:                      @[atm_model]
+ATM_petlist_bounds:             @[atm_petlist_bounds]
 ATM_attributes::
   Verbosity = max
   DumpFields = true
 ::
 
 # OCN #
-OCN_model:                      _ocn_model_
-OCN_petlist_bounds:             _ocn_petlist_bounds_
+OCN_model:                      @[ocn_model]
+OCN_petlist_bounds:             @[ocn_petlist_bounds]
 OCN_attributes::
   Verbosity = max
   DumpFields = true
 ::
 
 # ICE #
-ICE_model:                      _ice_model_
-ICE_petlist_bounds:             _ice_petlist_bounds_
+ICE_model:                      @[ice_model]
+ICE_petlist_bounds:             @[ice_petlist_bounds]
 ICE_attributes::
   Verbosity = max
   DumpFields = true
 ::
 
 # WAV #
-WAV_model:                      _wav_model_
-WAV_petlist_bounds:             _wav_petlist_bounds_
+WAV_model:                      @[wav_model]
+WAV_petlist_bounds:             @[wav_petlist_bounds]
 WAV_attributes::
   Verbosity = max
   DumpFields = true
@@ -52,11 +52,11 @@ WAV_attributes::
 
 # Run Sequence #
 runSeq::
-  @_coupling_interval_slow_sec_
+  @@[coupling_interval_slow_sec]
     MED MedPhase_prep_ocn
     MED -> OCN :remapMethod=redist
     OCN
-    @_coupling_interval_fast_sec_
+    @@[coupling_interval_fast_sec]
       MED MedPhase_prep_ice
       MED MedPhase_prep_atm
       MED -> ATM :remapMethod=redist

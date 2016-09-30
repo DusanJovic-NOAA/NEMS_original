@@ -9,15 +9,15 @@ EARTH_attributes::
 ::
 
 # IPM #
-IPM_model:                      _ipm_model_
-IPM_petlist_bounds:             _ipm_petlist_bounds_
+IPM_model:                      @[ipm_model]
+IPM_petlist_bounds:             @[ipm_petlist_bounds]
 IPM_attributes::
   Verbosity = max
 ::
 
 # Run Sequence #
 runSeq::
-  @_coupling_interval_sec_
+  @@[coupling_interval_sec]
     IPM
   @
 ::

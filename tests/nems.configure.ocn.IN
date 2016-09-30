@@ -9,15 +9,15 @@ EARTH_attributes::
 ::
 
 # OCN #
-OCN_model:                      _ocn_model_
-OCN_petlist_bounds:             _ocn_petlist_bounds_
+OCN_model:                      @[ocn_model]
+OCN_petlist_bounds:             @[ocn_petlist_bounds]
 OCN_attributes::
   Verbosity = max
 ::
 
 # Run Sequence #
 runSeq::
-  @_coupling_interval_sec_
+  @@[coupling_interval_sec]
     OCN
   @
 ::

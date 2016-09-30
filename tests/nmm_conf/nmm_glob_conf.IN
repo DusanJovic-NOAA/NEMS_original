@@ -18,8 +18,8 @@ sbd:  -90.0                 # Grid's southern boundary (rotated degrees)
 #####  Grid Decomposition  #####
 ################################
 
-inpes:  _INPES_             # Number of compute tasks in the I direction
-jnpes:  _JNPES_             # Number of compute tasks in the J direction
+inpes:  @[INPES]             # Number of compute tasks in the I direction
+jnpes:  @[JNPES]             # Number of compute tasks in the J direction
 
 
 #################################
@@ -28,7 +28,7 @@ jnpes:  _JNPES_             # Number of compute tasks in the J direction
 
 quilting:              true    # Do you want asynchronous quilting/history writes?
 write_groups:          1
-write_tasks_per_group: _WTPG_
+write_tasks_per_group: @[WTPG]
 
 
 ############################################
@@ -59,11 +59,11 @@ start_second: 0
 #####  Forecast Length / Restarting / Output Frequency  #####
 #############################################################
 
-nhours_fcst:      _FCSTL_   # Length of the forecast (hours)
+nhours_fcst:      @[FCSTL]   # Length of the forecast (hours)
 minutes_history:  180       # Frequency of history output (minutes)
 nhours_dfini:       0
 
-restart:          _RSTRT_   # True--> A restarted run
+restart:          @[RSTRT]   # True--> A restarted run
 minutes_restart:  720       # Frequency of restart output (minutes)
 
 avg_max_length: 3600        # Time in seconds when averaged fields are reset
@@ -151,9 +151,9 @@ use_allreduce:  false       # False--> use mpi send/recv for global sums (reprod
 ###  Precipitation Assimilation  ####
 #####################################
 
-pcpflg:  _PCPFLG_             # True--> assimilation on ; False--> assimilation off
+pcpflg:  @[PCPFLG]             # True--> assimilation on ; False--> assimilation off
 pcphr: 6
-write_prec_adj: _WPREC_       # True--> create baseline prec. files ; False--> regular run
+write_prec_adj: @[WPREC]       # True--> create baseline prec. files ; False--> regular run
 
 
 ############################
@@ -175,20 +175,20 @@ dpmin:      5.00            # minimum thickness of the reference layer (check un
 ####################################
 
 #---------------------------------
-shortwave: _RADTN_          # Radiation schemes
-longwave:  _RADTN_
+shortwave: @[RADTN]          # Radiation schemes
+longwave:  @[RADTN]
                                 # gfdl--> GFDL (shortwave and longwave)
                                 # gsfc--> Goddard shortwave
                                 # dudh--> Dudhia shortwave
                                 # rrtm--> RRTM (shortwave and longwave)
 
-np3d: _NP3D_                # cloud properties for radiation
+np3d: @[NP3D]                # cloud properties for radiation
                                 # 3--> ferrier's microphysics cloud scheme (only stratiform cloud)
                                 # 4--> zhao/carr/sundqvist microphysics cloud (now available in the NMMB)
                                 # 5--> NAM stratiform + convective cloud optical depth and fraction (GFDL type convective cloud)
                                 # 8--> Thompson microphysics and special Thompson rrtm SW radiation
 
-cldfraction: _CLDFRACTION_  # cloud fraction scheme for radiation
+cldfraction: @[CLDFRACTION]  # cloud fraction scheme for radiation
                                 # default  --> according to the choice of np3d
                                 # thompson --> thompson
 
@@ -196,7 +196,7 @@ co2tf:  1                       # co2tf--> Read (0) or generate internally (1)
                                 #          the GFDL CO2 transmission functions
 
 #---------------------------------
-convection:  _CONVC_        # Convection scheme
+convection:  @[CONVC]        # Convection scheme
                                 # bmj    --> Betts-Miller-Janjic
                                 # bmj_dev--> BMJ (development)
                                 #  kf    --> Kain-Fritsch
@@ -205,7 +205,7 @@ convection:  _CONVC_        # Convection scheme
                                 # none   --> No convection
 
 #---------------------------------
-microphysics:  _MICRO_      # Microphysics scheme
+microphysics:  @[MICRO]      # Microphysics scheme
                                 # fer--> Ferrier
                                 # fer_hires--> Ferrier operational
                                 # kes--> Kessler
@@ -221,17 +221,17 @@ lmprate:  .false.           # .true.: 4D array called MPRATES containing
                             # .false.: One 3D array called MPRATES
                             # with zero values
 #---------------------------------
-turbulence:  _TURBL_        # Turbulence schemes
+turbulence:  @[TURBL]        # Turbulence schemes
                                 # myj--> Mellor-Yamada-Janjic
                                 # gfs--> GFS PBL
 
 #---------------------------------
-sfc_layer:  _SFC_LAYER_     # Surface layer schemes
+sfc_layer:  @[SFC_LAYER]     # Surface layer schemes
                                 # myj--> Mellor-Yamada-Jamnjic
                                 # mm5--> MM5 sfc layer
 
 #---------------------------------
-land_surface:  _LAND_SURFACE_         # Land surface schemes
+land_surface:  @[LAND_SURFACE]         # Land surface schemes
                                 # noah--> NOAH scheme
                                 # liss--> Janjic LSM
 
@@ -240,7 +240,7 @@ ivegsrc: 1                  # Vegetation map identifier, 0--> USGS, 1--> IGBP
 
 #---------------------------------
 
-gfs:  _gfsP_                # Select entire GFS physics suite
+gfs:  @[gfsP]                # Select entire GFS physics suite
 
 
 ########################################
@@ -295,7 +295,7 @@ nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flu
 ####  Write History/Restart Specifications  ####
 ################################################
 
-nemsio_input: _NEMSI_
+nemsio_input: @[NEMSI]
 
 write_hst_bin:       true      # True--> Write history files in binary format
 write_hst_nemsio:    true      # True--> Write history files in NEMSIO format
@@ -318,7 +318,7 @@ rst_name_base:   'nmmb_rst'
 
 my_domain_id: 1              # The ID number of this domain (uppermost domain must have ID=1)
 my_parent_id: -999           # The ID number of this domain's parent
-n_children:  _NCHILD_        # How many child domains does this domain have?
+n_children:  @[NCHILD]        # How many child domains does this domain have?
 num_domains_total: 1         # The total number of domains in this run (only needed in domain #1's configure file)
 
 my_domain_moves:  false      # Does this domain move?

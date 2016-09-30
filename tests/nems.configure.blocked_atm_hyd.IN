@@ -3,16 +3,16 @@
 #############################################
 
 # ATM #
-atm_model:                      _atm_model_
-atm_petlist_bounds:             _atm_petlist_bounds_
+atm_model:                      @[atm_model]
+atm_petlist_bounds:             @[atm_petlist_bounds]
 
 # HYD #
-hyd_model:                      _hyd_model_
-hyd_petlist_bounds:             _hyd_petlist_bounds_
+hyd_model:                      @[hyd_model]
+hyd_petlist_bounds:             @[hyd_petlist_bounds]
 
 # Run Sequence #
 runSeq::
-  @_coupling_interval_sec_
+  @@[coupling_interval_sec]
     ATM -> HYD
     HYD -> ATM
     ATM

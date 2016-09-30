@@ -60,11 +60,11 @@ start_second: 0
 #####  Forecast Length / Restarting / Output Frequency  #####
 #############################################################
 
-nhours_fcst:     _FCSTL_    # Length of the forecast (hours)
+nhours_fcst:     @[FCSTL]    # Length of the forecast (hours)
 minutes_history: 180        # Frequency of history output (minutes)
 nhours_dfini:      0
 
-restart:         _RSTRT_    # True--> A restarted run
+restart:         @[RSTRT]    # True--> A restarted run
 minutes_restart: 720        # Frequency of restart output (minutes)
 
 avg_max_length: 3600        # Time in seconds when averaged fields are reset
@@ -331,7 +331,7 @@ generation: 3                 # In which generation is this domain?
 
 ### If this domain is a 2-way child then provide the following value.
 
-2way_wgt:  _WGT_              # Fraction of this child's 2-way data values used by the parent (0.-> all parent; 1.-> all child)
+2way_wgt:  @[WGT]              # Fraction of this child's 2-way data values used by the parent (0.-> all parent; 1.-> all child)
 
 ### If this domain is not a nest then the reamining variables
 ### in 'Nesting Specifications' are ignored.

@@ -9,15 +9,15 @@ EARTH_attributes::
 ::
 
 # HYD #
-HYD_model:                      _hyd_model_
-HYD_petlist_bounds:             _hyd_petlist_bounds_
+HYD_model:                      @[hyd_model]
+HYD_petlist_bounds:             @[hyd_petlist_bounds]
 HYD_attributes::
   Verbosity = max
 ::
 
 # Run Sequence #
 runSeq::
-  @_coupling_interval_sec_
+  @@[coupling_interval_sec]
     HYD
   @
 ::

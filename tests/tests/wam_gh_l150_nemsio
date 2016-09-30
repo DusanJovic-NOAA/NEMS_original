@@ -28,7 +28,7 @@ export THERMODYN_ID=3
 export SFCPRESS_ID=2
 export SPECTRALLOOP=2
 # F107_KP_SIZE is the forecast run length required f107 data size.
-#-----------------------------------------------------------------
+export DATAICDIR=WAM_gh_l150_nemsio                               
 export F107_KP_SIZE=16
 export F107_KP_INTERVAL=10800
 export WAM_IPE_COUPLING=.true.

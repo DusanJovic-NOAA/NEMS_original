@@ -1,12 +1,12 @@
 #! /bin/ksh --login
 
-#PBS -e _RUND_/err
-#PBS -o _RUND_/out
-#PBS -N _JBNME_
-#PBS -A _ACCNR_
-#PBS -q _QUEUE_
-#PBS -l procs=_TASKS_
-#PBS -l walltime=00:_WLCLK_:00
+#PBS -e @[RUND]/err
+#PBS -o @[RUND]/out
+#PBS -N @[JBNME]
+#PBS -A @[ACCNR]
+#PBS -q @[QUEUE]
+#PBS -l procs=@[TASKS]
+#PBS -l walltime=00:@[WLCLK]:00
 #PBS -W umask=027
 
 set -aeux
@@ -15,11 +15,11 @@ export MPI_GROUP_MAX=96
 # Enable Fortran RTL core dumps for severe run time failures
 # export decfort_dump_flag=y
 
-export SCHEDULER=_SCHED_
+export SCHEDULER=@[SCHED]
 
-export FIXGLOBAL=_FIXGLOBAL_
+export FIXGLOBAL=@[FIXGLOBAL]
 
-cd _RUND_
+cd @[RUND]
 
 echo "Model started:  " `date`
 
@@ -27,9 +27,9 @@ echo "Model started:  " `date`
 #module load mpt
 #module load adaptive
 
-export TASKSIZE=_TASKS_
+export TASKSIZE=@[TASKS]
 
-_RUND_/gfs_fcst_run
+@[RUND]/gfs_fcst_run
 
 echo "Model ended:    " `date`
 

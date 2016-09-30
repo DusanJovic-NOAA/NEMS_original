@@ -1,27 +1,27 @@
 #!/bin/ksh
 #BSUB -a poe
-#BSUB -e _RUND_/fcst._CDATE_.out.%J
-#BSUB -o _RUND_/fcst._CDATE_.out.%J
-#BSUB -J _JBNME_
+#BSUB -e @[RUND]/fcst.@[CDATE].out.%J
+#BSUB -o @[RUND]/fcst.@[CDATE].out.%J
+#BSUB -J @[JBNME]
 #BSUB -network type=sn_all:mode=US
-#BSUB -q "_QUEUE_"
+#BSUB -q "@[QUEUE]"
 #BSUB -P GFS-T2O
-#BSUB -n _TASKS_
-#BSUB -R span[ptile=_TPN_]
-#BSUB -R affinity[core(_THRDS_)]
+#BSUB -n @[TASKS]
+#BSUB -R span[ptile=@[TPN]]
+#BSUB -R affinity[core(@[THRDS])]
 #BSUB -x
-#BSUB -W 00:_WLCLK_
+#BSUB -W 00:@[WLCLK]
 set -x
 ulimit -s unlimited
 ulimit -c unlimited
 
-export OMP_NUM_THREADS=_THRDS_
+export OMP_NUM_THREADS=@[THRDS]
 export MP_EUILIB=us
 export MP_MPILIB=mpich2
 
 #export MP_EUIDEVICE=sn_all
 #if [ $OMP_NUM_THREADS -gt 1 ] ; then
-#  export MP_TASK_AFFINITY=cpu:_THRDS_
+#  export MP_TASK_AFFINITY=cpu:@[THRDS]
 #else
 #  export MP_TASK_AFFINITY=core
 #fi
@@ -37,19 +37,19 @@ export KMP_STACKSIZE=1024m
 export MP_LABELIO=yes
 export MP_STDOUTMODE=unordered
 
-export SCHEDULER=_SCHED_
+export SCHEDULER=@[SCHED]
 if [ ${SCHEDULER} = lsf ]; then
   export MACHINE_ID=wcoss
 fi
 
-cd _RUND_
+cd @[RUND]
 
 echo "Model started:  " `date`
 
-#export TASKSIZE=_TASKS_
+#export TASKSIZE=@[TASKS]
 
 env
-_RUND_/gfs_fcst_run
+@[RUND]/gfs_fcst_run
 
 echo "Model ended:    " `date`
 

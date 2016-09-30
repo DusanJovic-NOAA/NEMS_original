@@ -2,8 +2,9 @@
 #set -eu
 set -x
 
-mkdir -p ${RUNDIR}
+source ./atparse.ksh
 
+mkdir -p ${RUNDIR}
 ## specify the regression test setting
 
 export NEMSDIR=${PATHTR}
@@ -19,35 +20,11 @@ if [ ${nems_configure}"x" == "x" ]; then
   nems_configure=atm_nostep
   atm_model=gsm
 fi
-cat nems.configure.${nems_configure}.IN   \
-                         | sed s:_atm_model_:${atm_model}:g                    \
-                         | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
-                         | sed s:_lnd_model_:${lnd_model}:g                    \
-                         | sed s:_lnd_petlist_bounds_:"${lnd_petlist_bounds}":g\
-                         | sed s:_ice_model_:${ice_model}:g                    \
-                         | sed s:_ice_petlist_bounds_:"${ice_petlist_bounds}":g\
-                         | sed s:_ocn_model_:${ocn_model}:g                    \
-                         | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
-                         | sed s:_wav_model_:${wav_model}:g                    \
-                         | sed s:_wav_petlist_bounds_:"${wav_petlist_bounds}":g\
-                         | sed s:_ipm_model_:${ipm_model}:g                    \
-                         | sed s:_ipm_petlist_bounds_:"${ipm_petlist_bounds}":g\
-                         | sed s:_hyd_model_:${hyd_model}:g                    \
-                         | sed s:_hyd_petlist_bounds_:"${hyd_petlist_bounds}":g\
-                         | sed s:_med_model_:${med_model}:g                    \
-                         | sed s:_med_petlist_bounds_:"${med_petlist_bounds}":g\
-                         | sed s:_atm_coupling_interval_sec_:"${atm_coupling_interval_sec}":g\
-                         | sed s:_ocn_coupling_interval_sec_:"${ocn_coupling_interval_sec}":g\
-                         | sed s:_coupling_interval_sec_:"${coupling_interval_sec}":g\
-                         | sed s:_coupling_interval_slow_sec_:"${coupling_interval_slow_sec}":g\
-                         | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
-                         >  nems.configure
+cat nems.configure.${nems_configure}.IN | atparse > nems.configure
                          
 cp nems.configure ${RUNDIR}
 
-cat atmos.configure_gfs | sed s:_atm_model_:${atm_model}:g  \
-                        | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
-                        >  atmos.configure
+cat atmos.configure_gfs | atparse >  atmos.configure
 cp atmos.configure ${RUNDIR}/atmos.configure
 
 
@@ -58,62 +35,37 @@ cp atmos.configure ${RUNDIR}/atmos.configure
 
 if [ $SCHEDULER = 'moab' ]; then
 
-cat ngac_msub.IN    | sed s:_JBNME_:${JBNME}:g   \
-                    | sed s:_WLCLK_:${WLCLK}:g   \
-                    | sed s:_TPN_:${TPN}:g       \
-                    | sed s:_TASKS_:${TASKS}:g   \
-                    | sed s:_CONFIG_:${PARA_CONFIG}:g   \
-                    | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
-                    | sed s:_THRD_:${THRD}:g     >  ngac_msub
+cat ngac_msub.IN | atparse \
+    CONFIG="$PARA_CONFIG" \
+    CONFIGFILE=${CONFIG_FILE} \
+    > ngac_msub
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
 export TPN=$((12/THRD))
-cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
-                    | sed s:_NEMSDIR_:${NEMSDIR}:g   \
-                    | sed s:_WORKDIR_:${WORKDIR}:g   \
-                    | sed s:_REGSDIR_:${REGSDIR}:g   \
-                    | sed s:_DATAICDIR_:${DATAICDIR}:g   \
-                    | sed s:_CONFIG_:${PARA_CONFIG}:g   \
-                    | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
-                    | sed s:_NEMSIOIN_:${NEMSIOIN}:g   \
-                    | sed s:_NEMSIOOUT_:${NEMSIOOUT}:g   \
-                    | sed s:_ACCNR_:${ACCNR}:g   \
-                    | sed s:_QUEUE_:${QUEUE}:g   \
-                    | sed s:_WLCLK_:${WLCLK}:g   \
-                    | sed s:_TASKS_:${TASKS}:g   \
-                    | sed s:_THRDS_:${THRD}:g    \
-                    | sed s:_RUND_:${RUNDIR}:g   \
-                    | sed s:_MACHINE_ID_:${MACHINE_ID}:g          \
-                    | sed s:_SCHED_:${SCHEDULER}:g   > ngac_qsub
+cat ngac_qsub.IN | atparse \
+    CONFIG="$PARA_CONFIG" \
+    CONFIGFILE=${CONFIG_FILE} \
+    THRDS=${THRD} \
+    RUND=$RUNDIR \
+    SCHED=$SCHEDULER > ngac_qsub
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
   export pex=${pex:-1}
   if [ $pex -eq 2 ] ; then
    export TPN=${TPN:-$((24/THRD))}
-   export CLASS=${CLASS:-dev$pex}
+   export CLASS=${CLASS:-${QUEUE:-dev$pex}}
   else
    export TPN=${TPN:-$((16/THRD))}
   fi
-  export CLASS=${CLASS:-dev}
-cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
-                    | sed s:_NEMSDIR_:${NEMSDIR}:g   \
-                    | sed s:_WORKDIR_:${WORKDIR}:g   \
-                    | sed s:_REGSDIR_:${REGSDIR}:g   \
-                    | sed s:_DATAICDIR_:${DATAICDIR}:g   \
-                    | sed s:_CONFIG_:${PARA_CONFIG}:g   \
-                    | sed s:_CONFIGFILE_:${CONFIG_FILE}:g   \
-                    | sed s:_NEMSIOIN_:${NEMSIOIN}:g   \
-                    | sed s:_NEMSIOOUT_:${NEMSIOOUT}:g   \
-                    | sed s:_CLASS_:${CLASS}:g   \
-                    | sed s:_WLCLK_:${WLCLK}:g   \
-                    | sed s:_TASKS_:${TASKS}:g   \
-                    | sed s:_THRDS_:${THRD}:g    \
-                    | sed s:_RUND_:${RUNDIR}:g   \
-                    | sed s:_TPN_:${TPN}:g       \
-                    | sed s:_MACHINE_ID_:${MACHINE_ID}:g          \
-                    | sed s:_SCHED_:${SCHEDULER}:g   > ngac_bsub
+  export CLASS=${CLASS:-${QUEUE:-dev$pex}}
+  cat ngac_bsub.IN | atparse \
+    CONFIG="$PARA_CONFIG" \
+    CONFIGFILE=${CONFIG_FILE} \
+    THRDS=${THRD} \
+    RUND=$RUNDIR \
+    SCHED=$SCHEDULER > ngac_bsub
 fi
 
 ## copy J-job script
@@ -158,7 +110,7 @@ n=1
 until [ $job_running -eq 0 ]
 do
 
-sleep 60
+sleep 30
 if [ $SCHEDULER = 'moab' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
 elif [ $SCHEDULER = 'pbs' ]; then
@@ -172,11 +124,11 @@ if [ $SCHEDULER = 'moab' ]; then
   status=`showq -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
   FnshHrs=${FnshHrs:-0}
-  if   [ $status = 'Idle' ];       then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-  elif [ $status = 'Running' ];    then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-  elif [ $status = 'Starting' ];   then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status  ", Finished " $FnshHrs "hours"
-  elif [ $status = 'Completed' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
-  else                                  echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  if   [ $status = 'Idle' ];       then echo "$n/2min TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'Running' ];    then echo "$n/2min TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'Starting' ];   then echo "$n/2min TEST ${TEST_NR} is ready to run,       Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'Completed' ];  then echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  else                                  echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
   fi
 
 elif [ $SCHEDULER = 'pbs' ]; then
@@ -184,12 +136,12 @@ elif [ $SCHEDULER = 'pbs' ]; then
   status=`qstat -u ${USER} -n | grep ${JBNME} | awk '{print $"10"}'` ; status=${status:--}
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
   FnshHrs=${FnshHrs:-0}
-  if   [ $status = 'Q' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-  elif [ $status = 'H' ];  then echo $n "min. TEST ${TEST_NR} is held in a queue,    Status: " $status
-  elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-  elif [ $status = 'E' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
-  elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
-  else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  if   [ $status = 'Q' ];  then echo "$n/2min TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'H' ];  then echo "$n/2min TEST ${TEST_NR} is held in a queue,    Status: " $status
+  elif [ $status = 'R' ];  then echo "$n/2min TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'E' ];  then echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  elif [ $status = 'C' ];  then echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  else                          echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
   fi
 
 elif [ $SCHEDULER = 'lsf' ]; then
@@ -198,9 +150,9 @@ elif [ $SCHEDULER = 'lsf' ]; then
 #  if [ $status != '-' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $9 }'` ; fi
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $9 }'` ; fi
   FnshHrs=${FnshHrs:-0}
-  if   [ $status = 'PEND' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-  elif [ $status = 'RUN'  ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-  else                             echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  if   [ $status = 'PEND' ];  then echo "$n/2min TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'RUN'  ];  then echo "$n/2min TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  else                             echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
   fi
 
 

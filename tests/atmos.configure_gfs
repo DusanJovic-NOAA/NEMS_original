@@ -1,4 +1,4 @@
 core: gfs
 
-atm_model:                      _atm_model_
-atm_coupling_interval_sec:      _coupling_interval_fast_sec_
+atm_model:                      @[atm_model]
+atm_coupling_interval_sec:      @[coupling_interval_fast_sec]

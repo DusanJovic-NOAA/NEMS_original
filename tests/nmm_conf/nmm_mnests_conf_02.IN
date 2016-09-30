@@ -63,7 +63,7 @@ nhours_fcst:      24        # Length of the forecast (hours)
 minutes_history: 180        # Frequency of history output (minutes)
 nhours_dfini:      0
 
-restart:         _RSTRT_    # True--> A restarted run
+restart:         @[RSTRT]    # True--> A restarted run
 minutes_restart: 720        # Frequency of restart output (minutes)
 
 avg_max_length: 3600        # Time in seconds when averaged fields are reset

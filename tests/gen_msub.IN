@@ -5,16 +5,16 @@
 #MSUB -S /bin/sh
 #MSUB -o out
 #MSUB -e err
-#MSUB -N _JBNME_
+#MSUB -N @[JBNME]
 #MSUB -l partition=c1ms
-#MSUB -l size=_TPN_
-#MSUB -l walltime=00:_WLCLK_:00
+#MSUB -l size=@[TPN]
+#MSUB -l walltime=00:@[WLCLK]:00
 
 set -aeux
 
 echo "Model started:  " `date`
 
-export TASKSIZE=_TPN_
+export TASKSIZE=@[TPN]
 export SCHEDULER=moab
 export MACHINE_ID=gaea
 

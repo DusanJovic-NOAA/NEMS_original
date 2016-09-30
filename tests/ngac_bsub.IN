@@ -1,17 +1,17 @@
 #!/bin/bash
 #BSUB -a poe
-#BSUB -oo _RUND_/out
-#BSUB -eo _RUND_/err
-#BSUB -J _JBNME_
+#BSUB -oo @[RUND]/out
+#BSUB -eo @[RUND]/err
+#BSUB -J @[JBNME]
 #BSUB -network type=sn_all:mode=US
 #BSUB -P GFS-T2O
-####BSUB -P "_ACCNR_"
-#BSUB -q _CLASS_
-#BSUB -n _TASKS_
-#BSUB -R span[ptile=_TPN_]
-#BSUB -R affinity[core(_THRDS_)]
+####BSUB -P "@[ACCNR]"
+#BSUB -q @[CLASS]
+#BSUB -n @[TASKS]
+#BSUB -R span[ptile=@[TPN]]
+#BSUB -R affinity[core(@[THRDS])]
 #BSUB -x
-#BSUB -W 00:_WLCLK_
+#BSUB -W 00:@[WLCLK]
 
 . /usrx/local/Modules/3.2.9/init/bash
  module purge
@@ -20,7 +20,7 @@
  module use /nems/save/Patrick.Tripp/modulefiles
  module load esmf/7.0.0
  export FCST_LAUNCHER=mpirun.lsf
- export OMP_NUM_THREADS=_THRDS_
+ export OMP_NUM_THREADS=@[THRDS]
  export MP_MPILIB=mpich2
  export MP_EUIDEVELOP=min
  export KMP_STACKSIZE=1024m
@@ -33,37 +33,37 @@ set -x
 
 echo "Model started:  " `date`
 
-export MACHINE_ID=_MACHINE_ID_
-export SCHEDULER=_SCHED_
-cd _RUND_
+export MACHINE_ID=@[MACHINE_ID]
+export SCHEDULER=@[SCHED]
+cd @[RUND]
 
-export NEMSIO_IN=_NEMSIOIN_
-export NEMSIO_OUT=_NEMSIOOUT_
+export NEMSIO_IN=@[NEMSIOIN]
+export NEMSIO_OUT=@[NEMSIOOUT]
 
 ##mpirun.lsf ./NEMS.x
 export RUN_ENVIR=dev
 export cyc=00
 export envir=dev
-export PARA_CONFIG=_CONFIG_
-export CONFIG_FILE=_CONFIGFILE_
-export NEMSDIR=_NEMSDIR_
-export WORKDIR=_WORKDIR_
-export REGSDIR=_REGSDIR_
-export FCST_SCRIPT_DIR=_NEMSDIR_/tests
-export DATAICDIR=_DATAICDIR_
+export PARA_CONFIG=@[CONFIG]
+export CONFIG_FILE=@[CONFIGFILE]
+export NEMSDIR=@[NEMSDIR]
+export WORKDIR=@[WORKDIR]
+export REGSDIR=@[REGSDIR]
+export FCST_SCRIPT_DIR=@[NEMSDIR]/tests
+export DATAICDIR=@[DATAICDIR]
 export PDY=20120717
 
-export GRDI=_REGSDIR_/$DATAICDIR/ngac.t00z.gfsanl
+export GRDI=@[REGSDIR]/$DATAICDIR/ngac.t00z.gfsanl
 
 if [ $NEMSIO_IN = .true. ] ; then
-  export SFCI=_REGSDIR_/$DATAICDIR/ngac.t00z.sfnanl
+  export SFCI=@[REGSDIR]/$DATAICDIR/ngac.t00z.sfnanl
 else
-  export SFCI=_REGSDIR_/$DATAICDIR/ngac.t00z.sfcanl
+  export SFCI=@[REGSDIR]/$DATAICDIR/ngac.t00z.sfcanl
 fi
 
 export FIXGLOBAL=/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am
 
-_RUND_/JNGAC_FORECAST.sms.para
+@[RUND]/JNGAC_FORECAST.sms.para
 
 echo "Model ended:    " `date`
 

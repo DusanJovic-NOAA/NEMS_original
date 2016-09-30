@@ -1,18 +1,18 @@
 #!/bin/ksh
-#BSUB -e _RUND_/err
-#BSUB -o _RUND_/out
-#BSUB -J _JBNME_
-#BSUB -q _QUEUE_
-#BSUB -P _ACCNR_
-#BSUB -n _TASKS_
+#BSUB -e @[RUND]/err
+#BSUB -o @[RUND]/out
+#BSUB -J @[JBNME]
+#BSUB -q @[QUEUE]
+#BSUB -P @[ACCNR]
+#BSUB -n @[TASKS]
 #BSUB -x
-#BSUB -W 00:_WLCLK_
+#BSUB -W 00:@[WLCLK]
 set -x
-export OMP_NUM_THREADS=_THRDS_
+export OMP_NUM_THREADS=@[THRDS]
 #export MP_EUIDEVICE=sn_all
 #export MP_EUILIB=us
 #if [ $OMP_NUM_THREADS -gt 1 ] ; then
-#  export MP_TASK_AFFINITY=cpu:_THRDS_
+#  export MP_TASK_AFFINITY=cpu:@[THRDS]
 #else
 #  export MP_TASK_AFFINITY=core
 #fi
@@ -30,18 +30,18 @@ export MP_LABELIO=yes
 export MP_STDOUTMODE=unordered
 
 
-cd _RUND_
+cd @[RUND]
 
 echo "Model started:  " `date`
 
-#export TASKSIZE=_TASKS_
+#export TASKSIZE=@[TASKS]
 
 # ulimit -n 16000
 # Enable Fortran RTL core dumps for severe run time failures
 # export decfort_dump_flag=y
 
 env
-_RUND_/gfs_fcst_run
+@[RUND]/gfs_fcst_run
 
 echo "Model ended:    " `date`
 

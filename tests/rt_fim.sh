@@ -1,6 +1,8 @@
 #!/bin/ksh
 set -aeu
 
+source ./atparse.auto
+
 mkdir -p ${RUNDIR}
 
 ####################################################################################################
@@ -14,11 +16,7 @@ mkdir -p ${RUNDIR}
 
 echo 'RUNDIR=' $RUNDIR
 
-cat fim_fcst_run_G${GLVL}L38_24hr.IN \
-                    | sed s:_RTPWD_:${RTPWD}:g \
-                    | sed s:_SRCDIR_:${PATHTR}:g \
-                    | sed s:_RUNDIR_:${RUNDIR}:g \
-                    | sed s:_FIM_USE_NEMS_:${FIM_USE_NEMS}:g > fim_fcst_run
+( SRCDIR=$PATHTR ; atparse < fim_fcst_run_G${GLVL}L38_24hr.IN > fim_fcst_run )
 
 cp atmos.configure_fim ${RUNDIR}/atmos.configure
 
@@ -26,13 +24,7 @@ cp atmos.configure_fim ${RUNDIR}/atmos.configure
 # Submit test
 ####################################################################################################
 
-cat fim_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
-                    | sed s:_CLASS_:${CLASS}:g   \
-                    | sed s:_GROUP_:${GROUP}:g   \
-                    | sed s:_ACCNR_:${ACCNR}:g   \
-                    | sed s:_WLCLK_:${WLCLK}:g   \
-                    | sed s:_TASKS_:${TASKS}:g   \
-                    | sed s:_THRDS_:${THRD}:g    >  fim_ll
+( THRDS="$THRD" ; atparse < fim_ll.IN > fim_ll )
 
 cat fim_fcst_run >> fim_ll
 

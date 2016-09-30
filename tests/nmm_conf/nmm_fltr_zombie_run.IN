@@ -1,17 +1,17 @@
 #!/bin/ksh
 
-RUNDIR=_RUND_
-SRCDIR=_SRCD_
+RUNDIR=@[RUND]
+SRCDIR=@[SRCD]
 
 mkdir -p $RUNDIR
 cd $RUNDIR
 rm -rf $RUNDIR/*
 
-cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01           input_domain_01
-cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01_nemsio    input_domain_01_nemsio
-cp _RTPWD_/NMMB_nests/boco* .
-cp _RTPWD_/data/* .
-cp _RTPWD_/NMMB_reg_filt/GWD_bin_* .
+cp @[RTPWD]/NMMB_nests/input_nmmb_regional.d01           input_domain_01
+cp @[RTPWD]/NMMB_nests/input_nmmb_regional.d01_nemsio    input_domain_01_nemsio
+cp @[RTPWD]/NMMB_nests/boco* .
+cp @[RTPWD]/data/* .
+cp @[RTPWD]/NMMB_reg_filt/GWD_bin_* .
 cp IGBP_VEGPARM.TBL VEGPARM.TBL
 cp IGBP_LANDUSE.TBL LANDUSE.TBL
 cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA

@@ -5,6 +5,8 @@
 export GEFS_ENSEMBLE=${GEFS_ENSEMBLE:-0}
 echo "GEFS_ENSEMBLE=" $GEFS_ENSEMBLE
 
+source ./atparse.auto
+
 mkdir -p ${RUNDIR}
 
 export CDATE=${CDATE:-2012010100}
@@ -72,102 +74,35 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
  cd $PATHRT
 
- cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g                   \
-                     | sed s:_PE1_:${PE1}:g                       \
-                     | sed s:_NEMSIOIN_:${NEMSIOIN}:g             \
-                     | sed s:_NEMSIOOUT_:${NEMSIOOUT}:g           \
-                     | sed s:_SIGIOIN_:${SIGIOIN}:g               \
-                     | sed s:_SIGIOOUT_:${SIGIOOUT}:g             \
-                     | sed s:_SFCIOOUT_:${SFCIOOUT}:g             \
-                     | sed s:_WTPG_:${WTPG}:g                     \
-                     | sed s:_WRTGP_:${WRTGP}:g                   \
-                     | sed s:_wrtdopost_:${WRITE_DOPOST}:g        \
-                     | sed s:_postgrbvs_:${POST_GRIBVERSION}:g    \
-                     | sed s:_aer2post_:${GOCART_AER2POST}:g      \
-                     | sed s:_THRDS_:${THRD}:g                    \
-                     | sed s:_NSOUT_:${NSOUT}:g                   \
-                     | sed s:_QUILT_:${QUILT}:g                   \
-                     | sed s:_IAER_:${IAER}:g                     \
-                     | sed s:_IALB_:${IALB}:g                     \
-                     | sed s:_ISOT_:${isot}:g                     \
-                     | sed s:_IVEGSRC_:${ivegsrc}:g               \
-                     | sed s:_wave_:${wave}:g                     \
-                     | sed s:_lm_:${lm}:g                         \
-                     | sed s:_lsoil_:${lsoil}:g                   \
-                     | sed s:_MEMBER_NAMES_:${MEMBER_NAMES}:g     \
-                     | sed s:_CP2_:${CP2}:g                       \
-                     | sed s:_RUNDIR_:${RUNDIR}:g                 \
-                     | sed s:_RESTART_:${RESTART}:g               \
-                     | sed s:_FCST_BEGIN_:${fcst_begin}:g         \
-                     | sed s:_PATHTR_:${PATHTR}:g                 \
-                     | sed s:_FDFI_:${FDFI}:g                     \
-                     | sed s:_FHOUT_:${FHOUT}:g                   \
-                     | sed s:_FHZER_:${FHZER}:g                   \
-                     | sed s:_FHRES_:${FHRES}:g                   \
-                     | sed s:_FHROT_:${FHROT}:g                   \
-                     | sed s:_FHOUTHF_:${FHOUT_HF}:g              \
-                     | sed s:_FHMAXHF_:${FHMAX_HF}:g              \
-                     | sed s:_fcyc_:${fcyc}:g                     \
-                     | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g       \
-                     | sed s:_ADIABATIC_:${ADIABATIC}:g           \
-                     | sed s:_NSTFCST_:${NST_FCST}:g              \
-                     | sed s:_NSTSPINUP_:${NST_SPINUP}:g          \
-                     | sed s:_NSTREV_:${NST_RESERVED}:g           \
-                     | sed s:_ZSEA1_:${ZSEA1}:g                   \
-                     | sed s:_ZSEA2_:${ZSEA2}:g                   \
-                     | sed s:_GOCART_:${GOCART}:g                 \
-                     | sed s:_TRACER_:${TRACER}:g                 \
-                     | sed s:_SFCPRESSID_:${SFCPRESS_ID}:g        \
-                     | sed s:_THERMODYNID_:${THERMODYN_ID}:g      \
-                     | sed s:_IDVC_:${IDVC}:g                     \
-                     | sed s:_NDSLFV_:${NDSLFV}:g                 \
-                     | sed s:_SPECTRALLOOP_:${SPECTRALLOOP}:g     \
-                     | sed s:_IDEA_:${IDEA}:g                     \
-                     | sed s:_WAM_IPE_COUPLING_:${WAM_IPE_COUPLING}:g       \
-                     | sed s:_HEIGHT_DEPENDENT_G_:${HEIGHT_DEPENDENT_G}:g   \
-                     | sed s:_F107_KP_SKIP_SIZE_:${F107_KP_SKIP_SIZE}:g   \
-                     | sed s:_F107_KP_DATA_SIZE_:${F107_KP_DATA_SIZE}:g   \
-                     | sed s:_DELTIM_:${DELTIM}:g                 \
-                     | sed s:_CDATE_:${CDATE}:g                   \
-                     | sed s:_IEMS_:${IEMS}:g                     \
-                     | sed s:_ISOL_:${ISOL}:g                     \
-                     | sed s:_ICO2_:${ICO2}:g                     \
-                     | sed s:_IAER_:${IAER}:g                     \
-                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
-                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
-                     | sed s:_CPLFLX_:${CPLFLX}:g                 \
-                     | sed s:_SIGHDR_:${SIGHDR}:g                 \
-                     | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
-                     | sed s:_RTPWD_:${RTPWD}:g                   \
-                     | sed s:_DATAICDIR_:${DATAICDIR}:g           \
-                     | sed s:_SCHEDULER_:${SCHEDULER}:g           \
-                     | sed s:_SLG_:${SLG}:g                       \
-                     | sed s:_F107_KP_SIZE_:${F107_KP_SIZE}:g         \
-                     | sed s:_F107_KP_INTERVAL_:${F107_KP_INTERVAL}:g \
-                     | sed s:_MPIEXEC_:${MPIEXEC}:g               \
-                     | sed s:_NHRS_:${NHRS}:g                     \
-                     | sed s:_NDAYS_:${NDAYS}:g                   \
-                     | sed s:_skeb_import_:${skeb_import}:g       \
-                     | sed s:_sppt_import_:${sppt_import}:g       \
-                     | sed s:_shum_import_:${shum_import}:g       \
-                     | sed s:_skeb_export_:${skeb_export}:g       \
-                     | sed s:_sppt_export_:${sppt_export}:g       \
-                     | sed s:_shum_export_:${shum_export}:g       \
-                     | sed s:_SKEBVFILT_:"${SKEB_VFILT}":g       \
-                     | sed s:_SPPTLOGIT_:${SPPT_LOGIT}:g         \
-                     | sed s:_SPPTSFCLIMIT_:${SPPT_SFCLIMIT}:g   \
-                     | sed s:_SPPT_:"${SPPT}":g                   \
-                     | sed s:_SPPTTAU_:"${SPPT_TAU}":g           \
-                     | sed s:_SPPTLSCALE_:"${SPPT_LSCALE}":g     \
-                     | sed s:_SHUM_:"${SHUM}":g                   \
-                     | sed s:_SHUMTAU_:"${SHUM_TAU}":g           \
-                     | sed s:_SHUMLSCALE_:"${SHUM_LSCALE}":g     \
-                     | sed s:_SKEB_:"${SKEB}":g                   \
-                     | sed s:_SKEBTAU_:"${SKEB_TAU}":g           \
-                     | sed s:_SKEBLSCALE_:"${SKEB_LSCALE}":g     \
-                     | sed s:_ISEEDSPPT_:"${ISEED_SPPT}":g       \
-                     | sed s:_ISEEDSHUM_:"${ISEED_SHUM}":g       \
-                     | sed s:_ISEEDSKEB_:"${ISEED_SKEB}":g >  gfs_fcst_run
+ (   # Rename misnamed variables in gfs_fcst_run.IN's @[...] blocks:
+     wrtdopost="$WRITE_DOPOST" ;
+     postgrbvs="$POST_GRIBVERSION" ;
+     aer2post="$GOCART_AER2POST" ;
+     THRDS="$THRD" ;
+     ISOT="$isot" ;
+     IVEGSRC="$ivegsrc" ;
+     FCST_BEGIN="$fcst_begin" ;
+     NSTFCST="$NST_FCST" ;
+     NSTSPINUP="$NST_SPINUP" ;
+     NSTREV="$NST_RESERVED" ;
+     SFCPRESSID="$SFCPRESS_ID" ;
+     THERMODYNID="$THERMODYN_ID" ;
+     SKEBVFILT="${SKEB_VFILT}" ;
+     SPPTLOGIT="${SPPT_LOGIT}" ;
+     SPPTSFCLIMIT="${SPPT_SFCLIMIT}" ;
+     SPPTTAU="${SPPT_TAU}" ;
+     SPPTLSCALE="${SPPT_LSCALE}" ;
+     SHUMTAU="${SHUM_TAU}" ;
+     SHUMLSCALE="${SHUM_LSCALE}" ;
+     SKEBTAU="${SKEB_TAU}" ;
+     SKEBLSCALE="${SKEB_LSCALE}" ;
+     ISEEDSPPT="${ISEED_SPPT}" ;
+     ISEEDSHUM="${ISEED_SHUM}" ;
+     ISEEDSKEB="${ISEED_SKEB}" ;
+     FHOUTHF="$FHOUT_HF" ;
+     FHMAXHF="$FHMAX_HF" ;
+     # Generate the script:
+     cat gfs_fcst_run.IN | atparse > gfs_fcst_run )
  chmod 755 gfs_fcst_run
 
  # | sed s:_LDFI_SPECT_:${LDFI_SPECT}:g               \
@@ -178,29 +113,7 @@ if [ ${nems_configure}"x" == "x" ]; then
   nems_configure=atm_nostep
   atm_model=gsm
 fi
- cat nems.configure.${nems_configure}.IN   \
-                         | sed s:_atm_model_:${atm_model}:g                    \
-                         | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
-                         | sed s:_lnd_model_:${lnd_model}:g                    \
-                         | sed s:_lnd_petlist_bounds_:"${lnd_petlist_bounds}":g\
-                         | sed s:_ice_model_:${ice_model}:g                    \
-                         | sed s:_ice_petlist_bounds_:"${ice_petlist_bounds}":g\
-                         | sed s:_ocn_model_:${ocn_model}:g                    \
-                         | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
-                         | sed s:_wav_model_:${wav_model}:g                    \
-                         | sed s:_wav_petlist_bounds_:"${wav_petlist_bounds}":g\
-                         | sed s:_ipm_model_:${ipm_model}:g                    \
-                         | sed s:_ipm_petlist_bounds_:"${ipm_petlist_bounds}":g\
-                         | sed s:_hyd_model_:${hyd_model}:g                    \
-                         | sed s:_hyd_petlist_bounds_:"${hyd_petlist_bounds}":g\
-                         | sed s:_med_model_:${med_model}:g                    \
-                         | sed s:_med_petlist_bounds_:"${med_petlist_bounds}":g\
-                         | sed s:_atm_coupling_interval_sec_:"${atm_coupling_interval_sec}":g\
-                         | sed s:_ocn_coupling_interval_sec_:"${ocn_coupling_interval_sec}":g\
-                         | sed s:_coupling_interval_sec_:"${coupling_interval_sec}":g\
-                         | sed s:_coupling_interval_slow_sec_:"${coupling_interval_slow_sec}":g\
-                         | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
-                         >  nems.configure
+ cat nems.configure.${nems_configure}.IN | atparse >  nems.configure
                          
  cp nems.configure ${RUNDIR}
 
@@ -208,9 +121,7 @@ fi
 # Copy init files
 ################################################################################
 
- cat atmos.configure_gfs | sed s:_atm_model_:${atm_model}:g  \
-                         | sed s:_coupling_interval_fast_sec_:"${coupling_interval_fast_sec}":g\
-                         >  atmos.configure
+ cat atmos.configure_gfs | atparse >  atmos.configure
  cp atmos.configure ${RUNDIR}/atmos.configure
  cp MAPL.rc ${RUNDIR}/MAPL.rc
  cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
@@ -221,12 +132,12 @@ fi
     export RCSDIR=/global/save/wx23lu/NEMS/Chem_Registry
     cp -r ${EXTDIR}/ExtData ${RUNDIR}/.
   elif [ $SCHEDULER = 'pbs' ]; then
-    export EXTDIR=_RTPWD_/data_GOCART
-    export RCSDIR=_RTPWD_/data_GOCART
+    export EXTDIR=@[RTPWD]/data_GOCART
+    export RCSDIR=@[RTPWD]/data_GOCART
     cp -r ${EXTDIR}/ngac_fix ${RUNDIR}/.
   elif [ $SCHEDULER = 'lsf' ]; then
     export EXTDIR=/nwprod/ngac.v1.0.0/fix
-    export RCSDIR=_RTPWD_/data_GOCART
+    export RCSDIR=@[RTPWD]/data_GOCART
     cp -r ${EXTDIR}/ngac_fix ${RUNDIR}/.
   fi
  fi
@@ -240,11 +151,11 @@ fi
   fi
   export SIGHDR=$nemsioget
   if [ "$IDEA" = ".true." ]; then
-    if [ $MACHINE_ID = wcoss ] ; then
-      cp /nems/noscrub/Weiyu.Yang/REGRESSION_TEST/WAM_gh_l150_nemsio/*anl*${CDATE} ${RUNDIR}/.
-    elif [ $MACHINE_ID = theia ] ; then
-      cp /scratch4/NCEPDEV/nems/noscrub/Weiyu.Yang/REGRESSION_TEST/WAM_gh_l150_nemsio/*anl*${CDATE} ${RUNDIR}/.
-    fi
+                                     
+    cp $IC_DIR/*anl*${CDATE} ${RUNDIR}/.                                                      
+                                       
+                                                                                                               
+      
   else
     if [ $fcst_begin = YES ]; then
       cp $IC_DIR/gfsanl.$CDATE $RUNDIR
@@ -295,13 +206,7 @@ else
 
  cp ${RTPWD}/GEFS_data_2008082500/* $RUNDIR
 
- cat gfs_fcst_run_GEFS.IN \
-                     | sed s:_SRCDIR_:${PATHTR}:g \
-                     | sed s:_NDSLFV_:${NDSLFV}:g \
-                     | sed s:_NEMSIOIN_:${NEMSIOIN}:g \
-                     | sed s:_IDEA_:${IDEA}:g \
-                     | sed s:_RUNDIR_:${RUNDIR}:g > gfs_fcst_run
- 
+ atparse SRCDIR="$PATHTR" < gfs_fcst_run_GEFS.IN > gfs_fcst_run
  
  cp gfs_fcst_run ${RUNDIR}
  chmod +x ${RUNDIR}/gfs_fcst_run
@@ -317,30 +222,14 @@ fi
 if [ $SCHEDULER = 'moab' ]; then
 
  export TPN=$((32/THRD))
- cat gfs_msub.IN     | sed s:_JBNME_:${JBNME}:g   \
-                     | sed s:_ACCNR_:${ACCNR}:g   \
-                     | sed s:_CLASS_:${CLASS}:g   \
-                     | sed s:_WLCLK_:${WLCLK}:g   \
-                     | sed s:_TPN_:${TPN}:g       \
-                     | sed s:_TASKS_:${TASKS}:g   \
-                     | sed s:_RUND_:${RUNDIR}:g   \
-                     | sed s:_FIXGLOBAL_:${FIXGLOBAL}:g   \
-                     | sed s:_THRD_:${THRD}:g     >  gfs_msub
+ cat gfs_msub.IN | atparse RUND=$RUNDIR >  gfs_msub
 
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
  export TPN=$((24/THRD))
  export QUEUE=${QUEUE:-batch}
- cat gfs_qsub.IN     | sed s:_JBNME_:${JBNME}:g   \
-                     | sed s:_ACCNR_:${ACCNR}:g   \
-                     | sed s:_QUEUE_:${QUEUE}:g   \
-                     | sed s:_WLCLK_:${WLCLK}:g   \
-                     | sed s:_TASKS_:${TASKS}:g   \
-                     | sed s:_THRD_:${THRD}:g     \
-                     | sed s:_RUND_:${RUNDIR}:g   \
-                     | sed s:_FIXGLOBAL_:${FIXGLOBAL}:g   \
-                     | sed s:_SCHED_:${SCHEDULER}:g   >  gfs_qsub
+ cat gfs_qsub.IN | atparse RUND="$RUNDIR" SCHED="$SCHEDULER" > gfs_qsub
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
@@ -354,17 +243,8 @@ elif [ $SCHEDULER = 'lsf' ]; then
      export TPN=${TPN:-$((16/THRD))}
    fi
  fi
- cat gfs_bsub.IN     | sed s:_JBNME_:${JBNME}:g   \
-                     | sed s:_ACCNR_:${ACCNR}:g   \
-                     | sed s:_QUEUE_:${QUEUE}:g   \
-                     | sed s:_WLCLK_:${WLCLK}:g   \
-                     | sed s:_TPN_:${TPN}:g       \
-                     | sed s:_TASKS_:${TASKS}:g   \
-                     | sed s:_RUND_:${RUNDIR}:g   \
-                     | sed s:_THRDS_:${THRD}:g    \
-                     | sed s:_CDATE_:${CDATE}:g   \
-                     | sed s:_FIXGLOBAL_:${FIXGLOBAL}:g   \
-                     | sed s:_SCHED_:${SCHEDULER}:g   >  gfs_bsub
+ cat gfs_bsub.IN | atparse RUND=$RUNDIR THRDS=$THRD SCHED=$SCHEDULER \
+     > gfs_bsub
 fi
 
 cp exglobal_fcst_nems.sh $RUNDIR
@@ -409,18 +289,18 @@ job_running=1
 n=1
 until [ $job_running -eq 0 ] ; do
 
- sleep 60
+ sleep 30
 
  if [ $SCHEDULER = 'moab' ]; then
 
   status=`$SHOWQ -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $6 }'` ; fi
   FnshHrs=${FnshHrs:-0}
-  if   [ $status = 'Idle' ];       then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-  elif [ $status = 'Running' ];    then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-  elif [ $status = 'Starting' ];   then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status  ", Finished " $FnshHrs "hours"
-  elif [ $status = 'Completed' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
-  else                                  echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  if   [ $status = 'Idle' ];       then echo "$n/2min TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'Running' ];    then echo "$n/2min TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'Starting' ];   then echo "$n/2min TEST ${TEST_NR} is ready to run,       Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'Completed' ];  then echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status
+  else                                  echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
   fi
 
  elif [ $SCHEDULER = 'pbs' ]; then
@@ -428,12 +308,12 @@ until [ $job_running -eq 0 ] ; do
    status=`qstat -u ${USER} -n | grep ${JBNME} | awk '{print $"10"}'` ; status=${status:--}
    if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
    FnshHrs=${FnshHrs:-0}
-   if   [ $status = 'Q' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-   elif [ $status = 'H' ];  then echo $n "min. TEST ${TEST_NR} is held in a queue,    Status: " $status
-   elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-   elif [ $status = 'E' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
-   elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
-   else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+   if   [ $status = 'Q' ];  then echo "$n/2min TEST ${TEST_NR} is waiting in a queue, Status: " $status
+   elif [ $status = 'H' ];  then echo "$n/2min TEST ${TEST_NR} is held in a queue,    Status: " $status
+   elif [ $status = 'R' ];  then echo "$n/2min TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+   elif [ $status = 'E' ];  then echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+   elif [ $status = 'C' ];  then echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+   else                          echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
    fi
 
  elif [ $SCHEDULER = 'lsf' ] ; then
@@ -442,9 +322,9 @@ until [ $job_running -eq 0 ] ; do
 #  if [ $status != '-' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $9 }'` ; fi
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $9 }'` ; fi
   FnshHrs=${FnshHrs:-0}
-  if   [ $status = 'PEND' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-  elif [ $status = 'RUN'  ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-  else                             echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  if   [ $status = 'PEND' ];  then echo "$n/2min TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'RUN'  ];  then echo "$n/2min TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  else                             echo "$n/2min TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
   fi
 
  fi
@@ -463,8 +343,8 @@ done
 
 test_status='PASS'
 
-# Give one minute for data to show up on file system
-sleep 60
+# Give 10 seconds for data to show up on file system
+sleep 10
 
 (echo;echo;echo "baseline dir = ${RTPWD}/${CNTL_DIR}")  >> ${REGRESSIONTEST_LOG}
            echo "working dir  = ${RUNDIR}"              >> ${REGRESSIONTEST_LOG}

@@ -31,11 +31,11 @@ set -x
 
  export REDUCED_GRID=.true.
 # wam model to couple with idea, default is false
- export IDEA=_IDEA_
+ export IDEA=@[IDEA]
  export IDEA=${IDEA:-.false.}
 
 # nemsio input
- export NEMSIO_IN=_NEMSIOIN_
+ export NEMSIO_IN=@[NEMSIOIN]
  export NEMSIO_IN=${NEMSIO_IN:-.true.}
 #
  export MACHINE_ID=${MACHINE_ID:-wcoss}
@@ -52,7 +52,7 @@ set -x
 # SPECTRAL_LOOP       2 for old option, 1 is for one loop.
  export SPECTRAL_LOOP=1
 
- export NDSLFV=_NDSLFV_
+ export NDSLFV=@[NDSLFV]
 if [ $NDSLFV = .true. ]
 then
  export DELTIM=1800
@@ -84,7 +84,7 @@ export FAISS=0.0
 
 c=1
 while [ $c -le $ENS_NUM ] ; do
- eval export PE$c=\${PE$c:-0}
+ eval "export PE$c=\${PE$c:-0}"
  c=$((c+1))
 done
 
@@ -125,8 +125,8 @@ export MALLOCMULTIHEAP=true
 if [[ ${fcst_begin} = YES ]] ; then
  export nhourb=0
 else
- if [[ -s _RUNDIR_/sigr1$FM ]] ; then
-   export nhourb=`/nwprod/exec/global_sighdr _RUNDIR_/sigr1$FM ifhr`
+ if [[ -s @[RUNDIR]/sigr1$FM ]] ; then
+   export nhourb=`/nwprod/exec/global_sighdr @[RUNDIR]/sigr1$FM ifhr`
    export FHROT=${FHROT:-$nhourb}
  else
    nhourb=$((ndays*24))
@@ -197,9 +197,9 @@ export LEVR=${levr:-0}
 #
 # export FCSTSCRIPT=$TOPDIR/wx20wy/tskf/D/e/nwgelz/scripts/nems/exglobal_fcst_atm_gfsio.sh.sms_co2
 
- export FCSTSCRIPT=_SRCDIR_/tests/exglobal_fcst.sh.sms_nems
+ export FCSTSCRIPT=@[SRCDIR]/tests/exglobal_fcst.sh.sms_nems
 echo 'FCSTSCRIPT=' $FCSTSCRIPT
- export FCSTEXEC=_SRCDIR_/exe/NEMS.x
+ export FCSTEXEC=@[SRCDIR]/exe/NEMS.x
 echo 'FCSTEXEC=' $FCSTEXEC
 #
 #
@@ -208,8 +208,8 @@ echo 'FCSTEXEC=' $FCSTEXEC
 #    ____________________________________________
 #
 
-cd _RUNDIR_
- export COMOUT=_RUNDIR_
+cd @[RUNDIR]
+ export COMOUT=@[RUNDIR]
 #
  export FIXGLOBAL=/nwprod/fix
  export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
@@ -269,9 +269,9 @@ fi
   export LATB=$jm
   export VERBOSE=YES
 #
-  export SIGI=_RUNDIR_/gfsanl.$CDATE
-  export GRDI=_RUNDIR_/gfsanl.$CDATE
-  export SFCI=_RUNDIR_/sfcanl.$CDATE
+  export SIGI=@[RUNDIR]/gfsanl.$CDATE
+  export GRDI=@[RUNDIR]/gfsanl.$CDATE
+  export SFCI=@[RUNDIR]/sfcanl.$CDATE
   export FHINI=00
 #
 # ---------------------------------------- fcst ----------------------

@@ -27,7 +27,8 @@ export dprefix=""
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 if [ $MACHINE_ID = wcoss ]; then
   source /usrx/local/Modules/default/init/sh
-  export DISKNM=/meso
+  export RTPWD=/nems/noscrub/emc.nemspara/REGRESSION_TEST
+  export RTBAS=/nems/noscrub/emc.nemspara/REGRESSION_TEST_baselines
   # export pex=1           # for wcoss phase1
   # export pex=${pex:-2}   # default - phase2
   export QUEUE=debug # dev
@@ -45,7 +46,8 @@ if [ $MACHINE_ID = wcoss ]; then
   cp gfs_bsub.IN_wcoss gfs_bsub.IN
   cp nmm_conf/nmm_bsub.IN_wcoss nmm_conf/nmm_bsub.IN
 elif [ $MACHINE_ID = gaea ]; then
-  export DISKNM=/lustre/f1/unswept/ncep/Ratko.Vasic
+  export RTPWD=/lustre/f1/unswept/ncep/Ratko.Vasic/wx20rv/REGRESSION_TEST    
+  export RTBAS=/lustre/f1/unswept/ncep/Ratko.Vasic/wx20rv/REGRESSION_TEST_baselines
   export STMP=/lustre/f1/ncep
   export PTMP=/lustre/f1/ncep
   export SCHEDULER=moab
@@ -54,7 +56,8 @@ elif [ $MACHINE_ID = theia ]; then
   source /apps/lmod/lmod/init/sh
   export ACCNR
   export dprefix=/scratch4/NCEPDEV
-  export DISKNM=$dprefix/meso
+  export RTPWD=$dprefix/meso/noscrub/wx20rv/REGRESSION_TEST    
+  export RTBAS=$dprefix/meso/noscrub/wx20rv/REGRESSION_TEST_baselines
   export STMP=$dprefix/stmp4
   export PTMP=$dprefix/stmp3
   export SCHEDULER=pbs
@@ -80,11 +83,10 @@ else
 fi
 export pex=${pex:-""}
 
-############################################################
+################################################################
 # RTPWD - Path to previously stored regression test answers
-############################################################
-#export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
-#export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_new
+# RTBAS - Path to input directory to use for baseline generation
+################################################################
 
 
 
@@ -127,8 +129,6 @@ while getopts ":c:fsl:mh" opt; do
   esac
 done
 
-export RTPWD=${RTPWD:-${DISKNM}/noscrub/wx20rv/REGRESSION_TEST}
-
 shift $((OPTIND-1))
 [[ $# -gt 0 ]] && usage
 
@@ -143,7 +143,7 @@ if [[ $CREATE_BASELINE == true ]]; then
   rm -rf ${RTPWD_U}
   echo "copy REGRESSION_TEST_baselines"
   mkdir -p ${STMP}/${USER}
-  cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines ${RTPWD_U}
+  cp -r "${RTBAS:?}" "${RTPWD_U:?}"
 
   if [[ $CB_arg != gfs ]]; then
     echo "copy gfs"
@@ -204,6 +204,9 @@ export PATHTR=${PATHRT}/..     # Path to NEMS trunk
 export REGRESSIONTEST_LOG=${PATHRT}/RegressionTests_$MACHINE_ID.log
 COMPILE_LOG=${PATHRT}/Compile_$MACHINE_ID.log
 
+date > "$COMPILE_LOG"
+echo "Start Regression test" >> "$COMPILE_LOG"
+
 date > ${REGRESSIONTEST_LOG}
 echo "Start Regression test" >> ${REGRESSIONTEST_LOG}
 (echo;echo;echo)             >> ${REGRESSIONTEST_LOG}
@@ -223,7 +226,6 @@ cat $TESTS_FILE | while read line; do
   [[ $line == \#* ]] && continue
 
   if [[ $line == COMPILE* ]] ; then
-    (
       NEMS_VER=`echo $line | cut -d'|' -f2`
       SET=`     echo $line | cut -d'|' -f3`
       MACHINES=`echo $line | cut -d'|' -f4`
@@ -231,19 +233,40 @@ cat $TESTS_FILE | while read line; do
       [[ $SET_ID != ' ' && $SET != *${SET_ID}* ]] && continue
       [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
 
-      echo "Compiling $NEMS_VER $ESMF_VER"
-      cd $PATHTR/src
-      ./configure ${ESMF_VER}_${MACHINE_ID}                        > $COMPILE_LOG 2>&1
-      source conf/modules.nems                                    >> $COMPILE_LOG 2>&1
-      module list                                                 >> $COMPILE_LOG 2>&1
-      gmake clean                                                 >> $COMPILE_LOG 2>&1
-      gmake ${NEMS_VER} J=-j2                                     >> $COMPILE_LOG 2>&1
-      cd $PATHRT
-    )
-    continue
-  fi
+      echo "Removing old exe/NEMS.x"
+      echo "Removing old exe/NEMS.x" >> "$COMPILE_LOG"
+      echo "Removing old exe/NEMS.x" >> "$REGRESSIONTEST_LOG"
+      rm -f "$PATHTR/exe/NEMS.x" "$PATHTR/src/conf/modules.nems"
 
-  if [[ $line == RUN* ]] ; then
+      echo "Compiling $NEMS_VER $ESMF_VER"
+      echo "Compiling $NEMS_VER $ESMF_VER" >> "$COMPILE_LOG"
+      echo "Compiling $NEMS_VER $ESMF_VER" >> "$REGRESSIONTEST_LOG"
+      cd $PATHTR/src
+      ./configure ${ESMF_VER}_${MACHINE_ID} >> "$COMPILE_LOG" 2>&1
+      if [[ ! -s "$PATHTR/src/conf/modules.nems" ]] ; then
+          echo "Configure failed.  Abort." >> "$REGRESSIONTEST_LOG"
+          echo "File missing: $PATHTR/src/conf/modules.nems" >> "$REGRESSIONTEST_LOG"
+          echo "For details, look in \"$COMPILE_LOG\"" >> "$REGRESSIONTEST_LOG"
+          echo "Configuring ${ESMF_VER}_${MACHINE_ID}" > fail_test
+          exit 1
+      fi
+      (
+          set -e
+          source conf/modules.nems              >> "$COMPILE_LOG" 2>&1
+          module list                           >> "$COMPILE_LOG" 2>&1
+          gmake clean                           >> "$COMPILE_LOG" 2>&1
+          gmake ${NEMS_VER} J=-j2               >> "$COMPILE_LOG" 2>&1
+      )
+      cd $PATHRT
+      if [[ ! -s "$PATHTR/exe/NEMS.x" || ! -x "$PATHTR/exe/NEMS.x" ]] ; then
+          echo "Compilation failed.  Abort." >> "$REGRESSIONTEST_LOG"
+          echo "No executable: $PATHTR/exe/NEMS.x" >> "$REGRESSIONTEST_LOG"
+          echo "For details, look in \"$COMPILE_LOG\"" >> "$REGRESSIONTEST_LOG"
+          echo "Compiling $NEMS_VER $ESMF_VER" > fail_test
+          exit 1
+      fi
+    continue
+  elif [[ $line == RUN* ]] ; then
     TEST_NAME=`echo $line | cut -d'|' -f2 | sed -e 's/^ *//' -e 's/ *$//'`
     SET=`      echo $line | cut -d'|' -f3`
     MACHINES=` echo $line | cut -d'|' -f4`
@@ -263,10 +286,9 @@ cat $TESTS_FILE | while read line; do
       ./${RUN_SCRIPT} || die "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR} failed"
     )
     continue
+  else
+    die "Unknown command $line"
   fi
-
-  die "Unknown command $line"
-
 done
 
 if [ -e fail_test ]; then

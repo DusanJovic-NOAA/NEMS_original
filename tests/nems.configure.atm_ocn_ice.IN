@@ -9,31 +9,31 @@ EARTH_attributes::
 ::
 
 # ATM #
-ATM_model:                      _atm_model_
-ATM_petlist_bounds:             _atm_petlist_bounds_
+ATM_model:                      @[atm_model]
+ATM_petlist_bounds:             @[atm_petlist_bounds]
 ATM_attributes::
   Verbosity = max
 ::
 
 # OCN #
-OCN_model:                      _ocn_model_
-OCN_petlist_bounds:             _ocn_petlist_bounds_
+OCN_model:                      @[ocn_model]
+OCN_petlist_bounds:             @[ocn_petlist_bounds]
 OCN_attributes::
   Verbosity = max
 ::
 
 # ICE #
-ICE_model:                      _ice_model_
-ICE_petlist_bounds:             _ice_petlist_bounds_
+ICE_model:                      @[ice_model]
+ICE_petlist_bounds:             @[ice_petlist_bounds]
 ICE_attributes::
   Verbosity = max
 ::
 
 # Run Sequence #
 runSeq::
-  @_coupling_interval_slow_sec_
+  @@[coupling_interval_slow_sec]
     OCN
-    @_coupling_interval_fast_sec_
+    @@[coupling_interval_fast_sec]
       ATM
       ICE
     @

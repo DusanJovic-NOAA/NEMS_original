@@ -1,6 +1,6 @@
 #!/bin/ksh
 set -aeu
-
+source ./atparse.auto
 export GEN_ENSEMBLE=${GEN_ENSEMBLE:-0}
 echo "GEN_ENSEMBLE=" $GEN_ENSEMBLE
 
@@ -21,10 +21,7 @@ if [ $GEN_ENSEMBLE = 0 ] ; then
 
 echo 'RUNDIR=' $RUNDIR
 
-cat gen_fcst_run_GEN_m1.IN \
-                    | sed s:_SRCDIR_:${PATHTR}:g \
-                    | sed s:_SCHEDULER_:${SCHEDULER}:g \
-                    | sed s:_RUNDIR_:${RUNDIR}:g > gen_fcst_run
+atparse SRCDIR="$PATHTR" < gen_fcst_run_GEN_m1.IN > gen_fcst_run
 
 chmod 755 gen_fcst_run
 cp gen_fcst_run ${RUNDIR}
@@ -41,10 +38,7 @@ cd $PATHRT
 
 echo 'RUNDIR=' $RUNDIR
 
-cat gen_fcst_run_GEN_m4.IN \
-                    | sed s:_SRCDIR_:${PATHTR}:g \
-                    | sed s:_SCHEDULER_:${SCHEDULER}:g \
-                    | sed s:_RUNDIR_:${RUNDIR}:g > gen_fcst_run
+atparse SRCDIR="$PATHTR" < gen_fcst_run_GEN_m4.IN > gen_fcst_run
 
 chmod 755 gen_fcst_run
 cp gen_fcst_run ${RUNDIR}
@@ -59,20 +53,12 @@ fi
 
 if [ $SCHEDULER = 'moab' ]; then
 
-cat gen_msub.IN         | sed s:_JBNME_:${JBNME}:g   \
-                        | sed s:_WLCLK_:${WLCLK}:g   \
-                        | sed s:_TPN_:${TPN}:g       \
-                        | sed s:_THRD_:${THRD}:g     >  gen_msub
+cat gen_msub.IN | atparse > gen_msub
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
-cat gen_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
-                        | sed s:_ACCNR_:${ACCNR}:g   \
-                        | sed s:_WLCLK_:${WLCLK}:g   \
-                        | sed s:_TASKS_:${TASKS}:g       \
-                        | sed s:_THRD_:${THRD}:g     \
-                        | sed s:_RUND_:${RUNDIR}:g   \
-                        | sed s:_SCHED_:${SCHEDULER}:g   >  gen_qsub
+( RUND="$RUNDIR" ; SCHED="$SCHEDULER" ;
+    atparse < gen_qsub.IN > gen_qsub )
 
 fi
 
