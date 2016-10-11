@@ -27,7 +27,6 @@ ifeq ($(PHYS_MODE),compile)
 	cd gsm/gsmphys         && gmake clean
 endif
 	cd nmm          && gmake clean
-	cd io           && gmake clean
 	cd $(gfs)       && gmake clean
 	cd fim          && gmake clean
 	cd gen          && gmake clean

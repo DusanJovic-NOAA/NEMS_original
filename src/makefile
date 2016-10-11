@@ -303,7 +303,7 @@ COBJS = # c_code.o
 LIBS = atmos/libatmos.a                 \
        atmos/nmm/libnmm.a               \
        $(gfsdir)/libgfs.a               \
-       atmos/io/libio.a                 \
+       $(gfsdir)/io/libio.a             \
        atmos/gen/libgen.a               \
        atmos/fim/libfimtop.a            \
        $(gfsdir)/libutil/gfs_libutil.a  \
@@ -537,7 +537,6 @@ ifeq ($(PHYS_MODE),compile)
 endif
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
-	cd atmos/io            && gmake
 	echo "       CHEM_MODi----------->ediri" $(CHEM_MOD)
 	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/fim           && gmake stub
