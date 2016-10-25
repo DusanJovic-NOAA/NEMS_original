@@ -1,4 +1,4 @@
-Fri Oct  7 01:49:51 UTC 2016
+Tue Oct 11 17:59:49 UTC 2016
 Start Regression test
 
 
@@ -9,7 +9,7 @@ Test 1 nmm_cntrl Compare NMMB-global results with previous trunk version
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_cntrl
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_cntrl
 Checking test 1 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -27,7 +27,7 @@ Test 2 nmm_rest_nio Test NMMB-global restart run from NEMSIO file
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_rest_nio
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_rest_nio
 Checking test 2 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 2 PASS 
@@ -38,7 +38,7 @@ Test 3 nmm_decomp Test NMMB-global different decomposition
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_decomp
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_decomp
 Checking test 3 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -52,7 +52,7 @@ Test 4 nmm_thread Test NMMB-global threading
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_glob
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_thread
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_thread
 Checking test 4 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -68,7 +68,7 @@ Test 5 nmm_reg_nemsio Test NMMB-regional NEMSIO as input file
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_reg_nemsio
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_reg_nemsio
 Checking test 5 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -82,7 +82,7 @@ Test 6 nmm_reg_rst Test NMMB-regional restart run
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_reg_rst
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_reg_rst
 Checking test 6 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 6 PASS 
@@ -93,7 +93,7 @@ Test 7 nmm_nest_rest Test NMMB-regional static nests with restart
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_nest_rest
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_nest_rest
 Checking test 7 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -113,7 +113,7 @@ Test 8 nmm_reg_rst_nio_debug Test NMMB-regional restart run with NEMSIO file DEB
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_reg_rst_nio_debug
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_reg_rst_nio_debug
 Checking test 8 results ....
 Test 8 PASS 
 
@@ -123,7 +123,7 @@ Test 9 nmm_reg_rst_debug Test NMMB-regional restart run DEBUG
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_reg_rst_debug
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_reg_rst_debug
 Checking test 9 results ....
 Test 9 PASS 
 
@@ -133,7 +133,7 @@ Test 10 nmm_reg_ctl_debug Compare NMMB-regional results with previous trunk vers
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_reg
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_reg_ctl_debug
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_reg_ctl_debug
 Checking test 10 results ....
 Test 10 PASS 
 
@@ -143,7 +143,7 @@ Test 11 nmm_2way_nests_debug Test NMMB-regional with 2-way moving nests DEBUG
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/NMMB_2way_nests
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/nmm_2way_nests_debug
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/nmm_2way_nests_debug
 Checking test 11 results ....
 Test 11 PASS 
 
@@ -158,7 +158,7 @@ GFS, 32 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_EULERIAN
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_eulerian
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_eulerian
 Checking test 12 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -186,7 +186,7 @@ GFS, 32 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/wam_gh_l150
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/wam_gh_l150
 Checking test 13 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -214,7 +214,7 @@ GFS, 33 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150_nemsio
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/wam_gh_l150_nemsio
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/wam_gh_l150_nemsio
 Checking test 14 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -245,7 +245,7 @@ GFS, 33 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_SLG
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_slg
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_slg
 Checking test 15 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -267,7 +267,7 @@ GFS, 33 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_SLG_NSST
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_slg_nsst
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_slg_nsst
 Checking test 16 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -292,7 +292,7 @@ GFS, 32 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_SLG_ADIABATIC
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_slg_adiabatic
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_slg_adiabatic
 Checking test 17 results ....
  Comparing sigf00.........OK
  Comparing sigf06.........OK
@@ -309,7 +309,7 @@ GFS, 48 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_SLG_48PE
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_slg_48pe
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_slg_48pe
 Checking test 18 results ....
  Comparing sigf00.........OK
  Comparing sigf06.........OK
@@ -334,7 +334,7 @@ GFS, 33 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_SLG_RSTHST
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_slg_rsthst
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_slg_rsthst
 Checking test 19 results ....
  Comparing sigf30.........OK
  Comparing sigf48.........OK
@@ -353,7 +353,7 @@ GFS, 96 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_SLG_T574
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_slg_t574
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_slg_t574
 Checking test 20 results ....
  Comparing sigf00.........OK
  Comparing SIG.F06.........OK
@@ -378,7 +378,7 @@ GFS, 33 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_SLG_STOCHY
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_slg_stochy
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_slg_stochy
 Checking test 21 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -400,7 +400,7 @@ GFS, 33 proc, 1 thread
 
 
 baseline dir = /scratch4/NCEPDEV/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_SLG_LAND
-working dir  = /scratch4/NCEPDEV/stmp3/Jun.Wang/rt_119098/gfs_slg_land
+working dir  = /scratch4/BMC/gmtb/Man.Zhang/stmp3/Man.Zhang/rt_21815/gfs_slg_land
 Checking test 22 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -447,4 +447,4 @@ Test 23 PASS
 
 
 REGRESSION TEST WAS SUCCESSFUL
-Fri Oct  7 04:08:40 UTC 2016
+Tue Oct 11 20:21:03 UTC 2016
