@@ -225,7 +225,33 @@ cat $TESTS_FILE | while read line; do
   [[ ${#line} == 0 ]] && continue
   [[ $line == \#* ]] && continue
 
-  if [[ $line == COMPILE* ]] ; then
+  if [[ $line == APPBUILD* ]] ; then
+      APPBUILD_OPTS=`echo $line | cut -d'|' -f2`
+      SET=`     echo $line | cut -d'|' -f3`
+      MACHINES=`echo $line | cut -d'|' -f4`
+      [[ $SET_ID != ' ' && $SET != *${SET_ID}* ]] && continue
+      [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
+
+      echo "Removing old exe/NEMS.x"
+      echo "Removing old exe/NEMS.x" >> "$COMPILE_LOG"
+      echo "Removing old exe/NEMS.x" >> "$REGRESSIONTEST_LOG"
+      rm -f "$PATHTR/exe/NEMS.x" "$PATHTR/src/conf/modules.nems"
+
+      echo "NEMSAppBuilder $APPBUILD_OPTS"
+      echo "NEMSAppBuilder $APPBUILD_OPTS" >> "$COMPILE_LOG"
+      echo "NEMSAppBuilder $APPBUILD_OPTS" >> "$REGRESSIONTEST_LOG"
+      cd $PATHTR/..
+      ./NEMS/NEMSAppBuilder rebuild $APPBUILD_OPTS >> "$COMPILE_LOG" 2>&1
+      cd $PATHRT
+      if [[ ! -s "$PATHTR/exe/NEMS.x" || ! -x "$PATHTR/exe/NEMS.x" || \
+            ! -s "$PATHTR/src/conf/modules.nems" ]] ; then
+          echo "NEMSAppBuilder failed.  Abort." >> "$REGRESSIONTEST_LOG"
+          echo "No executable: $PATHTR/exe/NEMS.x" >> "$REGRESSIONTEST_LOG"
+          echo "For details, look in \"$COMPILE_LOG\"" >> "$REGRESSIONTEST_LOG"
+          exit 1
+      fi
+    continue
+  elif [[ $line == COMPILE* ]] ; then
       NEMS_VER=`echo $line | cut -d'|' -f2`
       SET=`     echo $line | cut -d'|' -f3`
       MACHINES=`echo $line | cut -d'|' -f4`
