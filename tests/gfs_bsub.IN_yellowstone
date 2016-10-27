@@ -7,6 +7,8 @@
 #BSUB -n @[TASKS]
 #BSUB -x
 #BSUB -W 00:@[WLCLK]
+source @[SRCD]/src/conf/modules.nems
+module list
 set -x
 export OMP_NUM_THREADS=@[THRDS]
 #export MP_EUIDEVICE=sn_all

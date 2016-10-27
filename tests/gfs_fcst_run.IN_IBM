@@ -64,10 +64,12 @@ fi
  export DELTIM=@[DELTIM]
 
  if [[ $SLG = .true. ]] ; then
-   module load ibmpe
-   module unload ics
-   module load ics/14.0.1 NetCDF/4.2/serial lsf
-   module list
+   if [[ "${LOADICS:-YES}" == YES ]] ; then
+       module load ibmpe
+       module unload ics
+       module load ics/14.0.1 NetCDF/4.2/serial lsf
+       module list
+   fi
    export KMP_STACKSIZE=2048m
    export MPICH_ALLTOALL_THROTTLE=0
    export MP_MPILIB=mpich2

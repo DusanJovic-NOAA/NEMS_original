@@ -7,6 +7,11 @@
 #PBS -l procs=@[TASKS]
 #PBS -l walltime=00:@[WLCLK]:00
 
+if [[ -e  @[PATHTR]/src/conf/modules.nems ]]; then
+  source @[PATHTR]/src/conf/modules.nems
+  module list
+fi
+
 set -aeux
 export MPI_GROUP_MAX=96
 # ulimit -n 16000

@@ -13,12 +13,10 @@
 #BSUB -x
 #BSUB -W 00:@[WLCLK]
 
-. /usrx/local/Modules/3.2.9/init/bash
- module purge
- module load ibmpe lsf
- module load ics/14.0.1 NetCDF/4.2/serial
- module use /nems/save/Patrick.Tripp/modulefiles
- module load esmf/7.0.0
+source /usrx/local/Modules/default/init/ksh
+source @[PATHTR]/src/conf/modules.nems
+module list
+
  export FCST_LAUNCHER=mpirun.lsf
  export OMP_NUM_THREADS=@[THRDS]
  export MP_MPILIB=mpich2

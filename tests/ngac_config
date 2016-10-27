@@ -287,11 +287,11 @@ windex=${windex:-$utilexec/grbindex}
 
 SCRIPTDIR=${SCRIPTDIR:-$HOMEngac/scripts}
 PREP_SCRIPT_DIR=${PREP_SCRIPT_DIR:-$SCRIPTDIR}
-PREP_SCRIPT=${PREP_SCRIPT:-$PREP_SCRIPT_DIR/exngac_prep.sh.sms}
+PREP_SCRIPT=${PREP_SCRIPT:-$PREP_SCRIPT_DIR/exglobal_prep.sh.sms}
 FCST_SCRIPT_DIR=${FCST_SCRIPT_DIR:-$SCRIPTDIR}
-FCST_SCRIPT=${FCST_SCRIPT:-$FCST_SCRIPT_DIR/exngac_fcst.sh.sms}
+FCST_SCRIPT=${FCST_SCRIPT:-$FCST_SCRIPT_DIR/exglobal_fcst_nems.sh}
 POST_SCRIPT_DIR=${POST_SCRIPT_DIR:-$SCRIPTDIR}
-POST_SCRIPT=${POST_SCRIPT:-$POST_SCRIPT_DIR/exngac_post.sh.sms}
+POST_SCRIPT=${POST_SCRIPT:-$POST_SCRIPT_DIR/exglobal_post.sh.sms}
 
 nemsioget=${nemsioget:-$EXECngac/nemsio_get}
 SIGHDR=$nemsioget
@@ -351,7 +351,6 @@ export SFCIO_OUT=${SFCIO_OUT:-.false.}
 
 export model=ngac
 scrdir=${scrdir:-$FCST_SCRIPT_DIR}
-#export FCSTSCRIPT=$srcdir/exglobal_fcst.sh.sms_nems
 #export FCSTEXEC=$srcdir/exe/NEMS.x
 
 export CONFIG=${GSM_CONFIG:-$scrdir/gsm_config}

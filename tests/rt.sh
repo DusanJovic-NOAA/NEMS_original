@@ -56,8 +56,8 @@ elif [ $MACHINE_ID = theia ]; then
   source /apps/lmod/lmod/init/sh
   export ACCNR
   export dprefix=/scratch4/NCEPDEV
-  export RTPWD=$dprefix/meso/noscrub/wx20rv/REGRESSION_TEST    
-  export RTBAS=$dprefix/meso/noscrub/wx20rv/REGRESSION_TEST_baselines
+  export RTPWD=/scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST
+  export RTBAS=/scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST_baselines
   export STMP=$dprefix/stmp4
   export PTMP=$dprefix/stmp3
   export SCHEDULER=pbs

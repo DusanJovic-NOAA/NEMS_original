@@ -260,7 +260,7 @@ fi
 msg="Submit NGAC Fcst Job"
 postmsg "$jlogfile" "$msg"
 export FCST_SCRIPT_DIR=${FCST_SCRIPT_DIR:-$SCRIPTDIR}
-export FCST_SCRIPT=${FCST_SCRIPT:-$FCST_SCRIPT_DIR/exngac_fcst.sh.sms}
+export FCST_SCRIPT=${FCST_SCRIPT:-$FCST_SCRIPT_DIR/exglobal_fcst_nems.sh}
 $FCST_SCRIPT
 
 ##### --------- fcst job ends here --------------------------------

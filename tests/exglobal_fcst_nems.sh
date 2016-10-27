@@ -461,9 +461,11 @@ elif [ $machine = THEIA ]; then
   export MPI_BUFS_PER_PROC=${MPI_BUFS_PER_PROC:-2048}
   export MPI_BUFS_PER_HOST=${MPI_BUFS_PER_HOST:-2048}
   export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
-. /apps/lmod/5.8/init/ksh
-  module load intel/14.0.2
-  module load  impi/4.1.3.048
+  if [[ "${LOADICS:-YES}" == YES ]] ; then
+      . /apps/lmod/5.8/init/ksh
+      module load intel/14.0.2
+      module load  impi/4.1.3.048
+  fi
 elif [ $machine = GAEA ]; then
   export MPICH_FAST_MEMCPY=${MPICH_FAST_MEMCPY:-"ENABLE"}
   export MPICH_MAX_SHORT_MSG_SIZE=${MPICH_MAX_SHORT_MSG_SIZE:-4096}
@@ -505,7 +507,7 @@ elif [ $machine = WCOSS ] ; then
 # export MP_USE_TOKEN_FLOW_ CONTROL=${MP_USE_TOKEN_FLOW_ CONTROL:-yes}
 # export MP_S_ENABLE_ERR_PRINT=yes
 fi
-if [ $machine = WCOSS_C ] ; then
+if [[ "$machine" == "WCOSS_C" && "${LOADIOBUF:-YES}" == YES ]] ; then
  export PRGENV=${PRGENV:-intel}
  export HUGEPAGES=${HUGEPAGES:-hugepages2M}
  module unload iobuf             ; module load iobuf

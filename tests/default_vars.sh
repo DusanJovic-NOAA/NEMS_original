@@ -29,6 +29,11 @@ fi
 
 export_common ()
 {
+
+# Bug fix: do not let GFS test scripts load the wrong modulefiles:
+export LOADICS=NO
+export LOADIOBUF=NO
+
 export THRD=1
 export WTPG=$WTPG_dflt
 export WLCLK=15
