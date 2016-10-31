@@ -7,7 +7,6 @@
 
 #set -x
 
-
 # add paths to find personal "dialog" installations on Theia, Yellowstone.
 PATH=$PATH:/scratch4/NCEPDEV/nems/save/Gerhard.Theurich/bin:/glade/p/work/theurich/bin
 
