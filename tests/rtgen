@@ -1,0 +1,474 @@
+#! /usr/bin/env python
+
+import os
+import sys
+import re
+import logging
+import random
+import pwd
+import shutil
+import getopt
+import StringIO
+
+def fail(how):
+    """!Aborts the program with status 1.  Should only be called
+    before produtil.setup.  After that, use usage() instead.
+
+    @returns Never; exits program with status 1."""
+    sys.stderr.write('ABORT: %s\n'%(how,))
+    exit(1)
+
+RTRUN_SCRIPT_MEAT=r'''
+verbose=0
+loop=MISSING
+bad=''
+help=NO
+sleep_time=300
+zero_exit=NO
+qoutq_more=''
+for arg in "$@" ; do
+  case "$arg" in
+    -v|--verbose) verbose=$(( verbose + 1 )) ;;
+    --step) loop=NO ;;
+    --loop) loop=YES ;;
+    --help) help=YES ;;
+    --zero-exit) zero_exit=YES ;;
+    -n) qoutq_more='-n' ;;
+    *)
+       bad="$arg: invalid argument $bad"
+  esac
+done
+if (( verbose > 0 )) ; then
+  sleep_time=$(( sleep_time / 3 ))
+fi
+if [[ "$loop" == MISSING ]] ; then
+  bad="missing argument: --loop or --step must be specified $bad"
+fi
+if [[ "Q$bad" != Q || "$help" == YES ]] ; then
+  echo "Format: rtrun [-v [-v] [-n]] [--loop | --step] [--zero-exit] [--help]" 1>&2
+  echo "  -v = verbose mode" 1>&2
+  echo "  -n = no colors (disable colors in verbose mode)" 1>&2
+  echo "  -v -v = super verbose mode (set -x)" 1>&2
+  echo "  --loop = only run one step (default is to loop until done)" 1>&2
+  echo "  --zero-exit = always exit with status 0 (intended for CRON jobs)" 1>&2
+  echo "Exit statuses:" 1>&2
+  echo "   0 = workflow is complete, all jobs succeeded OR --zero-exit was given" 1>&2
+  echo "  10 = workflow not yet complete, no jobs have failed" 1>&2
+  echo "  20 = workflow not yet complete, some jobs have failed" 1>&2
+  echo "  30 = workflow is complete, some jobs failed or were lost" 1>&2
+  echo "  99 = corrupt or missing database file" 1>&2
+  if [[ "Q$bad" != Q ]] ; then
+    echo "ABORT: $bad" 1>&2
+    exit 1
+  else
+    exit 0
+  fi
+fi
+if (( verbose > 1 )) ; then
+  echo "ENABLING SUPER-VERBOSE MODE"
+  set -x
+fi
+function log() {
+  echo $( date '+%m/%d %H:%M:%SZ' ) rtrun INFO: "$*"
+}
+function warn() {
+  echo $( date '+%m/%d %H:%M:%SZ' ) rtrun WARNING: "$*"
+}
+function verbose() {
+  if (( verbose > 0 )) ; then
+    echo $( date '+%m/%d %H:%M:%SZ' ) rtrun INFO: "$*"
+  fi
+}
+while [[ 1 == 1 ]] ; do
+  log "check dependencies and submit jobs..."
+  rocotorun -w workflow.xml -d workflow.db
+  verbose "check status..."
+  cycledone=$( sqlite3 workflow.db 'SELECT id FROM cycles WHERE done>0' | wc -l )
+  lostdead=$( sqlite3 workflow.db 'SELECT taskname FROM jobs WHERE state=="DEAD" OR state=="LOST"' |wc -l)
+  if [[ "$cycledone" -gt 0 ]] ; then
+      # Cycle is complete.
+      if [[ "$lostdead" -gt 0 ]] ; then
+          warn "workflow complete but $lostdead jobs FAILED"
+          if [[ "$zero_exit" == YES ]] ; then
+              exit 0
+          else
+              exit 30
+          fi
+      else
+          log "workflow is complete and all jobs succeeded."
+          exit 0
+      fi
+  elif [[ "$loop" == NO ]] ; then
+      if [[ "$lostdead" -gt 0 ]] ; then
+          warn "workflow not yet complete and $lostdead jobs FAILED"
+          if [[ "$zero_exit" == YES ]] ; then
+              exit 0
+          else
+              exit 10
+          fi
+      else
+          log "workflow not yet complete but no jobs have failed."
+          if [[ "$zero_exit" == YES ]] ; then
+              exit 0
+          else
+              exit 20
+          fi
+      fi
+  else
+      if [[ "$lostdead" -gt 0 ]] ; then
+          log "workflow is still running and some jobs are FAILED.  ($lostdead lost or dead jobs)"
+      else
+          log "workflow is still running and no jobs have failed."
+      fi
+  fi
+  if [[ "$verbose" -gt 0 && "$have_qoutq" == YES ]] ; then
+      verbose "sleep 2"
+      sleep 2
+      verbose "get queue information"
+      qoutq $qoutq_more -Cd rtgen.$UNIQUE_ID
+  fi
+  log "sleep $sleep_time"
+  sleep $sleep_time
+done
+'''
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Attempt to get the produtil package:
+try:
+    import produtil.setup
+except ImportError as ie:
+    if not os.path.isdir('produtil/ush'):
+        fail('produtil/ush is missing and produtil is not in PYTHONPATH.  Is your produtil external missing?')
+    sys.path.append(os.path.join(os.getcwd(),'produtil/ush'))
+    import produtil.setup
+
+import produtil.run, produtil.cluster
+
+from produtil.log import jlogger
+from produtil.run import runstr, ExitStatusException, checkrun, batchexe
+from produtil.testing.testgen import TestGen
+from produtil.testing.utilities import BASELINE, EXECUTION, bashify_string
+from produtil.testing.rocoto import RocotoRunner
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Utility routines:
+
+def usage(reason):
+    sys.stderr.write('''Syntax: rtgen
+FIXME: Add info here.
+''')
+    if reason:
+        sys.stderr.write('ABORT: %s\n'%(reason,))
+        exit(1)
+    exit(0)
+
+def initial_checks():
+    """!Performs basic sanity checks, such as whether some input files
+    are present."""
+    if not os.path.isfile('all.input'):
+        usage('file all.input is missing.  You must run this script from '
+              'the NEMS/tests directory.')
+    if not os.path.isfile('produtil/ush/testgen.py'):
+        usage('file produtil/ush/testgen.py does not exist.  Are you '
+              'missing the produtil external?')
+    if not os.path.isdir('../../NEMS/tests'):
+        usage('directory ../../NEMS/tests does not exist.  This must '
+              'be part of a NEMS app checkout.')
+
+def username():
+    """!Returns the current username.  This uses the process's user id
+    and the pwent database, hence it is less vulnerable to errors than
+    $USER.
+
+    @returns the process's current username"""
+    return pwd.getpwuid(os.getuid()).pw_name
+
+def decide_tmp_theia():
+    """!Chooses a scratch space to use on Theia, based on how close
+    each space is to its quota.
+
+    Uses the pan_df program to check the quota of stmp1 through stmp4.
+    Returns the one that is farthest from quota based on percent
+    usage.  If this process fails, such as pan_df giving a non-zero
+    return status or unparseable output, then a random stmp is chosen.
+
+    @returns path to a temporary directory, which may not yet exist."""
+    logger=logging.getLogger('rtgen')
+    stmps=[ '/scratch3/NCEPDEV/stmp1',
+            '/scratch3/NCEPDEV/stmp2',
+            '/scratch4/NCEPDEV/stmp3',
+            '/scratch4/NCEPDEV/stmp4' ]
+    try:
+        args=['-B', '1G', '--' ]
+        args.extend(stmps)
+        pan_df=produtil.run.runstr(batchexe('pan_df')[args])
+        storage=dict()
+        for m in re.finditer(r'''(?isx)
+            (?:
+                 \s* (?P<device>  \S+ )
+                 [ \t\r\n]+ (?P<size>    \d+ )
+                 \s+ (?P<used>    \d+ )
+                 \s+ (?P<avail>   \d+ )
+                 \s+ (?P<percent> [0-9.]+ ) %
+                 \s+ (?P<mntpnt>  \S+ )
+            |
+                 (?P<bad> [^\r\n]*[\r\n] | [^\r\n]*\Z ) )
+            ''',pan_df):
+            # Skip lines that do not have usage information (such as
+            # the header line).
+            if m.group('bad') or not m.group('mntpnt'):
+                logger.debug('pan_df: ignoring %s'%(repr(m.group(0).strip()),))
+                continue
+
+            mntpnt=m.group('mntpnt')
+            percent=m.group('percent')
+            percent=int(percent,10)
+
+            # Skip lines with invalid mount points:
+            if not os.path.isdir(mntpnt):
+                logger.warning(
+                    'Ignoring invalid mount point from pan_df: %s'%(
+                        mntpnt,))
+                continue
+
+            # Store all valid lines:
+            logger.debug('pan_df: %s at %d%% usage'%(mntpnt,percent))
+            storage[mntpnt]=percent
+
+        # Return the least used stmp if available.
+        if not storage:
+            logger.error(
+                'No valid lines seen in pan_df output.')
+        else:
+            by_usage=storage.keys()
+            by_usage.sort(
+                lambda a,b: cmp(storage[a],storage[b]))
+            logger.info('%s: use this tmp (has lowest usage at %d%%)'%(
+                    by_usage[0],storage[by_usage[0]]))
+            return os.path.join(by_usage[0],username())
+
+    except(EnvironmentError,ExitStatusException,KeyError,ValueError) as e:
+        # Log all likely errors before emergency fallback option:
+        logger.error(str(e),exc_info=True)
+
+    use_me=random.choice(stmps)
+    logger.warning("Auto-detection of least used stmp failed.")
+    logger.warning("%s: randomly chosen stmp"%(use_me,))
+    return os.path.join(use_me,username())
+
+def decide_tmp_wcoss1():
+    return os.path.join('/ptmpp1',username())
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Custom test generator:
+
+class RTGen(TestGen):
+    def __init__(self,baseline,scratch_dir,unique_id=None,
+                 logger=None,no_copy_template=False,
+                 verbose=True,dry_run=False,inputfile='all.input',
+                 setarith=None):
+        baseline=bool(baseline)
+        self.no_copy_template=bool(no_copy_template)
+        if unique_id is None:
+            unique_id=os.getpid()
+        scratch_dir=os.path.join(scratch_dir,'rtgen.%d'%unique_id)
+        outloc=scratch_dir
+        self.test_path=outloc
+        super(RTGen,self).__init__(
+            BASELINE if baseline else EXECUTION,
+            RocotoRunner,outloc,inputfile,dry_run,unique_id,
+            logger=logger,verbose=verbose,setarith=setarith)
+        self._scratch_dir=scratch_dir
+        self._new_baseline=None
+        if baseline:
+            self._new_baseline=os.path.join(
+                self._scratch_dir,'REGRESSION_TEST')
+    def override(self,scope):
+        self._scope=scope
+        if not self._new_baseline:
+            return
+        scope.override_local([scope],'plat%BASELINE',self._new_baseline)
+    @property
+    def new_baseline(self):
+        return self._new_baseline
+    def make_vars(self):
+        morevars=super(RTGen,self).make_vars()
+        morevars['RT_SCRATCH_DIR']=self._scratch_dir
+        return morevars
+    def make_more(self,result,con):
+        self.make_rtrun()
+        self.make_rtreport()
+        #if self._new_baseline:
+        #    self.make_baseline_dir()
+    def make_bash_load_rocoto(self,out):
+        here=produtil.cluster.where()
+        out.write('#!/usr/bin/env bash\n\n')
+        out.write('UNIQUE_ID=%d\n'%(self.unique_id,))
+        if here.name in [ 'tide', 'gyre' ]:
+            out.write('module load lsf\n')
+            out.write('module use /hwrf/noscrub/soft/modulefiles\n')
+            out.write('module load rocoto\n')
+            out.write('module load ruby # workaround for libxml2 bug\n')
+            out.write('module load emc-utils ; have_qoutq=YES\n')
+        elif here.name in [ 'surge', 'luna' ]:
+            out.write('module load xt-lsfhpc\n')
+            out.write('module use /gpfs/hps/emc/hwrf/noscrub/soft/modulefiles\n')
+            out.write('module load rocoto\n')
+            out.write('module load emc-utils ; have_qoutq=YES\n')
+        elif here.name == 'theia':
+            out.write('module load rocoto\n')
+            out.write('module use /scratch3/NCEPDEV/hwrf/save/Samuel.Trahan/emc-utils/modulefiles/\n')
+            out.write('module load emc-utils ; have_qoutq=YES\n')
+        else:
+            out.write('have_qoutq=NO\n')
+        out.write('work=%s/rocoto\n'%(bashify_string(self.outloc),))
+        out.write('cd "$work"\n')
+        out.write('if [[ "$?" != 0 ]] ; then\n')
+        out.write('  echo "$work: cannot cd"\n')
+        out.write('  exit 2\n')
+        out.write('fi\n')
+    def make_rtscript(self,path,name,contents):
+        fullpath=os.path.join(path,name)
+        self.logger.info('%s: write %s script'%(fullpath,name))
+        if not self.dry_run:
+            with open(fullpath,'wt') as rtrun:
+                rtrun.write(contents)
+        self.logger.info('%s: make executable'%(fullpath,))
+        if not self.dry_run:
+            os.chmod(fullpath,0755)
+    def make_rtreport(self):
+        out=StringIO.StringIO()
+        self.make_bash_load_rocoto(out)
+        out.write(r'''
+set -x
+rocotostat -w workflow.xml -d workflow.db -c ALL > rocotostat.txt
+%s/rtreportimpl ../com rocotostat.txt txt > rtreport.txt
+cat rtreport.txt
+'''%(bashify_string(os.path.realpath(os.path.dirname(__file__))),))
+        self.make_rtscript(self.outloc,'rtreport',out.getvalue())
+        out.close()
+    def make_rtrun(self):
+        out=StringIO.StringIO()
+        self.make_bash_load_rocoto(out)
+        out.write(RTRUN_SCRIPT_MEAT)
+        self.make_rtscript(self.outloc,'rtrun',out.getvalue())
+        out.close()
+    def make_baseline_dir(self):
+        if self.no_copy_template: return
+        template=self.scope.resolve('plat%BASELINE_TEMPLATE') \
+            .string_context(self.parser.con())
+        if os.path.exists(self.new_baseline):
+            jlogger.info('%s: delete tree'%(self.new_baseline,))
+            shutil.rmtree(self.new_baseline)
+        jlogger.info('%s: copy from %s'%(
+                self.new_baseline,template))
+        shutil.copytree(template,self.new_baseline,symlinks=True)
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Main program:
+
+def parse_arguments():
+    optval,arglist=getopt.getopt(sys.argv[1:],'vdu:t:bni:')
+    verbose=0
+    dry_run=False
+    unique_id=None
+    temp=None
+    baseline=False
+    no_copy_template=False
+    inputfile='all.input'
+    for opt,val in optval:
+        if opt=='-v': 
+            verbose+=1
+        elif opt=='-d':
+            dry_run=True
+        elif opt=='-n':
+            no_copy_template=True
+        elif opt=='-u':
+            unique_id=int(val,10)
+        elif opt=='-t':
+            temp=str(val)
+        elif opt=='-b':
+            baseline=True
+        elif opt=='-i':
+            inputfile=val
+        else:
+            usage('unknown option '+opt)
+    return verbose,no_copy_template,dry_run,baseline,unique_id,temp,inputfile,arglist
+
+def main():
+    initial_checks()
+
+    verbose,no_copy_template,dry_run,baseline,unique_id,temp,inputfile,arglist = \
+        parse_arguments()
+
+    if len(arglist)>1:
+        arith='union('+','.join(arglist)+')'
+    elif arglist:
+        arith=arglist[0]
+    else:
+        arith=None
+
+    if baseline:
+        if arith:
+            arith='inter(baseline,%s)'%(arith,)
+        else:
+            arith='baseline'
+
+    # Initialize the produtil package.  Disable DBNet alerts to avoid
+    # an irrelevant warning.  Set the jobname so we don't end up with
+    # "NONAME" in jlogfile messages.
+    produtil.setup.setup(
+        send_dbn=False,jobname='rtgen',
+        ologlevel=logging.INFO if verbose else logging.WARNING)
+    logger=logging.getLogger('rtgen')
+
+    jlogger.info('Run set = %s'%(arith,))
+
+    if temp is None:
+        if produtil.cluster.name() == 'theia':
+            scratch_dir=decide_tmp_theia()
+        elif produtil.cluster.name() in ['gyre','tide'] and \
+                produtil.cluster.where().wcoss_phase == 1:
+            scratch_dir=decide_tmp_wcoss1()
+        else:
+            fail('Unknown system.  Only Theia and WCOSS Phase 1 are supported.')
+        jlogger.info('Auto-chosen ptmp is %s'%(repr(scratch_dir),))
+    else:
+        scratch_dir=temp
+        jlogger.info('User-provided ptmp is %s'%(repr(scratch_dir),))
+
+    testgen=RTGen(baseline,scratch_dir,unique_id,logger,
+                  no_copy_template,inputfile=inputfile,
+                  verbose=bool(verbose),dry_run=dry_run,
+                  setarith=arith)
+    try:
+        jlogger.info('Generating workflow with id %s.'%(repr(unique_id),))
+        testgen.testgen()
+    except Exception as e:
+        # Complain about errors in the jlogfile and exit with status 1.
+
+        # Note that this will not catch high-level errors such as
+        # signals or exit.  That is deliberate, for safety reasons.
+        produtil.log.jlogger.error(str(e),exc_info=True)
+        exit(1)
+    # We get here if everything works.
+    jlogger.info('Requested test has been generated.')
+    print r'''You need to run the test now.   You have three options:
+OPTION 1: Put this in your cron:
+  */3 * * * * %s/rtrun --step --zero-exit > %s/rtrun-cron.log 2>&1
+
+OPTION 2: Run this program:
+  %s/rtrun --loop
+
+OPTION 3: Verbose mode: run this program:
+  %s/rtrun -v --loop
+Adding -n to that command will disable colors.
+'''%(
+        testgen.outloc,
+        testgen.outloc,
+        testgen.outloc,
+        testgen.outloc)
+    exit(0)
+
+if __name__=='__main__':
+    main()

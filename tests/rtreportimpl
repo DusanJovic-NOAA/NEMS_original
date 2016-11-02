@@ -1,0 +1,86 @@
+#! /usr/bin/env python
+
+import re, os, sys
+
+comdir=sys.argv[1]
+stattxt=sys.argv[2]
+mode=sys.argv[3]
+
+assert(mode=='txt')
+
+itest=0
+success=True
+finished=True
+with open(stattxt,'rt') as f:
+    for line in f:
+        m=re.match(r'''(?isx)
+              (?P<cycle> \d+ )
+          \s+ (?P<name>  \S+ )
+          \s+ (?P<jobid> \S+ )
+          \s+ (?P<state> \S+ )
+          \s+ (?P<exit>  \S+ )
+          \s+ (?P<tries> \S+ )
+          \s+ (?P<time>  \S+ )
+          ''',line)
+
+        if not m: continue
+
+        name=m.group('name')
+        state=m.group('state')
+        if state in [ 'DEAD', 'LOST' ]:
+            success=False
+
+        if name.find('build_')==0:
+            if state == '-':
+                state='UNSTARTED'
+            print 'BUILD %s: %s'%(name[6:],state)
+            if state not in [ 'SUCCEEDED', 'DEAD', 'LOST' ]:
+                finished=False
+            continue
+
+        if name.find('test_')!=0:
+            print 'UNKNOWN JOB %s: %s'%(name,state)
+        
+        itest+=1
+        testname=name[5:] # part of name after "test_"
+
+
+        if state not in [ 'SUCCEEDED', 'DEAD', 'LOST' ]:
+            print 'TEST #%d %s: not yet complete...'%(itest,testname)
+            finished=False
+            continue
+
+        reportfile=os.path.join(comdir,testname,'report.txt')
+        if not os.path.isfile(reportfile):
+            print 'TEST #%d %s: FAIL\n  No such file: %s'%(
+                itest,testname,reportfile)
+            continue
+        test_passed=False
+        report=list()
+        with open(reportfile,'rt') as f:
+            for reportline in f:
+                if reportline.find('TEST PASSED')==0:
+                    test_passed=True
+                report.append('  '+reportline.strip())
+        if state != 'SUCCEEDED':
+            test_passed=False
+        print 'TEST #%d: %s\n%s'%(
+            itest,
+            'PASS' if test_passed else 'FAIL',
+            '\n'.join(report))
+
+if not finished:
+    if not success:
+        print 'REGRESSION TEST IS STILL RUNNING (SOME TESTS FAILED)'
+        exit(1)
+    else:
+        print 'REGRESSION TEST IS STILL RUNNING (ALL TESTS PASSED SO FAR)'
+        exit(0)
+
+if success:
+    print 'REGRESSION TEST WAS SUCCESSFUL'
+    exit(0)
+else:
+    print 'REGRESSION TEST FAILED'
+    exit(1)
+        
