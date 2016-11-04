@@ -62,8 +62,8 @@ wcoss.common={   # Common resources for all WCOSSes
     use nmm.threaded.wcoss1
     MACHINE_ID='wcoss'
 
-    HOMEnems=PWD_UP5 #'/gpfs/gd1/emc/nems/save/Samuel.Trahan/regtests'
-    HOMErt=OUTPUT_PATH # '/gpfs/gd1/emc/nems/noscrub/Samuel.Trahan/rt/install'
+    HOMEnems=PWD_UP5
+    HOMErt=OUTPUT_PATH
     BASELINE="/nems/noscrub/emc.nemspara/REGRESSION_TEST"
     BASELINE_TEMPLATE="/nems/noscrub/emc.nemspara/REGRESSION_TEST_baselines"
     INPUTS="@[BASELINE]"
@@ -183,15 +183,15 @@ platform theia {
     cores_per_node=24 # Number of cores per node on compute nodes
 
     # The *nems locations are in NEMS checkout areas.
-    HOMEnems=PWD_UP5 #"/scratch4/NCEPDEV/nems/save/Samuel.Trahan/regtests"
+    HOMEnems=PWD_UP5
 
     # The *rt locations are auto-generated areas.
-    HOMErt=OUTPUT_PATH #"/scratch4/NCEPDEV/nems/noscrub/Samuel.Trahan/rt/install"
+    HOMErt=OUTPUT_PATH
 
     # INPUTS is the input directory, which should contain fix and parm
     # files, plus any restarts or other inputs.
-    BASELINE="/scratch4/NCEPDEV/nems/noscrub/Samuel.Trahan/REGRESSION_TEST"
-    BASELINE_TEMPLATE="/scratch4/NCEPDEV/nems/noscrub/Samuel.Trahan/REGRESSION_TEST_baselines"
+    BASELINE="/scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST"
+    BASELINE_TEMPLATE="/scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST_baselines"
     INPUTS="@[BASELINE]"
 
     # PLATFORM DETECTION -----------------------------------------------
