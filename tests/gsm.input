@@ -24,7 +24,7 @@ build gsm_gocart.x {
 #    build=rt.sh_build(NEMS.x="@[NEMS.x]",modules.nems="@[modules.nems]",
 #        ESMF_VER='gsm_intel',NEMS_VER='gsm GOCART_MODE=full')
     build=NEMSAppBuilder(NEMS.x="@[NEMS.x]",modules.nems="@[modules.nems]",
-                         OPTS="app=GOCART")
+                         OPTS="app=GSM-GOCART")
 }
 
 ########################################################################
