@@ -37,9 +37,9 @@
 'MDIMAXout'        H       -       O      -      -   -  'Max mean size of large, precipitating ice particles for use in '
 #                                                          Ferrier-based microphysics tables (microns)'
 'IVEGSRC'          H       -       O      -      -   -  'Vegetation map identifier, 0--> USGS, 1--> IGBP'
-'CU_PHYSICS'       H       R       O      -      -   -  'Convection physics, 2--> BMJ, 4--> SAS, 84--> SASHUR, 94--> SCALECU'
+'CU_PHYSICS'       H       R       O      -      -   -  'Convection physics, 1--> KF, 2--> BMJ, 3--> GD, 4--> SAS, 5--> RAS'
 'MP_PHYSICS'       H       R       O      -      -   -  'Microphysics physics'
-'SF_SURFACE_PHYSICS' H     R       O      -      -   -  'Land Surface physics'
+'LSM_PHYSICS'      H       R       O      -      -   -  'Land Surface physics'
 
 
 ###    0D real (scalar)
@@ -71,6 +71,8 @@
 'SGML1'            H       R       O      -      -   -  'Sigma at midlayers in pressure range'
 'SGML2'            H       R       O      -      -   -  'Sigma at midlayers in sigma range'
 'SGM'              -       R       O      -      -   -  'Sigma at interfaces'
+'EPSL'             H       R       O      -      -   -  'Floor value for mixing length'
+'EPSQ2'            H       R       O      -      -   -  'Floor value for 2*tke'
 'SLDPTH'           H       R       O      -      -   -  'Thickness of soil layers (m) from top'
 'MP_RESTART'       -       R       O      -      -   -  'Contents of Ferrier-based microphysics look up tables '
 #                                                          needed if restarting the model run.
@@ -162,6 +164,8 @@
 'QWBS'             H       R       O      -      -   T  'Instantaneous latent heat flux (W m-2)'
 'QZ0'              H       R       O      -      -   T  'Specific humidity at top of viscous sublayer  (kg kg-1)'
 'RADOT'            H       R       O      -      -   T  'Longwave from the ground  (W m-2)'
+'PRATEMAX'         H       -       O      -      -   -  'Hourly maximum surface precipitation rate (mm h-1)'
+'FPRATEMAX'        H       -       O      -      -   -  'Hourly maximum surface frozen precipitation rate (mm h-1)'
 'REFDMAX'          H       -       O      -      -   T  'Hourly Maximum simulated reflectivity at 1000 m AGL (dbZ)'
 'RLWIN'            H       R       O      -      -   T  'Longwave down at ground  (W m-2)'
 'RLWTOA'           H       R       O      -      -   T  'Longwave at top of atmosphere  (W m-2)'
@@ -248,7 +252,7 @@
 'Told'             -       R       O      -      -   -  'Old temperature before convection, microphysics (K)'
 'Tadj'             -       R       O      -      -   -  'Temperature adjustments by convection, microphysics (K)'
 'CLDFRA'           H       R       O      -      -   T  'Cloud fraction'
-'DFI_TTEN'         -       -       O      -      -   -  'GSI radar assim generated heating rate'
+'DFI_TTEN'         -       R       O      -      -   -  'GSI radar assim generated heating rate'
 'CW'               H       R       -      -      X   -  'Total condensate (kg/kg)'
 'EXCH_H'           H       -       O      -      -   T  'Turbulent exchange coefficient for heat  (m2 s-1)'
 'Q'                H       R       -      -      X   T  'Specific humidity (kg/kg)'
@@ -273,7 +277,7 @@
 'QG'               H       -       -      -      -   -  'Graupel mixing ratio (kg kg-1)'
 'NI'               H       -       -      -      -   -  'Cloud ice number concentration (kg-1)'
 'NR'               H       -       -      -      -   -  'Rain number concentration (kg-1)'
-'REFL_10CM'        -       -       O      -      -   -  'Radar 10cm reflectivity  (dBZ)'
+'REFL_10CM'        H       -       O      -      -   -  'Radar 10cm reflectivity  (dBZ)'
 'RE_CLOUD'         -       -       O      -      -   -  'Effective radius of cloud droplets  (m)'
 'RE_ICE'           -       -       O      -      -   -  'Effective radius of cloud ice  (m)'
 'RE_SNOW'          -       -       O      -      -   -  'Effective radius of snow  (m)'

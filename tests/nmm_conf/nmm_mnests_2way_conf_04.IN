@@ -25,7 +25,7 @@ jnpes:  09                  # Number of compute tasks in the J direction
 ###############################
 #### Specify the I/O tasks ####
 ###############################
-                                                                                                                                             
+
 quilting:              true    # Do you want asynchronous quilting/history writes?
 write_groups:          1
 write_tasks_per_group: 1
@@ -48,7 +48,7 @@ filt_dt_den:  3                  # Denominator of fractional second
 ##### Forecast Start Time #####
 ###############################
 
-start_year:   2010   
+start_year:   2010
 start_month:  09
 start_day:    17
 start_hour:   12
@@ -109,18 +109,18 @@ PE_MEMBER01:    0
 ####################
 ##### Dynamics #####
 ####################
- 
+
 secadv:  true               # True--> 2nd order advection ; False--> 4th order advection
-                                                  
+
 smag2:   0.2                # Smagorinsky constant for 2nd order diffusion
-                                        
+
 codamp:  9.0                # Divergence damping constant
 wcor:    0.18               # Divergence correction factor
- 
+
 idtadt:  2                  # Number of adjustment timesteps between tracer advection calls (normally 1)
 
 num_tracers_chem:  0        # Number of specified chem/aerosol "tracer" scalars
-                 
+
 lnsh:  5                    # Number of boundary blending rows for H points
 lnsv:  5                    # Number of boundary blending rows for V points
 
@@ -175,7 +175,7 @@ dpmin:      5.00            # minimum thickness of the reference layer (check un
 
 #---------------------------------
 shortwave: rrtm             # Radiation schemes
-longwave:  rrtm        
+longwave:  rrtm
                                 # gfdl--> GFDL (shortwave and longwave)
                                 # gsfc--> Goddard shortwave
                                 # dudh--> Dudhia shortwave
@@ -218,20 +218,20 @@ lmprate:  .false.           # .true.: 4D array called MPRATES containing
                             # 3D microphysics source/sink terms
                             # .false.: One 3D array called MPRATES
                             # with zero values
-                                                                                                                                              
+
 #---------------------------------
 turbulence:  myj            # Turbulence schemes
                                 # myj--> Mellor-Yamada-Janjic
                                 # gfs--> GFS PBL
-                                                                                                                                              
+
 #---------------------------------
-                                                                                                                                              
+
 sfc_layer:  myj             # Surface layer schemes
                                 # myj--> Mellor-Yamada-Jamnjic
                                 # mm5--> MM5 sfc layer
-                                                                                                                                              
+
 #---------------------------------
-                                                                                                                                              
+
 land_surface:  noah         # Land surface schemes
                                 # noah--> NOAH scheme
 
@@ -239,7 +239,7 @@ ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
 ivegsrc: 1                  # Vegetation map identifier, 0--> USGS, 1--> IGBP
 
 #---------------------------------
-                                                                                                                                              
+
 gfs:  false                 # Select entire GFS physics suite
 
 
@@ -336,7 +336,7 @@ generation: 2                 # In which generation is this domain?
 ### If this domain is not a nest then the remaining variables
 ### in 'Nesting Specifications' are ignored.
 
-i_parent_start:  172 
+i_parent_start:  172
 j_parent_start:  139
 
 parent_child_space_ratio:  3  # Ratio of this nest's parent's grid increment to its own
@@ -344,6 +344,8 @@ parent_child_space_ratio:  3  # Ratio of this nest's parent's grid increment to 
 my_domain_moves: true         # Does this domain move?
 move_type: storm              # Type of this domain move (storm, prescribed)
 ntrack: 10                    # the number of nphys steps between tracker calls
+
+max_shift: 2                  # Max # of parent grid increments (in I and/or J) this nest can move in one shift (999->no limit)
 centers_distance: 6.0         # Grid increments on this nest between its and its inner nest's centers before this nest shifts
 latitude_limit: 60.0          # Nests will not move poleward of this latitude (degrees)
 
@@ -373,7 +375,7 @@ npe_print:         13        # The MPI task that will provide the clocktimes.
 run_tc:             false    # true=use hwrf phys
 
 sas_pgcon:          0.55     # convectively forced pressure gradient factor,default=0.55
-sas_shal_pgcon:     -1       # convectively forced pressure gradient factor sas shallow conv, 
+sas_shal_pgcon:     -1       # convectively forced pressure gradient factor sas shallow conv,
                              # '-1' means sas_pgcon is used
 sas_shalconv:       1        # 1=enable shallow conv,better with gfspblhur scheme
 sas_mass_flux:      9.0e9    # mass flux limit,default=9e9
