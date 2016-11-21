@@ -81,7 +81,7 @@
       TYPE(ESMF_Clock), SAVE :: CLOCK_NEMS                                 !<-- The ESMF Clock of the NEMS component
       TYPE(ESMF_Config),SAVE :: CF_NEMS                                    !<-- The configure object of the NEMS component
       TYPE(ESMF_VM),    SAVE :: VM_GLOBAL
-      TYPE(ESMF_TIME),  SAVE :: STARTTIME
+      TYPE(ESMF_TIME),  SAVE :: STARTTIME, CURRTIME
 !
       TYPE(ESMF_CplComp),SAVE :: ENS_CPL_COMP                              !<-- Ensemble Coupler components
       TYPE(ESMF_State),  SAVE :: ENS_CPL_IMP_STATE                         !<-- Import state of the Ensemble Coupler component
@@ -203,7 +203,7 @@
 !***  Local Variables
 !---------------------
 !
-      TYPE(ESMF_TimeInterval) :: RUNDURATION
+      TYPE(ESMF_TimeInterval) :: RUNDURATION, restartOffset
 !
       CHARACTER(20) :: PELAB
 !
@@ -217,7 +217,8 @@
                 ,NHOURS_FCST                                            &
                 ,NSECONDS_FCST                                          &
                 ,PE_MAX                                                 &
-                ,TASKS
+                ,TASKS                                                  &
+                ,fhrot
 !
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: PETLIST                        !<-- Task list for each ensemble member
 !
@@ -618,6 +619,28 @@
         END DO
 !
       END IF
+
+!
+!-----------------------------------------------------------------------
+!***  Adjust the currTime of the NEMS clock: CLOCK_NEMS
+!***  if the fhrot is > 0
+!***  This will correctly set the NEMS and EARTH clocks in case of
+!***  Restart-From-History.
+!-----------------------------------------------------------------------
+
+      CALL ESMF_ConfigGetAttribute(config = CF_NEMS &
+                                   ,value  = fhrot &
+                                   ,label  = 'fhrot:' &
+                                   ,default = 0 &
+                                   ,rc     = RC)
+      ESMF_ERR_RETURN(RC,RC_INIT)
+      if (fhrot > 0) then
+        CALL ESMF_TimeIntervalSet(restartOffset, h=fhrot,rc=RC)
+        ESMF_ERR_RETURN(RC,RC_INIT)
+        CURRTIME = STARTTIME + restartOffset
+        call ESMF_ClockSet(CLOCK_NEMS, currTime=CURRTIME, rc=RC)
+        ESMF_ERR_RETURN(RC,RC_INIT)
+      endif
 !
 !-----------------------------------------------------------------------
 !***  Execute the Initialize step of each element of the EARTH
