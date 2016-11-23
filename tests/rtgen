@@ -137,9 +137,11 @@ done
 try:
     import produtil.setup
 except ImportError as ie:
-    if not os.path.isdir('produtil/ush'):
-        fail('produtil/ush is missing and produtil is not in PYTHONPATH.  Is your produtil external missing?')
-    sys.path.append(os.path.join(os.getcwd(),'produtil/ush'))
+    altpath=os.path.join(os.path.dirname(os.path.realpath(__file__)),'produtil/ush')
+    print altpath
+    if not os.path.isdir(altpath):
+        fail('%s is missing and produtil is not in PYTHONPATH.  Is your produtil external missing?'%(altpath,))
+    sys.path.append(altpath)
     import produtil.setup
 
 import produtil.run, produtil.cluster
@@ -149,25 +151,83 @@ from produtil.run import runstr, ExitStatusException, checkrun, batchexe
 from produtil.testing.testgen import TestGen
 from produtil.testing.utilities import BASELINE, EXECUTION, bashify_string
 from produtil.testing.rocoto import RocotoRunner
+from produtil.testing.setarith import ArithKeyError
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Utility routines:
 
+TOP_OF_USAGE_MESSAGE='''Syntax: rtgen [options] [subset]
+
+Generates an NCEP three-tier workflow structure to run the specified
+regression tests or compsets.  The user must then run some scripts
+inside that directory to execute the tests and report the results.
+If no subset is requested, all known tests are run.
+'''
+
+SHORT_USAGE_MESSAGE=TOP_OF_USAGE_MESSAGE+'''
+Run with -h for full instructions.
+'''
+
+FULL_USAGE_MESSAGE=TOP_OF_USAGE_MESSAGE+'''
+--SUBSETS--
+  {gfs_slg,nmm_cntrl} -- run gfs_slg and nmm_cntrl tests
+  wam                 -- run all wam tests
+  minus(gsm,wam)      -- run all gsm tests except wam tests
+  inter(nmm,standard) -- run all standard nmm tests
+  union(nmm,wam)      -- run all nmm and gsm tests
+Specifications can be nested:
+    minus(inter(union(gsm,nmm),standard),{gfs_slg,nmm_cntrl})
+  That will run all gsm and nmm tests that are standard tests, except
+  for gfs_slg and nmm_cntrl.
+
+--OPTIONS--
+
+  -i all.input
+       Path to the input file that specifies the known compsets and
+       regression tests.  Default: all.input
+  -p avn
+       Project for batch submission.  Default: use the project that
+       has the most resources available among those the user can
+       access.
+  -b
+       Run in BASELINE mode; generate a baseline instead of verifying
+       against an old baseline.  Will disable running of non-baseline
+       tests (tests not in the "baseline" subset).
+  -v
+       Vebose mode
+  -d
+       Dry run mode; print what would be done without doing it.
+  -t /ptmp/$USER
+       Path to temporary area.  Default: pick the scratch space with
+       the most disk space remaining and append the username.
+  -u 12345
+       Unique integer id to identify this workflow.  Default: unix
+       process id of rtgen
+  -n
+       Do not copy the regression test template directory when
+       generating a new baseline.
+  --
+       Terminate option processing.  Remaining arguments are subsets.
+
+  NOTE: Use -n, -t, and -u to regenerate a workflow in the same
+        directory as a previous one.
+'''
+
+
+def full_usage():
+    print FULL_USAGE_MESSAGE
+    sys.exit(0)
+
 def usage(reason):
-    sys.stderr.write('''Syntax: rtgen
-FIXME: Add info here.
-''')
+    sys.stderr.write(SHORT_USAGE_MESSAGE)
     if reason:
-        sys.stderr.write('ABORT: %s\n'%(reason,))
+        sys.stderr.write('\nSCRIPT IS ABORTING BECAUSE: %s\n'%(reason,))
         exit(1)
     exit(0)
 
 def initial_checks():
     """!Performs basic sanity checks, such as whether some input files
     are present."""
-    if not os.path.isfile('all.input'):
-        usage('file all.input is missing.  You must run this script from '
-              'the NEMS/tests directory.')
     if not os.path.isfile('produtil/ush/testgen.py'):
         usage('file produtil/ush/testgen.py does not exist.  Are you '
               'missing the produtil external?')
@@ -182,6 +242,57 @@ def username():
 
     @returns the process's current username"""
     return pwd.getpwuid(os.getuid()).pw_name
+
+def decide_project_theia():
+    """!Chooses which project to use when submitting jobs on Theia.
+
+    Uses the account_params program to scan the available core-hours
+    on Theia.  Chooses the project with the most available core-hours.
+    If no projects have resources, or if some error happens, then
+    the "nems" project is used."""
+    logger=logging.getLogger('rtgen')
+    try:
+        account_params=produtil.run.runstr(
+            batchexe('account_params'),logger=jlogger)
+    except(EnvironmentError,ExitStatusException) as ee:
+        logger.warning('Cannot run account_params: '+str(ee))
+        return 'nems'
+    projects=list()
+    projalloc=dict()
+    for line in account_params.splitlines():
+        # Allocation: 6912 stmp      0.00      0.00        0.00 
+        m=re.match('^\s*Allocation:\s+(\d+)\s+(\S+)\s+([0-9.]+)',line)
+        if not m:
+            # skip other lines
+            logger.debug('Skip line: '+line.rstrip())
+            continue
+        gid,name,alloc = m.groups()
+        try:
+            alloc=float(alloc)
+            if name=='nems': alloc/=2
+            projects.append(name)
+            projalloc[name]=alloc
+        except (ValueError,TypeError) as vte:
+            logger.warning('Cannot parse: '+line.rstrip())
+            continue
+    if not projects:
+        # Parse error or failure of account_params.
+        logger.warning('Could not parse account_params output.')
+        return 'nems'
+    projects.sort(lambda a,b: cmp(projalloc[a],projalloc[b]))
+    projchoose=projects[-1]
+
+    if projalloc[projchoose]<1.0:
+        logger.warning('All projects passed core-hour limit; will use nems.')
+        return 'nems'
+
+    for proj in projects:
+        if proj==projchoose:
+            chose='<== chosen'
+        else:
+            chose=''
+        logger.info('%10s : %6d %s'%(proj,projalloc[proj],chose))
+    return projchoose
 
 def decide_tmp_theia():
     """!Chooses a scratch space to use on Theia, based on how close
@@ -256,7 +367,13 @@ def decide_tmp_theia():
     logger.warning("%s: randomly chosen stmp"%(use_me,))
     return os.path.join(use_me,username())
 
+def decide_project_wcoss1():
+    """!Placeholder for future development; returns "GFS-T2O" """
+    return 'GFS-T2O'
+
 def decide_tmp_wcoss1():
+    """!Placeholder for future development; returns "/ptmpp/$USER"
+    where $USER is the username """
     return os.path.join('/ptmpp1',username())
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -265,7 +382,7 @@ def decide_tmp_wcoss1():
 class RTGen(TestGen):
     def __init__(self,baseline,scratch_dir,unique_id=None,
                  logger=None,no_copy_template=False,
-                 verbose=True,dry_run=False,inputfile='all.input',
+                 verbose=True,dry_run=False,inputfile=None,
                  setarith=None):
         baseline=bool(baseline)
         self.no_copy_template=bool(no_copy_template)
@@ -318,7 +435,7 @@ class RTGen(TestGen):
         elif here.name == 'theia':
             out.write('module load rocoto\n')
             out.write('module use /scratch3/NCEPDEV/hwrf/save/Samuel.Trahan/emc-utils/modulefiles/\n')
-            out.write('module load emc-utils ; have_qoutq=YES\n')
+            out.write('module load hpss emc-utils ; have_qoutq=YES\n')
         else:
             out.write('have_qoutq=NO\n')
         out.write('work=%s/rocoto\n'%(bashify_string(self.outloc),))
@@ -368,17 +485,25 @@ cat rtreport.txt
 # Main program:
 
 def parse_arguments():
-    optval,arglist=getopt.getopt(sys.argv[1:],'vdu:t:bni:')
+    try:
+        optval,arglist=getopt.getopt(sys.argv[1:],'vdu:t:bni:p:h')
+    except getopt.GetoptError as ge:
+        usage(str(ge))
     verbose=0
     dry_run=False
-    unique_id=None
+    unique_id=int(os.getpid())
     temp=None
     baseline=False
     no_copy_template=False
-    inputfile='all.input'
+    inputfile=None
+    project=None
     for opt,val in optval:
         if opt=='-v': 
             verbose+=1
+        elif opt=='-h':
+            full_usage() # does not return
+        elif opt=='-p':
+            project=val
         elif opt=='-d':
             dry_run=True
         elif opt=='-n':
@@ -393,13 +518,17 @@ def parse_arguments():
             inputfile=val
         else:
             usage('unknown option '+opt)
-    return verbose,no_copy_template,dry_run,baseline,unique_id,temp,inputfile,arglist
+    arglist_nowhite=list() # arguments that are not whitespace
+    for arg in arglist:
+        if not re.match('(?sx) \A \s* \Z',arg):
+            arglist_nowhite.append(arg)
+    return verbose,no_copy_template,dry_run,baseline,unique_id,temp, \
+           inputfile,arglist_nowhite,project
 
 def main():
-    initial_checks()
-
-    verbose,no_copy_template,dry_run,baseline,unique_id,temp,inputfile,arglist = \
+    verbose,no_copy_template,dry_run,baseline,unique_id,temp,inputfile,arglist,project = \
         parse_arguments()
+    assert(isinstance(unique_id,int))
 
     if len(arglist)>1:
         arith='union('+','.join(arglist)+')'
@@ -422,7 +551,24 @@ def main():
         ologlevel=logging.INFO if verbose else logging.WARNING)
     logger=logging.getLogger('rtgen')
 
-    jlogger.info('Run set = %s'%(arith,))
+    if arith is None:
+        jlogger.info('Will run all known tests.')
+    else:
+        jlogger.info('Test suite subset = %s'%(arith,))
+
+    if project is None:
+        if produtil.cluster.name() == 'theia':
+            project=decide_project_theia()
+        elif produtil.cluster.name() in ['gyre','tide'] and \
+                produtil.cluster.where().wcoss_phase == 1:
+            project=decide_project_wcoss1()
+        else:
+            fail('Unknown system.  Only Theia and WCOSS Phase 1 are supported.')
+        jlogger.info('Auto-chosen project for job submission is %s'%(
+                repr(project),))
+    else:
+        jlogger.info('User-provided project for job submission is %s'%(
+                repr(project),))
 
     if temp is None:
         if produtil.cluster.name() == 'theia':
@@ -437,6 +583,15 @@ def main():
         scratch_dir=temp
         jlogger.info('User-provided ptmp is %s'%(repr(scratch_dir),))
 
+    if inputfile is None:
+        for path in [ '../../compsets/all.input','compsets/all.input',
+                      '../compsets/all.input' ]:
+            if os.path.isfile(path):
+                inputfile=path
+    if inputfile is None:
+        usage('file all.input is missing.  You must run this script from '
+              'one of these directories: app-level, NEMS or NEMS/tests.')
+
     testgen=RTGen(baseline,scratch_dir,unique_id,logger,
                   no_copy_template,inputfile=inputfile,
                   verbose=bool(verbose),dry_run=dry_run,
@@ -444,6 +599,9 @@ def main():
     try:
         jlogger.info('Generating workflow with id %s.'%(repr(unique_id),))
         testgen.testgen()
+    except ArithKeyError as ake:
+        # User specified an invalid set or test.  Give the usage message.
+        usage(str(ake))
     except Exception as e:
         # Complain about errors in the jlogfile and exit with status 1.
 

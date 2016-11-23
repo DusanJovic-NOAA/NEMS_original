@@ -41,7 +41,9 @@ export GEFS_ENSEMBLE=0
 export GEN_ENSEMBLE=0
 export WRITE_DOPOST=.false.
 export POST_GRIBVERSION='grib1'
-export QUEUE=debug
+
+# Bug fix: disable overriding of QUEUE:
+export QUEUE=${QUEUE:-debug}
 }
 
 export_nmm ()

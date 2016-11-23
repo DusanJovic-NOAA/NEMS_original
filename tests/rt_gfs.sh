@@ -254,12 +254,12 @@ export RUNDIR=$RUNDIR
 cd $PATHRT
 
 if [ $SCHEDULER = 'moab' ]; then
-  $MSUB gfs_msub > /dev/null
+  $MSUB gfs_msub
 elif [ $SCHEDULER = 'pbs' ]; then
   rm -f $PATHRT/err $PATHRT/out
-  qsub $PATHRT/gfs_qsub > /dev/null
+  qsub $PATHRT/gfs_qsub
 elif [ $SCHEDULER = 'lsf' ]; then
-  bsub <$PATHRT/gfs_bsub > /dev/null 2>&1
+  bsub <$PATHRT/gfs_bsub
 fi
 
 echo "Test ${TEST_NR}" >> ${REGRESSIONTEST_LOG}

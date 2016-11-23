@@ -47,13 +47,13 @@ cp $SRCDIR/exe/NEMS.x .
 
 if [ $SCHEDULER = 'moab' ]; then
   cp $SRCDIR/tests/nmm_msub .
-  msub nmm_msub > /dev/null
+  msub nmm_msub
 elif [ $SCHEDULER = 'pbs' ]; then
   cp $SRCDIR/tests/nmm_qsub .
-  qsub nmm_qsub > /dev/null
+  qsub nmm_qsub
 elif [ $SCHEDULER = 'lsf' ]; then
   cp $SRCDIR/tests/nmm_bsub .
-  bsub < nmm_bsub > /dev/null 2>&1
+  bsub < nmm_bsub
 fi
 
 exit

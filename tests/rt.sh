@@ -15,6 +15,9 @@ usage() {
   echo "  -l  runs test specified in <file>"
   echo "  -m  compare against new baseline results"
   echo "  -h  display this help"
+  echo "  -F  run on an unsupported platform"
+  echo "Only Phase 1 Tide and Gyre, and Theia are supported."
+  echo "You must use the -F option to run elsewhere."
   echo
   exit 1
 }
@@ -95,8 +98,12 @@ export CREATE_BASELINE=false
 CB_arg=''
 TESTS_FILE='rt.conf'
 SET_ID='standard'
-while getopts ":c:fsl:mh" opt; do
+ALLOW_UNSUPPORTED=false
+while getopts ":c:fsl:mhF" opt; do
   case $opt in
+    F)
+      ALLOW_UNSUPPORTED=true
+      ;;
     c)
       export CREATE_BASELINE=true
       CB_arg=$OPTARG
@@ -128,6 +135,15 @@ while getopts ":c:fsl:mh" opt; do
       ;;
   esac
 done
+
+if [[ ( "$MACHINE_ID" != wcoss && "$MACHINE_ID" != theia ) \
+      || "$pex" == 2 ]] ; then
+    echo "Warning: using unsupported system $MACHINE_ID $pex" 1>&2
+    if [[ "$ALLOW_UNSUPPORTED" != true ]] ; then
+        echo "Aborting.  Use the -F option (F = \"Force\") to run on this system." 1>&2
+        exit 1
+    fi
+fi
 
 shift $((OPTIND-1))
 [[ $# -gt 0 ]] && usage
