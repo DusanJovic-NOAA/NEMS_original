@@ -1,0 +1,37 @@
+#! /usr/bin/env python
+
+import sys, re
+
+joblist=sys.argv[1:]
+
+command="rocotorewind -w workflow.xml -d workflow.db"
+
+sent_cycle=False
+
+def process_line(line,m):
+    match=False
+    for job in joblist:
+        task=m.group(2)
+        if task=="test_"+job:
+            match="test_"+job
+        if task=="build_"+job:
+            match="build_"+job
+        if match:
+            break
+
+    if not match: 
+        return
+
+    global sent_cycle, command
+    if not sent_cycle:
+        command+=" -c "+m.group(1)
+        sent_cycle=True
+
+    command+=" -t "+match
+
+for line in sys.stdin:
+    m=re.match('^(\d+)\s+(\S+)',line)
+    if m:
+        process_line(line,m)
+
+print(command+'\n')

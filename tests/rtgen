@@ -18,6 +18,11 @@ def fail(how):
     sys.stderr.write('ABORT: %s\n'%(how,))
     exit(1)
 
+RTREWIND_SCRIPT_MEAT=r'''
+set --
+rocotorewind -c $CYCLE -w workflow.xml -d workflow.db
+'''
+
 RTRUN_SCRIPT_MEAT=r'''
 verbose=0
 loop=MISSING
@@ -79,12 +84,27 @@ function verbose() {
     echo $( date '+%m/%d %H:%M:%SZ' ) rtrun INFO: "$*"
   fi
 }
+unchange=0
+last_cycledone=-999
+last_lostdead=-999
 while [[ 1 == 1 ]] ; do
   log "check dependencies and submit jobs..."
   rocotorun -w workflow.xml -d workflow.db
   verbose "check status..."
   cycledone=$( sqlite3 workflow.db 'SELECT id FROM cycles WHERE done>0' | wc -l )
   lostdead=$( sqlite3 workflow.db 'SELECT taskname FROM jobs WHERE state=="DEAD" OR state=="LOST"' |wc -l)
+  if [[ "$cycledone" == "$last_cycledone" && \
+        "$lostdead"  == "$last_lostdead" ]] ; then
+      unchange=$(( $unchange + 1 ))
+  else
+      unchange=0
+  fi
+  last_cycledone=$cycledone
+  last_lostdead=$lostdead
+  if [[ "$cycledone" != "$last_cycledone" && \
+        "$lostdead"  != "$last_lostdead" ]] ; then
+    count_since_state_change=$(( count_since_state_change + 1 ))
+  fi
   if [[ "$cycledone" -gt 0 ]] ; then
       # Cycle is complete.
       if [[ "$lostdead" -gt 0 ]] ; then
@@ -121,11 +141,25 @@ while [[ 1 == 1 ]] ; do
           log "workflow is still running and no jobs have failed."
       fi
   fi
-  if [[ "$verbose" -gt 0 && "$have_qoutq" == YES ]] ; then
-      verbose "sleep 2"
-      sleep 2
-      verbose "get queue information"
-      qoutq $qoutq_more -Cd rtgen.$UNIQUE_ID
+  if [[ "$have_qoutq" == YES ]] ; then
+      job_count=$( qoutq -UL .queue_state  $qoutq_more -Cd rtgen.$UNIQUE_ID | wc -l )
+      if [[ "$verbose" -gt 0 ]] ; then
+          verbose "sleep 2"
+          sleep 2
+          verbose "get queue information"
+          qoutq -UL .queue_state $qoutq_more -Cd rtgen.$UNIQUE_ID
+      fi
+      if [[ "$unchange" -gt 2 && "$job_count" < 1 && "$lostdead" -gt 0 ]] ; then
+          log "Jobs have FAILED and no jobs are running or submitted."
+          log "This usually means the remaining jobs are dependent"
+          log "on the FAILED jobs.  Quitting workflow; please check"
+          log "the failed jobs."
+          if [[ "$zero_exit" == YES ]] ; then
+              exit 0
+          else
+              exit 20
+          fi
+      fi
   fi
   log "sleep $sleep_time"
   sleep $sleep_time
@@ -203,9 +237,10 @@ Specifications can be nested:
   -u 12345
        Unique integer id to identify this workflow.  Default: unix
        process id of rtgen
-  -n
-       Do not copy the regression test template directory when
-       generating a new baseline.
+  -n /path/to/baseline
+       Use the specified area for the baseline.  If running in baseline
+       mode, the baseline template will NOT be copied.  Instead, the
+       specified area will be used.
   --
        Terminate option processing.  Remaining arguments are subsets.
 
@@ -381,11 +416,11 @@ def decide_tmp_wcoss1():
 
 class RTGen(TestGen):
     def __init__(self,baseline,scratch_dir,unique_id=None,
-                 logger=None,no_copy_template=False,
+                 logger=None,baseline_dir=None,
                  verbose=True,dry_run=False,inputfile=None,
                  setarith=None):
         baseline=bool(baseline)
-        self.no_copy_template=bool(no_copy_template)
+        self.no_copy_template = baseline_dir is not None
         if unique_id is None:
             unique_id=os.getpid()
         scratch_dir=os.path.join(scratch_dir,'rtgen.%d'%unique_id)
@@ -396,8 +431,8 @@ class RTGen(TestGen):
             RocotoRunner,outloc,inputfile,dry_run,unique_id,
             logger=logger,verbose=verbose,setarith=setarith)
         self._scratch_dir=scratch_dir
-        self._new_baseline=None
-        if baseline:
+        self._new_baseline=baseline_dir
+        if baseline and not self._new_baseline:
             self._new_baseline=os.path.join(
                 self._scratch_dir,'REGRESSION_TEST')
     def override(self,scope):
@@ -414,6 +449,7 @@ class RTGen(TestGen):
         return morevars
     def make_more(self,result,con):
         self.make_rtrun()
+        self.make_rtrewind()
         self.make_rtreport()
         #if self._new_baseline:
         #    self.make_baseline_dir()
@@ -464,6 +500,23 @@ cat rtreport.txt
 '''%(bashify_string(os.path.realpath(os.path.dirname(__file__))),))
         self.make_rtscript(self.outloc,'rtreport',out.getvalue())
         out.close()
+    def make_rtrewind(self):
+        out=StringIO.StringIO()
+        self.make_bash_load_rocoto(out)
+        out.write(r'''
+if [[ "$#" -lt 1 ]] ; then
+    echo "Syntax: rtrewind job [job [...]]" 1>&2
+    echo "  The \"job\" is a test or build name as defined in"
+    echo "  the compsets/*.input files."
+    exit 1
+fi
+set -x
+command=$( rocotostat -w workflow.xml -d workflow.db -c ALL | \
+    %s/rtrewindimpl "$@" )
+$command
+'''%(bashify_string(os.path.realpath(os.path.dirname(__file__))),))
+        self.make_rtscript(self.outloc,'rtrewind',out.getvalue())
+        out.close()
     def make_rtrun(self):
         out=StringIO.StringIO()
         self.make_bash_load_rocoto(out)
@@ -486,7 +539,7 @@ cat rtreport.txt
 
 def parse_arguments():
     try:
-        optval,arglist=getopt.getopt(sys.argv[1:],'vdu:t:bni:p:h')
+        optval,arglist=getopt.getopt(sys.argv[1:],'vdu:t:bn:i:p:h')
     except getopt.GetoptError as ge:
         usage(str(ge))
     verbose=0
@@ -494,7 +547,7 @@ def parse_arguments():
     unique_id=int(os.getpid())
     temp=None
     baseline=False
-    no_copy_template=False
+    baseline_dir=None
     inputfile=None
     project=None
     for opt,val in optval:
@@ -507,7 +560,7 @@ def parse_arguments():
         elif opt=='-d':
             dry_run=True
         elif opt=='-n':
-            no_copy_template=True
+            baseline_dir=val
         elif opt=='-u':
             unique_id=int(val,10)
         elif opt=='-t':
@@ -522,11 +575,11 @@ def parse_arguments():
     for arg in arglist:
         if not re.match('(?sx) \A \s* \Z',arg):
             arglist_nowhite.append(arg)
-    return verbose,no_copy_template,dry_run,baseline,unique_id,temp, \
+    return verbose,baseline_dir,dry_run,baseline,unique_id,temp, \
            inputfile,arglist_nowhite,project
 
 def main():
-    verbose,no_copy_template,dry_run,baseline,unique_id,temp,inputfile,arglist,project = \
+    verbose,baseline_dir,dry_run,baseline,unique_id,temp,inputfile,arglist,project = \
         parse_arguments()
     assert(isinstance(unique_id,int))
 
@@ -543,11 +596,10 @@ def main():
         else:
             arith='baseline'
 
-    # Initialize the produtil package.  Disable DBNet alerts to avoid
-    # an irrelevant warning.  Set the jobname so we don't end up with
-    # "NONAME" in jlogfile messages.
+    # Initialize the produtil package.
     produtil.setup.setup(
-        send_dbn=False,jobname='rtgen',
+        send_dbn=False,   # avoids "dbnalert missing" warnings
+        jobname='rtgen',  # set job name for jlogfile messages
         ologlevel=logging.INFO if verbose else logging.WARNING)
     logger=logging.getLogger('rtgen')
 
@@ -593,7 +645,7 @@ def main():
               'one of these directories: app-level, NEMS or NEMS/tests.')
 
     testgen=RTGen(baseline,scratch_dir,unique_id,logger,
-                  no_copy_template,inputfile=inputfile,
+                  baseline_dir,inputfile=inputfile,
                   verbose=bool(verbose),dry_run=dry_run,
                   setarith=arith)
     try:
