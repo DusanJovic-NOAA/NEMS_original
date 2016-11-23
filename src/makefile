@@ -296,9 +296,10 @@ OBJS = module_MEDIATOR_methods.o \
        module_EARTH_INTERNAL_STATE.o \
        module_EARTH_GRID_COMP.o \
        module_NEMS_INTERNAL_STATE.o \
-       module_NEMS_GRID_COMP.o
+       module_NEMS_GRID_COMP.o \
+       module_NEMS_Rusage.o
 
-COBJS = # c_code.o
+COBJS = nems_c_rusage.o
 
 LIBS = atmos/libatmos.a                 \
        atmos/nmm/libnmm.a               \
@@ -449,7 +450,7 @@ all:
 #	@echo " gmake fim_gsm GOCART_MODE=full ------------ FIM and GSM - with the GOCART"
 	@echo
 	@echo "In order to build NEMS with external components, all of the above targets support"
-	@echo "the optional COMP variable. Currently supported values are: 
+	@echo "the optional COMP variable. Currently supported values are: "
 	@echo "\"satm\", \"xatm\";"
 	@echo "\"socn\", \"xocn\", \"mom5\", \"hycom\", \"pom\";"
 	@echo "\"sice\", \"xice\", \"cice\";"

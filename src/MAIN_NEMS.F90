@@ -29,6 +29,7 @@
 !   2011-05     Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !   2011-10     Yang    - Modified for using the ESMF 5.2.0r library.
 !   2013-07     Theurich - Macro based ESMF error handling
+!   2016-11     Trahan  - Resource usage reporting
 !
 !-----------------------------------------------------------------------
 !
@@ -49,6 +50,12 @@
        USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
+!***  This module calculates resource usage across all ranks.
+!-----------------------------------------------------------------------
+!
+       USE module_NEMS_Rusage,ONLY: NEMS_Rusage
+!
+!-----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
@@ -67,6 +74,9 @@
                 ,YY,MM,DD                                               &  !<-- Time variables for date
                 ,HH,MNS,SEC                                                !<-- Time variables for time of day
 !
+
+      TYPE(NEMS_Rusage) :: rusage                                          !<-- Resource usage tracking object
+
       TYPE(ESMF_TimeInterval) :: RUNDURATION                            &  !<-- The ESMF time. The total forecast hours.
                                 ,TIMESTEP                                  !<-- The ESMF timestep length (we only need a dummy here)
 !
@@ -94,6 +104,7 @@
                 ,HH_FINAL
 !
       INTEGER :: RC, RC_USER                                               !<-- The running error signal
+      INTEGER :: RUSAGE_RC                                                 !<-- Resource usage collection flag
 !
       CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME) :: PROCNAME                    !<-- The processor(host) name
       INTEGER :: PROCNAME_LEN                                              !<-- Actual PROCRNAME string length
@@ -149,6 +160,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  Print subversion version and other status information.
+!-----------------------------------------------------------------------
 !
 #if defined (SVN_INFO) && defined (CMP_YEAR) && defined (CMP_JD)
       if (mype==0) call w3tagb('NEMS '//SVN_INFO,                       &
@@ -156,6 +169,16 @@
 #else
       if (mype==0) call w3tagb('nems     ',0000,0000,0000,'np23   ')
 #endif
+!
+!-----------------------------------------------------------------------
+!***  Start gathering resource usage information.
+!-----------------------------------------------------------------------
+!
+      ! Note intentional use of MPI_COMM_WORLD since we are getting
+      ! resource usage for ALL ranks on ALL machines.
+      call rusage%start(MPI_COMM_WORLD,PROCNAME,PROCNAME_LEN,RC)
+      ! It is safe to ignore RC since rusage%is_valid will tell us if
+      ! the start succeeded.
 !
 !-----------------------------------------------------------------------
 !***  Set up the default log.
@@ -603,6 +626,15 @@
       CALL ESMF_GridCompDestroy(gridcomp=NEMS_GRID_COMP                 &
                                ,rc      =RC)
       ESMF_ERR_ABORT(RC)
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! Resource usage reporting.  We only do this if the rusage%start was
+! successful.
+      if(rusage%is_valid()) then
+         call rusage%stop(rc)
+         if(rc==0) call rusage%report(rc)
+      endif
+
 !-----------------------------------------------------------------------
 !***  Shut down the ESMF system.
 !-----------------------------------------------------------------------
