@@ -1470,6 +1470,7 @@ write_dopost:            $WRITE_DOPOST          # True--> run do on quilt
 post_gribversion:        $POST_GRIBVERSION      # True--> grib version for post output files
 gocart_aer2post:         $GOCART_AER2POST
 write_nemsioflag:        .TRUE.       # True--> Write nemsio run history files
+write_fsyncflag:         .false.      # True--> check if output files synced to disk
 nfhout:                  $FHOUT
 nfhout_hf:               $FHOUT_HF
 nfhmax_hf:               $FHMAX_HF
