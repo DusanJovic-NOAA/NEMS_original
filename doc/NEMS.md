@@ -29,6 +29,8 @@ Within NEMS resides:
 
 * `tests` - test execution scripts.  Most of these will soon be removed or
    moved to the app level.
+* `oldtests` - the old test suite which is deprecated but retained for
+   backward compatibility
 * `compsets` - configuration for the NEMSCompsetRun.  This will soon be
    moved to the app level.
 * `doc` - documentation.

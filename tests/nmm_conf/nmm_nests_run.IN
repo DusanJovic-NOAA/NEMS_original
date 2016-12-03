@@ -20,29 +20,29 @@ cp IGBP_VEGPARM.TBL VEGPARM.TBL
 cp IGBP_LANDUSE.TBL LANDUSE.TBL
 cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
 
-cp $SRCDIR/tests/nems.configure nems.configure
-cp $SRCDIR/tests/atmos.configure atmos.configure
-cp $SRCDIR/tests/configure_file_0* .
+cp $SRCDIR/oldtests/nems.configure nems.configure
+cp $SRCDIR/oldtests/atmos.configure atmos.configure
+cp $SRCDIR/oldtests/configure_file_0* .
 cp configure_file_01 model_configure
 ln -sf global_o3prdlos.f77 fort.28
 ln -sf global_o3clim.txt fort.48
 
-cp $SRCDIR/tests/solver_state.txt .
-cp $SRCDIR/tests/nests.txt .
+cp $SRCDIR/oldtests/solver_state.txt .
+cp $SRCDIR/oldtests/nests.txt .
 if [ $TS = true ]; then
-  cp $SRCDIR/tests/ts_locations.nml .
+  cp $SRCDIR/oldtests/ts_locations.nml .
 fi
 
 cp $SRCDIR/exe/NEMS.x .
 
 if [ $SCHEDULER = 'moab' ]; then
-  cp $SRCDIR/tests/nmm_msub .
+  cp $SRCDIR/oldtests/nmm_msub .
   msub nmm_msub
 elif [ $SCHEDULER = 'pbs' ]; then
-  cp $SRCDIR/tests/nmm_qsub .
+  cp $SRCDIR/oldtests/nmm_qsub .
   qsub nmm_qsub
 elif [ $SCHEDULER = 'lsf' ]; then
-  cp $SRCDIR/tests/nmm_bsub .
+  cp $SRCDIR/oldtests/nmm_bsub .
   bsub < nmm_bsub
 fi
 

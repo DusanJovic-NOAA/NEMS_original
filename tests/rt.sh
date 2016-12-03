@@ -1,360 +1,208 @@
-#!/bin/bash
-set -xeu
+#! /bin/bash
 
-hostname
+# NOTE: This script is a bash script.  It uses bash-specific features
+# and cannot run correctly under other shells.
 
-die() { echo "$@" >&2; exit 1; }
-usage() {
+function die {
+    echo "$*" 1>&2
+    exit 1
+}
+
+function usage {
   set +x
   echo
-  echo "Usage: $0 -c <model> | -f | -s | -l <file> | -m | -h"
+  echo "Usage: $0 -c <subset> | -f | -s | -t <subset> | -n /path/to/baseline | -h"
   echo
-  echo "  -c  create new baseline results for <model>"
+  echo "  -c <subset> = create new baseline results for <subset>"
   echo "  -f  run full suite of regression tests"
-  echo "  -s  run standard suite of regression tests"
-  echo "  -l  runs test specified in <file>"
-  echo "  -m  compare against new baseline results"
+  echo "  -s  run standard suite of regression tests (same as -t standard)"
+  echo "  -t <subset> = runs specified subset of tests"
+  echo "  -n /path/to/baseline = specify path to REGRESSION_TEST directory"
   echo "  -h  display this help"
-  echo "  -F  run on an unsupported platform"
-  echo "Only Phase 1 Tide and Gyre, and Theia are supported."
-  echo "You must use the -F option to run elsewhere."
+  echo "  -r PLATFORM:/path/to/run"
+  echo "      rerun past suite without regenerating it"
   echo
+  echo "Common <subset>s: gfs, nmm, slg, wam, debug"
+  echo "See ../../compsets/all.input for a full list"
+  echo
+  if [[ ! -z "$*" ]] ; then
+      echo "SCRIPT ABORTING: $*" 1>&2
+  fi
   exit 1
 }
 
-[[ $# -eq 0 ]] && usage
-
-source detect_machine.sh
-
-export dprefix=""
-export MACHINE_ID=${MACHINE_ID:-wcoss}
-if [ $MACHINE_ID = wcoss ]; then
-  source /usrx/local/Modules/default/init/sh
-  export RTPWD=/nems/noscrub/emc.nemspara/REGRESSION_TEST
-  export RTBAS=/nems/noscrub/emc.nemspara/REGRESSION_TEST_baselines
-  # export pex=1           # for wcoss phase1
-  # export pex=${pex:-2}   # default - phase2
-  export QUEUE=debug # dev
-  export ACCNR=dev
-  if [ $pex -eq 2 ] ; then
-   export QUEUE=debug$pex
-   export ACCNR=dev$pex
-  fi
-# export STMP=/stmp$pex
-  export STMP=/ptmpp$pex
-  export PTMP=/ptmpp$pex
-  export SCHEDULER=lsf
-  export SIGHDR=/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
-  cp gfs_fcst_run.IN_IBM gfs_fcst_run.IN
-  cp gfs_bsub.IN_wcoss gfs_bsub.IN
-  cp nmm_conf/nmm_bsub.IN_wcoss nmm_conf/nmm_bsub.IN
-elif [ $MACHINE_ID = gaea ]; then
-  export RTPWD=/lustre/f1/unswept/ncep/Ratko.Vasic/wx20rv/REGRESSION_TEST    
-  export RTBAS=/lustre/f1/unswept/ncep/Ratko.Vasic/wx20rv/REGRESSION_TEST_baselines
-  export STMP=/lustre/f1/ncep
-  export PTMP=/lustre/f1/ncep
-  export SCHEDULER=moab
-  cp gfs_fcst_run.IN_Linux gfs_fcst_run.IN
-elif [ $MACHINE_ID = theia ]; then
-  source /apps/lmod/lmod/init/sh
-  export ACCNR
-  export dprefix=/scratch4/NCEPDEV
-  export RTPWD=/scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST
-  export RTBAS=/scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST_baselines
-  export STMP=$dprefix/stmp4
-  export PTMP=$dprefix/stmp3
-  export SCHEDULER=pbs
-  export MPIEXEC=mpirun
-  export SIGHDR=$dprefix/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
-  export SLG=.false.
-  cp gfs_fcst_run.IN_Linux gfs_fcst_run.IN
-elif [ $MACHINE_ID = yellowstone ]; then
-  export ACCNR=P35071400
-  # export ACCNR=UCUB0024
-  export QUEUE=small
-  export STMP=/glade/scratch
-  export PTMP=/glade/scratch
-  export SCHEDULER=lsf
-  export MPIEXEC=mpirun
-  export SIGHDR=/glade/p/work/theurich/para/global_sighdr.fd/global_sighdr
-  export SLG=.false.
-  cp gfs_fcst_run.IN_Linux gfs_fcst_run.IN
-  cp gfs_bsub.IN_yellowstone gfs_bsub.IN
-  cp nmm_conf/nmm_bsub.IN_yellowstone nmm_conf/nmm_bsub.IN
-else
-  die "Unknown machine ID, please edit detect_machine.sh file"
+if [[ ! -s rtgen ]] ; then
+    die Run this script from the NEMS/tests directory.
 fi
-export pex=${pex:-""}
 
-################################################################
-# RTPWD - Path to previously stored regression test answers
-# RTBAS - Path to input directory to use for baseline generation
-################################################################
+set_info=''
+cmd='./rtgen -S '
+baseline=NO
+rerun=NO
+RUNDIR=''
+PLATFORM_NAME=''
 
-
-
-
-export CREATE_BASELINE=false
-CB_arg=''
-TESTS_FILE='rt.conf'
-SET_ID='standard'
-ALLOW_UNSUPPORTED=false
-while getopts ":c:fsl:mhF" opt; do
-  case $opt in
-    F)
-      ALLOW_UNSUPPORTED=true
-      ;;
-    c)
-      export CREATE_BASELINE=true
-      CB_arg=$OPTARG
-      SET_ID=' '
-      ;;
-    f)
-      SET_ID=' '
-      ;;
-    s)
-      SET_ID='standard'
-      ;;
-    l)
-      TESTS_FILE=$OPTARG
-      SET_ID=' '
-      ;;
-    m)
-      export RTPWD=${STMP}/${USER}/REGRESSION_TEST
-      ;;
-    h)
-      usage
-      ;;
-    \?)
-      usage
-      die "Invalid option: -$OPTARG"
-      ;;
-    :)
-      usage
-      die "Option -$OPTARG requires an argument."
-      ;;
-  esac
+while getopts ":c:fst:n:hr:" opt; do
+    case $opt in
+        r)
+            if [[ $OPTARG =~ ^([a-zA-Z][a-zA-Z_.0-9]*):(.+)$ ]] ; then
+                PLATFORM_NAME="${BASH_REMATCH[1]}"
+                RUNDIR="${BASH_REMATCH[2]}"
+                rerun=YES
+            else
+                echo "${BASH_REMATCH[@]}"
+                usage "Rerun argument must be PLATFORM_NAME:RUNDIR"
+            fi
+            ;;
+        c)
+            if [[ ! -z "$set_info" ]] ; then
+                usage "Only one of -c, -s, -t, or -f can be used."
+            fi
+            set_info="$OPTARG"
+            cmd="$cmd -b"
+            baseline=YES
+            ;;
+        s)
+            if [[ ! -z "$set_info" ]] ; then
+                usage "Only one of -c, -s, -t, or -f can be used."
+            fi
+            set_info='-s'
+            ;;
+        f)  
+            if [[ ! -z "$set_info" ]] ; then
+                usage "Only one of -c, -s, -t, or -f can be used."
+            fi
+            set_info='-f'
+            ;;
+        h)
+            usage
+            ;;
+        t)
+            if [[ ! -z "$set_info" ]] ; then
+                usage "Only one of -c, -s, -t, or -f can be used."
+            fi
+            set_info="$OPTARG"
+            ;;
+        n)
+            cmd="$cmd '$OPTARG'"
+            ;;
+        \?)
+            usage "Unknown option -$OPTARG"
+            ;;
+        :)
+            usage "Option -$OPTARG requires an argument."
+            ;;
+    esac
 done
 
-if [[ ( "$MACHINE_ID" != wcoss && "$MACHINE_ID" != theia ) \
-      || "$pex" == 2 ]] ; then
-    echo "Warning: using unsupported system $MACHINE_ID $pex" 1>&2
-    if [[ "$ALLOW_UNSUPPORTED" != true ]] ; then
-        echo "Aborting.  Use the -F option (F = \"Force\") to run on this system." 1>&2
-        exit 1
+if [[ -z "$set_info" && "$rerun" == NO ]] ; then
+    usage "At least one of -n, -c, -t, -f or -s must be specified."
+fi
+
+if [[ ! -z "$model" && ! -z "$fullstd" ]] ; then
+    cmd="$cmd 'union($model,$fullstd)'"
+elif [[ ! -z "$model" || ! -z "$fullstd" ]] ; then
+    cmd="$cmd '$model$fullstd'"
+fi
+
+# Arcane bash magic below.  This is what it does:
+#
+#  $cmd
+#    ^-- Runs rtgen
+#
+#  $cmd < /dev/null
+#          ^-- Workaround for Jet bug: do not send stdin on a batch node
+#
+#  $cmd < /dev/null | tee >(cat >&2)
+#                         ^--- Copy stdout to stderr
+#
+#  $cmd < /dev/null | tee >(cat >&2) | grep 'RUNDIR=' | tail -1
+#            Get the RUNDIR variable ---^---------------^
+#
+# The result is that $cmd's stdout will go to the terminal AND to the
+# "grep | tail".  The last line will end up in $result
+#
+# result='RUNDIR=/path/to/rundir  PLATFORM_NAME=wcoss.cray'
+
+SUCCESS=PASS
+
+if [[ "$rerun" == NO ]] ; then
+    # When we're not rerunning, we need to generate a new workflow area.
+
+    echo "rt.sh: will run $cmd"
+
+    result=$( $cmd < /dev/null | tee >(cat >&2)  | grep 'RUNDIR=' | tail -1 )
+    eval $result
+    
+    if [[ -z "$RUNDIR" ]] ; then
+        die "ERROR: The rtgen script failed (no RUNDIR).  See above for details."
+    fi
+    if [[ -z "$PLATFORM_NAME" ]] ; then
+        die "ERROR: The rtgen script failed (no PLATFORM_NAME).  See above for details."
+    fi
+else
+    : # if we get here, $cmd is not used
+fi
+
+cmd="$RUNDIR/rtrun --loop -v"
+echo "rt.sh: will run $cmd"
+
+$cmd # runs for a long time
+status="$?"
+
+if [[ "$status" != 0 ]] ; then
+    SUCCESS=FAIL
+fi
+
+LOGDIR="report-$PLATFORM_NAME-log"
+REPORT="$LOGDIR/rtreport.txt"
+
+if [[ "$baseline" == NO ]] ; then
+    echo "rt.sh: time to generate the report"
+    if [[ ! -d "$RUNDIR" ]] ; then
+        echo "rt.sh: run area does not exist: $RUNDIR"
+        die "rt.sh: workflow did not run there"
+    fi
+    echo "rt.sh: copy build logs to $LOGDIR"
+    mkdir -p "$LOGDIR"
+    if ( ! cp -fp "$RUNDIR/tmp/log/build"* "$LOGDIR/." ) ; then
+        die "rt.sh: could not copy build logs.  Missing file?  I/O error?"
+    fi
+    cmd="$RUNDIR/rtreport > $REPORT"
+    echo "rt.sh: run $cmd"
+    $cmd > "$REPORT"
+    repstatus="$?"
+    echo "rt.sh: status $repstatus"
+    if [[ "$repstatus" == 0 ]] ; then
+        if ( ! grep 'REGRESSION TEST WAS SUCCESSFUL' "$REPORT" > /dev/null ) ; then
+            echo "rt.sh: report says at least one test failed."
+            echo "rt.sh: for details, look in $( pwd )/$REPORT"
+            SUCCESS=FAIL
+        else
+            echo "rt.sh: report says test succeeded."
+        fi
+    else
+        die "rt.sh: could not copy report.  Missing file?  I/O error?"
     fi
 fi
 
-shift $((OPTIND-1))
-[[ $# -gt 0 ]] && usage
+echo
+echo "The test directory is"
+echo "    $RUNDIR"
+echo "Execution area: $RUNDIR/tmp"
+echo "Temporary log files: $RUNDIR/tmp/log"
+echo "Subversion log files: $( pwd )/$LOGDIR"
+echo "Exit status of rtrun: $status"
+echo
+echo "TEST RESULT: $SUCCESS"
+echo
 
-mkdir -p $STMP/$USER
-mkdir -p $PTMP/$USER
-
-if [[ $CREATE_BASELINE == true ]]; then
-  #
-  # prepare new regression test directory
-  #
-  export RTPWD_U=${STMP}/${USER}/REGRESSION_TEST
-  rm -rf ${RTPWD_U}
-  echo "copy REGRESSION_TEST_baselines"
-  mkdir -p ${STMP}/${USER}
-  cp -r "${RTBAS:?}" "${RTPWD_U:?}"
-
-  if [[ $CB_arg != gfs ]]; then
-    echo "copy gfs"
-    cp ${RTPWD}/GFS_EULERIAN/*             ${RTPWD_U}/GFS_EULERIAN/.
-    cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
-    cp ${RTPWD}/WAM_gh_l150_nemsio/*       ${RTPWD_U}/WAM_gh_l150_nemsio/.
-    cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
-    cp ${RTPWD}/GFS_SLG_ADIABATIC/*        ${RTPWD_U}/GFS_SLG_ADIABATIC/.
-    cp ${RTPWD}/GFS_SLG/*                  ${RTPWD_U}/GFS_SLG/.
-    cp ${RTPWD}/GFS_SLG_RSTHST/*           ${RTPWD_U}/GFS_SLG_RSTHST/.
-    cp ${RTPWD}/GFS_SLG_48PE/*             ${RTPWD_U}/GFS_SLG_48PE/.
-    cp ${RTPWD}/GFS_SLG_T574/*             ${RTPWD_U}/GFS_SLG_T574/.
-    cp ${RTPWD}/GFS_SLG_NSST/*             ${RTPWD_U}/GFS_SLG_NSST/.
-    cp ${RTPWD}/GFS_SLG_STOCHY/*           ${RTPWD_U}/GFS_SLG_STOCHY/.
-    cp ${RTPWD}/GFS_SLG_LAND/*             ${RTPWD_U}/GFS_SLG_LAND/.
-  fi
-  if [[ $CB_arg != nmm ]]; then
-    echo "copy nmm"
-    cp ${RTPWD}/NMMB_2way_nests/*          ${RTPWD_U}/NMMB_2way_nests/.
-#    cp ${RTPWD}/NMMB_gfsP_glob/*           ${RTPWD_U}/NMMB_gfsP_glob/.
-#    cp ${RTPWD}/NMMB_gfsP_reg/*            ${RTPWD_U}/NMMB_gfsP_reg/.
-    cp ${RTPWD}/NMMB_glob/*                ${RTPWD_U}/NMMB_glob/.
-    cp ${RTPWD}/NMMB_mvg_nests/*           ${RTPWD_U}/NMMB_mvg_nests/.
-    cp ${RTPWD}/NMMB_nests/*               ${RTPWD_U}/NMMB_nests/.
-    cp ${RTPWD}/NMMB_reg/*                 ${RTPWD_U}/NMMB_reg/.
-    cp ${RTPWD}/NMMB_reg_filt/*            ${RTPWD_U}/NMMB_reg_filt/.
-    cp ${RTPWD}/NMMB_reg_filt_zombie/*     ${RTPWD_U}/NMMB_reg_filt_zombie/.
-    cp ${RTPWD}/NMMB_reg_hur/*             ${RTPWD_U}/NMMB_reg_hur/.
-    cp ${RTPWD}/NMMB_reg_pcpadj/*          ${RTPWD_U}/NMMB_reg_pcpadj/.
-#    cp ${RTPWD}/NMMB_reg_post/*            ${RTPWD_U}/NMMB_reg_post/.
-    cp ${RTPWD}/NMMB_reg_sas_zhao/*        ${RTPWD_U}/NMMB_reg_sas_zhao/.
-    cp ${RTPWD}/NMMB_reg_sel_phy/*         ${RTPWD_U}/NMMB_reg_sel_phy/.
-    cp ${RTPWD}/NMMB_reg_spec_adv/*        ${RTPWD_U}/NMMB_reg_spec_adv/.
-    cp ${RTPWD}/NMMB_reg_thomp/*           ${RTPWD_U}/NMMB_reg_thomp/.
-    cp ${RTPWD}/NMMB_reg_timesr/*          ${RTPWD_U}/NMMB_reg_timesr/.
-    cp ${RTPWD}/NMMB_reg_wsm6_gfdl/*       ${RTPWD_U}/NMMB_reg_wsm6_gfdl/.
-    cp ${RTPWD}/NMMB_reg_wsm6_rrtm/*       ${RTPWD_U}/NMMB_reg_wsm6_rrtm/.
-  fi
-  if [[ $CB_arg != fim ]]; then
-    echo "copy fim"
-    #cp ${RTPWD}/FIMdata/*                  ${RTPWD_U}/FIMdata/.
-    #TODO:  generalize with $GLVL (see below)
-    #cp ${RTPWD}/FIM_G4L38_24hr/*           ${RTPWD_U}/FIM_G4L38_24hr/.
-  fi
-  if [[ $CB_arg != post ]]; then
-    echo "copy post"
-#    cp    ${RTPWD}/NMMB_reg_post/*         ${RTPWD_U}/NMMB_reg_post/.
-#    cp -r ${RTPWD}/GFS_GOCART_POST/*       ${RTPWD_U}/GFS_GOCART_POST/.
-  fi
-fi
-
-###################################
-# PATHRT - Path to regression test
-###################################
-
-export PATHRT=`pwd`            # Path to regression test scripts
-export PATHTR=${PATHRT}/..     # Path to NEMS trunk
-export REGRESSIONTEST_LOG=${PATHRT}/RegressionTests_$MACHINE_ID.log
-COMPILE_LOG=${PATHRT}/Compile_$MACHINE_ID.log
-
-date > "$COMPILE_LOG"
-echo "Start Regression test" >> "$COMPILE_LOG"
-
-date > ${REGRESSIONTEST_LOG}
-echo "Start Regression test" >> ${REGRESSIONTEST_LOG}
-(echo;echo;echo)             >> ${REGRESSIONTEST_LOG}
-
-export RUNDIR_ROOT=${PTMP}/${USER}/rt_$$
-mkdir -p ${RUNDIR_ROOT}
-
-source default_vars.sh
-
-export TEST_NR=0
-rm -f fail_test
-export TEST_NAME
-cat $TESTS_FILE | while read line; do
-
-  line="${line#"${line%%[![:space:]]*}"}"
-  [[ ${#line} == 0 ]] && continue
-  [[ $line == \#* ]] && continue
-
-  if [[ $line == APPBUILD* ]] ; then
-      APPBUILD_OPTS=`echo $line | cut -d'|' -f2`
-      SET=`     echo $line | cut -d'|' -f3`
-      MACHINES=`echo $line | cut -d'|' -f4`
-      [[ $SET_ID != ' ' && $SET != *${SET_ID}* ]] && continue
-      [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
-
-      echo "Removing old exe/NEMS.x"
-      echo "Removing old exe/NEMS.x" >> "$COMPILE_LOG"
-      echo "Removing old exe/NEMS.x" >> "$REGRESSIONTEST_LOG"
-      rm -f "$PATHTR/exe/NEMS.x" "$PATHTR/src/conf/modules.nems"
-
-      echo "NEMSAppBuilder $APPBUILD_OPTS"
-      echo "NEMSAppBuilder $APPBUILD_OPTS" >> "$COMPILE_LOG"
-      echo "NEMSAppBuilder $APPBUILD_OPTS" >> "$REGRESSIONTEST_LOG"
-      cd $PATHTR/..
-      ./NEMS/NEMSAppBuilder rebuild $APPBUILD_OPTS >> "$COMPILE_LOG" 2>&1
-      cd $PATHRT
-      if [[ ! -s "$PATHTR/exe/NEMS.x" || ! -x "$PATHTR/exe/NEMS.x" || \
-            ! -s "$PATHTR/src/conf/modules.nems" ]] ; then
-          echo "NEMSAppBuilder failed.  Abort." >> "$REGRESSIONTEST_LOG"
-          echo "No executable: $PATHTR/exe/NEMS.x" >> "$REGRESSIONTEST_LOG"
-          echo "For details, look in \"$COMPILE_LOG\"" >> "$REGRESSIONTEST_LOG"
-          exit 1
-      fi
-    continue
-  elif [[ $line == COMPILE* ]] ; then
-      NEMS_VER=`echo $line | cut -d'|' -f2`
-      SET=`     echo $line | cut -d'|' -f3`
-      MACHINES=`echo $line | cut -d'|' -f4`
-      ESMF_VER=`echo $line | cut -d'|' -f5 | sed -e 's/^ *//' -e 's/ *$//'`
-      [[ $SET_ID != ' ' && $SET != *${SET_ID}* ]] && continue
-      [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
-
-      echo "Removing old exe/NEMS.x"
-      echo "Removing old exe/NEMS.x" >> "$COMPILE_LOG"
-      echo "Removing old exe/NEMS.x" >> "$REGRESSIONTEST_LOG"
-      rm -f "$PATHTR/exe/NEMS.x" "$PATHTR/src/conf/modules.nems"
-
-      echo "Compiling $NEMS_VER $ESMF_VER"
-      echo "Compiling $NEMS_VER $ESMF_VER" >> "$COMPILE_LOG"
-      echo "Compiling $NEMS_VER $ESMF_VER" >> "$REGRESSIONTEST_LOG"
-      cd $PATHTR/src
-      ./configure ${ESMF_VER}_${MACHINE_ID} >> "$COMPILE_LOG" 2>&1
-      if [[ ! -s "$PATHTR/src/conf/modules.nems" ]] ; then
-          echo "Configure failed.  Abort." >> "$REGRESSIONTEST_LOG"
-          echo "File missing: $PATHTR/src/conf/modules.nems" >> "$REGRESSIONTEST_LOG"
-          echo "For details, look in \"$COMPILE_LOG\"" >> "$REGRESSIONTEST_LOG"
-          echo "Configuring ${ESMF_VER}_${MACHINE_ID}" > fail_test
-          exit 1
-      fi
-      (
-          set -e
-          source conf/modules.nems              >> "$COMPILE_LOG" 2>&1
-          module list                           >> "$COMPILE_LOG" 2>&1
-          gmake clean                           >> "$COMPILE_LOG" 2>&1
-          gmake ${NEMS_VER} J=-j2               >> "$COMPILE_LOG" 2>&1
-      )
-      cd $PATHRT
-      if [[ ! -s "$PATHTR/exe/NEMS.x" || ! -x "$PATHTR/exe/NEMS.x" ]] ; then
-          echo "Compilation failed.  Abort." >> "$REGRESSIONTEST_LOG"
-          echo "No executable: $PATHTR/exe/NEMS.x" >> "$REGRESSIONTEST_LOG"
-          echo "For details, look in \"$COMPILE_LOG\"" >> "$REGRESSIONTEST_LOG"
-          echo "Compiling $NEMS_VER $ESMF_VER" > fail_test
-          exit 1
-      fi
-    continue
-  elif [[ $line == RUN* ]] ; then
-    TEST_NAME=`echo $line | cut -d'|' -f2 | sed -e 's/^ *//' -e 's/ *$//'`
-    SET=`      echo $line | cut -d'|' -f3`
-    MACHINES=` echo $line | cut -d'|' -f4`
-    CB=`       echo $line | cut -d'|' -f5`
-    [[ -e "tests/$TEST_NAME" ]] || die "run test file tests/$TEST_NAME does not exist"
-    [[ $SET_ID != ' ' && $SET != *${SET_ID}* ]] && continue
-    [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
-    [[ $CREATE_BASELINE == true && $CB != *${CB_arg}* && 'all' != *${CB_arg}* ]] && continue
-
-    (( TEST_NR += 1 ))
-    (
-      export RUNDIR=${RUNDIR_ROOT}/${TEST_NAME}
-      source tests/$TEST_NAME
-      export JBNME=`basename $RUNDIR_ROOT`_${TEST_NR}
-      echo "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR}" >> ${REGRESSIONTEST_LOG}
-      echo "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR}"
-      ./${RUN_SCRIPT} || die "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR} failed"
-    )
-    continue
-  else
-    die "Unknown command $line"
-  fi
-done
-
-if [ -e fail_test ]; then
-  echo "FAILED TESTS: "
-  echo "FAILED TESTS: " >> ${REGRESSIONTEST_LOG}
-  for failed_test_name in `cat fail_test`
-  do
-    echo "Test " ${failed_test_name} " failed "
-    echo "Test " ${failed_test_name} " failed " >> ${REGRESSIONTEST_LOG}
-  done
-  echo ; echo REGRESSION TEST FAILED
-  (echo ; echo REGRESSION TEST FAILED) >> ${REGRESSIONTEST_LOG}
+if [[ "$SUCCESS" == PASS ]] ; then
+    echo "Success: rejoice!  All tests passed."
 else
-  echo ; echo REGRESSION TEST WAS SUCCESSFUL
-  (echo ; echo REGRESSION TEST WAS SUCCESSFUL) >> ${REGRESSIONTEST_LOG}
+    echo "I deeply apologize, but at least one test failed."
+    echo "You should fix the problem, and then use rtrewind"
+    echo "and rtrun to re-run failed tests."
 fi
 
-# Finalize, Clenaup
-rm -f err out nmm_msub nmm_bsub nmm_qsub nmm_run gfs_fcst_run \
-nems.configure gfs_qsub gfs_fcst_run.IN ngac_qsub ngac_bsub gfs_bsub \
-configure_file_01 configure_file_02 configure_file_03 configure_file_04 \
-atmos.configure fail_test
-# atmos.configure fail_test
-
-date >> ${REGRESSIONTEST_LOG}
-
-exit
+exit $status

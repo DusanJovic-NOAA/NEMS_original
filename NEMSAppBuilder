@@ -46,17 +46,45 @@ if [[ "$tool" != autobuild ]] ; then
     echo $toolflag
 fi
 
+########################################################################
+
+# Machine detection.
+
 if [[ -e /gpfs/hps && -e /usrx ]] ; then
-    APPBUILDER_SITE=wcoss
+    MACHINE_ID=wcoss
+    if [[ -d /usrx && -d /global && -e /etc/redhat-release && \
+        -e /etc/prod ]] ; then
+        # We are on WCOSS Phase 1 or 2.
+        if ( ! cat /proc/cpuinfo |grep 'processor.*32' ) ; then
+            # Fewer than 32 fake (hyperthreading) cpus, so Phase 1.
+            FULL_MACHINE_ID=wcoss.phase1
+            PEX=1
+        else
+            FULL_MACHINE_ID=wcoss.phase2
+            PEX=2
+        fi
+    else
+        # WCOSS Cray
+        FULL_MACHINE_ID=wcoss.cray
+        PEX=c
+    fi
 elif [[ -e /scratch4 && -e /scratch3 ]] ; then
-    APPBUILDER_SITE=theia
+    FULL_MACHINE_ID=theia
+    MACHINE_ID=theia
 elif [[ -e /glade ]] ; then
-    APPBUILDER_SITE=yellowstone
+    FULL_MACHINE_ID=yellowstone
+    MACHINE_ID=yellowstone
 elif [[ -e /pan2 && -e /lfs3 ]] ; then
-    APPBUILDER_SITE=jet
-else
+    FULL_MACHINE_ID=jet
+    MACHINE_ID=jet
+elif ( hostname | grep -i gaea ) ; then
     # Default to GAEA until we add more platforms
-    APPBUILDER_SITE=gaea
+    FULL_MACHINE_ID=gaea
+    MACHINE_ID=gaea
+else
+    # Unknown platform
+    FULL_MACHINE_ID=unknown
+    MACHINE_ID=''
 fi
 
 # Globals and constants ########################################################
@@ -1170,7 +1198,8 @@ fi
 bailFlag=true
 while [ $bailFlag == "true" ] ; do
 bailFlag=false
-source $NEMSDIR/tests/detect_machine.sh machineonly > /dev/null 2>&1
+# NOTE: machine detection is now done at the top of this script
+# and does not use detect_machine.sh
 if [ "${MACHINE_ID}x" == "x" ] ; then
   "$tool" --clear --backtitle "NEMS Application Builder" \
   --title "Unknown machine" --yesno \

@@ -1,0 +1,547 @@
+#!/bin/ksh -l
+#
+set -x
+#
+#
+if [[ -e  @[PATHTR]/src/conf/modules.nems ]]; then
+  source @[PATHTR]/src/conf/modules.nems
+  module list
+fi
+
+ export print_esmf=.true.
+
+ export CDATE=@[CDATE]
+ cyc=`echo $CDATE|cut -c9-10`
+#***************************************************************
+#
+#    Set up horizontal and vertical resolution ; default will be T6264
+#
+ export wave=@[wave] ; export lm=@[lm] ; export lsoil=@[lsoil]
+
+#**************************************************************
+#
+#    Set up model options
+#
+#export EXPLICIT=.true.
+ export EXPLICIT=.false.
+
+ export ADIABATIC=@[ADIABATIC]
+ export ADIABATIC=${ADIABATIC:-.false.}
+
+ export NST_FCST=@[NSTFCST]           # 0 (am), 1(am,nst) and 2(cpld nstnst)
+ export NST_SPINUP=@[NSTSPINUP]       # 0 (nst_ini availabe); 1 ( generate nst_ini)
+ export NST_RESERVED=@[NSTREV]        # 0 (no nst anal)     ; 1 (nstanl exists)
+ export ZSEA1=@[ZSEA1]                # The lower depth for T-mean
+ export ZSEA2=@[ZSEA2]                # The upper depth for T-mean
+
+ export NST_FCST=${NST_FCST:-0}
+ export NST_SPINUP=${NST_SPINUP:-0}
+ export NST_RESERVED=${NST_RESERVED:-0}
+ export ZSEA1=${ZSEA1:-0}
+ export ZSEA2=${ZSEA2:-0}
+
+ export nstf_name="$NST_FCST,$NST_SPINUP,$NST_RESERVED,$ZSEA1,$ZSEA2"
+
+ export nst_anl=${nst_anl:-.false.}
+
+## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
+
+ export SLG=@[SLG]
+ echo SLG=$SLG
+ export F107_KP_SIZE=@[F107_KP_SIZE]
+ export F107_KP_INTERVAL=@[F107_KP_INTERVAL]
+ export WAM_IPE_COUPLING=@[WAM_IPE_COUPLING]
+ export HEIGHT_DEPENDENT_G=@[HEIGHT_DEPENDENT_G]
+ export F107_KP_SKIP_SIZE=@[F107_KP_SKIP_SIZE]
+ export F107_KP_DATA_SIZE=@[F107_KP_DATA_SIZE]
+ export DELTIM=@[DELTIM]
+
+# GSM export fields
+ export NGRID_A2OI=@[NGRID_A2OI]
+ export NGRID_A2OI=${NGRID_A2OI:-48}
+ export A2OI_OUT=@[A2OI_OUT]
+ export A2OI_OUT=${A2OI_OUT:-.false.}
+ export CPLFLX=@[CPLFLX]
+ export CPLFLX=${CPLFLX:-.false.}
+
+ export CLIMATE=${CLIMATE:-.false.}
+
+ export GOCART=@[GOCART]
+ export GOCART=${GOCART:-0}
+# reduced_grid default is true
+ export REDUCED_GRID=@[REDUCEDGRID]
+
+# wam model to couple with idea, default is false
+ export IDEA=@[IDEA]
+ export IDEA=${IDEA:-.false.}
+ export RTPWD=@[RTPWD]
+ export DATAICDIR=@[DATAICDIR]
+
+# nemsio input/output
+ export NEMSIO_IN=@[NEMSIOIN]
+ export NEMSIO_OUT=@[NEMSIOOUT]
+ export NEMSIO_IN=${NEMSIO_IN:-.false.}
+ export NEMSIO_OUT=${NEMSIO_OUT:-.false.}
+
+# sigio input/output
+ export SIGIO_IN=@[SIGIOIN]
+ export SIGIO_OUT=@[SIGIOOUT]
+ export SFCIO_OUT=@[SFCIOOUT]
+ export NSTIO_OUT=@[NSTIOOUT]
+
+ export MACHINE_ID=@[MACHINE_ID]
+ export SCHEDULER=@[SCHEDULER]
+
+ export machine=$MACHINE_ID
+
+ export SIGIO_IN=${SIGIO_IN:-.true.}
+ export SIGIO_OUT=${SIGIO_OUT:-.true.}
+ export SFCIO_OUT=${SFCIO_OUT:-.true.}
+ export NSTIO_OUT=${NSTIO_OUT:-.true.}
+# 
+ export MACHINE_ID=${MACHINE_ID:-WCOSS}
+ export SCHEDULER=${SCHEDULER:-lsf}
+
+ export machine=${machine:-${MACHINE_ID:-WCOSS}}
+ export SIGHDR=@[SIGHDR]
+#
+# number of output files, default =3, for adiab num_file=1
+ if [[ $ADIABATIC = .true. ]] ; then
+    export NUM_FILE=1 ;
+    export FILENAME_BASE="'SIG.F'"
+    export FILE_IO_FORM="'grib'"
+ else
+    export FILENAME_BASE="'SIG.F' 'SFC.F' 'FLX.F'"
+    export FILE_IO_FORM="'bin4' 'bin4' 'bin4'"
+    export NUM_FILE=3
+    if [ $NST_FCST -gt 0 ] ; then
+      export FILENAME_BASE=${FILENAME_BASE}" 'NST.F'"
+      export FILE_IO_FORM=${FILE_IO_FORM}" 'bin4'"
+      NUM_FILE=`expr $NUM_FILE + 1`
+      export NUM_FILE
+    fi
+    if [ $GOCART == 1 ] ; then
+      export FILENAME_BASE=${FILENAME_BASE}" 'AER.F'"
+      export FILE_IO_FORM=${FILE_IO_FORM}" 'grib'"
+      NUM_FILE=`expr $NUM_FILE + 1`
+      export NUM_FILE
+    fi
+    echo "NUM_FILE=$NUM_FILE,GOCART=$GOCART,nstf_name=$nstf_name,nst_anl=$nst_anl,FILENAME_BASE=$FILENAME_BASE"
+ fi
+
+# restart default is coldstart
+ export fcst_begin=@[FCST_BEGIN]
+ export fcst_begin=${fcst_begin:-YES}
+#read one time step input data
+# export FHROT=@[FHROT]
+# restart file output frequency
+ export FHRES=@[FHRES]
+ export FHOUT=@[FHOUT]
+ export FHZER=@[FHZER]
+# stochastic physics
+  export skeb_import=@[skeb_import]
+  export sppt_import=@[sppt_import]
+  export shum_import=@[shum_import]
+  export skeb_export=@[skeb_export]
+  export sppt_export=@[sppt_export]
+  export shum_export=@[shum_export]
+  export SPPT=@[SPPT]
+  export SPPT_LOGIT=@[SPPTLOGIT]
+  export SPPT_TAU=@[SPPTTAU]
+  export SPPT_LSCALE=@[SPPTLSCALE]
+  export SPPT_SFCLIMIT=@[SPPTSFCLIMIT]
+  export SHUM=@[SHUM]
+  export SHUM_TAU=@[SHUMTAU]
+  export SHUM_LSCALE=@[SHUMLSCALE]
+  export SKEB=@[SKEB]
+  export SKEB_TAU=@[SKEBTAU]
+  export SKEB_LSCALE=@[SKEBLSCALE]
+  export SKEB_VFILT=@[SKEBVFILT]
+  export ISEED_SPPT=@[ISEEDSPPT]
+  export ISEED_SHUM=@[ISEEDSHUM]
+  export ISEED_SKEB=@[ISEEDSKEB]
+
+# SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
+# export SFCPRESS_ID=2
+# THERMODYN_ID=3 for enthalphy, 0 or 1 for virtual T, 2 for T
+# export THERMODYN_ID=3
+#
+# export IDVC=3
+# export hybrid=NO
+# export GEN_COORD_HYBRID=YES
+# SPECTRAL_LOOP       2 for old option, 1 is for one loop.
+# export SPECTRAL_LOOP=1
+###
+ export SFCPRESS_ID=@[SFCPRESSID]
+ export THERMODYN_ID=@[THERMODYNID]
+ export IDVC=@[IDVC]
+ export SPECTRAL_LOOP=@[SPECTRALLOOP]
+ export NDSLFV=@[NDSLFV]
+
+if [ $NDSLFV = .true. ]
+then
+ export MASS_DP=.true.
+ export PROCESS_SPLIT=.false.
+else
+ export MASS_DP=.false.
+ export PROCESS_SPLIT=.false.
+fi
+#
+if [ $IDEA = .true. ]; then
+#***************************************************************
+#                    N2 ,    H2O,     O3,        CLW,    O,      O2
+ export CPIlist=" 1039.645, 1846.0, 820.2391,    0.0, 1299.185, 918.0969"
+ export RIlist="  296.8034, 461.50, 173.2247,    0.0,  519.674, 259.837 "
+#***************************************************************
+ export NTRAC=5
+ export NTO=4
+ export NTO2=5
+else
+#                   Dry ,    H2O,     O3,        CLW,    O,      O2
+export CPIlist=" 1004.6,   1846.0, 820.2391,    0.0"
+export RIlist="  286.05,   461.50, 173.2247,    0.0"
+
+fi
+#
+export NCP=cp
+export FTSFS=0.0
+export FAISS=0.0
+if [ $SLG = .true. ] ; then
+    export NTRAC=3
+    export FTSFS=90
+    export FAISS=99999
+    export cnvgwd=.true.
+#jw     export dtphys=450
+    export cdmbgwd=0.25,2.0
+    export CPIlist=
+    export RIlist=
+    export semilag=.true.
+else
+    export semilag=.false.
+fi
+#
+#  This script is NOT complete for running multiple ensemble members
+#
+ export ENS_NUM=1
+#
+#tasks=@[TASKS]  
+ export PE1=@[TASKS]  
+
+ export MEMBER_NAMES=@[MEMBER_NAMES]
+
+c=1
+while [ $c -le $ENS_NUM ] ; do
+ eval "export PE$c=\${PE$c:-0}"
+ c=$((c+1))
+done
+#
+export QUILTING=@[QUILT]
+export WRT_GROUP=@[WRTGP]
+export WRTPE_PER_GROUP=@[WTPG]
+export WRITE_DOPOST=@[wrtdopost]
+export POST_GRIBVERSION=@[postgrbvs]
+export GOCART_AER2POST=@[aer2post]
+export liope=.false.
+export NTHREADS=@[THRDS]
+export MP_STDOUTMODE=ordered
+export MP_LABELIO=yes
+export MP_SHARED_MEMORY=yes
+export MP_COREFILE_FORMAT=lite 
+#
+#    Set up experiment and directory names
+#
+export expt=@[RUNDIR]
+ 
+#
+export NSCDIR=/global/noscrub
+export TOPDIR=/global/save
+export DUMPDIR=/global/shared/dump
+# export MP_COREFILE_FORMAT=lite 
+export RUNDIR=${RUNDIR:-$expt}
+export SCRIPTS=${SCRIPTS:-$TOPDIR/wx23sm/gsm/scripts}
+
+export cold_sfc=${cold_sfc:-NO}
+export hybrid=${hybrid:-NO}
+#
+export NCP=${NCP:-/u/wx20mi/bin/ncp}
+#
+if [ $NEMSIO_IN = .true. ]; then
+  if [ $SCHEDULER = 'moab' ]; then
+    export nemsioget=${nemsioget}
+  elif [ $SCHEDULER = 'pbs' ]; then
+   if [ $machine = 'theia' ]; then
+    export nemsioget=/home/Weiyu.Yang/bin/nemsio_get
+   fi
+  elif [ $SCHEDULER = 'lsf' ] ; then
+    export nemsioget=${nemsioget:-/nwprod/ngac.v1.0.0/exec/nemsio_get}
+  fi
+else
+  export nemsioget=${nemsioget:-${EXECGLOBAL}/global_sighdr$XC}
+fi
+#
+#
+#    nhourb is the beginig hour.  If nhourb=0, then initial condition
+#    needs to be specified. ndays is the Length of #orecast in days
+#    begining from nhourb
+#
+NDAYS=@[NDAYS]
+ndays=${NDAYS:-0}
+NHRS=@[NHRS]
+export restart_ndays=${restart_ndays:-1}
+if [[ ${fcst_begin} = YES ]] ; then
+ export nhourb=0
+ export FHROT=0
+ export RESTART=.false.
+else
+ if [[ -s $RUNDIR/grdr1 ]] ; then
+   export nhourb=`$nemsioget $RUNDIR/grdr1 nfhour`
+   export FHROT=$nhourb
+   export RESTART=.true.
+   if [ $machine = 'theia' ]; then
+    export nemsioget=/home/Weiyu.Yang/bin/nemsio_get
+   fi
+ else
+   export nhourb=$((restart_ndays*24))
+   export FHROT=$nhourb
+   export RESTART=.false.
+ fi
+fi
+#
+#
+export nhours=`expr $ndays \* 24`
+
+#
+# For two tracers
+export ntrc=3  ; export varid=21  ; export numcld=1
+#
+#
+export fmax=${NHRS:-$nhours}
+export fout=3
+export fzer=6
+export fcyc=@[fcyc]
+export fdfi=@[FDFI]
+#
+#    Forecast model : horizontal truncation  and vertical levels
+#                     ---------------------
+#
+export wave=${wave:-62}
+export lm=${lm:-64}
+if [ $IDEA = .true. ]; then
+  export lm=150;
+  export levr=90
+  export DELTIM=180
+# Use the sample f10.7 and kp data for the wam regression tests, Weiyu.
+#----------------------------------------------------------------------
+  cp /scratch4/NCEPDEV/nems/save/Weiyu.Yang/xml_read/wam_input_f107_kp.txt .
+fi
+export lsoil=${lsoil:-4}
+#
+export PASSIVE_TRACER=@[TRACER] 
+#
+export NTRAC=${NTRAC:-3}
+export NTOZ=${NTOZ:-2}
+export NTCW=${NTCW:-3}
+export NCLD=${NCLD:-1}
+export NTIW=${NTIW:-0}
+export NTKE=${NTKE:-0}
+export NTLNC=${NTLNC:-0}
+export NTINC=${NTINC:-0}
+export NTO=${NTO:-0}
+export NTO2=${NTO2:-0}
+export NMTVR=${NMTVR:-14}
+export FNSOTC=/scratch4/NCEPDEV/da/save/George.Gayno/gfs_soil_veg_alb_fy17_2/global_shared.v14.1.0/fix/fix_am/global_soiltype.1x1.grb
+#
+#export nsout=${nsout:-0}
+export nsout=@[NSOUT]
+export lsm=${lsm:-1}
+
+## IAER=0 (no aerosols); 11 (opac for sw/lw) and 22 (gocart for sw/lw)
+export IAER=@[IAER]
+export IALB=@[IALB]
+export isot=@[ISOT]
+export ivegsrc=@[IVEGSRC]
+
+grid_aldata=@[CP2]
+#
+#   Control for post and time averaging  If "YES" then run
+#   -- Defaults to "NO" 
+#
+export LDFIFLTO=.true.
+if [ $SLG = .true. ] ; then
+   export gfsio_out=.false.
+   export out_virttemp=.false.
+   export zflxtvd=.false.
+   export shuff_lats_a=.false.
+   export shuff_lats_r=.false.
+   export semilag=.true.
+else
+#   export zflxtvd=.true.
+   export shuff_lats_a=.true.
+   export shuff_lats_r=.true.
+   export semilag=.false.
+fi
+
+#
+#     Forecast script and executable name
+#
+srcdir=@[PATHTR]
+export FCSTSCRIPT=$srcdir/oldtests/exglobal_fcst_nems.sh
+export FCSTEXEC=$srcdir/exe/NEMS.x
+
+export CONFIG=${GSM_CONFIG:-$srcdir/oldtests/gsm_config}
+set -a;. $CONFIG;set +a
+#
+#
+# ***************************************************************
+#    Below here no change needed most of the time
+#    ____________________________________________
+#
+mkdir -p $RUNDIR
+cd $RUNDIR
+
+ export COMOUT=$RUNDIR
+#
+if [ $SCHEDULER = 'moab' ]; then
+   export FIXGLOBAL=${FIXGLOBAL:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para/fix/fix_am}
+   export FCST_LAUNCHER='aprun -n @[TASKS]'
+elif [ $SCHEDULER = 'pbs' ]; then
+  if [ $MACHINE_ID = 'theia' ]; then
+    export FIXGLOBAL=/scratch4/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
+    if [ $IALB -eq 1 -a $isot -eq 1 -a $ivegsrc -eq 1 ]; then
+      export FIX_LANDSFC=/scratch4/NCEPDEV/da/save/George.Gayno/gfs_soil_veg_alb_fy17_2/global_shared.v14.1.0/fix/fix_am
+      export FNABSC=${FIX_LANDSFC}/global_mxsnoalb.uariz.t$JCAP.$LONB.$LATB.rg.grb
+      export FNALBC=${FIX_LANDSFC}/global_snowfree_albedo.bosu.t$JCAP.$LONB.$LATB.rg.grb
+      export FNVETC=${FIX_LANDSFC}/global_vegtype.igbp.t$JCAP.$LONB.$LATB.rg.grb
+      export FNSOTC=${FIX_LANDSFC}/global_soiltype.statsgo.t$JCAP.$LONB.$LATB.rg.grb
+      export FNZORC="igbp"
+      export FNALBC2=${FIX_LANDSFC}/global_albedo4.1x1.grb
+    fi
+  fi
+   export OMP_NUM_THREADS=$NTHREADS
+   if [ $machine = 'theia' ]; then
+    mpiexec=`which mpirun`
+   fi
+   if [ $NTHREADS -eq 1 ] ; then
+    export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -n $PE1"
+   else
+    export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -np $PE1"
+   fi
+elif [ $SCHEDULER = 'lsf' ]; then
+   export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am}
+   export FCST_LAUNCHER=mpirun.lsf
+fi
+
+#export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
+ export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
+ export FIX_IDEA=${FIX_IDEA:-${RTPWD}/WAM_gh_l150}
+#export FIX_RAD=/global/save/wx23lu/NEMS/fix/fix_rad
+ export GOCARTDIR=/global/save/wx23lu/NEMS/fix
+ export GOCART_CLIM=$GOCARTDIR/gocart_clim
+ export GOCART_LUTS=$GOCARTDIR/gocart_luts
+#
+ export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
+ export POSTGPEXEC=$POSTGPDIR/global_postgp
+ export POSTGPSH=/nwprod/ush/global_postgp.sh
+
+# export OROGRAPHY_UF=${OROGRAPHY_UF:-${FIXGLOBAL}/global_orography_uf.t${wave}.${LONR}.${LATR}.grb}
+#
+#
+# ------------------------ initial condition ----------------
+#
+  if [ -f $RUNDIR/grdr1 -a -f $RUNDIR/grdr2 -a -f $RUNDIR/sigr1 -a -f $RUNDIR/sigr2 -a -f $RUNDIR/sfcr ]; then
+    export GRDI=$RUNDIR/grdr1
+    export GRDI2=$RUNDIR/grdr2
+    export SIGI=$RUNDIR/sigr1
+    export SIGI2=$RUNDIR/sigr2
+    export SFCI=$RUNDIR/sfcr
+    if [ $NST_FCST -gt 0 ] ; then
+      export NSTI=$RUNDIR/nstr
+    fi
+    export FHINI=`$nemsioget $GRDI nfhour |grep -i "nfhour"|awk -F" " '{print $2}'`
+  else
+    if [[ ${fcst_begin} = YES ]] then
+      export GRDI=$RUNDIR/gfsanl.$CDATE
+      export SIGI=$RUNDIR/siganl.$CDATE
+      if [[ $NEMSIO_IN = .true. ]] ; then
+        export SFCI=$RUNDIR/sfnanl.$CDATE
+      else
+        export SFCI=$RUNDIR/sfcanl.$CDATE
+      fi
+      if [ $NST_FCST -gt 0 ] ; then
+        if [[ $NEMSIO_IN = .true. ]] ; then
+          export NSTI=$RUNDIR/nsnanl.$CDATE
+        else
+          export NSTI=$RUNDIR/nstanl.$CDATE
+        fi
+      fi
+      export FHINI=00
+    else
+      if [[ -s $RUNDIR/../$DATAICDIR/sigf${nhourb} ]]; then
+        export GRDI=$RUNDIR/../$DATAICDIR/sigf${nhourb}
+        export SIGI=$RUNDIR/../$DATAICDIR/sigf${nhourb}
+        export SFCI=$RUNDIR/../$DATAICDIR/sfcf${nhourb}
+        export NSTI=$RUNDIR/../$DATAICDIR/nstf${nhourb}
+      fi
+    fi
+  fi
+#
+# ------------------------ post varables ----------------
+#
+if [[ $WRITE_DOPOST = '.true.' ]] then
+ if [[ $POST_GRIBVERSION = 'grib1' ]] ; then
+   if [ $SCHEDULER = 'loadleveler' ]; then
+     export CTLFILE=/nwprod/parm/gfs_cntrl.parm
+   elif [ $SCHEDULER = 'pbs' ]; then
+     export CTLFILE=@[RTPWD]/data_POST/gfs_cntrl.parm
+   elif [ $SCHEDULER = 'lsf' ]; then
+     export CTLFILE=@[RTPWD]/data_POST/gfs_cntrl.parm
+   fi
+   ln -sf $CTLFILE fort.14
+ elif [[ $POST_GRIBVERSION = 'grib2' ]] ; then
+   if [ $SCHEDULER = 'loadleveler' ]; then
+     export CTLFILE=/climate/noscrub/wx20wa/mygrib2/xml/post/postcntrl_gfs.xml
+   elif [ $SCHEDULER = 'pbs' ]; then
+     export CTLFILE=@[RTPWD]/data_POST/postcntrl_gfs.xml
+   elif [ $SCHEDULER = 'lsf' ]; then
+     export CTLFILE=@[RTPWD]/data_POST/postcntrl_gfs.xml
+   fi
+   ln -sf $CTLFILE postcntrl.xml
+ fi
+ ln -sf griddef.out fort.110
+ if [ $SCHEDULER = 'loadleveler' ]; then
+   cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+ elif [ $SCHEDULER = 'pbs' ]; then
+   cp @[RTPWD]/data_POST/eta_micro_lookup.dat ./eta_micro_lookup.dat
+ elif [ $SCHEDULER = 'lsf' ]; then
+   cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+ fi
+fi
+
+#
+# ---------------------------------------- fcst ----------------------
+#
+if [[ $nhourb -lt $nhours ]] ; then
+
+  export FNTSFA=
+  export FNACNA=
+#
+  export FHOUT=${FHOUT:-$fout}
+  export FHZER=${FHZER:-$fzer}
+  export FHCYC=${FHCYC:-$fcyc}
+  export FHDFI=$fdfi
+  export FHLWR=${FHLWR:-3600}
+  export FHSWR=${FHSWR:-3600}
+  export FHMAX=${NHRS:-$nhours}
+  export FHRES=${FHRES:-$FHMAX}
+  export FHROT=${FHROT:-0}
+  export FHOUT_HF=@[FHOUTHF]
+  export FHMAX_HF=@[FHMAXHF]
+#
+  export DYNVARS=${DYNVARS:-""}
+  export PHYVARS=${PHYVARS:-""}
+  export DYNVARS="$DYNVARS,NTKE=$NTKE,NTIW=$NTIW,NTLNC=$NTLNC,NTINC=$NTINC,NTO=$NTO,NTO2=$NTO2"
+  export PHYVARS="$PHYVARS,NTKE=$NTKE,NTIW=$NTIW,NTLNC=$NTLNC,NTINC=$NTINC,NTO=$NTO,NTO2=$NTO2"
+
+  $FCSTSCRIPT || exit
+fi
+#

@@ -1,17 +1,16 @@
 <a name="new-system"></a>New Test System
 ========================================
 
-The rt.sh and NEMSCompsetRunner will soon be replaced with a new
-implementation, presently in beta test mode. This chapter describes
-how to run that system.  It works by a different design that the old
-one, and has advantages and disadvantages.  It has a superset of the
-capabilities of the old system.  
+The old regression test system has been replaced by a new system.  It
+has a different design that the old one.  It has a superset of the
+capabilities of the old system, but the different design leads to
+advantages and disadvantages.
 
 Presently, that implementation is available by the NEMS/tests/rtgen
-script, and two scripts it generates (rtrun, rtreport).  In early
-December, the NEMSCompsetRunner and rt.sh will be changed to simple
-wrappers around rtgen, rtrun, and rtreport.  The old system will still
-be available via `oldrt.sh`
+script, and two scripts it generates (rtrun, rtreport).  For backward
+compatibility, there is a wrapper "rt.sh" script to prevent users from
+having to learn a new system if they are only running the regression
+tests (not modifying them).
 
 <a name="design"></a>Design and Capabilities
 --------------------------------------------
@@ -36,6 +35,43 @@ scripts.
 This section explains how to run the system in its simplest form.
 Later sections discuss [running subsets of the tests](#run-sub),
 [dependency resolution](#dep-res), and [available tests](#list-avail).
+We provide two methods: a simple way using the rt.sh wrapper, and a
+more complex way that provides complete control and flexibility.
+
+### <a name="new-rtsh"></a>Simple Method: rt.sh
+
+For backward compatibility, there is an rt.sh script that acts
+similarly to the old rt.sh.  Some aspects are different to give extra
+flexibility.
+
+To execute in an sh-family shell (sh, bash, ksh, etc.)
+
+    cd NEMS/tests
+    ./rt.sh (options) > rt.log 2>&1 &
+
+To execute in a csh-family shell (csh, tcsh):
+
+    cd NEMS/tests
+    ./rt.sh (options) >& rt.log &
+
+This will run rt.sh in the background and send all output to the
+`rt.log` file.  To see the success or failure information, look in the
+`rt.log` file.
+
+The `(options)` specify what is to be run.  Common needs are:
+
+* `-f` = run the full test suite
+* `-s` = only run the "standard" tests
+* `-t setname` = run the specified set of tests.  See
+  `compsets/all.input` for the full list.  Common names are `standard`,
+  `gfs`, and `nmm`
+* `-b setname` = regenerate the baseline.
+* `-n /path/to/baseline` = specifies the location of the baseline
+  when running the suite in verification or baseline generation modes.
+* `-r PLATFORM:/path/to/rtgen.###` - used by the full test method.
+  See below.
+
+### Full Test Method
 
 The process of running is:
 
@@ -43,8 +79,17 @@ The process of running is:
     /path/to/USERNAME/rtgen.(ID)/rtrun (options)
     /path/to/USERNAME/rtgen.(ID)/rtreport
 
-The rest of this section explains what each command means, and how it
-works.
+To use this for a commit to the trunk, one must copy the results to
+the NEMS/tests directory.  This could be done manually, or one could
+run rt.sh and tell it to skip the rtgen step.  To do this, use the
+`rt.sh -r` option:
+
+    ./rt.sh -r (PLATFORM):/path/to/USERNAME/rtgen.(ID)
+
+where `(PLATFORM)` is "theia" or "wcoss.phase1"
+
+The rest of this section explains the purpose and function of rtgen,
+rtrun and rtreport.
 
 ### Step 1: Generate Test Scripts (rtgen)
 

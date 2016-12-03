@@ -1,8 +1,8 @@
-NEMSDOC=markdown.md BUILD.md RTSH.md NEWTEST.md
+NEMSDOC=markdown.md BUILD.md NEWTEST.md OLDTEST.md
 APPDOC=../../doc/README.md
-MODELDOC=modeldoc.md  ../README.GFS.md ../README.NMM.md
+#MODELDOC=modeldoc.md  ../README.GFS.md ../README.NMM.md
 
-ALLDOC=$(APPDOC) $(NEMSDOC) $(MODELDOC)
+ALLDOC=$(APPDOC) $(NEMSDOC) # $(MODELDOC)
 
 
 all: README.html

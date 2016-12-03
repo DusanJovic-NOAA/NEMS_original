@@ -611,14 +611,14 @@ ROOTDIR=`pwd`
 NEMSDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 export PATHCS=${NEMSDIR}/compsets             # Path to compsets directory
 export PATHTR=${NEMSDIR}                      # Path to NEMS trunk
-export PATHRT=${NEMSDIR}/tests                # Path to NEMS test scripts
+export PATHRT=${NEMSDIR}/oldtests                # Path to NEMS test scripts
 
 # Two variables used by the rt_gfs.sh and rt_nmm.sh scripts
 export CREATE_BASELINE=false
 export BAIL_CONDITION=NONE
 
 # Determine the MACHINE_ID variable, used locally and in rt_gfs.sh
-source $PATHTR/tests/detect_machine.sh
+source $PATHTR/oldtests/detect_machine.sh
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 
 if [ $MACHINE_ID = wcoss ]; then
@@ -710,7 +710,7 @@ elif [ $MACHINE_ID = linux_gnu ]; then
   export FIXGLOBAL=/ptmp/gerhard/para/fix_am
 else
   echo "Unknown machine ID: " $MACHINE_ID
-  echo "Must edit file '$PATHTR/tests/detect_machine.sh'"
+  echo "Must edit file '$PATHTR/oldtests/detect_machine.sh'"
   echo "and/or '$PATHTR/NEMSCompsetRun'."
   echo "...bailing out!"
   exit 1    

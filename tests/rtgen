@@ -241,6 +241,10 @@ Specifications can be nested:
        Use the specified area for the baseline.  If running in baseline
        mode, the baseline template will NOT be copied.  Instead, the
        specified area will be used.
+
+  -S
+       Script wrapper mode.  Enables extra output at the end of
+       execution to print variables needed by the calling script.
   --
        Terminate option processing.  Remaining arguments are subsets.
 
@@ -435,6 +439,7 @@ class RTGen(TestGen):
         if baseline and not self._new_baseline:
             self._new_baseline=os.path.join(
                 self._scratch_dir,'REGRESSION_TEST')
+        self.platform_name=None
     def override(self,scope):
         self._scope=scope
         if not self._new_baseline:
@@ -448,6 +453,8 @@ class RTGen(TestGen):
         morevars['RT_SCRATCH_DIR']=self._scratch_dir
         return morevars
     def make_more(self,result,con):
+        self.platform_name=self.scope.resolve('plat%PLATFORM_NAME') \
+                               .string_context(con)
         self.make_rtrun()
         self.make_rtrewind()
         self.make_rtreport()
@@ -539,7 +546,7 @@ $command
 
 def parse_arguments():
     try:
-        optval,arglist=getopt.getopt(sys.argv[1:],'vdu:t:bn:i:p:h')
+        optval,arglist=getopt.getopt(sys.argv[1:],'vdu:t:bn:i:p:hS')
     except getopt.GetoptError as ge:
         usage(str(ge))
     verbose=0
@@ -550,6 +557,7 @@ def parse_arguments():
     baseline_dir=None
     inputfile=None
     project=None
+    script_mode=False
     for opt,val in optval:
         if opt=='-v': 
             verbose+=1
@@ -569,6 +577,8 @@ def parse_arguments():
             baseline=True
         elif opt=='-i':
             inputfile=val
+        elif opt=='-S':
+            script_mode=True
         else:
             usage('unknown option '+opt)
     arglist_nowhite=list() # arguments that are not whitespace
@@ -576,11 +586,12 @@ def parse_arguments():
         if not re.match('(?sx) \A \s* \Z',arg):
             arglist_nowhite.append(arg)
     return verbose,baseline_dir,dry_run,baseline,unique_id,temp, \
-           inputfile,arglist_nowhite,project
+           inputfile,arglist_nowhite,project,script_mode
 
 def main():
-    verbose,baseline_dir,dry_run,baseline,unique_id,temp,inputfile,arglist,project = \
-        parse_arguments()
+    verbose,baseline_dir,dry_run,baseline,unique_id,temp, \
+        inputfile,arglist,project,script_mode = \
+            parse_arguments()
     assert(isinstance(unique_id,int))
 
     if len(arglist)>1:
@@ -663,7 +674,11 @@ def main():
         exit(1)
     # We get here if everything works.
     jlogger.info('Requested test has been generated.')
-    print r'''You need to run the test now.   You have three options:
+    if script_mode:
+        print "RUNDIR='%s' ; PLATFORM_NAME='%s'"%(
+            testgen.outloc, testgen.platform_name)
+    else:
+        print r'''You need to run the test now.   You have three options:
 OPTION 1: Put this in your cron:
   */3 * * * * %s/rtrun --step --zero-exit > %s/rtrun-cron.log 2>&1
 
@@ -678,6 +693,7 @@ Adding -n to that command will disable colors.
         testgen.outloc,
         testgen.outloc,
         testgen.outloc)
+    # Last line must print the RUNDIR= for calling process
     exit(0)
 
 if __name__=='__main__':
