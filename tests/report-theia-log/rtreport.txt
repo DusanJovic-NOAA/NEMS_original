@@ -4,550 +4,550 @@ BUILD gsm.x: SUCCEEDED
 BUILD gsm_gocart.x: SUCCEEDED
 TEST #1: PASS
   Test nmm_cntrl starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:01:56 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #2: PASS
   Test nmm_nemsio starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:07:02 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #3: PASS
   Test nmm_rest starting.
-  Fri Dec  2 20:19:56 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:27:15 UTC 2016
+  nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #4: PASS
   Test nmm_rest_nio starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:15:58 UTC 2016
+  nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #5: PASS
   Test nmm_decomp starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:15:58 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #6: PASS
   Test nmm_thread starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob/nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:00 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #7: PASS
   Test nmm_reg_ctl starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/pcp.hr1.01.bin: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/pcp.hr2.01.bin: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/pcp.hr3.01.bin: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/pcp.hr4.01.bin: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/pcp.hr5.01.bin: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/pcp.hr6.01.bin: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/pcp.hr7.01.bin: bit-for-bit identical
+  Fri Dec 16 21:22:00 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  pcp.hr1.01.bin: bit-for-bit identical
+  pcp.hr2.01.bin: bit-for-bit identical
+  pcp.hr3.01.bin: bit-for-bit identical
+  pcp.hr4.01.bin: bit-for-bit identical
+  pcp.hr5.01.bin: bit-for-bit identical
+  pcp.hr6.01.bin: bit-for-bit identical
+  pcp.hr7.01.bin: bit-for-bit identical
   TEST PASSED
 TEST #8: PASS
   Test nmm_reg_nemsio starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:00 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #9: PASS
   Test nmm_reg_rst starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:00 UTC 2016
+  nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #10: PASS
   Test nmm_reg_rst_nio starting.
-  Fri Dec  2 20:12:18 UTC 2016
+  Fri Dec 16 21:22:00 UTC 2016
   TEST PASSED
 TEST #11: PASS
   Test nmm_reg_decomp starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:00 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #12: PASS
   Test nmm_reg_thread starting.
-  Fri Dec  2 20:12:19 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg/nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:32 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #13: PASS
   Test nmm_reg_sel_phy starting.
-  Fri Dec  2 20:12:19 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sel_phy/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sel_phy/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sel_phy/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sel_phy/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sel_phy/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sel_phy/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:32 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #14: PASS
   Test nmm_reg_spec_adv starting.
-  Fri Dec  2 20:12:18 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:32 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #15: PASS
   Test nmm_reg_spec_adv_rst starting.
-  Fri Dec  2 20:12:19 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:32 UTC 2016
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #16: PASS
   Test nmm_reg_wsm6_gfdl starting.
-  Fri Dec  2 20:12:19 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_gfdl/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_gfdl/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_gfdl/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_gfdl/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_gfdl/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_gfdl/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:32 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #17: PASS
   Test nmm_reg_wsm6_rrtm starting.
-  Fri Dec  2 20:12:19 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_rrtm/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_rrtm/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_rrtm/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_rrtm/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_rrtm/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_rrtm/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:32 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #18: PASS
   Test nmm_reg_sas_zhao starting.
-  Fri Dec  2 20:12:19 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sas_zhao/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sas_zhao/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sas_zhao/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sas_zhao/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sas_zhao/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sas_zhao/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:22:32 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #19: PASS
   Test nmm_reg_thomp starting.
-  Fri Dec  2 20:12:56 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_thomp/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_thomp/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_thomp/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_thomp/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_thomp/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_thomp/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:23:04 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #20: PASS
   Test nmm_reg_hur starting.
-  Fri Dec  2 20:12:56 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_hur/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_hur/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_hur/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_hur/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_hur/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_hur/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 21:23:04 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #21: PASS
   Test nmm_reg_pcpadj starting.
-  Fri Dec  2 20:21:07 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_pcpadj/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_pcpadj/nmmb_hst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_pcpadj/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_pcpadj/nmmb_hst_01_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_pcpadj/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_pcpadj/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:37:45 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #22: PASS
   Test nmm_reg_timesr starting.
-  Fri Dec  2 20:12:57 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_timesr/nmmb_hst_01_bin_0006h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_timesr/ts_p01_d01.bin: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_timesr/ts_p02_d01.bin: bit-for-bit identical
+  Fri Dec 16 21:23:04 UTC 2016
+  nmmb_hst_01_bin_0006h_00m_00.00s: bit-for-bit identical
+  ts_p01_d01.bin: bit-for-bit identical
+  ts_p02_d01.bin: bit-for-bit identical
   TEST PASSED
 TEST #23: PASS
   Test nmm_nests starting.
-  Fri Dec  2 20:13:30 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_02_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_02_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_rst_02_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_rst_02_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_03_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_03_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_rst_03_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_rst_03_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_04_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_04_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_rst_04_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_rst_04_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:06:42 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_02_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_02_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_03_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_03_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_04_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_04_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #24: PASS
   Test nmm_nest_rest starting.
-  Fri Dec  2 20:34:56 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests/nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:47:50 UTC 2016
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #25: PASS
   Test nmm_reg_filt starting.
-  Fri Dec  2 20:13:31 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt/nmmb_hst_01_bin_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt/nmmb_hst_01_nio_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt/nmmb_hst_02_bin_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt/nmmb_hst_02_nio_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt/nmmb_hst_03_bin_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt/nmmb_hst_03_nio_0003h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:06:42 UTC 2016
+  nmmb_hst_01_bin_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0003h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #26: PASS
   Test nmm_reg_filt_zombie starting.
-  Fri Dec  2 20:14:03 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt_zombie/nmmb_hst_01_bin_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt_zombie/nmmb_hst_01_nio_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt_zombie/nmmb_hst_02_bin_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt_zombie/nmmb_hst_02_nio_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt_zombie/nmmb_hst_03_bin_0003h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt_zombie/nmmb_hst_03_nio_0003h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:08:27 UTC 2016
+  nmmb_hst_01_bin_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0003h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0003h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #27: PASS
   Test nmm_mvg_nests starting.
-  Fri Dec  2 20:14:04 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_02_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_02_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_rst_02_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_rst_02_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_03_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_03_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_rst_03_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_rst_03_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_04_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_04_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_rst_04_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_rst_04_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:09:33 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_02_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_02_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_03_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_03_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_04_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_04_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #28: PASS
   Test nmm_mvg_nests_restart starting.
-  Fri Dec  2 20:28:30 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:46:14 UTC 2016
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #29: PASS
   Test nmm_mvg_nests_gens starting.
-  Fri Dec  2 20:14:03 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests/nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:09:33 UTC 2016
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #30: PASS
   Test nmm_2way_nests starting.
-  Fri Dec  2 20:14:03 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_02_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_02_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_rst_02_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_rst_02_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_03_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_03_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_rst_03_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_rst_03_nio_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_04_bin_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_04_nio_0000h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_rst_04_bin_0012h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_rst_04_nio_0012h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:37:12 UTC 2016
+  nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_01_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_02_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_02_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_03_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_03_nio_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0000h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_04_bin_0012h_00m_00.00s: bit-for-bit identical
+  nmmb_rst_04_nio_0012h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #31: PASS
   Test nmm_2way_nests_restart starting.
-  Fri Dec  2 20:28:30 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests/nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
+  Fri Dec 16 22:55:38 UTC 2016
+  nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_02_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_bin_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_03_nio_0024h_00m_00.00s: bit-for-bit identical
+  nmmb_hst_04_nio_0024h_00m_00.00s: bit-for-bit identical
   TEST PASSED
 TEST #32: PASS
   Test nmm_reg_rst_nio_debug starting.
-  Fri Dec  2 20:22:49 UTC 2016
+  Fri Dec 16 22:37:12 UTC 2016
   TEST PASSED
 TEST #33: PASS
   Test nmm_reg_rst_debug starting.
-  Fri Dec  2 20:22:49 UTC 2016
+  Fri Dec 16 22:37:12 UTC 2016
   TEST PASSED
 TEST #34: PASS
   Test nmm_reg_ctl_debug starting.
-  Fri Dec  2 20:22:49 UTC 2016
+  Fri Dec 16 22:37:12 UTC 2016
   TEST PASSED
 TEST #35: PASS
   Test nmm_2way_nests_debug starting.
-  Fri Dec  2 20:22:49 UTC 2016
+  Fri Dec 16 22:37:45 UTC 2016
   TEST PASSED
 TEST #36: PASS
   Test gfs_eulerian starting.
-  Fri Dec  2 20:35:38 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sfcf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/flxf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sigf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sfcf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/flxf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sigf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sfcf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/flxf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sigf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/flxf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sfcf48: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/flxf48: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN/sigf48: bit-for-bit identical
+  Fri Dec 16 22:40:06 UTC 2016
+  sfcf03: bit-for-bit identical
+  flxf03: bit-for-bit identical
+  sigf03: bit-for-bit identical
+  sfcf06: bit-for-bit identical
+  flxf06: bit-for-bit identical
+  sigf06: bit-for-bit identical
+  sfcf12: bit-for-bit identical
+  flxf12: bit-for-bit identical
+  sigf12: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
+  sigf24: bit-for-bit identical
+  sfcf48: bit-for-bit identical
+  flxf48: bit-for-bit identical
+  sigf48: bit-for-bit identical
   TEST PASSED
 TEST #37: PASS
   Test wam_gh_l150 starting.
-  Fri Dec  2 20:35:39 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/flxf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sfcf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/flxf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sigf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sfcf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/flxf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sigf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sfcf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/flxf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sigf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/flxf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150/sigf24: bit-for-bit identical
+  Fri Dec 16 22:40:06 UTC 2016
+  sfcf00: bit-for-bit identical
+  flxf00: bit-for-bit identical
+  sigf00: bit-for-bit identical
+  sfcf03: bit-for-bit identical
+  flxf03: bit-for-bit identical
+  sigf03: bit-for-bit identical
+  sfcf06: bit-for-bit identical
+  flxf06: bit-for-bit identical
+  sigf06: bit-for-bit identical
+  sfcf12: bit-for-bit identical
+  flxf12: bit-for-bit identical
+  sigf12: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
+  sigf24: bit-for-bit identical
   TEST PASSED
 TEST #38: PASS
   Test wam_gh_l150_nemsio starting.
-  Fri Dec  2 20:35:38 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/flxf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sigf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sfcf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/flxf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sigf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sfcf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/flxf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sigf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sfcf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/flxf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/flxf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sigf48: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/sfcf48: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio/flxf48: bit-for-bit identical
+  Fri Dec 16 22:40:40 UTC 2016
+  sigf00: bit-for-bit identical
+  sfcf00: bit-for-bit identical
+  flxf00: bit-for-bit identical
+  sigf03: bit-for-bit identical
+  sfcf03: bit-for-bit identical
+  flxf03: bit-for-bit identical
+  sigf06: bit-for-bit identical
+  sfcf06: bit-for-bit identical
+  flxf06: bit-for-bit identical
+  sigf12: bit-for-bit identical
+  sfcf12: bit-for-bit identical
+  flxf12: bit-for-bit identical
+  sigf24: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
+  sigf48: bit-for-bit identical
+  sfcf48: bit-for-bit identical
+  flxf48: bit-for-bit identical
   TEST PASSED
 TEST #39: PASS
   Test gfs_slg starting.
-  Fri Dec  2 20:35:38 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/flxf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/sigf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/sfcf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/flxf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG/flxf24: bit-for-bit identical
+  Fri Dec 16 22:41:14 UTC 2016
+  sigf00: bit-for-bit identical
+  sfcf00: bit-for-bit identical
+  flxf00: bit-for-bit identical
+  sigf01: bit-for-bit identical
+  sfcf01: bit-for-bit identical
+  flxf01: bit-for-bit identical
+  sigf24: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
   TEST PASSED
 TEST #40: PASS
   Test gfs_slg_48pe starting.
-  Fri Dec  2 20:35:38 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/flxf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/sigf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/sfcf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/flxf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/sigf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/sfcf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/flxf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE/flxf24: bit-for-bit identical
+  Fri Dec 16 22:41:15 UTC 2016
+  sigf00: bit-for-bit identical
+  sfcf00: bit-for-bit identical
+  flxf00: bit-for-bit identical
+  sigf06: bit-for-bit identical
+  sfcf06: bit-for-bit identical
+  flxf06: bit-for-bit identical
+  sigf12: bit-for-bit identical
+  sfcf12: bit-for-bit identical
+  flxf12: bit-for-bit identical
+  sigf24: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
   TEST PASSED
 TEST #41: PASS
   Test gfs_slg_adiabatic starting.
-  Fri Dec  2 20:35:39 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_ADIABATIC/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_ADIABATIC/sigf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_ADIABATIC/sigf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_ADIABATIC/sigf24: bit-for-bit identical
+  Fri Dec 16 22:41:46 UTC 2016
+  sigf00: bit-for-bit identical
+  sigf06: bit-for-bit identical
+  sigf12: bit-for-bit identical
+  sigf24: bit-for-bit identical
   TEST PASSED
 TEST #42: PASS
   Test gfs_slg_land starting.
-  Fri Dec  2 20:35:39 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/flxf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/sigf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/sfcf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/flxf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND/flxf24: bit-for-bit identical
+  Fri Dec 16 22:42:20 UTC 2016
+  sigf00: bit-for-bit identical
+  sfcf00: bit-for-bit identical
+  flxf00: bit-for-bit identical
+  sigf01: bit-for-bit identical
+  sfcf01: bit-for-bit identical
+  flxf01: bit-for-bit identical
+  sigf24: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
   TEST PASSED
 TEST #43: PASS
   Test gfs_slg_nsst starting.
-  Fri Dec  2 20:35:40 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/flxf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/nstf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/sigf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/sfcf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/flxf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/nstf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/flxf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST/nstf24: bit-for-bit identical
+  Fri Dec 16 22:42:20 UTC 2016
+  sigf00: bit-for-bit identical
+  sfcf00: bit-for-bit identical
+  flxf00: bit-for-bit identical
+  nstf00: bit-for-bit identical
+  sigf01: bit-for-bit identical
+  sfcf01: bit-for-bit identical
+  flxf01: bit-for-bit identical
+  nstf01: bit-for-bit identical
+  sigf24: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
+  nstf24: bit-for-bit identical
   TEST PASSED
 TEST #44: PASS
   Test gfs_slg_rsthst starting.
-  Fri Dec  2 20:39:32 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_RSTHST/sigf30: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_RSTHST/sfcf30: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_RSTHST/flxf30: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_RSTHST/sigf48: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_RSTHST/sfcf48: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_RSTHST/flxf48: bit-for-bit identical
+  Fri Dec 16 22:55:38 UTC 2016
+  sigf30: bit-for-bit identical
+  sfcf30: bit-for-bit identical
+  flxf30: bit-for-bit identical
+  sigf48: bit-for-bit identical
+  sfcf48: bit-for-bit identical
+  flxf48: bit-for-bit identical
   TEST PASSED
 TEST #45: PASS
   Test gfs_slg_stochy starting.
-  Fri Dec  2 20:35:39 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/flxf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/sigf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/sfcf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/flxf01: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY/flxf24: bit-for-bit identical
+  Fri Dec 16 22:42:52 UTC 2016
+  sigf00: bit-for-bit identical
+  sfcf00: bit-for-bit identical
+  flxf00: bit-for-bit identical
+  sigf01: bit-for-bit identical
+  sfcf01: bit-for-bit identical
+  flxf01: bit-for-bit identical
+  sigf24: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
   TEST PASSED
 TEST #46: PASS
   Test gfs_slg_t574 starting.
-  Fri Dec  2 20:35:39 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/flxf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/SIG.F06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/SFC.F06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/FLX.F06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/SIG.F12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/SFC.F12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/FLX.F12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574/flxf24: bit-for-bit identical
+  Fri Dec 16 22:55:38 UTC 2016
+  sigf00: bit-for-bit identical
+  sfcf00: bit-for-bit identical
+  flxf00: bit-for-bit identical
+  SIG.F06: bit-for-bit identical
+  SFC.F06: bit-for-bit identical
+  FLX.F06: bit-for-bit identical
+  SIG.F12: bit-for-bit identical
+  SFC.F12: bit-for-bit identical
+  FLX.F12: bit-for-bit identical
+  sigf24: bit-for-bit identical
+  sfcf24: bit-for-bit identical
+  flxf24: bit-for-bit identical
   TEST PASSED
 TEST #47: PASS
   Test gfs_gocart_nemsio starting.
-  Fri Dec  2 20:52:48 UTC 2016
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.gfsanl: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sfnanl: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sigf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sfcf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.aerf00: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sigf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sfcf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.aerf03: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sigf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sfcf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.aerf06: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sigf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sfcf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.aerf12: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sigf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.sfcf24: bit-for-bit identical
-  /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_GOCART_NEMSIO/ngac.t00z.aerf24: bit-for-bit identical
+  Fri Dec 16 22:45:39 UTC 2016
+  ngac.t00z.gfsanl: bit-for-bit identical
+  ngac.t00z.sfnanl: bit-for-bit identical
+  ngac.t00z.sigf00: bit-for-bit identical
+  ngac.t00z.sfcf00: bit-for-bit identical
+  ngac.t00z.aerf00: bit-for-bit identical
+  ngac.t00z.sigf03: bit-for-bit identical
+  ngac.t00z.sfcf03: bit-for-bit identical
+  ngac.t00z.aerf03: bit-for-bit identical
+  ngac.t00z.sigf06: bit-for-bit identical
+  ngac.t00z.sfcf06: bit-for-bit identical
+  ngac.t00z.aerf06: bit-for-bit identical
+  ngac.t00z.sigf12: bit-for-bit identical
+  ngac.t00z.sfcf12: bit-for-bit identical
+  ngac.t00z.aerf12: bit-for-bit identical
+  ngac.t00z.sigf24: bit-for-bit identical
+  ngac.t00z.sfcf24: bit-for-bit identical
+  ngac.t00z.aerf24: bit-for-bit identical
   TEST PASSED
 REGRESSION TEST WAS SUCCESSFUL

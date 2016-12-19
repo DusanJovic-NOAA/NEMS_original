@@ -1,4 +1,4 @@
-Fri Dec  2 19:44:41 UTC 2016
+Fri Dec 16 21:07:49 UTC 2016
 Start Regression test
 
 
@@ -8,8 +8,8 @@ NEMSAppBuilder  app=NMM-POST
 Test 1 nmm_cntrl Compare NMMB-global results with previous trunk version
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_cntrl
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_glob
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_cntrl
 Checking test 1 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -26,8 +26,8 @@ Test 1 PASS
 Test 2 nmm_nemsio Test NMMB-global NEMSIO as input file
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_nemsio
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_glob
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_nemsio
 Checking test 2 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -42,8 +42,8 @@ Test 2 PASS
 Test 3 nmm_rest Test NMMB-global restart run
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_rest
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_glob
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_rest
 Checking test 3 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 3 PASS 
@@ -53,8 +53,8 @@ Test 3 PASS
 Test 4 nmm_rest_nio Test NMMB-global restart run from NEMSIO file
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_rest_nio
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_glob
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_rest_nio
 Checking test 4 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 4 PASS 
@@ -64,8 +64,8 @@ Test 4 PASS
 Test 5 nmm_decomp Test NMMB-global different decomposition
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_decomp
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_glob
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_decomp
 Checking test 5 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -78,8 +78,8 @@ Test 5 PASS
 Test 6 nmm_thread Test NMMB-global threading
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_glob
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_thread
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_glob
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_thread
 Checking test 6 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -94,8 +94,8 @@ Test 6 PASS
 Test 7 nmm_reg_ctl Compare NMMB-regional results with previous trunk version
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_ctl
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_ctl
 Checking test 7 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
@@ -119,8 +119,8 @@ Test 7 PASS
 Test 8 nmm_reg_nemsio Test NMMB-regional NEMSIO as input file
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_nemsio
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_nemsio
 Checking test 8 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -133,8 +133,8 @@ Test 8 PASS
 Test 9 nmm_reg_rst Test NMMB-regional restart run
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_rst
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_rst
 Checking test 9 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 9 PASS 
@@ -144,8 +144,8 @@ Test 9 PASS
 Test 10 nmm_reg_rst_nio Test NMMB-regional restart run with NEMSIO file
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_rst_nio
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_rst_nio
 Checking test 10 results ....
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
 Test 10 PASS 
@@ -155,8 +155,8 @@ Test 10 PASS
 Test 11 nmm_reg_decomp Test NMMB-regional different decomposition
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_decomp
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_decomp
 Checking test 11 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -167,8 +167,8 @@ Test 11 PASS
 Test 12 nmm_reg_thread Test NMMB-regional threading
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_thread
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_thread
 Checking test 12 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -183,8 +183,8 @@ Test 12 PASS
 Test 13 nmm_reg_sel_phy Test NMMB-regional with selected GFS physics schemes
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sel_phy
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_sel_phy
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_sel_phy
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_sel_phy
 Checking test 13 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -199,8 +199,8 @@ Test 13 PASS
 Test 14 nmm_reg_spec_adv Test NMMB-regional with separate species advection ON
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_spec_adv
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_spec_adv
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_spec_adv
 Checking test 14 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -215,8 +215,8 @@ Test 14 PASS
 Test 15 nmm_reg_spec_adv_rst Test NMMB-regional with separate species advection ON
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_spec_adv
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_spec_adv_rst
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_spec_adv
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_spec_adv_rst
 Checking test 15 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -227,8 +227,8 @@ Test 15 PASS
 Test 16 nmm_reg_wsm6_gfdl Test NMMB-regional with physics schemes WSM6 and GFDL
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_gfdl
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_wsm6_gfdl
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_wsm6_gfdl
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_wsm6_gfdl
 Checking test 16 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -243,8 +243,8 @@ Test 16 PASS
 Test 17 nmm_reg_wsm6_rrtm Test NMMB-regional with physics schemes WSM6 and RRTM
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_wsm6_rrtm
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_wsm6_rrtm
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_wsm6_rrtm
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_wsm6_rrtm
 Checking test 17 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -259,8 +259,8 @@ Test 17 PASS
 Test 18 nmm_reg_sas_zhao Test NMMB-regional with physics schemes SAS, ZHAO
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_sas_zhao
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_sas_zhao
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_sas_zhao
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_sas_zhao
 Checking test 18 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -275,8 +275,8 @@ Test 18 PASS
 Test 19 nmm_reg_thomp Test NMMB-regional with THOMPSON microphysics scheme
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_thomp
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_thomp
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_thomp
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_thomp
 Checking test 19 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -291,8 +291,8 @@ Test 19 PASS
 Test 20 nmm_reg_hur Test NMMB-regional with HWRF physics
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_hur
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_hur
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_hur
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_hur
 Checking test 20 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -307,8 +307,8 @@ Test 20 PASS
 Test 21 nmm_reg_pcpadj Test NMMB-regional with precipitation adjustment on
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_pcpadj
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_pcpadj
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_pcpadj
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_pcpadj
 Checking test 21 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
@@ -323,8 +323,8 @@ Test 21 PASS
 Test 22 nmm_reg_timesr Test NMMB-regional writing time series
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_timesr
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_timesr
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_timesr
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_timesr
 Checking test 22 results ....
  Comparing nmmb_hst_01_bin_0006h_00m_00.00s.........OK
  Comparing ts_p01_d01.bin.........OK
@@ -336,8 +336,8 @@ Test 22 PASS
 Test 23 nmm_nests Test NMMB-regional with static nests
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_nests
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_nests
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_nests
 Checking test 23 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -370,8 +370,8 @@ Test 23 PASS
 Test 24 nmm_nest_rest Test NMMB-regional static nests with restart
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_nests
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_nest_rest
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_nests
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_nest_rest
 Checking test 24 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -388,8 +388,8 @@ Test 24 PASS
 Test 25 nmm_reg_filt Test NMMB-regional digital filter with static nests
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_filt
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_filt
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_filt
 Checking test 25 results ....
  Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
@@ -404,8 +404,8 @@ Test 25 PASS
 Test 26 nmm_reg_filt_zombie Test NMMB-regional digital filter with zombie grandchild
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg_filt_zombie
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_filt_zombie
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg_filt_zombie
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_filt_zombie
 Checking test 26 results ....
  Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
@@ -420,8 +420,8 @@ Test 26 PASS
 Test 27 nmm_mvg_nests Test NMMB-regional with moving nests
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_mvg_nests
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_mvg_nests
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_mvg_nests
 Checking test 27 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -454,8 +454,8 @@ Test 27 PASS
 Test 28 nmm_mvg_nests_restart Test NMMB-regional with moving nests - RESTART
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_mvg_nests_restart
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_mvg_nests
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_mvg_nests_restart
 Checking test 28 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -472,8 +472,8 @@ Test 28 PASS
 Test 29 nmm_mvg_nests_gens Test NMMB-regional with 1-way moving nests and generational task assignments
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_mvg_nests
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_mvg_nests_gens
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_mvg_nests
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_mvg_nests_gens
 Checking test 29 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -506,8 +506,8 @@ Test 29 PASS
 Test 30 nmm_2way_nests Test NMMB-regional with 2-way moving nests
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_2way_nests
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_2way_nests
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_2way_nests
 Checking test 30 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
@@ -540,8 +540,8 @@ Test 30 PASS
 Test 31 nmm_2way_nests_restart Test NMMB-regional with 2-way moving nests - RESTART
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_2way_nests_restart
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_2way_nests
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_2way_nests_restart
 Checking test 31 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
@@ -559,8 +559,8 @@ NEMSAppBuilder  app=NMM-DEBUG
 Test 32 nmm_reg_rst_nio_debug Test NMMB-regional restart run with NEMSIO file DEBUG
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_rst_nio_debug
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_rst_nio_debug
 Checking test 32 results ....
 Test 32 PASS 
 
@@ -569,8 +569,8 @@ Test 32 PASS
 Test 33 nmm_reg_rst_debug Test NMMB-regional restart run DEBUG
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_rst_debug
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_rst_debug
 Checking test 33 results ....
 Test 33 PASS 
 
@@ -579,8 +579,8 @@ Test 33 PASS
 Test 34 nmm_reg_ctl_debug Compare NMMB-regional results with previous trunk version DEBUG
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_reg
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_reg_ctl_debug
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_reg
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_reg_ctl_debug
 Checking test 34 results ....
 Test 34 PASS 
 
@@ -589,8 +589,8 @@ Test 34 PASS
 Test 35 nmm_2way_nests_debug Test NMMB-regional with 2-way moving nests DEBUG
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/NMMB_2way_nests
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/nmm_2way_nests_debug
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/NMMB_2way_nests
+working dir  = /ptmpp1/Jun.Wang/rt_11328/nmm_2way_nests_debug
 Checking test 35 results ....
 Test 35 PASS 
 
@@ -604,8 +604,8 @@ GFS eulerian dycore,32 total proc (tasks), 1 thread, quilt, digital filter on re
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_EULERIAN
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_eulerian
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_EULERIAN
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_eulerian
 Checking test 36 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -632,8 +632,8 @@ WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no q
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/wam_gh_l150
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/WAM_gh_l150
+working dir  = /ptmpp1/Jun.Wang/rt_11328/wam_gh_l150
 Checking test 37 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -660,8 +660,8 @@ WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,with
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/WAM_gh_l150_nemsio
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/wam_gh_l150_nemsio
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/WAM_gh_l150_nemsio
+working dir  = /ptmpp1/Jun.Wang/rt_11328/wam_gh_l150_nemsio
 Checking test 38 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
@@ -691,8 +691,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg
 Checking test 39 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -713,8 +713,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_NSST
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg_nsst
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG_NSST
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg_nsst
 Checking test 40 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -738,8 +738,8 @@ Run SLG adiabatic test with NEMSIO and digital filter from NEMSIO initial condit
 GFS, 32 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_ADIABATIC
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg_adiabatic
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG_ADIABATIC
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg_adiabatic
 Checking test 41 results ....
  Comparing sigf00.........OK
  Comparing sigf06.........OK
@@ -755,8 +755,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 48 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_48PE
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg_48pe
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG_48PE
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg_48pe
 Checking test 42 results ....
  Comparing sigf00.........OK
  Comparing sigf06.........OK
@@ -780,8 +780,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 32 proc, 2 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg_2thread
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg_2thread
 Checking test 43 results ....
  Comparing sigf00.........OK
  Comparing SIG.F06.........OK
@@ -802,8 +802,8 @@ Run SLG restart from history file non-adiabatic test with NEMSIO and digital fil
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_RSTHST
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg_rsthst
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG_RSTHST
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg_rsthst
 Checking test 44 results ....
  Comparing sigf30.........OK
  Comparing sigf48.........OK
@@ -821,8 +821,8 @@ Run T574 SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initi
 GFS, 96 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_T574
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg_t574
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG_T574
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg_t574
 Checking test 45 results ....
  Comparing sigf00.........OK
  Comparing SIG.F06.........OK
@@ -846,8 +846,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter and stochastic physics
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_STOCHY
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg_stochy
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG_STOCHY
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg_stochy
 Checking test 46 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -868,8 +868,8 @@ Run SLG non-adiabatic test with NEMSIO and digital filter from NEMSIO initial co
 GFS, 33 proc, 1 thread
 
 
-baseline dir = /nems/noscrub/emc.nemspara/REGRESSION_TEST/GFS_SLG_LAND
-working dir  = /ptmpp1/Samuel.Trahan/rt_9538/gfs_slg_land
+baseline dir = /ptmpp1/Jun.Wang/REGRESSION_TEST_20161214/GFS_SLG_LAND
+working dir  = /ptmpp1/Jun.Wang/rt_11328/gfs_slg_land
 Checking test 47 results ....
  Comparing sigf00.........OK
  Comparing sigf01.........OK
@@ -916,4 +916,4 @@ Test 48 PASS
 
 
 REGRESSION TEST WAS SUCCESSFUL
-Sat Dec  3 01:34:12 UTC 2016
+Sat Dec 17 03:11:28 UTC 2016

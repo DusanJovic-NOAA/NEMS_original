@@ -66,13 +66,13 @@ while getopts ":c:fst:n:hr:" opt; do
             if [[ ! -z "$set_info" ]] ; then
                 usage "Only one of -c, -s, -t, or -f can be used."
             fi
-            set_info='-s'
+            set_info='standard'
             ;;
         f)  
             if [[ ! -z "$set_info" ]] ; then
                 usage "Only one of -c, -s, -t, or -f can be used."
             fi
-            set_info='-f'
+            set_info=' '
             ;;
         h)
             usage
@@ -84,7 +84,7 @@ while getopts ":c:fst:n:hr:" opt; do
             set_info="$OPTARG"
             ;;
         n)
-            cmd="$cmd '$OPTARG'"
+            cmd="$cmd -n  $OPTARG"
             ;;
         \?)
             usage "Unknown option -$OPTARG"
@@ -94,6 +94,10 @@ while getopts ":c:fst:n:hr:" opt; do
             ;;
     esac
 done
+
+if [[ ! -z "$set_info" ]] ; then
+    cmd="$cmd $set_info"
+fi
 
 if [[ -z "$set_info" && "$rerun" == NO ]] ; then
     usage "At least one of -n, -c, -t, -f or -s must be specified."
