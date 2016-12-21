@@ -19,9 +19,12 @@ ESMF_LIB        = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKL
 
 gfs=gsm
 gfsdir=atmos/$(gfs)
+gsm_mk        = $(GSM_DIR)/gsm.mk
 satm_mk       = $(SATM_DIR)/satm.mk
 xatm_mk       = $(XATM_DIR)/xatm.mk
 datawam_mk    = $(DATAWAM_DIR)/datawam.mk
+fv3_mk        = $(FV3_DIR)/fv3.mk
+
 
 ################################################################################
 ## OCN settings

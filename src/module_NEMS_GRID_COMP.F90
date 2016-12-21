@@ -42,7 +42,7 @@
 !
       USE module_EARTH_GRID_COMP
 !
-      USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
+      USE module_NEMS_UTILS,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
 !

@@ -35,7 +35,7 @@
 !          |    |
 !          |    (MOM5, HYCOM, POM, etc.)
 !          |
-!          CORE component (GSM, NMM, FIM, GEN, etc.)
+!          CORE component (GSM, NMM, FV3, etc.)
 !
 !-----------------------------------------------------------------------
 !
@@ -58,6 +58,15 @@
 #endif
 #ifdef FRONT_DATAWAM
       use FRONT_DATAWAM,    only: DATAWAM_SS=> SetServices
+#endif
+#ifdef FRONT_GSM
+      use FRONT_GSM,        only: GSM_SS   => SetServices
+#endif
+#ifdef FRONT_NMMB
+      use FRONT_NMMB,       only: NMMB_SS   => SetServices
+#endif
+#ifdef FRONT_FV3
+      use FRONT_FV3,        only: FV3_SS   => SetServices
 #endif
   ! - Handle build time OCN options:
 #ifdef FRONT_SOCN
@@ -138,9 +147,9 @@
       USE module_EARTH_INTERNAL_STATE,ONLY: EARTH_INTERNAL_STATE        &
                                            ,WRAP_EARTH_INTERNAL_STATE
 !
-      USE module_ATM_GRID_COMP
+!      USE module_ATM_GRID_COMP
 !
-      USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
+      USE module_NEMS_UTILS,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
 !
@@ -2839,15 +2848,35 @@
               file=__FILE__, rcToReturn=rc)
             return  ! bail out
 #endif
-          elseif ((trim(model) == "gsm") .or. (trim(model) == "nmm")) then
-            ! currently GSM and NMMB are within the NEMS code directly and
-            ! building them into the NEMS executable is controlled in the 
-            ! native NEMS way still.
-            ! TODO: make GSM and NMMB (and FIM...) external, at least on the
-            ! build system level, even if code stays internal to NEMS repo.
-#define WITH_INTERNAL_ATMS
-#ifdef WITH_INTERNAL_ATMS
-            call NUOPC_DriverAddComp(driver, trim(prefix), ATM_REGISTER, &
+          elseif (trim(model) == "gsm") then
+#ifdef FRONT_GSM
+            call NUOPC_DriverAddComp(driver, trim(prefix), GSM_SS, &
+              petList=petList, comp=comp, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+            write (msg, *) "Model '", trim(model), "' was requested, "// &
+              "but is not available in the executable!"
+            call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+              file=__FILE__, rcToReturn=rc)
+            return  ! bail out
+#endif
+          elseif (trim(model) == "nmmb") then
+#ifdef FRONT_NMMB
+            call NUOPC_DriverAddComp(driver, trim(prefix), NMMB_SS, &
+              petList=petList, comp=comp, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+#else
+            write (msg, *) "Model '", trim(model), "' was requested, "// &
+              "but is not available in the executable!"
+            call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+              file=__FILE__, rcToReturn=rc)
+            return  ! bail out
+#endif
+          elseif (trim(model) == "fv3") then
+#ifdef FRONT_FV3
+            call NUOPC_DriverAddComp(driver, trim(prefix), FV3_SS, &
               petList=petList, comp=comp, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out

@@ -5,7 +5,7 @@
 # available NEMS applications.
 ################################################################################
 
-#set -x
+set -x
 
 # add paths to find personal "dialog" installations on Theia, Yellowstone.
 PATH=$PATH:/scratch4/NCEPDEV/nems/save/Gerhard.Theurich/bin:/glade/p/work/theurich/bin
@@ -86,6 +86,16 @@ else
     FULL_MACHINE_ID=unknown
     MACHINE_ID=''
 fi
+
+if [[ "$MACHINE_ID" == yellowstone ]] ; then
+    source /glade/apps/opt/lmod/lmod/init/bash
+elif [[ "$MACHINE_ID" == gaea ]] ; then
+    # The module init stuff is buggy on gaea.  You really do need
+    # /etc/profile.
+    source /etc/profile
+fi
+
+echo "MACHINE_ID=$MACHINE_ID FULL_MACHINE_ID=$FULL_MACHINE_ID"
 
 # Globals and constants ########################################################
 
@@ -1315,7 +1325,9 @@ Select <No> to retain and use the build environment of the current shell." \
         16 40 "Build environment" 
     if [[ "$?" == "0" ]] ; then
       autonote "Load $NEMSDIR/src/conf/modules.nems"
-      source $NEMSDIR/src/conf/modules.nems
+      module use $NEMSDIR/src/conf
+      module load modules.nems
+      module unuse $NEMSDIR/src/conf
       autonote "Loaded $NEMSDIR/src/conf/modules.nems"
       loaded_envir=yes
     fi

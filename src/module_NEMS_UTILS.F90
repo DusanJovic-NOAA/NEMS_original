@@ -1,34 +1,23 @@
-#include "../../ESMFVersionDefine.h"
+#include "./ESMFVersionDefine.h"
 
+!-----------------------------------------------------------------------
 !
-! !description: error messages
-!
-! !revision history:
-!
-!  january 2007 	hann-ming henry juang
-!  May     2011         Weiyu yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
-!
-!
-! !interface:
-!
-      module module_err_msg
-
-!
-!!uses:
-!
+      MODULE module_NEMS_UTILS
 
       USE ESMF
 
       implicit none
 
       private
-      public :: err_msg,message_check
+      public :: check_esmf_pet, err_msg, message_check
 
       logical, parameter :: iprint = .false.
       character(esmf_maxstr) :: message_check
 
       contains
 
+!-----------------------------------------------------------------------
+!
       subroutine err_msg_int(rc1,msg,val,rcfinal)
 !
       integer, intent(inout)        :: rc1
@@ -112,4 +101,45 @@
       return
       end subroutine err_msg_final
 
-      end module module_err_msg
+!-----------------------------------------------------------------------
+!
+      subroutine check_esmf_pet(print_esmf)
+!
+!-----------------------------------------------------------------------
+!
+  implicit none
+  integer :: i,n
+  character *256 :: c1,c2
+  logical :: opened,print_esmf
+!
+  do n=101,201
+    inquire(n,opened=opened)
+    if(.not.opened)then
+      open(n,file='model_configure',status='old')  !<-- Open configure file
+      exit
+    endif
+  enddo
+!
+  print_esmf=.false.
+!
+  do i=1,10000
+    read(n,*,end=22)c1,c2
+    if(c1(1:10) == 'print_esmf') then              !<-- Search for print_esmf flag
+      if( c2 == 'true'   .or.          &           !<-- Check if print_esmf is true or false
+          c2 == '.true.' .or.          &
+          c2 == 'TRUE'   .or.          &
+          c2 == '.TRUE.' ) print_esmf=.true.
+      exit
+    endif
+  enddo
+22  close(n)
+    return
+!
+!-----------------------------------------------------------------------
+!
+      end subroutine check_esmf_pet
+!
+!-----------------------------------------------------------------------
+
+
+      end module module_NEMS_UTILS

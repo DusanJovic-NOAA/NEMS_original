@@ -44,10 +44,10 @@
        USE module_NEMS_GRID_COMP, ONLY: NEMS_REGISTER
 !
 !-----------------------------------------------------------------------
-!***  The following module contains error-checking.
+!***  The following module contains error-checking, and other utilities
 !-----------------------------------------------------------------------
 !
-       USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
+       USE module_NEMS_UTILS, ONLY: check_esmf_pet, err_msg, message_check
 !
 !-----------------------------------------------------------------------
 !***  This module calculates resource usage across all ranks.

@@ -56,6 +56,33 @@ ifneq (,$(findstring $(COMMA)datawam$(COMMA),$(COMP)))
   DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
+ifneq (,$(findstring $(COMMA)gsm$(COMMA),$(COMP)))
+  include $(gsm_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_GSM=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring $(COMMA)fv3$(COMMA),$(COMP)))
+  include $(fv3_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_FV3=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring $(COMMA)nmmb(COMMA),$(COMP)))
+  include $(nmmb_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_NMMB=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
 # OCNs
 ifneq (,$(findstring $(COMMA)socn$(COMMA),$(COMP)))
   include $(socn_mk)
@@ -270,27 +297,20 @@ ifneq (,$(findstring $(COMMA)wrfhydro$(COMMA),$(COMP)))
   DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
 endif
 ################################################################################
+##$(info $$DEP_LINK_OBJS is [${DEP_LINK_OBJS}])
 
 CPPFLAGS += $(DEP_FRONTS)
 
 TARGET = ../exe/NEMS.x
 
-INCS = -Iatmos \
-	-I$(CHEM_MOD) \
-       -Iatmos/share \
-       -IENS_Cpl \
-       -Iatmos/nmm \
-       -Iatmos/fim \
-       -I$(gfsdir) \
-       -I$(PHYS_INC) \
+INCS = -IENS_Cpl \
 	-I. \
-       -Iatmos/gen \
-	-Iatmos/share \
        $(DEP_INCS)
 
 MAIN = MAIN_NEMS.o
 
-OBJS = module_MEDIATOR_methods.o \
+OBJS = module_NEMS_UTILS.o \
+       module_MEDIATOR_methods.o \
        module_MEDIATOR.o \
        module_MEDIATOR_SpaceWeather.o \
        module_EARTH_INTERNAL_STATE.o \
@@ -301,75 +321,6 @@ OBJS = module_MEDIATOR_methods.o \
 
 COBJS = nems_c_rusage.o
 
-LIBS = atmos/libatmos.a                 \
-       atmos/nmm/libnmm.a               \
-       $(gfsdir)/libgfs.a               \
-       $(gfsdir)/io/libio.a             \
-       atmos/gen/libgen.a               \
-       atmos/fim/libfimtop.a            \
-       $(gfsdir)/libutil/gfs_libutil.a  \
-       $(gfsdir)/phys/gfs_physics.a     \
-       $(PHYS_LIB)/libphys.a             \
-       $(gfsdir)/dyn/gfs_dynamics.a     \
-       atmos/share/libshare.a           \
-       atmos/post/libpost.a             \
-       $(DEP_LINK_OBJS)                 \
-       ENS_Cpl/ENS_Cpl.a		\
-       $(DEP_SHRD_PATH)	                \
-       $(DEP_SHRD_LIBS)
-
-LIBS_NMM = atmos/libatmos.a             \
-           atmos/nmm/libnmm.a           \
-           $(gfsdir)/libgfs.a           \
-           atmos/fim/libfimtop.a        \
-           atmos/gen/libgen.a           \
-           $(PHYS_LIB)/libphys.a         \
-           atmos/share/libshare.a       \
-           atmos/post/libpost.a         \
-           $(DEP_LINK_OBJS)             \
-           ENS_Cpl/ENS_Cpl.a
-
-LIBS_GEN = atmos/libatmos.a             \
-           atmos/nmm/libnmm.a           \
-           atmos/io/libio.a             \
-           $(gfsdir)/libgfs.a           \
-           atmos/fim/libfimtop.a        \
-           atmos/gen/libgen.a           \
-           $(PHYS_LIB)/libphys.a         \
-           atmos/share/libshare.a       \
-           atmos/post/libpost.a         \
-           $(DEP_LINK_OBJS)             \
-           ENS_Cpl/ENS_Cpl.a
-
-#TODO:  DRY these settings, they are redundant with atmos/fim/makefile and 
-#TODO:  atmos/fim/FIMsrc ...  
-SMS      = /gpfs/t3/global/save/wx20tbh/SMS/SMS_r237
-SMSLIB   = $(SMS)/lib/libsms.a
-# libraries created during build inside atmos/fim/FIM_src_devccs
-FIMSRCLIBS = atmos/fim/FIMsrc_devccs/lib/libfim.a      \
-             atmos/fim/FIMsrc_devccs/lib/libwrfio.a    \
-             atmos/fim/FIMsrc_devccs/lib/libgribio.a   \
-             atmos/fim/FIMsrc_devccs/lib/libvlint.a    \
-             atmos/fim/FIMsrc_devccs/lib/libsp_4.a     \
-             atmos/fim/FIMsrc_devccs/lib/libslint.a    \
-             atmos/fim/FIMsrc_devccs/lib/libsigio_4.a  \
-             atmos/fim/FIMsrc_devccs/lib/libsfcio_4.a  \
-             atmos/fim/FIMsrc_devccs/lib/libw3_4.a     \
-             atmos/fim/FIMsrc_devccs/lib/libbacio_4.a  \
-             atmos/fim/FIMsrc_devccs/lib/libcntl.a     \
-             atmos/fim/FIMsrc_devccs/lib/libsysshare.a
-
-LIBS_FIM = atmos/libatmos.a                     \
-           atmos/nmm/libnmm.a                   \
-           $(gfsdir)/libgfs.a                   \
-           atmos/fim/libfimtop.a                \
-           $(SMSLIB) $(FIMSRCLIBS)              \
-           atmos/gen/libgen.a                   \
-           atmos/share/libshare.a               \
-           $(DEP_LINK_OBJS)                     \
-           ENS_Cpl/ENS_Cpl.a                    \
-           -L/nwprod/lib -lnetcdf_64
-
 MAKEFILE = makefile
 
 #
@@ -377,7 +328,9 @@ MAKEFILE = makefile
 #
 GOCART_MODE=stub
 ESMADIR=$(CHEM_DIR)
-include $(CHEM_INC)/NCEP_base.mk
+#gjt: comment out the following line because it unconditionally uses CHEM_INC
+#gjt: THIS NEEDS TO BE FIXED!
+#include $(CHEM_INC)/NCEP_base.mk
 
 ifeq ($(GOCART_MODE),stub)
 	LIBGOCART=
@@ -397,19 +350,22 @@ ifeq ($(PHYS_MODE),compile)
         PHYS_DIR = $(TOP)/atmos/gsm/gsmphys
 endif
 ifeq ($(CHEM_MODE),compile)
-        CHEM_LIB = $(TOP)/chem/gocart
-        CHEM_INC = $(TOP)/chem/gocart/src/Config
-        CHEM_DIR = $(TOP)/chem
-	CHEM_MOD = $(TOP)/chem/gocart/${ARCH}/include
-ESMADIR=chem/gocart
-include $(ESMADIR)/src/Config/NCEP_base.mk
+        CHEM_LIB = $(TOP)/../../chem/gocart
+        CHEM_INC = $(TOP)/../../chem/gocart/src/Config
+        CHEM_DIR = $(TOP)/../../chem
+	CHEM_MOD = $(TOP)/../../chem/gocart/${ARCH}/include
+ESMADIR=$(CHEM_LIB)
+#gjt: THIS NEEDS TO BE FIXED!
+#include $(ESMADIR)/src/Config/NCEP_base.mk
 endif
 
 
 
 export GOCART_MODE
 ESMADIR=$(CHEM_LIB)
-include $(CHEM_INC)/NCEP_base.mk
+#gjt: comment out the following line because it unconditionally uses CHEM_INC
+#gjt: THIS NEEDS TO BE FIXED!
+#include $(CHEM_INC)/NCEP_base.mk
 #
 # log info
 #
@@ -464,273 +420,20 @@ all:
 
 ################################################################################
 #
-# NMM
+# NEMS
 #
 ################################################################################
 
-nmm: nmm_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS_NMM) $(EXTLIBS) 
-	@echo "$(TARGET) is created for NMM core."
+LIBS_NEMS = $(DEP_LINK_OBJS)             \
+            ENS_Cpl/ENS_Cpl.a
 
-nmm_libs:
-	@echo "       CHEM_MODi----------->" $(CHEM_MOD)
-	cd atmos/share         && gmake $(J)
-ifeq ($(PHYS_MODE),compile)
-	cd atmos/gsm/gsmphys          && gmake $(J) gocart_stub
-endif
-	cd atmos/nmm           && gmake $(J)
-	cd $(gfsdir)           && gmake stub
-	cd atmos/gen           && gmake stub
-	cd atmos/fim           && gmake stub
-	cd atmos/post          && gmake stub
-	cd atmos               && gmake $(J)
+nems: nems_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS_NEMS) $(EXTLIBS) 
+	@echo "$(TARGET) is created."
+        
+nems_libs:
 	cd ENS_Cpl             && gmake stub
-
-################################################################################
-#
-# NMM with post
-#
-################################################################################
-
-nmm_post: nmm_post_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS_NMM) $(EXTLIBS_POST) 
-	@echo "$(TARGET) is created for NMM core."
-
-nmm_post_libs:
-	cd atmos/share         && gmake $(J)
-ifeq ($(PHYS_MODE),compile)
-	cd atmos/gsm/gsmphys          && gmake $(J) gocart_stub
-endif
-	cd atmos/nmm           && gmake $(J)
-	cd $(gfsdir)           && gmake stub
-	cd atmos/gen           && gmake stub
-	cd atmos/fim           && gmake stub
-	cd atmos/post          && gmake $(J) gfs_stub
-	cd atmos               && gmake $(J)
-	cd ENS_Cpl             && gmake stub
-
-################################################################################
-#
-# GSM
-#
-################################################################################
-
-gsm: gsm_libs $(OBJS) $(COBJS) $(MAIN)
-	@echo "       CHEM_MODE ----------->"$(CHEM_MODE)
-	@echo "       PHYS_MODE ----------->"$(PHYS_MODE)
-	@echo "       PHYS_INC----------->"$(PHYS_INC)
-	$(FC) $(LDFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS) $(LDFLAGS_MAP)
-	@echo "NEMS.x successfully created for GSM core."
-
-gsm_libs:
-ifeq ($(GOCART_MODE),full)
-ifeq ($(CHEM_MODE),compile)
-	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
-endif
-endif
-	@echo "       CHEM_MODE ----------->" $(CHEM_MODE)
-	@echo "       PHYS_MODE ----------->" $(PHYS_MODE)
-	 @echo "       PHYS_INC----------->"$(PHYS_INC)
-	cd atmos/share         && gmake
-ifeq ($(PHYS_MODE),compile)
-	@echo "       CHEM_MODi----before phys------->" $(CHEM_MOD)
-	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
-endif
-	cd atmos/nmm           && gmake stub
-	cd atmos/gen           && gmake stub
-	echo "       CHEM_MODi----------->ediri" $(CHEM_MOD)
-	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
-	cd atmos/fim           && gmake stub
-	cd atmos/post          && gmake stub
-	cd atmos               && gmake
-	cd ENS_Cpl             && gmake
-
-################################################################################
-#
-# GSM with post
-#
-################################################################################
-
-gsm_post: gsm_post_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
-	@echo "NEMS.x successfully created for GSM core."
-
-gsm_post_libs:
-ifeq ($(GOCART_MODE),full)
-	ifeq ($(CHEM_MODE),compile)
-	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
-	endif
-endif
-	cd atmos/share         && gmake
-ifeq ($(PHYS_MODE),compile)
-	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
-endif
-	cd atmos/nmm           && gmake stub
-	cd atmos/gen           && gmake stub
-	cd atmos/io            && gmake
-	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
-	cd atmos/fim           && gmake stub
-	cd atmos/post          && gmake nmm_stub
-	cd atmos               && gmake
-	cd ENS_Cpl             && gmake
-
-################################################################################
-#
-# GEN
-#
-################################################################################
-
-gen: gen_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(COBJS) $(OBJS) $(LIBS_GEN) $(EXTLIBS)
-	@echo "NEMS.x successfully created for GEN core."
-
-gen_libs:
-	cd atmos/share         && gmake
-ifeq ($(PHYS_MODE),compile)
-	cd atmos/gsm/gsmphys          && gmake
-endif
-	cd atmos/nmm           && gmake stub
-	cd $(gfsdir)     && gmake stub
-	cd atmos/fim           && gmake stub
-	cd atmos/gen           && gmake
-	cd atmos/post          && gmake stub
-	cd atmos               && gmake
-	cd ENS_Cpl             && gmake
-
-
-################################################################################
-#
-# GEN, NMM and GSM
-#
-################################################################################
-
-nmm_gsm_gen: nmm_gsm_gen_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
-	@echo "NEMS.x successfully created for GEN, NMM and GSM core."
-
-nmm_gsm_gen_libs:
-ifeq ($(GOCART_MODE),full)
-	ifeq ($(CHEM_MODE),compile)
-	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
-	endif
-endif
-	cd atmos/share         && gmake
-ifeq ($(PHYS_MODE),compile)
-	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
-endif
-	cd atmos/nmm           && gmake
-	cd atmos/io            && gmake
-	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
-	cd atmos/gen           && gmake 
-	cd atmos/fim           && gmake stub
-	cd atmos/post          && gmake stub
-	cd atmos               && gmake
-	cd ENS_Cpl             && gmake
-
-################################################################################
-#
-# GEN and GSM with post
-#
-################################################################################
-
-gsm_gen_post: gsm_gen_post_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
-	@echo "NEMS.x successfully created for GEN and GSM core."
-
-gsm_gen_post_libs:
-ifeq ($(GOCART_MODE),full)
-	ifeq ($(CHEM_MODE),compile)
-	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
-	endif
-endif
-	cd atmos/share         && gmake
-ifeq ($(PHYS_MODE),compile)
-	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
-endif
-	cd atmos/nmm           && gmake stub
-
-	cd atmos/io            && gmake
-	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
-	cd atmos/gen           && gmake
-	cd atmos/fim           && gmake stub
-	cd atmos/post          && gmake nmm_stub
-	cd atmos               && gmake
-	cd ENS_Cpl             && gmake
-
-################################################################################
-#
-# NMM and GSM
-#
-################################################################################
-
-nmm_gsm: nmm_gsm_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(COBJS) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
-	@echo "NEMS.x successfully created for NMM and GSM core."
-
-nmm_gsm_libs:
-ifeq ($(GOCART_MODE),full)
-	ifeq ($(CHEM_MODE),compile)
-	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
-	endif
-endif
-	cd atmos/share         && gmake
-ifeq ($(PHYS_MODE),compile)
-	cd atmos/gsm/gsmphys          && gmake gocart_$(GOCART_MODE)
-endif
-	cd atmos/nmm           && gmake
-	cd atmos/io            && gmake
-	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
-	cd atmos/fim           && gmake stub
-	cd atmos/gen           && gmake stub
-	cd atmos/post          && gmake stub
-	cd atmos               && gmake
-	cd ENS_Cpl             && gmake
-
-################################################################################
-#
-# FIM
-#
-################################################################################
-
-# TODO:  Change to re-use NEMS standard $(EXTLIBS) instead of FIM versions 
-# TODO:  currently in $(LIBS_FIM) .  
-fim: fim_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_FIM) $(ESMF_LIB)
-	@echo "NEMS.x successfully created for FIM core."
-
-fim_libs:
-	cd atmos/share         && gmake
-	cd atmos/nmm           && gmake stub
-	cd $(gfsdir)     && gmake stub 
-	cd atmos/fim           && gmake
-	cd atmos/gen           && gmake stub
-	cd atmos/post          && gmake stub
-	cd atmos               && gmake
-	cd ENS_Cpl             && gmake
-
-################################################################################
-#
-# FIM and GSM
-#TBH:  not yet integrated with FIM build
-#
-################################################################################
-
-fim_gsm: fim_gsm_libs $(OBJS) $(MAIN)
-#	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
-#	@echo "NEMS.x successfully created for FIM and GSM core."
-	@echo "ERROR:  Cannot build FIM with other cores yet.  nems.x is NOT created for FIM and GSM core."
-	@exit -1
-
-fim_gsm_libs:
-	cd atmos/share         && gmake
-	cd atmos/nmm           && gmake stub
-	cd atmos/io            && gmake
-	cd $(gfsdir)           && gmake
-	cd atmos/fim           && gmake
-	cd atmos/gen           && gmake stub
-	cd atmos/post          && gmake stub
-	cd atmos               && gmake
-	cd ENS_Cpl             && gmake
+        
 
 ################################################################################
 #
@@ -739,11 +442,7 @@ fim_gsm_libs:
 ################################################################################
 
 clean:
-	cd atmos               && gmake clean
 	cd ENS_Cpl             && gmake clean
-ifeq ($(CHEM_MODE),compile)
-		cd chem                && gmake clean GOCART_MODE=full
-endif
 	$(RM) -f *.f90 *.lst *.o *.mod lm map $(TARGET)
 
 .SUFFIXES:
