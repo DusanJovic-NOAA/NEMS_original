@@ -158,7 +158,7 @@ if [[ "$status" != 0 ]] ; then
     SUCCESS=FAIL
 fi
 
-LOGDIR="report-$PLATFORM_NAME-log"
+LOGDIR="../../log/report-$PLATFORM_NAME-log"
 REPORT="$LOGDIR/rtreport.txt"
 
 if [[ "$baseline" == NO ]] ; then

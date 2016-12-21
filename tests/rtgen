@@ -299,7 +299,7 @@ def decide_project_theia():
     projects=list()
     projalloc=dict()
     for line in account_params.splitlines():
-        # Allocation: 6912 stmp      0.00      0.00        0.00 
+        # Allocation: 6912 stmp      0.00      0.00        0.00
         m=re.match('^\s*Allocation:\s+(\d+)\s+(\S+)\s+([0-9.]+)',line)
         if not m:
             # skip other lines
@@ -502,7 +502,8 @@ class RTGen(TestGen):
         out.write(r'''
 set -x
 rocotostat -w workflow.xml -d workflow.db -c ALL > rocotostat.txt
-%s/rtreportimpl ../com rocotostat.txt txt > rtreport.txt
+timestamp=$( ls -l --time=c --time-style=+%%s workflow.xml | awk '{print $6}' )
+%s/rtreportimpl ../com rocotostat.txt txt $timestamp > rtreport.txt
 cat rtreport.txt
 '''%(bashify_string(os.path.realpath(os.path.dirname(__file__))),))
         self.make_rtscript(self.outloc,'rtreport',out.getvalue())
@@ -512,9 +513,19 @@ cat rtreport.txt
         self.make_bash_load_rocoto(out)
         out.write(r'''
 if [[ "$#" -lt 1 ]] ; then
-    echo "Syntax: rtrewind job [job [...]]" 1>&2
-    echo "  The \"job\" is a test or build name as defined in"
-    echo "  the compsets/*.input files."
+    echo 'Synopsis:'
+    echo '  Instructs Rocoto to rerun some tests or builds.'
+    echo ' '
+    echo 'Format:'
+    echo '  Rewind all tasks: rtrewind -a'
+    echo '  Rewind some tasks: rtrewind taskname [ taskname [... ] ]'
+    echo ' '
+    echo 'Where "taskname" is the build or test name, minus the'
+    echo '"build_" or "test_" part.  Examples:'
+    echo '  Recompile gsm.x and nmm.x:  rtrewind gsm.x nmm.x'
+    echo '  Recompile and rerun everything: rtrewind -a'
+    echo ' '
+    echo 'Note: make sure you rewind any tasks that depend on your rewound task.'
     exit 1
 fi
 set -x
@@ -559,7 +570,7 @@ def parse_arguments():
     project=None
     script_mode=False
     for opt,val in optval:
-        if opt=='-v': 
+        if opt=='-v':
             verbose+=1
         elif opt=='-h':
             full_usage() # does not return

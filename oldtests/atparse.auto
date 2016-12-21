@@ -1,8 +1,0 @@
-eval 'echo ${.sh.version}' > /dev/null 2>&1
-if [[ "$?" == 0 ]] ; then
-    # We are in ksh.
-    source ./atparse.ksh
-else
-    # We are not in ksh.  Assume bash.
-    source ./atparse.bash
-fi

@@ -1,7 +1,0 @@
-# This script is responsible for loading modules that are compatible with
-# the NUOPC Layer version used in NEMS.
-
-module purge
-module use /nems/save/Patrick.Tripp/modulefiles
-module load EnvVars/1.0.0 ibmpe lsf NetCDF/4.2/serial esmf/7.1.0bs5
-module load ics/15.0.3

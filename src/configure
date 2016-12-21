@@ -1,5 +1,13 @@
 #!/bin/ksh
 
+CHOSEN_MODULE="$2"
+
+if [[ -z "$CHOSEN_MODULE" ]] ; then 
+    echo "WARNING: modulefile was not supplied as the second argument" 1>&2
+    echo "If possible, specify a modulefile relative to ../../modulefiles" 1>&2
+    echo "I will guess the correct modulefile for you." 1>&2
+fi
+
 # copy_diff_files
 copy_diff_files(){
   if [[ ! -f $2 ]] ; then
@@ -23,42 +31,47 @@ copy_diff_files(){
 
 if [[ $1 = nmmb_intel_theia ]]; then
      set -x
-     copy_diff_files conf/configure.nems.Theia.intel_nmmb conf/configure.nems
+     copy_diff_files ../../conf/configure.nems.Theia.intel_nmmb conf/configure.nems
      touch conf/externals.nems
-     copy_diff_files conf/modules.nems.Theia_ESMF_700_nmmb conf/modules.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-theia/ESMF_700_nmmb}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE" conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      set +x
      echo "NEMS/NMMB build on Theia using Intel and ESMF v7.0.0"
 elif [[ $1 = nmmb_intel_wcoss ]]; then
      set -x
-     copy_diff_files conf/configure.nems.Wcoss.intel_nmmb conf/configure.nems
+     copy_diff_files ../../conf/configure.nems.Wcoss.intel_nmmb conf/configure.nems
      touch conf/externals.nems
-     copy_diff_files conf/modules.nems.Wcoss_ESMF_700_nmmb conf/modules.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-wcoss.phase1/ESMF_700_nmmb}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE" conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h              ESMFVersionDefine.h
      set +x
      echo "NEMS/NMMB build on Wcoss using Intel and ESMF v7.0.0"
 elif [[ $1 = gsm_intel_theia ]]; then
      set -x
-     copy_diff_files conf/configure.nems.Theia.intel_gsm conf/configure.nems
+     copy_diff_files ../../conf/configure.nems.Theia.intel_gsm conf/configure.nems
      touch conf/externals.nems
-     copy_diff_files conf/modules.nems.Theia_ESMF_700_gsm conf/modules.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-theia/ESMF_700_gsm}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE" conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      set +x
      echo "NEMS/GSM build on Theia using Intel and ESMF v7.0.0"
 elif [[ $1 = gsm_intel_wcoss ]]; then
      set -x
-     copy_diff_files conf/configure.nems.Wcoss.intel_gsm conf/configure.nems
+     copy_diff_files ../../conf/configure.nems.Wcoss.intel_gsm conf/configure.nems
      touch conf/externals.nems
-     copy_diff_files conf/modules.nems.Wcoss_ESMF_700_gsm      conf/modules.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-wcoss.phase1/ESMF_700_gsm}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE"      conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h              ESMFVersionDefine.h
      set +x
      echo "NEMS/GSM build on Wcoss using Intel and ESMF v7.0.0"
 
 elif [[ $1 = gsm_intel_wcoss_c ]]; then
      set -x
-     copy_diff_files conf/configure.nems.Wcoss_C.intel_gsm conf/configure.nems
+     copy_diff_files ../../modulefiles/wcoss.cray/intel_gsm conf/configure.nems
      touch conf/externals.nems
-     copy_diff_files conf/modules.nems.Wcoss_C_ESMF_700_gsm      conf/modules.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-wcoss.cray/ESMF_700_gsm}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE"      conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h              ESMFVersionDefine.h
      set +x
      echo "NEMS/GSM build on Wcoss using Intel and ESMF v7.0.0"
@@ -66,32 +79,36 @@ elif [[ $1 = gsm_intel_wcoss_c ]]; then
 # Coupled
 #
 elif [[ $1 = coupled_intel_wcoss ]]; then
-     copy_diff_files conf/configure.nems.Wcoss.intel conf/configure.nems
-     copy_diff_files conf/externals.nems.Wcoss conf/externals.nems
-     copy_diff_files conf/modules.nems.Wcoss_ESMF_NUOPC conf/modules.nems
+     copy_diff_files ../../conf/configure.nems.Wcoss.intel conf/configure.nems
+     copy_diff_files ../../conf/externals.nems.Wcoss conf/externals.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-wcoss.phase1/ESMF_NUOPC}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE" conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      echo "Coupled NEMS build on Wcoss using Intel and ESMF v7.0.0"
 elif [[ $1 = coupled_intel_gaea ]]; then
-     copy_diff_files conf/configure.nems.Gaea.intel conf/configure.nems
-     copy_diff_files conf/externals.nems.Gaea conf/externals.nems
-     copy_diff_files conf/modules.nems.Gaea_ESMF_NUOPC conf/modules.nems
+     copy_diff_files ../../conf/configure.nems.Gaea.intel conf/configure.nems
+     copy_diff_files ../../conf/externals.nems.Gaea conf/externals.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-gaea/ESMF_NUOPC}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE" conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      echo "Coupled NEMS build on Gaea using Intel and ESMF v7.0.0"
 elif [[ $1 = coupled_intel_theia ]]; then
-     copy_diff_files conf/configure.nems.Theia.intel conf/configure.nems
-     copy_diff_files conf/externals.nems.Theia conf/externals.nems
-     copy_diff_files conf/modules.nems.Theia_ESMF_NUOPC conf/modules.nems
+     copy_diff_files ../../conf/configure.nems.Theia.intel conf/configure.nems
+     copy_diff_files ../../conf/externals.nems.Theia conf/externals.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-theia/ESMF_NUOPC}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE" conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      echo "Coupled NEMS build on Theia using Intel and ESMF v7.0.0"
 elif [[ $1 = coupled_intel_yellowstone ]]; then
-     copy_diff_files conf/configure.nems.Yellowstone.intel conf/configure.nems
-     copy_diff_files conf/externals.nems.Yellowstone conf/externals.nems
-     copy_diff_files conf/modules.nems.Yellowstone_ESMF_NUOPC conf/modules.nems
+     copy_diff_files ../../conf/configure.nems.Yellowstone.intel conf/configure.nems
+     copy_diff_files ../../conf/externals.nems.Yellowstone conf/externals.nems
+     CHOSEN_MODULE="${CHOSEN_MODULE:-yellowstone/ESMF_NUOPC}"
+     copy_diff_files "../../modulefiles/$CHOSEN_MODULE" conf/modules.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      echo "Coupled NEMS build on Yellowstone using Intel and ESMF v7.0.0"
 elif [[ $1 = coupled_linux_gnu ]]; then
-     copy_diff_files conf/configure.nems.Linux.gnu conf/configure.nems
-     copy_diff_files conf/externals.nems.Linux.gnu conf/externals.nems
+     copy_diff_files ../../conf/configure.nems.Linux.gnu conf/configure.nems
+     copy_diff_files ../../conf/externals.nems.Linux.gnu conf/externals.nems
      copy_diff_files ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      echo "Coupled NEMS build on Linux using GNU and ESMF v7.0.0"
 

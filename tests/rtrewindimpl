@@ -2,7 +2,26 @@
 
 import sys, re
 
-joblist=sys.argv[1:]
+if len(sys.argv)<2:
+    sys.stderr.write('''Synopsis:
+  Instructs Rocoto to rerun some tests or builds.
+Format:
+  Rewind all tasks: rtrewind -a
+  Rewind some tasks: rtrewind taskname [ taskname [... ] ]
+Where "taskname" is the build or test name, minus the
+"build_" or "test_" part.  Examples:
+  Recompile gsm.x and nmm.x:  rtrewind gsm.x nmm.x
+  Recompile and rerun everything: rtrewind -a
+Warning: rtrewind has no knowledge of dependencies.  Without
+  -a, you need to make sure you rewind any tasks that are
+  dependent on any tasks you wish to rerun.
+''')
+    exit(1)
+
+if sys.argv[1] == '-a':
+    joblist=None
+else:
+    joblist=sys.argv[1:]
 
 command="rocotorewind -w workflow.xml -d workflow.db"
 
@@ -10,28 +29,33 @@ sent_cycle=False
 
 def process_line(line,m):
     match=False
-    for job in joblist:
-        task=m.group(2)
-        if task=="test_"+job:
-            match="test_"+job
-        if task=="build_"+job:
-            match="build_"+job
-        if match:
-            break
+    if joblist is not None:
+        for job in joblist:
+            task=m.group(2)
+            if task=="test_"+job:
+                match="test_"+job
+            if task=="build_"+job:
+                match="build_"+job
+            if match:
+                break
 
-    if not match: 
-        return
+        if not match: 
+            return
 
     global sent_cycle, command
     if not sent_cycle:
         command+=" -c "+m.group(1)
         sent_cycle=True
 
-    command+=" -t "+match
+    if match:
+        command+=" -t "+match
 
 for line in sys.stdin:
     m=re.match('^(\d+)\s+(\S+)',line)
     if m:
         process_line(line,m)
+
+if joblist is None:
+    command+=' -a'
 
 print(command+'\n')

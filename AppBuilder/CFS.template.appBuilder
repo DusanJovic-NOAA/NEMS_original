@@ -1,5 +1,0 @@
-# Climate Forecast System
-#
-# CFS NEMS Application Builder file
-
-COMPONENTS=( "GSM" "CICE" "MOM5" )
