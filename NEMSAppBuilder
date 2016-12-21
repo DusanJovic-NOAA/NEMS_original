@@ -1327,7 +1327,11 @@ Select <No> to retain and use the build environment of the current shell." \
       autonote "Load $NEMSDIR/src/conf/modules.nems"
       module use $NEMSDIR/src/conf
       module load modules.nems
-      module unuse $NEMSDIR/src/conf
+#      module unuse $NEMSDIR/src/conf
+      echo =============================================
+      module list
+      echo =============================================
+      which mpiifort
       autonote "Loaded $NEMSDIR/src/conf/modules.nems"
       loaded_envir=yes
     fi
