@@ -1,4 +1,4 @@
-SHELL = /bin/sh -x
+SHELL = /bin/sh
 
 # variables that need to move between makefiles on different levels of the build tree
 # via shell environment variables
@@ -330,7 +330,7 @@ GOCART_MODE=stub
 ESMADIR=$(CHEM_DIR)
 #gjt: comment out the following line because it unconditionally uses CHEM_INC
 #gjt: THIS NEEDS TO BE FIXED!
-#include $(CHEM_INC)/NCEP_base.mk
+-include $(CHEM_INC)/NCEP_base.mk
 
 ifeq ($(GOCART_MODE),stub)
 	LIBGOCART=
@@ -365,7 +365,7 @@ export GOCART_MODE
 ESMADIR=$(CHEM_LIB)
 #gjt: comment out the following line because it unconditionally uses CHEM_INC
 #gjt: THIS NEEDS TO BE FIXED!
-#include $(CHEM_INC)/NCEP_base.mk
+-include $(CHEM_INC)/NCEP_base.mk
 #
 # log info
 #
@@ -428,7 +428,8 @@ LIBS_NEMS = $(DEP_LINK_OBJS)             \
             ENS_Cpl/ENS_Cpl.a
 
 nems: nems_libs $(OBJS) $(COBJS) $(MAIN)
-	$(FC) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS_NEMS) $(EXTLIBS) 
+	echo libgocart is $(LIBGOCART)
+	$(FC) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS_NEMS) $(EXTLIBS) $(LIBGOCART)
 	@echo "$(TARGET) is created."
         
 nems_libs:
@@ -442,8 +443,8 @@ nems_libs:
 ################################################################################
 
 clean:
-	cd ENS_Cpl             && gmake clean
 	$(RM) -f *.f90 *.lst *.o *.mod lm map $(TARGET)
+	cd ENS_Cpl             && gmake clean
 
 .SUFFIXES:
 .SUFFIXES: .F90 .f90 .o

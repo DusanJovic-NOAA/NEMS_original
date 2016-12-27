@@ -44,6 +44,7 @@ fi
 if [[ "$tool" != autobuild ]] ; then
     echo "$tool"
     echo $toolflag
+       
 fi
 
 ########################################################################
@@ -560,7 +561,9 @@ build_checkloop(){
   eval COMP_DIR=\${${COMPOS[0]}_DIR}
   eval COMP_SRCDIR=\${${COMPOS[0]}_SRCDIR}
   eval COMP_BINDIR=\${${COMPOS[0]}_BINDIR}
-  if [[ -d $COMP_BINDIR ]] ; then
+  if [[ "${COMPOS[0]}" == GSM || "${COMPOS[0]}" == NMM || "${COMPOS[0]}" == FV3 ]] ; then
+    reuse=true
+  elif [[ -d $COMP_BINDIR ]] ; then
     # component installation directory exists
     reuse=true
   else
@@ -1325,6 +1328,7 @@ Select <No> to retain and use the build environment of the current shell." \
         16 40 "Build environment" 
     if [[ "$?" == "0" ]] ; then
       autonote "Load $NEMSDIR/src/conf/modules.nems"
+      module purge
       module use $NEMSDIR/src/conf
       module load modules.nems
 #      module unuse $NEMSDIR/src/conf
@@ -1340,6 +1344,22 @@ fi
 
 # make available dirs of pre-installed externals
 source $NEMSDIR/src/conf/externals.nems
+
+gocartFlag='false'
+for i in "${COMPONENTS[@]}" ; do
+  # first remove potential quotation marks
+  i=${i#\"}
+  COMP=${i%\"}
+  # separate off component build options at the % separator
+  IFS='%' read -ra COMPOS <<< "$COMP"
+  autonote "pos 0 = ${COMPOS[0]} 1 = ${COMPOS[1]}"
+  if [[ ${COMPOS[1]} == "gocart" ]] ; then
+      autonote "gocart $COMPO"
+      gocartFlag='true'
+  else
+      autonote "not gocart $COMPO"
+  fi
+done
 
 # loop over the components to build them
 if [[ "$APPLEVELUSE" == "true" ]] ; then
@@ -1532,6 +1552,9 @@ else
 fi
 
 MAKEOPT="${MAKEOPT:-$TARGET $MAKEOPT $COMPOPT$COMPDIRS}"
+if [[ "$gocartFlag" == true ]] ; then
+    MAKEOPT="$MAKEOPT GOCART_MODE=full"
+fi
 echo "start to build TARGET=$TARGET,COMPOPT=$COMPOPT,COMPDIRS=$COMPDIRS"
 echo "         with MAKEOPT=$MAKEOPT"
 
@@ -1672,9 +1695,7 @@ while [[ ! -f ../exe/NEMS.x ]] ; do
   fi
 done
 if [[ -f ../exe/NEMS.x ]] ; then
-  if [[ "$tool" == autobuild ]] ; then
-    autonote "Success!"
-  elif [[ "$toolflag" == "dialog" ]] ; then
+    if [[ "$toolflag" == "dialog" ]] ; then
     # "dialog" implementation
     "$tool" --clear --backtitle "NEMS Application Builder" \
       --title "Success" --yesno "The NEMS executable was successfully built. \
@@ -1684,7 +1705,7 @@ if [[ -f ../exe/NEMS.x ]] ; then
         --title "Success view log" --textbox $LOGDIR/appBuilder.NEMS.log.$$ \
         20 120
     fi
-  else
+  elif [[ "$tool" == "whiptail" ]] ; then
     # "whiptail" implementation
     "$tool" --clear --backtitle "NEMS Application Builder" \
       --title "Success" --yesno "The NEMS executable was successfully built. \
@@ -1694,6 +1715,8 @@ if [[ -f ../exe/NEMS.x ]] ; then
         --title "Success view log" --textbox $LOGDIR/appBuilder.NEMS.log.$$ \
         20 120 --scrolltext
     fi
+  else
+    autonote "Success!"
   fi
 fi
 
