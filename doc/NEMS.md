@@ -3,37 +3,42 @@ NEMS Directory Structure
 
 The NEMS directory contains the source code and test scripts for the
 NEMS.  Most of the documentation is in the `doc` subdirectory or in
-the `../doc/` directory.
-
-What is NOT in the NEMS is the source code to the components, the
-choice of build environment and some aspects of running the system.
-Those parts of the NEMS are in a directory above this, at the
-so-called "app" level.  Further documentation, specific to the app, is
-also at the app level.
+the `../doc/` directory.  Most of the files that were in the NEMS have
+been moved to the application layer, discussed below.  Further
+documentation, specific to the app, is also at the app level.
 
 Within NEMS resides:
 
 * `exe` - NEMS.x and other executables built from `src`
 * `src` - main program for NEMS
- * `atmos` - The ATM component code and its internal state.  This will soon be removed
-  * `gfs` - All files directly related to the global spectal model
-  * `nmm` - All files related to the non-hydrostatic multi-scale model
-  * `fim` - all files related to the FIM
-  * `gen` - All files related to the GEN
- * `share` - Assorted source shared by all model cores.
  * `ENS_Cpl` - The Ensemble coupler directory.
- * `post` - contains subroutines to conenct NEMS and the Unified Post
-   Processor (UPP), no UPP source code included
- * `chem/gocart` - The GOCART source files.
  * `conf` - various compliation specifications
-
-* `tests` - test execution scripts.  Most of these will soon be removed or
-   moved to the app level.
-* `oldtests` - the old test suite which is deprecated but retained for
-   backward compatibility
-* `compsets` - configuration for the NEMSCompsetRun.  This will soon be
-   moved to the app level.
 * `doc` - documentation.
 * `NEMSAppBuilder` - a script to build NEMS, as discussed elsewhere in the
   documentation
-* `NEMSCompsetRun` - script to run NEMS
+* `NEMSCompsetRun` - script to run NEMS, identical to the regression test runner
+* `OldCompsetRun` - prior version of the compset runner
+* `tests` - test execution logic
+  * `rtgen` - front-end to the regression test runner
+  * `rt.sh` - wrapper around rtgen for users familiar with the old system
+
+At the application level resides these files:
+
+* `doc` - application-specific documentation
+
+* `oldtests` - application-specific, old, test suite which is
+   deprecated but retained for backward compatibility
+
+* `compsets` - configuration for the NEMSCompsetRun and regression
+   test runner
+
+* `oldcompsets` - configuration for the old compset system available
+   via OldCompsetRunner
+
+* `modulefiles` - module loading information for each platform
+  * `theia` - NOAA Theia modulefiles
+  * `wcoss.phase1` - WCOSS Phase 1 modulefiles
+  * ... other directories for other computers ...
+* `conf` - configuration for NEMS/src/configure
+* `parm` - parameter files for the test suites
+* `log` - log directory for the NEMSAppBuilder and NEMSCompsetRun

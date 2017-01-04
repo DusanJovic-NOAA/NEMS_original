@@ -21,6 +21,7 @@ function usage {
   echo "  -h  display this help"
   echo "  -r PLATFORM:/path/to/run"
   echo "      rerun past suite without regenerating it"
+  echo "  -p project = set the project to use for cpu time"
   echo
   echo "Common <subset>s: gfs, nmm, slg, wam, debug"
   echo "See ../../compsets/all.input for a full list"
@@ -42,7 +43,7 @@ rerun=NO
 RUNDIR=''
 PLATFORM_NAME=''
 
-while getopts ":c:fst:n:hr:" opt; do
+while getopts ":c:fst:n:hr:p:" opt; do
     case $opt in
         r)
             if [[ $OPTARG =~ ^([a-zA-Z][a-zA-Z_.0-9]*):(.+)$ ]] ; then
@@ -53,6 +54,9 @@ while getopts ":c:fst:n:hr:" opt; do
                 echo "${BASH_REMATCH[@]}"
                 usage "Rerun argument must be PLATFORM_NAME:RUNDIR"
             fi
+            ;;
+        p)
+            cmd="$cmd -p $OPTARG" 
             ;;
         c)
             if [[ ! -z "$set_info" ]] ; then
@@ -174,7 +178,7 @@ if [[ "$baseline" == NO ]] ; then
     fi
     cmd="$RUNDIR/rtreport > $REPORT"
     echo "rt.sh: run $cmd"
-    $cmd > "$REPORT"
+    "$RUNDIR/rtreport" > "$REPORT"
     repstatus="$?"
     echo "rt.sh: status $repstatus"
     if [[ "$repstatus" == 0 ]] ; then

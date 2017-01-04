@@ -70,6 +70,9 @@ The `(options)` specify what is to be run.  Common needs are:
   when running the suite in verification or baseline generation modes.
 * `-r PLATFORM:/path/to/rtgen.###` - used by the full test method.
   See below.
+* `-p project` = set the project or account to use for CPU hours.
+  If unspecified, one will be automatically picked based on 
+  cpu availability.
 
 ### Full Test Method
 
@@ -162,11 +165,20 @@ goes well, the tests will all pass and you will see this message:
 At that point, you can run rtreport to get a report of the tests.
 Actually, you can run rtreport at any time.  If the tests are not yet
 complete, it will tell you which ones are complete.  It will report
-all it knows about failed tests too.
+all it knows about failed tests too.  There are two output formats:
 
-    /path/to/USERNAME/rtgen.23768/rtreport
+To run:
 
-The output looks something like this
+    /path/to/USERNAME/rtgen.23768/rtreport [mode]
+
+Where the optional `mode` is one of:
+
+  * `status` - short output that only lists failed tests and counts
+    the number of failed, complete, and unfinished tests.
+
+  * `txt` - full text output of all information (the default).
+
+The output of `txt` mode (the default) looks something like this
 
     BUILD nmm.x: SUCCEEDED
     BUILD nmm.debug.x: SUCCEEDED
@@ -189,6 +201,22 @@ The output looks something like this
     ... information about more tests ...
 
 
+### <a name="rerun"></a>Rerunning Failed Tests
+
+If a test fails, you can request that it be rerun via the `rtrewind`
+command.  The command is located in the same directory as `rtrun`
+and can be called in two different ways:
+
+    /path/to/USERNAME/rtgen.23768/rtrewind -a
+
+    /path/to/USERNAME/rtgen.23768/rtrewind job1 [job2 [...]]
+
+The first method requests a rerun of ALL tests and builds while the
+second requests only certain ones be rerun.
+
+The jobs (`job1`, `job2`, ...) are the names from the test suite such
+as `gsm.x` or `nmm_cntrl`.  You can optionally include `test_` or
+`build_` before the name, as it is printed by the `rtreport` command.
 
 ### <a name="run-sub"></a>Running Subsets of the Test Suite
 

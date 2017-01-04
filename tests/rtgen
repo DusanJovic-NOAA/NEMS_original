@@ -9,6 +9,7 @@ import pwd
 import shutil
 import getopt
 import StringIO
+import socket
 
 def fail(how):
     """!Aborts the program with status 1.  Should only be called
@@ -172,7 +173,6 @@ try:
     import produtil.setup
 except ImportError as ie:
     altpath=os.path.join(os.path.dirname(os.path.realpath(__file__)),'produtil/ush')
-    print altpath
     if not os.path.isdir(altpath):
         fail('%s is missing and produtil is not in PYTHONPATH.  Is your produtil external missing?'%(altpath,))
     sys.path.append(altpath)
@@ -295,7 +295,9 @@ def decide_project_theia():
             batchexe('account_params'),logger=jlogger)
     except(EnvironmentError,ExitStatusException) as ee:
         logger.warning('Cannot run account_params: '+str(ee))
+        logger.warning('Will use project "nems" for cpu hours.')
         return 'nems'
+    default_project='nems'
     projects=list()
     projalloc=dict()
     for line in account_params.splitlines():
@@ -309,6 +311,8 @@ def decide_project_theia():
         try:
             alloc=float(alloc)
             if name=='nems': alloc/=2
+            if not projects:
+                default_project=name
             projects.append(name)
             projalloc[name]=alloc
         except (ValueError,TypeError) as vte:
@@ -316,14 +320,14 @@ def decide_project_theia():
             continue
     if not projects:
         # Parse error or failure of account_params.
-        logger.warning('Could not parse account_params output.')
-        return 'nems'
+        logger.warning('Could not parse account_params output.  Will use default: '+default_project)
+        return default_project
     projects.sort(lambda a,b: cmp(projalloc[a],projalloc[b]))
     projchoose=projects[-1]
 
     if projalloc[projchoose]<1.0:
-        logger.warning('All projects passed core-hour limit; will use nems.')
-        return 'nems'
+        logger.warning('All projects passed core-hour limit; will use first project: '+default_project)
+        return default_project
 
     for proj in projects:
         if proj==projchoose:
@@ -413,7 +417,70 @@ def decide_project_wcoss1():
 def decide_tmp_wcoss1():
     """!Placeholder for future development; returns "/ptmpp/$USER"
     where $USER is the username """
-    return os.path.join('/ptmpp1',username())
+    logger=logging.getLogger('rtgen')
+
+    # are we on tide or gyre?
+    host=socket.gethostname()
+    tg=host[0] # = t for tide or g for gyre
+
+    ptmps=[ [ '/ptmpd1', '-j', 'ptmp-d1', 'gpfs-'+tg+'d1'],
+            [ '/ptmpd2', '-j', 'ptmp-d2', 'gpfs-'+tg+'d2'],
+            [ '/ptmpp1', '-j', 'ptmp-p1', 'gpfs-'+tg+'p1'] ]
+    
+    # Area with maximum space available and available space in TB:
+    max_area='/ptmpp1'   # default value on failure
+    max_avail=0
+
+    for ptmp in ptmps:
+        try:
+            args=['/usr/lpp/mmfs/bin/mmlsquota', '--block-size', '1T' ]
+            args.extend(ptmp[1:])
+            area=ptmp[0]
+            cmd=batchexe(args[0])[args[1:]]
+            mmlsquota=produtil.run.runstr(cmd,logger=logger)
+            if not mmlsquota:
+                logger.error('mmlsquota printed nothing')
+                continue
+            
+            #gpfs-gd1 FILESET 19 147 147 1 none | 1399932 0 0 158 none 
+            #                 ^      ^
+            #                 |      +--- TB Limit
+            #                 +---------- TB Used
+
+            for m in re.finditer(r'''(?isx)
+               (?:
+                   \S+ \s+ FILESET
+                   \s+ (?P<TBused>  \d+  )
+                   \s+ (?P<TBquota> \d+  )
+                   \s+ (?P<TBlimit> \d+  )
+                   [^\r\n]* (?: [\r\n] | [\r\n]*\Z )
+                |
+                 (?P<bad> [^\r\n]*[\r\n] | [^\r\n]*\Z )
+               )
+               ''',mmlsquota):
+
+                if m.group('bad') or not m.group('TBused') \
+                        or not m.group('TBlimit'):
+                    logger.debug('mmlsquota: ignoring %s'%(
+                            repr(m.group(0).strip()),))
+                    continue
+                avail=int(m.group('TBlimit')) - int(m.group('TBused'))
+                logger.info('%s: %d TB available'%(area,avail))
+                if avail>max_avail:
+                    logger.info('Higher than %s: %d TB available'%(max_area,max_avail))
+                    ( max_area, max_avail) = ( area, avail )
+        except(EnvironmentError,ExitStatusException,KeyError,ValueError) as e:
+            # Log all likely errors before emergency fallback option:
+            logger.error(str(e),exc_info=True)
+
+    if max_area:
+        logger.info('%s: use this ptmp with %d TB available'%(
+                max_area,max_avail))
+    else:
+        logger.warning('Auto-detection of least used ptmp failed.')
+        logger.warning('Will fall back to %s'%(max_area,))
+
+    return os.path.join(max_area,username())
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Custom test generator:
@@ -422,7 +489,7 @@ class RTGen(TestGen):
     def __init__(self,baseline,scratch_dir,unique_id=None,
                  logger=None,baseline_dir=None,
                  verbose=True,dry_run=False,inputfile=None,
-                 setarith=None):
+                 setarith=None,project=None):
         baseline=bool(baseline)
         self.no_copy_template = baseline_dir is not None
         if unique_id is None:
@@ -440,11 +507,20 @@ class RTGen(TestGen):
             self._new_baseline=os.path.join(
                 self._scratch_dir,'REGRESSION_TEST')
         self.platform_name=None
+        self.project=project
+        assert(project)
+        assert(self.project)
     def override(self,scope):
+        assert(self.project)
         self._scope=scope
-        if not self._new_baseline:
-            return
-        scope.override_local([scope],'plat%BASELINE',self._new_baseline)
+        if self._new_baseline:
+            scope.override_local([scope],'plat%BASELINE',self._new_baseline)
+        if self.project:
+            self.logger.warning('override project with '+self.project)
+            scope.override_local([scope],'plat%CPU_ACCOUNT',self.project)
+            scope.override_local([scope],'plat%ACCOUNT',self.project)
+        else:
+            raise Exception('no project')
     @property
     def new_baseline(self):
         return self._new_baseline
@@ -500,10 +576,9 @@ class RTGen(TestGen):
         out=StringIO.StringIO()
         self.make_bash_load_rocoto(out)
         out.write(r'''
-set -x
 rocotostat -w workflow.xml -d workflow.db -c ALL > rocotostat.txt
 timestamp=$( ls -l --time=c --time-style=+%%s workflow.xml | awk '{print $6}' )
-%s/rtreportimpl ../com rocotostat.txt txt $timestamp > rtreport.txt
+%s/rtreportimpl ../com rocotostat.txt "${1:-txt}" $timestamp > rtreport.txt
 cat rtreport.txt
 '''%(bashify_string(os.path.realpath(os.path.dirname(__file__))),))
         self.make_rtscript(self.outloc,'rtreport',out.getvalue())
@@ -669,7 +744,7 @@ def main():
     testgen=RTGen(baseline,scratch_dir,unique_id,logger,
                   baseline_dir,inputfile=inputfile,
                   verbose=bool(verbose),dry_run=dry_run,
-                  setarith=arith)
+                  setarith=arith,project=project)
     try:
         jlogger.info('Generating workflow with id %s.'%(repr(unique_id),))
         testgen.testgen()
