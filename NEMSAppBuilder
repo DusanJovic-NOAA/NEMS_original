@@ -1328,10 +1328,7 @@ Select <No> to retain and use the build environment of the current shell." \
         16 40 "Build environment" 
     if [[ "$?" == "0" ]] ; then
       autonote "Load $NEMSDIR/src/conf/modules.nems"
-      module purge
-      module use $NEMSDIR/src/conf
-      module load modules.nems
-#      module unuse $NEMSDIR/src/conf
+      source $NEMSDIR/src/conf/modules.nems.sh
       echo =============================================
       module list
       echo =============================================

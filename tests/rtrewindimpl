@@ -36,6 +36,8 @@ def process_line(line,m):
                 match="test_"+job
             if task=="build_"+job:
                 match="build_"+job
+            if task==job:
+                match=job
             if match:
                 break
 

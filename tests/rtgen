@@ -674,6 +674,44 @@ def parse_arguments():
     return verbose,baseline_dir,dry_run,baseline,unique_id,temp, \
            inputfile,arglist_nowhite,project,script_mode
 
+########################################################################
+
+def verify_fingerprint(baseline,testgen,logger):
+    if baseline:
+        baseline_fingerprint=os.path.join(
+            testgen.get_string('plat%BASELINE_TEMPLATE'),
+            'REGTEST-FINGERPRINT.md')
+    else:
+        baseline_fingerprint=os.path.join(
+            testgen.get_string('plat%BASELINE'),
+            'REGTEST-FINGERPRINT.md')
+    repo_fingerprint=os.path.join(
+        testgen.get_string('plat%PARMnems'),
+        'REGTEST-FINGERPRINT.md')
+
+    with open(baseline_fingerprint,'r') as base_finger_file:
+        base_finger_dat=base_finger_file.read()
+
+    with open(repo_fingerprint,'r') as repo_finger_file:
+        repo_finger_dat=repo_finger_file.read()
+
+    if repo_finger_dat != base_finger_dat:
+        jlogger.error('You are using the wrong data directory.')
+        jlogger.error('Baseline finger print does not match repo fingerprint.')
+        jlogger.error('  Baseline fingerprint file: %s'%(
+                baseline_fingerprint,))
+        jlogger.error('  Repository fingerprint file: %s'%(
+                repo_fingerprint,))
+        sys.exit(1)
+    else:
+        jlogger.info('Baseline fingerprint matches repo fingerprint. Rejoice.')
+        jlogger.info('  Baseline fingerprint file: %s'%(
+                baseline_fingerprint,))
+        jlogger.info('  Repository fingerprint file: %s'%(
+                repo_fingerprint,))
+
+########################################################################
+
 def main():
     verbose,baseline_dir,dry_run,baseline,unique_id,temp, \
         inputfile,arglist,project,script_mode = \
@@ -745,9 +783,16 @@ def main():
                   baseline_dir,inputfile=inputfile,
                   verbose=bool(verbose),dry_run=dry_run,
                   setarith=arith,project=project)
+
+    jlogger.info('Parsing compset descriptions.')
+    testgen.parse()
+
+    jlogger.info('Verifying repo fingerprint against data fingerprint.')
+    verify_fingerprint(baseline,testgen,logger)
+
     try:
         jlogger.info('Generating workflow with id %s.'%(repr(unique_id),))
-        testgen.testgen()
+        testgen.generate()
     except ArithKeyError as ake:
         # User specified an invalid set or test.  Give the usage message.
         usage(str(ake))
