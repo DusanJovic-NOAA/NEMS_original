@@ -11,7 +11,7 @@
 
 include         $(ESMFMKFILE)
 ESMF_INC        = $(ESMF_F90COMPILEPATHS)
-ESMF_LIB        = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
+ESMF_LIB        = -L$(ESMF_LIBSDIR) $(ESMF_F90ESMFLINKLIBS)
 
 ################################################################################
 ## ATM settings
