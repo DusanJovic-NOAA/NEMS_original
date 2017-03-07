@@ -90,6 +90,9 @@ last_cycledone=-999
 last_lostdead=-999
 while [[ 1 == 1 ]] ; do
   log "check dependencies and submit jobs..."
+  # The "grep -v" is to ignore a warning about /gpfs/hps/ptmp being
+  # world-writable.  The user can do nothing to fix the problem,
+  # so there is no reason to warn about it.
   rocotorun -w workflow.xml -d workflow.db
   verbose "check status..."
   cycledone=$( sqlite3 workflow.db 'SELECT id FROM cycles WHERE done>0' | wc -l )
@@ -410,11 +413,11 @@ def decide_tmp_theia():
     logger.warning("%s: randomly chosen stmp"%(use_me,))
     return os.path.join(use_me,username())
 
-def decide_project_wcoss1():
+def decide_project_wcoss():
     """!Placeholder for future development; returns "GFS-T2O" """
     return 'GFS-T2O'
 
-def decide_tmp_wcoss1():
+def decide_tmp_wcoss(pex):
     """!Placeholder for future development; returns "/ptmpp/$USER"
     where $USER is the username """
     logger=logging.getLogger('rtgen')
@@ -423,12 +426,21 @@ def decide_tmp_wcoss1():
     host=socket.gethostname()
     tg=host[0] # = t for tide or g for gyre
 
-    ptmps=[ [ '/ptmpd1', '-j', 'ptmp-d1', 'gpfs-'+tg+'d1'],
-            [ '/ptmpd2', '-j', 'ptmp-d2', 'gpfs-'+tg+'d2'],
-            [ '/ptmpp1', '-j', 'ptmp-p1', 'gpfs-'+tg+'p1'] ]
+    if pex==1:
+        ptmps=[ [ '/ptmpd1', '-j', 'ptmp-d1', 'gpfs-'+tg+'d1'],
+                [ '/ptmpd2', '-j', 'ptmp-d2', 'gpfs-'+tg+'d2'],
+                [ '/ptmpp1', '-j', 'ptmp-p1', 'gpfs-'+tg+'p1'] ]
+        max_area='/ptmpp1' # default on failure
+    elif pex==2:
+        ptmps=[ [ '/ptmpd3', '-j', 'ptmp-d3', 'gpfs-'+tg+'d3'],
+                [ '/ptmpp2', '-j', 'ptmp-p2', 'gpfs-'+tg+'p2'] ]
+        max_area='/ptmpp2' # default on failure
+    else: # assume cray (pex=0)
+        ptmps=[ [ '/gpfs/hps/ptmp', '-j', 'hps-ptmp', 'hps'],
+                [ '/gpfs/hps/stmp', '-j', 'hps-stmp', 'hps'] ]
+        max_area='/gpfs/hps/ptmp' # default on failure
     
     # Area with maximum space available and available space in TB:
-    max_area='/ptmpp1'   # default value on failure
     max_avail=0
 
     for ptmp in ptmps:
@@ -548,8 +560,9 @@ class RTGen(TestGen):
             out.write('module load emc-utils ; have_qoutq=YES\n')
         elif here.name in [ 'surge', 'luna' ]:
             out.write('module load xt-lsfhpc\n')
-            out.write('module use /gpfs/hps/emc/hwrf/noscrub/soft/modulefiles\n')
+            out.write('module use /usrx/local/emc_rocoto/modulefiles\n')
             out.write('module load rocoto\n')
+            out.write('module use /gpfs/hps/emc/hwrf/noscrub/soft/modulefiles\n')
             out.write('module load emc-utils ; have_qoutq=YES\n')
         elif here.name == 'theia':
             out.write('module load rocoto\n')
@@ -685,9 +698,15 @@ def verify_fingerprint(baseline,testgen,logger):
         baseline_fingerprint=os.path.join(
             testgen.get_string('plat%BASELINE'),
             'REGTEST-FINGERPRINT.md')
+
     repo_fingerprint=os.path.join(
         testgen.get_string('plat%PARMnems'),
         'REGTEST-FINGERPRINT.md')
+
+    if not os.path.exists(repo_fingerprint):
+        jlogger.warning('No fingerprint file.  Skipping fingerprint check.')
+        jlogger.warning('Expected: %s'%(repo_fingerprint,))
+        return
 
     with open(baseline_fingerprint,'r') as base_finger_file:
         base_finger_dat=base_finger_file.read()
@@ -746,9 +765,8 @@ def main():
     if project is None:
         if produtil.cluster.name() == 'theia':
             project=decide_project_theia()
-        elif produtil.cluster.name() in ['gyre','tide'] and \
-                produtil.cluster.where().wcoss_phase == 1:
-            project=decide_project_wcoss1()
+        elif produtil.cluster.name() in ['gyre','tide','luna','surge']:
+            project=decide_project_wcoss()
         else:
             fail('Unknown system.  Only Theia and WCOSS Phase 1 are supported.')
         jlogger.info('Auto-chosen project for job submission is %s'%(
@@ -760,9 +778,8 @@ def main():
     if temp is None:
         if produtil.cluster.name() == 'theia':
             scratch_dir=decide_tmp_theia()
-        elif produtil.cluster.name() in ['gyre','tide'] and \
-                produtil.cluster.where().wcoss_phase == 1:
-            scratch_dir=decide_tmp_wcoss1()
+        elif produtil.cluster.name() in ['gyre','tide','luna','surge']:
+            scratch_dir=decide_tmp_wcoss(produtil.cluster.where().wcoss_phase)
         else:
             fail('Unknown system.  Only Theia and WCOSS Phase 1 are supported.')
         jlogger.info('Auto-chosen ptmp is %s'%(repr(scratch_dir),))

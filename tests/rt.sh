@@ -32,7 +32,11 @@ function usage {
   exit 1
 }
 
-if [[ ! -s rtgen ]] ; then
+if [[ -d NEMS/tests ]] ; then
+    cd NEMS/tests
+elif [[ -s tests/rtgen ]] ; then
+    cd tests
+elif [[ ! -s rtgen ]] ; then
     die Run this script from the NEMS/tests directory.
 fi
 

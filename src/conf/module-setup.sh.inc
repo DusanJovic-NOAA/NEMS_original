@@ -4,8 +4,8 @@ __ms_function_name="setup__test_function__$$"
 eval "$__ms_function_name() { /bin/true ; }"
 
 # Determine which shell we are using
-__ms_ksh_test=$( eval '__text="text" ; if [[ $__text =~ ^(t).* ]] ; then printf "%s" ${.sh.match[1]} ; fi' 2> /dev/null )
-__ms_bash_test=$( eval 'if ( set | grep '$__ms_function_name' | grep -v name > /dev/null 2>&1 ) ; then echo t ; fi ' 2> /dev/null )
+__ms_ksh_test=$( eval '__text="text" ; if [[ $__text =~ ^(t).* ]] ; then printf "%s" ${.sh.match[1]} ; fi' 2> /dev/null | cat )
+__ms_bash_test=$( eval 'if ( set | grep '$__ms_function_name' | grep -v name > /dev/null 2>&1 ) ; then echo t ; fi ' 2> /dev/null | cat )
 
 if [[ ! -z "$__ms_ksh_test" ]] ; then
     __ms_shell=ksh
@@ -33,9 +33,18 @@ elif [[ -d /gpfs/hps && -e /etc/SuSE-release ]] ; then
     if ( ! eval module help > /dev/null 2>&1 ) ; then
 	source /opt/modules/default/init/$__ms_shell
     fi
-    module use /opt/cray/ari/modulefiles/
-    module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles/
     module purge
+    module purge
+    # Workaround until module issues are fixed:
+    unset _LMFILES_
+    unset LOADEDMODULES
+    module use /opt/modulefiles
+    module use /opt/cray/ari/modulefiles
+    module use /opt/cray/craype/default/alt-modulefiles
+    module use /opt/cray/alt-modulefiles
+    module use /gpfs/hps/nco/ops/nwprod/modulefiles
+    module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles
+    module use /usrx/local/prod/modulefiles
 elif [[ -d /dcom && -d /hwrf ]] ; then
     # We are on NOAA Tide or Gyre
     if ( ! eval module help > /dev/null 2>&1 ) ; then

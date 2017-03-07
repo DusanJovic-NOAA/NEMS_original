@@ -52,10 +52,10 @@ fi
 # Machine detection.
 
 if [[ -e /gpfs/hps && -e /usrx ]] ; then
-    MACHINE_ID=wcoss
     if [[ -d /usrx && -d /global && -e /etc/redhat-release && \
         -e /etc/prod ]] ; then
         # We are on WCOSS Phase 1 or 2.
+	MACHINE_ID=wcoss
         if ( ! cat /proc/cpuinfo |grep 'processor.*32' ) ; then
             # Fewer than 32 fake (hyperthreading) cpus, so Phase 1.
             FULL_MACHINE_ID=wcoss.phase1
@@ -66,7 +66,8 @@ if [[ -e /gpfs/hps && -e /usrx ]] ; then
         fi
     else
         # WCOSS Cray
-        FULL_MACHINE_ID=wcoss.cray
+	MACHINE_ID=wcoss_cray
+        FULL_MACHINE_ID=wcoss_cray
         PEX=c
     fi
 elif [[ -e /scratch4 && -e /scratch3 ]] ; then
@@ -779,13 +780,24 @@ build_fv3(){
   # in: COMP, COMP_SRCDIR, COMP_BINDIR
   if [[ $1"" == "clean" ]] ; then
     echo "Cleaning $COMP..."
-    echo "Only partially implemented!!!"
+    cd "$COMP_SRCDIR"
+    gmake cleanall
+    rm -rf nems_dir
+
+    # A few things that "cleanall" doesn't clean:
+    rm -rf FV3_INSTALL
+    rm -rf nems_dir
+    find $COMP_SRCDIR/fms/ -name '*.o' -o -name '*.mod'
+
     echo "...done cleaning $COMP."
   else
     echo "Building $COMP... 64 bits by default"
-    cd $COMP_SRCDIR/BUILD
-    ./COMP_ALL_avx $COMP_BINDIR
-#    make -f makefile.nuopc NEMSMOMDIR=$COMP_SRCDIR/exec/$MACHINE_ID INSTALLDIR=$COMP_BINDIR install
+    cd "$COMP_SRCDIR"
+    #./configure $( echo "$FULL_MACHINE_ID" | sed 's,\.,_,g' )
+    cp -fp $NEMSDIR/src/conf/configure.nems "$COMP_SRCDIR"/conf/configure.fv3
+    cp -fp $NEMSDIR/src/conf/modules.nems "$COMP_SRCDIR"/conf/modules.fv3
+    gmake clean
+    gmake ${COMPOS[@]:1} -j 8 nemsinstall
     if ([ ! -d $COMP_BINDIR ]); then
       echo "...failed building $COMP."
     else

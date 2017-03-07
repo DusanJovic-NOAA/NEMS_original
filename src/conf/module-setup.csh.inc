@@ -18,9 +18,17 @@ else if ( { test -d /gpfs/hps -a -e /etc/SuSE-release } ) then
     if ( ! { module help >& /dev/null } ) then
 	source /opt/modules/default/init/$__ms_shell
     endif
-    module use /opt/cray/ari/modulefiles/
-    module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles/
     module purge
+    module purge
+    unset _LMFILES_
+    unset LOADEDMODULES
+    module use /opt/modulefiles
+    module use /opt/cray/ari/modulefiles
+    module use /opt/cray/craype/default/alt-modulefiles
+    module use /opt/cray/alt-modulefiles
+    module use /gpfs/hps/nco/ops/nwprod/modulefiles
+    module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles
+    module use /usrx/local/prod/modulefiles
 else if ( { test -d /dcom -a -d /hwrf } ) then
     # We are on NOAA Tide or Gyre
     if ( ! { module help >& /dev/null } ) then

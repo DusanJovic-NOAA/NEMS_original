@@ -1,5 +1,10 @@
 SHELL = /bin/sh
 
+# Flag variable so the configure.nems knows we're in NEMS.  This is
+# needed by the FV3 to allow the NEMS configure file to be the same
+# file as the FV3 configure file.
+export InNemsMakefile=YES
+
 # variables that need to move between makefiles on different levels of the build tree
 # via shell environment variables
 export TOP := $(shell pwd)
@@ -365,7 +370,7 @@ export GOCART_MODE
 ESMADIR=$(CHEM_LIB)
 #gjt: comment out the following line because it unconditionally uses CHEM_INC
 #gjt: THIS NEEDS TO BE FIXED!
--include $(CHEM_INC)/NCEP_base.mk
+#-include $(CHEM_INC)/NCEP_base.mk
 #
 # log info
 #
@@ -429,6 +434,7 @@ LIBS_NEMS = $(DEP_LINK_OBJS)             \
 
 nems: nems_libs $(OBJS) $(COBJS) $(MAIN)
 	echo libgocart is $(LIBGOCART)
+	echo extlibs is $(EXTLIBS)
 	$(FC) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS_NEMS) $(EXTLIBS) $(LIBGOCART)
 	@echo "$(TARGET) is created."
         
