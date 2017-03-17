@@ -44,7 +44,7 @@ fi
 if [[ "$tool" != autobuild ]] ; then
     echo "$tool"
     echo $toolflag
-    set +x
+       
 fi
 
 ########################################################################
@@ -110,12 +110,15 @@ global_backtitle="NEMS Application Builder" # default --backtitle for dialog
 
 # GUI Wrapper and Utility Functions ############################################
 
-restore_terminal() {
-    # Restore terminal to a clean state when running in GUI mode
+# delete temporary files
+deletetempfiles(){
+  rm -f $LOGDIR/*.$$
+}
+
+guiclear() {
+    # Clear screen only in gui mode
     if [[ "$tool" != autobuild ]] ; then
         clear
-        stty sane
-        echo "Thank you for using the NEMSAppBuilder."
     fi
 }
 
@@ -1044,7 +1047,7 @@ build_lis(){
 
 autobuild_init "$@" # Before the trap since there are no temp files yet
 
-trap 'restore_terminal'  EXIT TERM INT QUIT
+trap 'deletetempfiles'  EXIT     # delete temp files on exit
 
 ROOTDIR=`pwd`
 LOGDIR="$ROOTDIR/log"
@@ -1060,23 +1063,6 @@ NEMSDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 # Determine the available application(s)
 appCounter=0
 shopt -s nullglob # all expansion to null string
-
-defaultSelect=NULL
-highestPriority=0
-for i in "$ROOTDIR"/*.appBuilder; do
-   if [ "x$i" != "x" ]; then
-      sortingPriority=0
-      prioline=$( grep sortingPriority "$i" | head -1 )
-      eval $prioline
-      i=${i#"$ROOTDIR/"}
-      i=${i%".appBuilder"}
-      if [[ "$sortingPriority" -gt "$highestPriority" ]] ; then
-          defaultSelect="$i"
-          highestPriority="$sortingPriority"
-      fi
-   fi
-done
-
 for i in "$ROOTDIR"/*.appBuilder; do
   if [ "x$i" != "x" ]; then
     let appCounter++
@@ -1087,8 +1073,7 @@ for i in "$ROOTDIR"/*.appBuilder; do
     appnames=( "${appnames[@]}" $( basename $i ) )
     i=${i#"$ROOTDIR/"}
     i=${i%".appBuilder"}
-    if [[ "$defaultSelect" == "$i" || 
-        ( "$defaultSelect" == NULL && "$appCounter" == 1 ) ]] ; then
+    if [ $appCounter == 1 ]; then
       radiolist=( "${radiolist[@]}" $i "$title" on )
     else
       radiolist=( "${radiolist[@]}" $i "$title" off )
