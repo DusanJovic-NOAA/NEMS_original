@@ -300,10 +300,6 @@ contains
        do i=1,ru%m_comm_size_hosts
           namedispl(i+1)=namedispl(i)+namesizes(i)
        enddo
-       do i=1,ru%m_comm_size_hosts
-          print '(I0,": size=",I0," displ=",I0)', i, namesizes(i), namedispl(i)
-       enddo
-       print '("end: displ=",I0)', namedispl(ru%m_comm_size_hosts+1)
        flush(6)
        if(ru%m_master) then
           size=namedispl(ru%m_comm_size_hosts+1)

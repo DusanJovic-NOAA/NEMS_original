@@ -47,6 +47,8 @@ rerun=NO
 RUNDIR=''
 PLATFORM_NAME=''
 
+export PYTHONPATH=$( pwd -P )/produtil/ush${PYTHONPATH:+:$PYTHONPATH}
+
 while getopts ":c:fst:n:hr:p:" opt; do
     case $opt in
         r)

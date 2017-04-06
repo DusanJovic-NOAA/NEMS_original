@@ -160,11 +160,27 @@
       PRIVATE
 !
       PUBLIC :: EARTH_REGISTER
+      PUBLIC :: VERBOSE_DIAGNOSTICS
 !
 !-----------------------------------------------------------------------
 !
 
+      LOGICAL, PRIVATE :: flag_verbose_diagnostics = .false.
+
+
       CONTAINS
+
+      logical function verbose_diagnostics(set)
+        !! Mutator for the verbose diagnostics flag; returns true if
+        !! verbose diagnostics should be used, and false otherwise.
+        !! If the "set" argument is present, then the flag is set to
+        !! the given value.
+        logical, optional :: set
+        if(present(set)) then
+           flag_verbose_diagnostics=set
+        endif
+        verbose_diagnostics=flag_verbose_diagnostics
+      end function verbose_diagnostics
 
 !-----------------------------------------------------------------------
 !#######################################################################
@@ -3242,9 +3258,11 @@
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
 
     ! Diagnostic output
-    call NUOPC_DriverPrint(driver, orderflag=.true., rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+    if(verbose_diagnostics()) then
+       call NUOPC_DriverPrint(driver, orderflag=.true., rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+    endif
     
   end subroutine
     
