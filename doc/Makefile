@@ -1,6 +1,11 @@
 NEMSDOC=markdown.md BUILD.md NEWTEST.md OLDTEST.md
-APPDOC=../../doc/README.md
 #MODELDOC=modeldoc.md  README.GFS.md README.NMM.md
+
+ifneq ($(wildcard ../../doc/*.md),)
+APPDOC=../../doc/*.md
+else
+APPDOC=
+endif
 
 ALLDOC=$(APPDOC) $(NEMSDOC) # $(MODELDOC)
 
@@ -10,7 +15,7 @@ all: README.html
 clean:
 	rm -f README.html
 
-README.html: $(ALLDOC)
+README.html: $(ALLDOC) Makefile
 	./md2html.py $(ALLDOC) README.html
 	head README.html
 
