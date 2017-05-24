@@ -12,6 +12,7 @@ import shutil
 import getopt
 import StringIO
 import socket
+import signal
 
 def fail(how):
     """!Aborts the program with status 1.  Should only be called
@@ -967,11 +968,17 @@ def verify_fingerprint(baseline,testgen,logger):
 # Argument parsing
 ########################################################################
 
+def is_ignoring_sighup():
+    old=signal.signal(signal.SIGHUP,signal.SIG_IGN)
+    signal.signal(signal.SIGHUP,old)
+    return old==signal.SIG_IGN
+
 have_setup_produtil=False
 def setup_produtil(jobname,verbose):
     global have_setup_produtil
     if have_setup_produtil: return
     produtil.setup.setup(
+        ignore_hup=is_ignoring_sighup(), # pass on sighup behavior
         send_dbn=False,   # avoids "dbnalert missing" warnings
         jobname=jobname,  # set job name for jlogfile messages
         ologlevel=logging.INFO if verbose else logging.WARNING)
