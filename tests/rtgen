@@ -182,20 +182,19 @@ except ImportError as ie:
     altpath=os.path.join(os.path.dirname(os.path.realpath(__file__)),'produtil/ush')
     if not os.path.isdir(altpath):
         fail('%s is missing and a valid produtil is not in PYTHONPATH.  Is your produtil external missing?'%(altpath,))
-        sys.path.append(altpath)
+    sys.path.append(altpath)
     try:
         import produtil.testing
         import produtil.setup
     except ImportError as ie2:
-        if not os.path.isdir(altpath):
-            fail('%s is missing and a valid produtil is not in PYTHONPATH.  Is your produtil external missing?'%(altpath,))
+        fail('%s is missing and a valid produtil is not in PYTHONPATH.  Is your produtil external missing?'%(altpath,))
 
 import produtil.run, produtil.cluster, produtil.fileop
 
 from produtil.log import jlogger
 from produtil.run import runstr, ExitStatusException, checkrun, batchexe, run
 from produtil.testing.testgen import TestGen
-from produtil.testing.utilities import BASELINE, EXECUTION, bashify_string
+from produtil.testing.utilities import BASELINE, EXECUTION, bashify_string, PTParserError
 from produtil.testing.rocoto import RocotoRunner
 from produtil.testing.setarith import ArithKeyError
 
@@ -306,7 +305,7 @@ def rtgen_usage(reason):
     nothing went wrong"""
     sys.stderr.write(RTGEN_SHORT_USAGE_MESSAGE)
     if reason:
-        sys.stderr.write('\nSCRIPT IS ABORTING BECAUSE: %s\n'%(reason,))
+        sys.stderr.write('\nScript is aborting because:\n%s\n'%(reason,))
         exit(1)
     exit(0)
 
@@ -373,7 +372,7 @@ areas and use default baseline location.  Run all tests in the avn project.
 def rtsh_usage(reason):
     sys.stderr.write(RTSH_USAGE_SIMPLE)
     if reason:
-        sys.stderr.write('\nSCRIPT IS ABORTING BECAUSE: %s\n'%(reason,))
+        sys.stderr.write('\nScript is aborting because:\n%s\n'%(reason,))
         exit(1)
     exit(0)
 
@@ -785,7 +784,7 @@ class RTGen(TestGen):
             scope.override_local([scope],'plat%CPU_ACCOUNT',self.project)
             scope.override_local([scope],'plat%ACCOUNT',self.project)
         else:
-            raise Exception('no project')
+            raise PTParseError('no project')
     @property
     def new_baseline(self):
         return self._new_baseline
@@ -990,7 +989,7 @@ def parse_rtsh_arguments():
         optval,arglist=getopt.getopt(sys.argv[1:],"c:fst:n:hr:p:b",[
                 'project=', 'mode=', 'baseline-dir=', 'baseline',
                 'dry-run', 'verbose', 'unique-id=', 'temp-dir=', 
-                'resume='])
+                'resume=','compset='])
     except getopt.GetoptError as ge:
         rtsh_usage(str(ge))
 
@@ -1010,8 +1009,10 @@ def parse_rtsh_arguments():
     resume_sets=None
 
     for opt,val in optval:
-        if opt in ['-f','-s','-c','-t'] and sets is not None:
-            rtsh_usage('Only one of -c, -s, -t, or -f can be used.')
+        if opt in ['--compset','-f','-s','-c','-t'] and sets is not None:
+            rtsh_usage('Only one of --compset, -c, -s, -t, or -f can be used.\n'
+                       'For multiple compset groups, use the set notation.\n'
+                       'Run with -h for more information')
         if opt=='--verbose':
             verbose+=1
         elif opt in [ '-h', '--help' ]:
@@ -1026,9 +1027,14 @@ def parse_rtsh_arguments():
             sets=str(val)
         elif opt=='-c':
             if val in [ 'ompset', 'ompsets' ]:
-                rtsh_usage('The -compset argument is no longer recognized.  Use "{compset1,compset2,compset3}" instead.  Run with -h for more information.')
+                rtsh_usage('The -compset argument is no longer recognized.\n'
+                           'Use --compset compsetname\n'
+                           ' or "{compset1,compset2,compset3}"\n'
+                           'Run with -h for more information.')
             sets=str(val)
             baseline=True
+        elif opt == '--compset':
+            sets='{'+str(val)+'}'
         elif opt in ['-n', '--baseline-dir']:
             baseline_dir=val
         elif opt in ['-p', '--project']:
@@ -1257,13 +1263,6 @@ def rtgen(verbose,baseline_dir,dry_run,baseline,unique_id,temp,
     except ArithKeyError as ake:
         # User specified an invalid set or test.  Give the usage message.
         usage(str(ake))
-    except Exception as e:
-        # Complain about errors in the jlogfile and exit with status 1.
-
-        # Note that this will not catch high-level errors such as
-        # signals or exit.  That is deliberate, for safety reasons.
-        produtil.log.jlogger.error(str(e),exc_info=True)
-        exit(1)
     # We get here if everything works.
     jlogger.info('Requested test has been generated.')
     if script_mode:
@@ -1307,7 +1306,8 @@ def guess_app_dir():
         trydir=os.path.join(here,rel)
         if os.path.exists(os.path.join(trydir,'NEMS/src/conf')):
             return trydir
-    raise Exception("Cannot find app directory (parent of NEMS).  Looked for NEMS/src/conf relative to ., .., ../.., and ../../.. but found none.")
+    sys.stderr.write("Cannot find app directory (parent of NEMS).  Looked for NEMS/src/conf relative to ., .., ../.., and ../../.. but found none.\n")
+    sys.exit(1)
 
 def run_rtreport(run_dir,app_dir,platform,logger):
     jlogger.info('generate report')
@@ -1356,6 +1356,15 @@ def called_as_what():
 ########################################################################
 
 def main():
+    try:
+        main_impl()
+    except PTParserError as p:
+        name=type(p).__name__
+        if name.find('KeyError')>=0:
+            name='undefined value'
+        sys.stderr.write('Error in compset: %s %s\nSee earlier lines for details.\n'%(name,str(p)))
+
+def main_impl():
 
     ## Ensure we're in the NEMS/tests directory:
     if not os.path.isdir('produtil') or not os.path.exists('rtgen'):

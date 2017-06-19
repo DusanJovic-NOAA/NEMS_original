@@ -1,24 +1,56 @@
-NEMSDOC=markdown.md BUILD.md NEWTEST.md OLDTEST.md
-#MODELDOC=modeldoc.md  README.GFS.md README.NMM.md
+LOCAL_DOCS=$(wildcard *.md) $(wildcard *.dox)
+CONTROL_FILES=Makefile prep_inputs.py Doxyfile.IN DoxygenLayout.xml.IN
 
-ifneq ($(wildcard ../../doc/*.md),)
-APPDOC=../../doc/*.md
-else
-APPDOC=
+TARGET=strahan@emcrzdm:/home/www/emc/htdocs/projects/nems-sample-v4
+
+# Find Doxygen
+
+ifndef DOXYGEN
+DOXYGEN=doxygen
 endif
 
-ALLDOC=$(APPDOC) $(NEMSDOC) # $(MODELDOC)
+ifeq ("$(DOXYGEN)","doxygen")
+  THEIA_DOXYGEN=/scratch3/NCEPDEV/hwrf/save/Samuel.Trahan/doxygen-1.8.10/bin/doxygen
+  JET_DOXYGEN=/contrib/doxygen/1.8.10/bin/doxygen
+  LUNA_DOXYGEN=/gpfs/hps/emc/hwrf/noscrub/soft/doxygen-1.8.10/bin/doxygen
+  TIDE_DOXYGEN=/hwrf/noscrub/soft/doxygen-1.8.10/bin/doxygen
 
+  ifneq ($(wildcard $(THEIA_DOXYGEN)*),)
+    DOXYGEN=$(THEIA_DOXYGEN)
+  endif
 
-all: README.html
+  ifneq ($(wildcard $(JET_DOXYGEN)*),)
+    DOXYGEN=$(JET_DOXYGEN)
+  endif
+
+  ifneq ($(wildcard $(LUNA_DOXYGEN)*),)
+    DOXYGEN=$(LUNA_DOXYGEN)
+  endif
+
+  ifneq ($(wildcard $(TIDE_DOXYGEN)*),)
+    DOXYGEN=$(TIDE_DOXYGEN)
+  endif
+endif
+
+default:
+	@echo Specify build mode:
+	@echo doc        = build documentation just for this directory
+	@echo nems-doc   = build full documentation website, including all apps
+	@echo clean      = delete outputs
+	@echo deliver    = copy to website
+	exit 19
 
 clean:
-	rm -f README.html
+	rm -rf html webpage.tar.gz repo_info.sh.inc Doxyfile DoxygenLayout.xml
 
-README.html: $(ALLDOC) Makefile
-	./md2html.py $(ALLDOC) README.html
-	head README.html
+nems-doc:
+	echo "Oopes!  Sam has not implemented this yet."
 
-deliver: README.html README.css
-	scp README.{css,html} \
-	   samuel.trahan@dmzgw.ncep.noaa.gov:/home/www/emc/htdocs/projects/rt/doc/.
+doc: clean
+	./prep_inputs.py ..
+	set -x ; $(DOXYGEN)
+	tar -cpzf webpage.tar.gz html Doxyfile
+
+deliver: html
+	cd html && rsync -arv . "$(TARGET)/."
+

@@ -7,6 +7,8 @@
 
 set -x
 
+ulimit -s 200000
+
 # add paths to find personal "dialog" installations on Theia, Yellowstone.
 PATH=$PATH:/scratch4/NCEPDEV/nems/save/Gerhard.Theurich/bin:/glade/p/work/theurich/bin
 
@@ -88,6 +90,12 @@ else
     FULL_MACHINE_ID=unknown
     MACHINE_ID=''
 fi
+
+MACHINE_ID_DOT=$( echo "$MACHINE_ID" | sed 's,_,\.,g' )
+MACHINE_ID_UNDER=$( echo "$MACHINE_ID" | sed 's,\.,_,g' )
+
+FULL_MACHINE_ID_DOT=$( echo "$FULL_MACHINE_ID" | sed 's,_,\.,g' )
+FULL_MACHINE_ID_UNDER=$( echo "$FULL_MACHINE_ID" | sed 's,\.,_,g' )
 
 if [[ "$MACHINE_ID" == yellowstone ]] ; then
     source /glade/apps/opt/lmod/lmod/init/bash
@@ -273,7 +281,7 @@ GUI (interactive) mode:
   $0
 Autobuild (non-interactive) mode:
   $0 auto \\
-    [app=APP] [flags] [question:answer] [+COMP1 [+COMP2 [...]]]
+    [project=PROJ] [flags] [question:answer] [+COMP1 [+COMP2 [...]]]
 
 Run with no arguments to start GUI mode.  This will fail if both
 dialog and whiptail are unavailable.
@@ -289,8 +297,9 @@ Flags:
 
 App and component selection:
 
-  app=APPNAME --- use this app.  Only relevant if more than one app is
-                  available.
+  app=APP or
+  project=PROJ --- use this build target.  Only relevant if more than
+                   target is available.
   +COMP --- enable component COMP.  Only relevant if the app used is NEMS
 
 Question:Answer values:
@@ -342,6 +351,8 @@ autobuild_init() {
             should_exit=yes
         elif [[ "$opt" =~ ^app=.+ ]] ; then
             app="${opt:4}"
+        elif [[ "$opt" =~ ^project=.+ ]] ; then
+            app="${opt:8}"
         elif [[ "$opt" =~ ^confopt=.+ ]] ; then
             confopt="${opt:8}"
         elif [[ "$opt" =~ ^makeopt=.+ ]] ; then
@@ -977,7 +988,7 @@ build_wrfhydro(){
 
 build_ww3(){
   # in: COMP, COMP_SRCDIR, COMP_BINDIR
-    local WW3_COMP=Intel
+    local WW3_COMP='Intel'
   if [[ "$1" == "clean" ]] ; then
     echo "Cleaning $COMP..."
     cd "$COMP_SRCDIR/esmf"
@@ -990,7 +1001,7 @@ build_ww3(){
   else
     echo "Building $COMP..."
     cd "$COMP_SRCDIR/esmf"
-    make WW3_COMP="$WW3_COMP"
+    make WW3_COMP="$WW3_COMP" ww3_nems
     mkdir -p "$COMP_BINDIR"
     cp "$COMP_SRCDIR/nuopc.mk" "$COMP_BINDIR"
     if ([ ! -d "$COMP_BINDIR" ]); then
@@ -1311,7 +1322,10 @@ fi
 
 autonote "Configure using $conf_mode mode."
 autonote "Command: ./configure $CONFOPT $CHOSEN_MODULE"
-./configure "$CONFOPT" $CHOSEN_MODULE 2>&1 | tee $LOGDIR/appBuilder.NEMS.log.$$
+./configure "$CONFOPT" $CHOSEN_MODULE \
+     ${EXTERNALS_NEMS:-''} \
+     ${ESMF_VERSION_DEFINE=''} \
+     2>&1 | tee $LOGDIR/appBuilder.NEMS.log.$$
 
 echo >> $LOGDIR/appBuilder.NEMS.log.$$
 cd $ROOTDIR

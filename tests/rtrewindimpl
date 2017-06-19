@@ -23,6 +23,8 @@ if sys.argv[1] == '-a':
 else:
     joblist=sys.argv[1:]
 
+jobfound=[False]*len(joblist)
+
 command="rocotorewind -w workflow.xml -d workflow.db"
 
 sent_cycle=False
@@ -30,7 +32,8 @@ sent_cycle=False
 def process_line(line,m):
     match=False
     if joblist is not None:
-        for job in joblist:
+        for ijob in xrange(len(joblist)):
+            job=joblist[ijob]
             task=m.group(2)
             if task=="test_"+job:
                 match="test_"+job
@@ -39,6 +42,7 @@ def process_line(line,m):
             if task==job:
                 match=job
             if match:
+                jobfound[ijob]=True
                 break
 
         if not match: 
@@ -52,10 +56,22 @@ def process_line(line,m):
     if match:
         command+=" -t "+match
 
-for line in sys.stdin:
+for line in sys.stdin.readlines():
     m=re.match('^(\d+)\s+(\S+)',line)
     if m:
         process_line(line,m)
+
+bad=True
+for ijob in xrange(len(joblist)):
+    if not jobfound[ijob]:
+        sys.stderr.write(' ===> no such job: %s <==\n'%(joblist[ijob],))
+    else:
+        bad=False
+
+if bad:
+    sys.stderr.write(' ===> No jobs found <===\n')
+    print '/bin/false'
+    sys.exit(1)
 
 if joblist is None:
     command+=' -a'

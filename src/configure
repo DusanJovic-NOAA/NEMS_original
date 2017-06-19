@@ -95,22 +95,22 @@ case "$CONF_OPTION" in
         ;;
     coupled_intel_wcoss)
         CONF_FILE="${CONF_FILE:-../../conf/configure.nems.Wcoss.intel}"
-        EXTERNALS_NEMS="${EXTERNALS_NEMS:-conf/externals.nems.Wcoss}"
+        EXTERNALS_NEMS="${EXTERNALS_NEMS:-../../conf/externals.nems.Wcoss}"
         CHOSEN_MODULE="${CHOSEN_MODULE:-wcoss.phase1/ESMF_NUOPC}"
         ;;
     coupled_intel_gaea)
         CONF_FILE="${CONF_FILE:-../../conf/configure.nems.Gaea.intel}"
-        EXTERNALS_NEMS="${EXTERNALS_NEMS:-conf/externals.nems.Gaea}"
+        EXTERNALS_NEMS="${EXTERNALS_NEMS:-../../conf/externals.nems.Gaea}"
         CHOSEN_MODULE="${CHOSEN_MODULE:-gaea/ESMF_NUOPC}"
         ;;
     coupled_intel_theia)
         CONF_FILE="${CONF_FILE:-../../conf/configure.nems.Theia.intel}"
-        EXTERNALS_NEMS="${EXTERNALS_NEMS:-conf/externals.nems.Theia}"
+        EXTERNALS_NEMS="${EXTERNALS_NEMS:-../../conf/externals.nems.Theia}"
         CHOSEN_MODULE="${CHOSEN_MODULE:-gaea/ESMF_NUOPC}"
         ;;
     coupled_intel_yellowstone)
         CONF_FILE="${CONF_FILE:-../../conf/configure.nems.Yellowstone.intel}"
-        EXTERNALS_NEMS="${EXTERNALS_NEMS:-conf/externals.nems.Yellowstone}"
+        EXTERNALS_NEMS="${EXTERNALS_NEMS:-../../conf/externals.nems.Yellowstone}"
         CHOSEN_MODULE="${CHOSEN_MODULE:-gaea/ESMF_NUOPC}"
         ;;
     coupled_linux_gnu)
@@ -141,6 +141,8 @@ if [[ -z "$EXTERNALS_NEMS" ]] ; then
     if [[ ! -e conf/externals.nems || -s conf/externals.nems ]] ; then
         cat /dev/null > conf/externals.nems
     fi
+elif [[ -s ../../conf/$EXTERNALS_NEMS ]] ; then
+    copy_diff_files "../../conf/$EXTERNALS_NEMS" conf/externals.nems
 else
     copy_diff_files "$EXTERNALS_NEMS" conf/externals.nems
 fi
