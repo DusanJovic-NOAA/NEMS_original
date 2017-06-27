@@ -89,13 +89,12 @@ in the root directory from which the AppBuilder was started.
 
 The syntax is:
 
-    ./NEMS/NEMSAppBuilder (options) project=(project)
+    ./NEMS/NEMSAppBuilder (options) app=(build-target)
 
-Here, the `(project)` is the application build target, or "project."
-It corresponds to a `(project).appBuild` file.  The list of possible
-`(build-target)` can be found at the application-level checkout.
-There are several `(build-target).appBuild` files, one for each
-possible value of `(build-target)`
+Here, the `(build-target)` is the application build target, also known
+as the "build," or "project."  It corresponds to a
+`(build-target).appBuild` file at the top-level (app) checkout
+directory.
 
 The  `(options)` should be one of the following:
 
@@ -155,8 +154,9 @@ Other failure modes are possible.
 
 
 
+\anchor building-new-targets
 
-Creating New Build Targets {#building-new-targets}
+Creating New Build Targets 
 --------------------------
 
 As discussed above, the NEMSAppBuilder builds the executable based on
@@ -257,7 +257,7 @@ used to detect which machine you're running on.  This lets your
 | (other)                  | `unknown`          | `unknown`      | &nbsp;    |
 
 The confusing mixture of `.` and `_` is for historical reasons
-(maintaining compatibility with older scripts).  For your convenience,
+(maintaining compatibility with other scripts).  For your convenience,
 two aliases are provided:
 
 * `FULL_MACHINE_ID_DOT` = wcoss.phase1, wcoss.phase2, wcoss.cray

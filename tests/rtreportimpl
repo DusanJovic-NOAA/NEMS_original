@@ -21,6 +21,7 @@ from produtil.run import exe,runstr,run,alias,ExitStatusException
 
 # Parse arguments
 comdir=sys.argv[1]
+logdir=os.path.abspath(os.path.join(os.path.dirname(comdir),'tmp/log'))
 stattxt=sys.argv[2]
 mode=sys.argv[3]
 timestamp=None
@@ -116,7 +117,7 @@ with open(stattxt,'rt') as f:
                 builds_passed+=1
             elif state in ['DEAD','LOST']:
                 builds_failed+=1
-                rtstatus('BUILD %s: %s'%(name[6:],state),False)
+                rtstatus('BUILD %s: %s: %s/build_%s.log'%(name[6:],state,logdir,name[6:]),False)
             continue
 
         if name.find('test_')!=0:
@@ -203,7 +204,7 @@ with open(stattxt,'rt') as f:
             tests_passed+=1
         else:
             rtreport('TEST #%d: FAIL'%itest)
-            rtstatus('%s: FAIL'%(name,),False)
+            rtstatus('%s: FAIL: %s/%s.log'%(name,logdir,name),False)
             tests_failed+=1
         rtreport('\n'.join(report))
 

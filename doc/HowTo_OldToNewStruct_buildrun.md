@@ -39,18 +39,7 @@ Now try to run your compset.  From your top level directory:
 
     ./NEMS/NEMSCompsetRun -f
  
-For more information on the NEMSCompsetRun go to: 
-
-\todo link to doc NEMSCompsetRun  options
-\todo link to doc  How to restart one job
-\todo link to doc  How to interpret results and find log files for each job
-(note the rtreport doesn't have the log file for the failed jobs listed) 
- \todo link to doc on CompsetRun, rewind, resume etc. 
-\todo Where do we change the 
-\todo how to only run a single compset 
-\todo how to change the account (nems, marine-cpu, etc)
-\todo how to change the queue 
-
+For more information on the NEMSCompsetRun see \ref building
 
 Step 5.3: 
 -------- 
@@ -66,8 +55,7 @@ If you would like you can try this app:
     $./NEMS/NEMSCompsetRun -f 
 
 
-All options for the NEMSCompsetRun can be found at 
-\todo link to all options for the NEMS compset run, including on how to set/change the account (nems, marine-cpu, etc) and how to change the queue
+All options for the NEMSCompsetRun can be found at \ref building
 
 The above command should then gives the following output: 
     
@@ -143,32 +131,45 @@ Note from this we can see which queue (project), where the output directory will
 the ptmp directory, the workflow id and more. This also gives you links to the log files of the 
 different parts of the execution.  
 
-In this case, the log file for the build is /scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/tmp/log/build_gsm_ww3.x.log
-and the logfile for the compset is /scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/tmp/log/test_cfsr@20150401_1day_blocked_gsm@slg@T126_ww3@t188.log.   The output of each compset is located in the tmp/<compsetname> directory, so for this case it would be: /scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/tmp/cfsr@20150401_1day_blocked_gsm@slg@T126_ww3@t188. 
+In this case, the log file for the build is
+`/scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/tmp/log/build_gsm_ww3.x.log`
+and the logfile for the compset is
+`/scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/tmp/log/test_cfsr@20150401_1day_blocked_gsm@slg@T126_ww3@t188.log`.
+The output of each compset is located in the `tmp/<compsetname>`
+directory, so for this case it would be:
+`/scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/tmp/cfsr@20150401_1day_blocked_gsm@slg@T126_ww3@t188`.
 
 For general information about the generated work directories and workflow see: 
 \todo link to description of regtest output folder/workflow directores. 
 
 If your compset fails, you can rerun the compset by going to the workflow directory, in this case: 
-/scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/ and rewinding the job, with the following command: 
+`/scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/` and rewinding the job, with the following command: 
+
     ./rtrewind <compset name> 
 
 For more information on rtrewind, see: 
 \todo link do doc on rtrewind 
 
-Then, go back to your source code directory, and resume the job.  This requires knowing the path to your workflow directory. Again in this case the workflow directory is /scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/. The command is: 
-    ./NEMS/NEMSCompsetRun --resum <path to workflow directory> 
+Then, go back to your source code directory, and resume the job.  This
+requires knowing the path to your workflow directory. Again in this
+case the workflow directory is
+`/scratch4/NCEPDEV/stmp4/Jessica.Meixner/rtgen.60503/`. The command is:
+
+    ./NEMS/NEMSCompsetRun --resume <path to workflow directory> 
 
 If your compset fails, some things to look for:
+
 - Is it just because your baseline data does not exist or is not in the right location?
 - Are all variables set in the compset and in the run_exglobal_fcst section?
 - Are you using the new versions of your branches?
 - Double check that all old changes were migrated to new branches.
+
 \todo other items to add here? 
 
-
 \todo how to run a subset of the all.input based on the keywords 
+
 \todo can you run the workflow without a terminal open?  
+
 \todo is there an option to only run one compset? 
  
 Step 5.4:
@@ -178,8 +179,8 @@ Add documentation for your application; this should include a basic
 description of your application and any other application specific
 infromation you think should be included. Note documentation of 
 individual compsets occurs within the compsets themselves.  Put this
-documentation in the app/doc/README.md. Additional files can be 
-added, but the README is the main page.  For this application the 
+documentation in the `app/doc/README.md`. Additional files can be 
+added, but the `README.md` is the main page.  For this application the 
 documentation is simply the following: 
 
 

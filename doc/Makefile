@@ -1,7 +1,6 @@
 LOCAL_DOCS=$(wildcard *.md) $(wildcard *.dox)
 CONTROL_FILES=Makefile prep_inputs.py Doxyfile.IN DoxygenLayout.xml.IN
 
-TARGET=strahan@emcrzdm:/home/www/emc/htdocs/projects/nems-sample-v4
 
 # Find Doxygen
 
@@ -17,34 +16,36 @@ ifeq ("$(DOXYGEN)","doxygen")
 
   ifneq ($(wildcard $(THEIA_DOXYGEN)*),)
     DOXYGEN=$(THEIA_DOXYGEN)
+    TARGET ?= samuel.trahan@dmzgw.ncep.noaa.gov:/home/www/emc/htdocs/projects/nems-sample/.
   endif
 
   ifneq ($(wildcard $(JET_DOXYGEN)*),)
     DOXYGEN=$(JET_DOXYGEN)
+    TARGET ?= samuel.trahan@dmzgw.ncep.noaa.gov:/home/www/emc/htdocs/projects/nems-sample/.
   endif
 
   ifneq ($(wildcard $(LUNA_DOXYGEN)*),)
     DOXYGEN=$(LUNA_DOXYGEN)
+    TARGET ?= strahan@emcrzdm:/home/www/emc/htdocs/projects/nems-sample/.
   endif
 
   ifneq ($(wildcard $(TIDE_DOXYGEN)*),)
     DOXYGEN=$(TIDE_DOXYGEN)
+    TARGET ?= strahan@emcrzdm:/home/www/emc/htdocs/projects/nems-sample/.
   endif
 endif
+
+TARGET ?= /please/update/TARGET/in/Makefile
 
 default:
 	@echo Specify build mode:
 	@echo doc        = build documentation just for this directory
-	@echo nems-doc   = build full documentation website, including all apps
 	@echo clean      = delete outputs
 	@echo deliver    = copy to website
 	exit 19
 
 clean:
 	rm -rf html webpage.tar.gz repo_info.sh.inc Doxyfile DoxygenLayout.xml
-
-nems-doc:
-	echo "Oopes!  Sam has not implemented this yet."
 
 doc: clean
 	./prep_inputs.py ..

@@ -357,6 +357,7 @@ variables in your new compset. Start with the following variables:
     NTHREADS=1
     TASKS=60
     wallclock=1800 #in seconds 
+    walltime=1800 #wall clock limit in seconds
 
 NOTE: wallclock time is now in seconds and NOT minutes. 
  

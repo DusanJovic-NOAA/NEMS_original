@@ -1265,6 +1265,7 @@ def rtgen(verbose,baseline_dir,dry_run,baseline,unique_id,temp,
         usage(str(ake))
     # We get here if everything works.
     jlogger.info('Requested test has been generated.')
+    jlogger.info('Test will run in: '+str(testgen.outloc))
     if script_mode:
         print "RUNDIR='%s' ; PLATFORM_NAME='%s'"%(
             testgen.outloc, testgen.platform_name)

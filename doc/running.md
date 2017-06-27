@@ -1,16 +1,66 @@
 Running: NEMSCompsetRun {#running}
 =======================
 
-The old regression test system has been replaced by a new system.  It
-has a different design that the old one.  It has a superset of the
-capabilities of the old system, but the different design leads to
-advantages and disadvantages.
+NEMS uses "component sets", or "`compsets`," to systematically label
+run configurations. The labels are associated with scripts that pull
+together all the files and inputs needed to run the specified
+configurations. Compset labels include which components and mediators
+are part of the configuration, whether each component is running in a
+prognostic or test mode, resolutions, and initial conditions. This
+approach offers a number of benefits:
 
-Presently, that implementation is available by the NEMS/tests/rtgen
-script, and two scripts it generates (rtrun, rtreport).  For backward
-compatibility, there is a wrapper "rt.sh" script to prevent users from
-having to learn a new system if they are only running the regression
-tests (not modifying them).
+* standard runs can be set up easily and consistently
+
+* it is a very effective way to implement regression testing across a
+  coupled system with many possible combinations of components
+
+* easy access to configurations with non-prognostic versions of
+  components facilitates controlled experimentation
+
+Compsets were originated by the [Community Earth System Model (CESM)](http://www.cesm.ucar.edu/models/cesm1.2/cesm/doc/modelnl/compsets.html).
+
+[Supported NEMS compsets are listed here](https://docs.google.com/spreadsheets/d/1v9tJb03YuCbwDsXff4M5i6jz4lvBxUrhdImqaGnK_IE/edit#gid=0).
+
+Old and New NEMSCompsetRun
+--------------------------
+
+The NEMS is transitioning from an old compset runner to a new one.
+The old system was based on model-specific workflows that duplicated
+one another's fuctionality.  The new one is a more generic tool which
+uses an abstract description to generate the workflow.  Both systems
+are explained in this document - older repository revisions referred
+to by the \ref milestones still require use of the older
+NEMSCompsetRun.
+
+In both systems, the compset front-end is at:
+
+    ./NEMS/NEMSCompsetRun [arguments]
+
+Executing this front-end will start one or more compsets, potentially
+in parallel, and eventually report the results.  What varies between
+the old and new systems is the calling convention, capabilities and
+internals.
+
+### Comparison of compset runners
+
+| Capability                     | Old runner | New runner |
+| ------------------------------ | ---------- | ---------- |
+| Editable shell scripts         | yes        | no         |
+| Connection to build system     | no         | yes        |
+| Parallel execution of compsets | no         | yes        |
+| Re-running failed compset      | no         | yes        |
+
+New NEMSCompsetRun
+------------------
+
+This system generates workflow scripts from an abstract description of
+compsets.  Users can specify multiple compsets either by name or by
+grouping.  The system allows basic set arithmetic operations to
+combine several group of compsets into a single workflow.  Any
+dependencies are automatically resolved, including compilation of NEMS
+executables.  The generated workflow is run by the Rocoto workflow
+manager.  That manager allows failed compsets or builds to be rerun
+manually, or automatically.
 
 Design and Capabilities
 ------------------------
@@ -33,130 +83,265 @@ Running the System
 ------------------
 
 This section explains how to run the system in its simplest form.
-Later sections discuss
-\ref run_sub "running subsets of the compsets"
-\ref dep_res "dependency resolution", and
-\ref list_avail "available compsets".
-We provide two methods: a
-simple way using the rt.sh wrapper, and a more complex way that
-provides complete control and flexibility.
+Later sections discuss how to check the status of the execution, rerun
+a failed job, or resume a workflow (such as after logging out).
 
-### Simple Method: rt.sh
+### Initial Execution
 
-For backward compatibility, there is an rt.sh script that acts
-similarly to the old rt.sh.  Some aspects are different to give extra
-flexibility.
+The first step is to start the workflow:
 
-To execute in an sh-family shell (sh, bash, ksh, etc.)
+    ./NEMS/NEMSCompsetRun [options] [run-mode] compset-specification
 
-    cd NEMS/tests
-    ./rt.sh (options) > rt.log 2>&1 &
+Options will be discussed later.  The `run-mode` determines whether
+the system will create a new baseline, or execute and verify against
+the old baseline.  To generate a new baseline:
 
-To execute in a csh-family shell (csh, tcsh):
+    ./NEMS/NEMSCompsetRun [options] --make-baseline compset-specification
 
-    cd NEMS/tests
-    ./rt.sh (options) >& rt.log &
+Without that `--make-baseline` flag, the system will run in the
+default mode: execute the tests and verify against the baseline.
 
-This will run rt.sh in the background and send all output to the
-`rt.log` file.  To see the success or failure information, look in the
-`rt.log` file.
+The compset specification can be done in the following ways.  These
+select either specific compsets or groups of compsets.  We will
+discuss how compset groups work, in the next section.
 
-The `(options)` specify what is to be run.  Common needs are:
+ * `--make-baseline` -- run all tests that are part of the baseline
+ * `-f` -- run all known tests
+ * `-s` -- run tests in the "standard" group
+ * `--compset (compset-name)` -- run the specified compset
+ * `group-name` -- run the specified group of compsets
+ * `set-specification` -- set arithmetic that specifies the compsets
+   to run.  This is discussed in detail in the next section.
 
-* `-f` = run the full test suite
-* `-s` = only run the "standard" tests
-* `-t setname` = run the specified set of tests.  See
-`compsets/all.input` for the full list.  Common names are `standard`,
-`gfs`, and `nmm`
-* `-b setname` = regenerate the baseline.
-* `-n /path/to/baseline` = specifies the location of the baseline
-when running the suite in verification or baseline generation modes.
-* `-r PLATFORM:/path/to/rtgen.###` - used by the full test method.
-See below.
-* `-p project` = set the project or account to use for CPU hours.
-If unspecified, one will be automatically picked based on 
-cpu availability.
+### Compset Groups
 
-### Full Test Method
+The NEMSCompsetRun can group together several compsets, to allow users
+to run multiple compsets without having to type each one.  Compset
+groups are defined in the `compsets/all.input`.  As of this writing,
+the `all.input` for the NEMSGSM app was the following:
 
-The process of running is:
+    load 'gsm.input'
+    
+    run gfs_eulerian           @ gfs, standard, baseline
+    run wam_gh_l150            @ gfs, standard, baseline, wam
+    run wam_gh_l150_nemsio     @ gfs, standard, baseline, wam
+    run gfs_slg                @ gfs, standard, baseline, slg
+    run gfs_slg_2thread        @ gfs, standard, baseline, slg, plat==wcoss.phase1
+    run gfs_slg_48pe           @ gfs, standard, baseline, slg
+    run gfs_slg_adiabatic      @ gfs, standard, baseline, slg
+    run gfs_slg_land           @ gfs, standard, baseline, slg
+    run gfs_slg_nsst           @ gfs, standard, baseline, slg
+    run gfs_slg_rsthst         @ gfs, standard, baseline, slg
+    run gfs_slg_stochy         @ gfs, standard, baseline, slg
+    run gfs_slg_t574           @ gfs, standard, baseline, slg
+    run gfs_gocart_nemsio      @ gfs, standard, baseline, gocart
 
-    ./NEMS/tests/rtgen   # generates rtrun and rtreport commands
-    /path/to/USERNAME/rtgen.(ID)/rtrun (options)
-    /path/to/USERNAME/rtgen.(ID)/rtreport
+The `run` lines list known compsets and which groups they belong to.
+In later sections, we will discuss the `load 'gsm.input'` and how
+compsets are defined.  The text between `run` and `@` is a compset
+name, while after the `@` lists the groups to which the compset
+belongs.  Let's examine these three:
 
-To use this for a commit to the trunk, one must copy the results to
-the NEMS/tests directory.  This could be done manually, or one could
-run rt.sh and tell it to skip the rtgen step.  To do this, use the
-`rt.sh -r` option:
+    run gfs_eulerian           @ gfs, standard, baseline
+    run wam_gh_l150            @ gfs, standard, baseline, wam
+    run wam_gh_l150_nemsio     @ gfs, standard, baseline, wam
 
-    ./rt.sh -r (PLATFORM):/path/to/USERNAME/rtgen.(ID)
+All three are part of the `gfs` group, as well as the `standard` and
+`baseline` groups.  Only the `wam_gh_l150` and `wam_gh_l150_nemsio`
+are part of the `wam` group.  Hence, if we ask to run the `wam` group
+of compsets, the `gfs_eulerian` will not be run.  If we ask to run the
+`gfs` group, all three will be run.
 
-where `(PLATFORM)` is "theia" or "wcoss.phase1"
+There are two special compset groups:
 
-The rest of this section explains the purpose and function of rtgen,
-rtrun and rtreport.
+ * `standard` -- all compsets run by `NEMSCompsetRun -s`
+ * `baseline` -- all compsets run when a baseline is generated.
 
-### Step 1: Generate Test Scripts (rtgen)
+The `baseline` set allows a special usage: some compsets are intended
+to generate the same results as one another.  This is often used for
+regression testing, such as ensuring that different decompositions of
+a grid generate the same results.  In such situations, you only want
+to run one control when generating baselines.  
 
-The first step is to run `rtgen`.  This will generate a set of scripts
-to run the requested tests.  If you do not request any tests, it will
-run all tests.
+### Compset Groups and Set Arithmetic
 
-    ./NEMS/tests/rtgen
+The NEMSCompsetRun understands basic set arithmetic operations.  For
+example, this requests execution of all `gocart` and `wam` compsets:
 
-That command will give you instructions and will log the more
-important parts of its execution:
+    ./NEMS/NEMSCompsetRun 'union(gocart,wam)'
+
+You can also specify lists of compsets:
+
+    ./NEMS/NEMSCompsetRun '{gfs_slg_t574,gfs_slg}'
+
+and use such compsets in set arithmetic.  For example, if we want to
+run all GFS semilagrangian tests except `gfs_slg` and `gfs_slg_t574`:
+
+    ./NEMS/NEMSCompsetRun 'minus(slg,{gfs_slg_t574,gfs_slg})'
+
+The set arithmetic understands the following:
+
+ * `union(group1,group2)` --- union of group1 and group2
+ * `inter(group1,group2)` --- intersection of group1 and group2
+ * `minus(group1,group2)` --- all compsets in group1 that are not in group2
+ * `*` --- the universal set (all known compsets)
+ * `{compset1,compset2,compset3}` --- compsets compset1, compset2, and compset3
+
+In all cases, explicit compset sets (`{compset1,compset2,compset3}`)
+can be used in place of groups.  Also, nested operations are allowed:
+
+    ./NEMS/NEMSCompsetRun minus(*,union(minus(slg,{gfs_slg_t574,gfs_slg}),gocart))
+
+### Options: Disk Area, Batch System Account, and More
+
+The NEMSCompsetRun has a number of command-line options for
+configuring various aspects of execution.  There is one special
+option:
+
+    ./NEMS/NEMSCompsetRun --help
+
+which will print a usage message, describing options and compset
+specification syntax.
+
+#### Resources
+
+The following will be given suitable defaults, if possible, on your
+platform.  In some cases, no default is possible.  For example, Jet
+has no system-wide temporary area so the user must specify that
+manually.
+
+ * `--project=project` --- specifies the CPU project or account under
+   which jobs will be submitted.
+
+ * `--temp-dir=/path/to/temp/area` --- scrub area in which to generate
+   the workflow and execute the compsets.  The NEMSCompsetRun will
+   make a subdirectory, `rtgen.(number)`, underneath this directory.
+
+#### Generation and Execution
+
+ * `--baseline-dir` --- the location of the baseline.  In baseline
+   generation mode, this is the directory in which to place the
+   baseline.  In execution mode, this is the area that contains the
+   baseline against which to compare runs.  The default is specified
+   in the compset platform description, discussed in detail in a later
+   section.
+
+ * `--dry-run` --- don't run anything.  Just print what would be done.
+
+ * `--verbose` --- be verbose
+
+ * `--mode=MODE` --- run in `BASELINE` mode or verify against a
+   baseline in `EXECUTION` mode
+
+ * `--baseline` --- generate a baseline; same as `--mode=BASELINE`
+
+ * `--resume` --- continue execution of a terminated workflow.  This
+   is discussed in detail in the next section.
+
+### Resuming and Rerunning
+
+The NEMSCompsetRun supports rerunning failed jobs and resuming a
+terminated workflow.  If a user logs out or kills (control-C) the
+NEMSCompsetRun process, it can be resumed with the `--resume` option.
+If a compset or build job has failed, the user can rerun the failed
+job via the `rtrewind` command, and then use the `NEMSCompsetRun
+--resume` to resume the workflow.  The `rtreport` command reports on
+the status of the build and compset jobs.
+
+All of these commands require the path to the generated workflow.
+That path is printed out by NEMSCompsetRun:
+
+    /home/you>  ./NEMS/NEMSCompsetRun [options] compset-specificaton
+    ... other log messages ...
+    Test will run in: /path/to/temp-dir/rtgen.NUMBER
+
+#### Resuming the Workflow
+
+After the NEMSCompsetRun is terminated, you can resume the workflow by
+starting a new NEMSCompsetRun for the same directory:
+
+    ./NEMS/NEMSCompsetRun --resume /path/to/temp-dir/rtgen.NUMBER
+
+Note that it is critical never to run two NEMSCompsetRun processes for
+the same workflow at the same time.  Although it will usually work,
+there is a chance that a batch job or Rocoto will fail when its script
+is being rewritten.
+
+#### Getting the Status of a Workflow
+
+The `rtreport` program displays a short or long status message.  The
+long format is the default.  It prints the status of all compsets and
+builds, and detailed verification information:
+
+    /path/to/temp-dir/rtgen.NUMBER/rtreport
+
+The short message just reports the number of jobs completed or failed,
+and explicitly lists failed jobs:
+
+    /path/to/temp-dir/rtgen.NUMBER/rtreport status
+
+#### Rerunning Failed Jobs
+
+The first step to rerunning failed jobs is to figure out which jobs
+have failed:
+
+    /path/to/temp-dir/rtgen.NUMBER/rtreport status
+
+This will print lines like the following:
+
+    build_gsm-ww3.exe: FAIL: /path/to/temp-dir/rtgen.NUMBER/tmp/log/build_gsm-ww3.log
+
+The `build_gsm-ww3.exe` is the name of the failed job.  The `rtrewind`
+command will tell the NEMSCompsetRun's "Rocoto" tool to forget it ran
+a job, so that it will rerun later:
+
+    /path/to/temp-dir/rtgen.NUMBER/rtrewind build_gsm-ww3.exe
+
+\note You do NOT need to terminate NEMSCompsetRun when running
+`rtrewind`.  Rocoto has proper file locking mechanisms to allow it to
+safely rewind a running workflow.
+
+If you do terminate NEMSCompsetRun, then you must resume it, as
+discussed earlier.
+
+
+### Interpreting the Log Messages
+
+After running the NEMSCompsetRun, you will see log messages like the following:
 
     11/17 18:42:38Z rtgen-INFO:  Will run all known tests.
     11/17 18:42:50Z rtgen-INFO:  Auto-chosen project for job submission is 'cmp'
     11/17 18:42:51Z rtgen-INFO:  Auto-chosen ptmp is '/path/to/USERNAME'
     11/17 18:42:51Z rtgen-INFO:  Generating workflow with id 23768.
     11/17 18:42:55Z rtgen-INFO:  Requested test has been generated.
-You need to run the test now.   You have three options:
+    11/17 18:42:55Z rtgen-INFO:  Test will run in: /path/to/USERNAME/rtgen.23768
 
-OPTION 1: Put this in your cron:
-*/3 * * * * /path/to/USERNAME/rtgen.23768/rtrun --step --zero-exit \\
-> /path/to/USERNAME/rtgen.23768/rtrun-cron.log 2>&1
+These messages include timestamps, and a warning level.  In this case,
+nothing went wrong, so the level is `INFO`.  These first few messages
+contain critical information:
 
-OPTION 2: Run this program:
-/path/to/USERNAME/rtgen.23768/rtrun --loop
+ * `Will run all known tests` --- describes the tests to be run.  If
+   you use options like `-s` or `union(wam,gocart)` then this will be
+   stated.
 
-OPTION 3: Verbose mode: run this program:
-/path/to/USERNAME/rtgen.23768/rtrun) -v --loop
-Adding -n to that command will disable colors.
+ * `... project for job submission is 'cmp'` --- the accounting
+   project used for submission to the batch queue.  This can be
+   manually specified with the `--project` option.  
 
-### Step 2: Run the Test (rtrun)
+ * `... ptmp is '/path/to/USERNAME'` --- scrub area.  This can be
+   manually specified with the `--temp-dir` option.
 
-The rtrun command runs the tests until all have succeeded or failed.
-You have three options for how to run this.  The easiest execution
-option is number 3, which runs on the command line and reports the
-queue status every few minutes.  The path to rtrun will vary, but the
-command will look something like this:
+ * `Test will run in: /path/...` --- location in which the test is generated.
 
-    /path/to/USERNAME/rtgen.23768/rtrun -v --loop
-
-If the colors annoy you, add the `-n` switch, and if you don't want
-the queue state, remove the `-v` switch.
-
-The components of that path are:
-
-* `/path/to` - a scrub area, such as /scratch4/NCEPDEV/stmp4 or /ptmpp1
-* `USERNAME` - your username, such as `emc.nemspara` or `Samuel.Trahan`
-
-The `rtrun` command will generate output like this:
+During the bulk of the execution, the `NEMSCompsetRun` will generate
+output like this:
 
     11/17 00:19:21Z rtrun INFO: check dependencies and submit jobs...
     11/17 00:19:22Z rtrun INFO: check status...
     11/17 00:19:22Z rtrun INFO: workflow is still running and no jobs have failed.
     11/17 00:19:22Z rtrun INFO: sleep 2
     11/17 00:19:24Z rtrun INFO: get queue information
-
-Job ID  Reserv   Queue   Procs ST Queue Time  Stdout Location
--------- ------ --------- ----- -- ----------- ------------------------------------
-573626        dev          64 R  11/17 00:14 /.../tmp/log/test_gfs_gocart_nemsio.log
-From bjobs -l  -u Samuel.Trahan (age 0 sec.)
-11/17 00:19:24Z rtrun INFO: sleep 100
+    573626        dev          64 R  11/17 00:14 /.../tmp/log/test_gfs_gocart_nemsio.log
 
 It will keep looping until all jobs have succeeded or failed.  If all
 goes well, the tests will all pass and you will see this message:
@@ -165,137 +350,8 @@ goes well, the tests will all pass and you will see this message:
     11/17 00:21:05Z rtrun INFO: check status...
     11/17 00:21:05Z rtrun INFO: workflow is complete and all jobs succeeded.
 
-### Step 3: Report Results (rtreport)
-
-At that point, you can run rtreport to get a report of the tests.
-Actually, you can run rtreport at any time.  If the tests are not yet
-complete, it will tell you which ones are complete.  It will report
-all it knows about failed tests too.  There are two output formats:
-
-To run:
-
-    /path/to/USERNAME/rtgen.23768/rtreport [mode]
-
-Where the optional `mode` is one of:
-
-* `status` - short output that only lists failed tests and counts
-the number of failed, complete, and unfinished tests.
-
-* `txt` - full text output of all information (the default).
-
-The output of `txt` mode (the default) looks something like this
-
-    BUILD nmm.x: SUCCEEDED
-    BUILD nmm.debug.x: SUCCEEDED
-    BUILD gsm.x: SUCCEEDED
-    BUILD gsm_gocart.x: SUCCEEDED
-    TEST #1: PASS
-    Test nmm_cntrl starting.
-    Wed Nov 16 22:51:23 UTC 2016
-    .../REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0000h_00m_00.00s: bit-for-bit identical
-    .../REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-    .../REGRESSION_TEST/NMMB_glob/nmmb_hst_01_bin_0048h_00m_00.00s: bit-for-bit identical
-    .../REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0000h_00m_00.00s: bit-for-bit identical
-    .../REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-    .../REGRESSION_TEST/NMMB_glob/nmmb_hst_01_nio_0048h_00m_00.00s: bit-for-bit identical
-    .../REGRESSION_TEST/NMMB_glob/nmmb_rst_01_bin_0024h_00m_00.00s: bit-for-bit identical
-    .../REGRESSION_TEST/NMMB_glob/nmmb_rst_01_nio_0024h_00m_00.00s: bit-for-bit identical
-    TEST PASSED
-    TEST #2: PASS
-    Test nmm_nemsio starting.
-    ... information about more tests ...
 
 
-### Rerunning Failed Tests
-
-If a test fails, you can request that it be rerun via the `rtrewind`
-command.  The command is located in the same directory as `rtrun`
-and can be called in two different ways:
-
-    /path/to/USERNAME/rtgen.23768/rtrewind -a
-
-    /path/to/USERNAME/rtgen.23768/rtrewind job1 [job2 [...]]
-
-The first method requests a rerun of ALL tests and builds while the
-second requests only certain ones be rerun.
-
-The jobs (`job1`, `job2`, ...) are the names from the test suite such
-as `gsm.x` or `nmm_cntrl`.  You can optionally include `test_` or
-`build_` before the name, as it is printed by the `rtreport` command.
-
-\anchor run_sub
-### Running Subsets of the Test Suite
-
-The test suite, as of this writing, has 48 tests and 5 build options.
-Frequently, you only want to run a few of them.  The `rtgen` script
-has a simple set arithmetic language for specifying what to run.  The
-subsetting is done by the command line.  For example, to run all
-standard nmm tests, you need to take the intersection of those two
-sets of tests:
-
-    ./NEMS/tests/rtgen 'inter(nmm,standard)'
-
-The `rtgen` will generate a workflow to run just those tests.  
-
-Other subsetting operations:
-
-union(nmm,wam)   # run all nmm and wam tests
-minus(gfs,wam)   # run all gsm (gfs) tests that are not wam tests
-{gfs_slg,nmm_cntrl}  # run the gfs_slg and nmm_cntrl tests
-
-You can combine multiple operations:
-
-minus(inter(union(gfs,nmm),standard),{gfs_slg,nmm_cntrl})
-
-That will ask rtgen to run all gsm (gfs) and nmm tests that are
-standard tests, except for `gfs_slg` and `nmm_cntrl`.
-
-Despite that, the rtgen will still run the gfs_slg test.  Why?
-Dependency resolution.
-
-\anchor dep_res
-### Dependency Resolution 
-
-Some tests have dependencies, and `rtgen` will resolve those
-dependencies automatically, similar to how `make` works.  For example,
-the `gfs_slg_rsthst` requires the `gfs_slg` to run first.  Output from
-`gfs_slg` is used as input to `gfs_slg_rsthst`.  If you ask `rtgen` to
-run `gfs_slg_rsthst` without running `gfs_slg`, it will see the
-dependency and add `gfs_slg` to your list of tests.  The builds are
-handled the same way.  The `gfs_slg` has a dependency on the build
-`gsm.x`, and so `rtgen` will always add the `gsm.x` build if you
-select the `gfs_slg` test.
-
-\anchor list_avail
-### List of Available Compsets and Sets
-
-The configuration for `rtgen` is stored in the compsets/all.input file
-in the app level repository.  This is where you specify the available
-tests and sets of tests.
-
-The top few lines of that file look like this
-
-    load 'gsm.input'
-    load 'nmm.input'
-    run nmm_cntrl              @ nmm, standard, baseline, nmmglob
-    run nmm_nemsio             @ nmm,                     nmmglob
-    run nmm_rest               @ nmm,                     nmmglob
-    ... many more "run" statements ...
-
-The first two lines import the details of the test from other files.
-The lines beginning with `run` specify a test to run and the sets it
-belongs to.  The test must be one declared in the other file,
-as discussed later in this document.
-
-The list of sets after the @ sign are the ones recognized by the
-\ref run_sub "subsetting functionality of rtgen".
-
-Note that you can enable tests on only certain platforms by including
-a comparison operator in the list of subsets:
-
-run gfs_slg_2thread        @ gfs, standard, baseline, slg, plat==wcoss.phase1
-
-This line ensures the `gfs_slg_2thread` is only available on WCOSS Phase 1.
 
 
 
@@ -348,15 +404,15 @@ meanings:
 
 * jobs - sets up the environment and passes control to the "scripts" level
 
-* scripts - high-level logic for each test
+* scripts - high-level logic for each compset
 
 * ush - low-level utility functions
 
-For each test, there is one "jobs" directory file and one "scripts"
+For each compset, there is one "jobs" directory file and one "scripts"
 directory file.  The "scripts" directory and "jobs" directory are
-populated by the tests blocks which will be discussed in great detail
+populated by the compset blocks which will be discussed in great detail
 in the \ref desc_lang "Compset Description Language" section.  They are
-generated from the [test blocks](new-tests).
+generated from the [compset blocks](new-compsets).
 
 ### Src, Exec, and Include
 
@@ -366,7 +422,7 @@ contains two scripts that describe how to build or uninstall the
 
 * install.sh - knows how to build the NEMS.x based on the instructions
 in the [build blocks](new-build) as explained in the
-[Test Description Language](desc_lang) section in great detail.
+[Compset Description Language](desc_lang) section in great detail.
 
 * uninstall.sh - deletes the copies of `NEMS.x` and `modules.nems`
 created by install.sh.
@@ -387,7 +443,7 @@ will create a second file.
 
 * workflow.xml - the definition of the workflow generated by `rtgen`.
 This includes dependencies and resource requirements.  There is one
-shell command for each test or build.
+shell command for each compset or build.
 
 * workflow.db - created by `rtrun`, this contains the Rocoto internal
 state information.
@@ -395,14 +451,14 @@ state information.
 ### Tmp and Logs
 
 The `tmp` directory contains all logs and all execution directories
-for each test.
+for each compset.
 
-* tmp/log/rocoto.log - log file from Rocoto.  Contains information about
+* `tmp/log/rocoto.log` - log file from Rocoto.  Contains information about
 batch system events, such as job failures or job submissions.
 
-* tmp/log/*.log - all other files contain logs about a test or build
+* `tmp/log/*.log` - all other files contain logs about a compset or build
 
-* tmp/* - all other directories are work areas for tests.  They
+* `tmp/*` - all other directories are work areas for compsets.  They
 contain inputs and outputs from the NEMS.x
 
 ### Scripts rtrun and rtreport
@@ -413,9 +469,9 @@ scans the reports, combining them into one text file.
 
 ### COM directory
 
-This directory contains one subdirectory for each test with all
-verified files as described in a test's \ref criteria block.
-It also contains the "report.txt" file with the report of the test
+This directory contains one subdirectory for each compset with all
+verified files as described in a compset's \ref criteria block.
+It also contains the "report.txt" file with the report of the compset
 success or failure.
 
 \anchor desc_lang
@@ -425,7 +481,7 @@ success or failure.
 This chapter discusses the language used by the `rtgen` tool to
 describe regression tests and compsets.  The language consists of
 "modules" which are simply a collection of variables and functions. A
-module has a type: build, test, hash, etc.  A set of `run` commands
+module has a type: build, compset, hash, etc.  A set of `run` commands
 list which runnable modules should be executed.
 
 ### Variable Definitions and Modules
@@ -491,17 +547,17 @@ There are three ways of specifying a string:
 If you need to insert a literal @ into the string, you have three
 options.  In these examples, we'll use the multi-line string format:
 
-* [[[  @['this text is not expanded']   ]]]
-* [[[  @["this text is not expanded"]  ]]]
-* [[[ Simple literal @[@] ]]]
+* `[[[  @['this text is not expanded']   ]]]`
+* `[[[  @["this text is not expanded"]  ]]]`
+* `[[[ Simple literal @[@] ]]]`
 
 ###  Embedded Scripts
 
-Most of the scripts required to run the tests are automatically
+Most of the scripts required to run the compsets are automatically
 generated, but there are occasional instances when you need to specify
 specific code.  This is done via `embed` blocks:
 
-    embed bash nems_regtest_prep(RUNDIR,modules,CNTL) [[[
+    embed bash nems_compset_prep(RUNDIR,modules,CNTL) [[[
     mkdir -p "$RUNDIR" "$CNTL"
     cd @[RUNDIR]
     source "$modules"
@@ -510,10 +566,9 @@ specific code.  This is done via `embed` blocks:
     ]]]
 
 In this example, we have embedded a bash script called
-`nems_regtest_prep`.  
+`nems_compset_prep`.  
 
-#### Embedded Script 
-Variables: $ vs. @
+#### Embedded Script Variables: `$` vs. `@`
 
 In the example script, there are two methods of doing variable substitution:
 
@@ -525,13 +580,13 @@ the value of the `RUNDIR` variable is substituted directly in the
 generated script.  If the variable contained any shell metacharacters,
 those would be copied verbatim.  In the case of `$RUNDIR`, the bash
 variable is used instead.  That variable's value is set before the
-code in `nems_regtest_prep` is run.
+code in `nems_compset_prep` is run.
 
 Either approach is valid.  It is up to the user to decide which one to use.
 
 ### Platform Detection
 
-The test suite needs to reconfigure certain aspects based on platform;
+The compset suite needs to reconfigure certain aspects based on platform;
 WCOSS vs. Theia vs. GAEA, etc.  This is done with `platform` blocks.
 These are simply modules with a `detect` function.  After all
 platforms are defined, an `autodetect` block selects between them.
@@ -539,30 +594,30 @@ platforms are defined, an `autodetect` block selects between them.
 Here is an example of a platform.  This is the one for Phase 1 of WCOSS.
 
     platform wcoss.phase1 {
-    use wcoss.common
-    CPU_ACCOUNT='NAM-T2O'
-    pex='1'
-    cores_per_node=32
-    MPI='LSF'
-    SHORT_TEST_QUEUE='&SHORTQ;'
-    LONG_TEST_QUEUE='&LONGQ;'
-    BUILD_QUEUE='&BUILDQ;'
+        use wcoss.common
+        CPU_ACCOUNT='NAM-T2O'
+        pex='1'
+        cores_per_node=32
+        MPI='LSF'
+        SHORT_TEST_QUEUE='&SHORTQ;'
+        LONG_TEST_QUEUE='&LONGQ;'
+        BUILD_QUEUE='&BUILDQ;'
 
-    embed bash detect [[[
-    # This function is used at PARSE TIME to detect whether we are
-    # on WCOSS Phase 1.  It must be very fast and low resource
-    # usage since the parser runs it.
-    if [[ -d /usrx && -d /global && -e /etc/redhat-release && \\
-    -e /etc/prod ]] ; then
-    # We are on WCOSS Phase 1 or 2.
-    if ( ! cat /proc/cpuinfo |grep 'processor.*32' ) ; then
-    # Fewer than 32 fake (hyperthreading) cpus, so Phase 1.
-    exit 0
-    fi
-    fi
-    exit 1
-    ]]]
-    ... more wcoss stuff ...
+        embed bash detect [[[
+            # This function is used at PARSE TIME to detect whether we are
+            # on WCOSS Phase 1.  It must be very fast and low resource
+            # usage since the parser runs it.
+            if [[ -d /usrx && -d /global && -e /etc/redhat-release && \\
+                -e /etc/prod ]] ; then
+                # We are on WCOSS Phase 1 or 2.
+                if ( ! cat /proc/cpuinfo |grep 'processor.*32' ) ; then
+                    # Fewer than 32 fake (hyperthreading) cpus, so Phase 1.
+                    exit 0
+                fi
+            fi
+            exit 1
+        ]]]
+        ... more wcoss stuff ...
     }
 
 Note the `embed bash` block called `detect`.  This is the bash
@@ -595,12 +650,12 @@ Here is an example.  This builds the GOCART-capable standalone GSM in
 the NEMSLegacy branch:
 
     build gsm_gocart.x {
-    use plat
-    NEMS.x="@[plat%EXECrt]/NEMS_gocart.x"
-    modules.nems="@[plat%INCrt]/NEMS_gocart.x.modules"
-    target="@[NEMS.x]"
-    build=NEMSAppBuilder(NEMS.x="@[NEMS.x]",modules.nems="@[modules.nems]",
-    OPTS="app=GSM-GOCART")
+        use plat
+        NEMS.x="@[plat%EXECrt]/NEMS_gocart.x"
+        modules.nems="@[plat%INCrt]/NEMS_gocart.x.modules"
+        target="@[NEMS.x]"
+        build=NEMSAppBuilder(NEMS.x="@[NEMS.x]",modules.nems="@[modules.nems]",
+        OPTS="app=GSM-GOCART")
     }
 
 The NEMSAppBuilder function is declared elsewhere.  It is used by most
@@ -609,19 +664,19 @@ like this:
 
     embed bash NEMSAppBuilder(NEMS.x,modules.nems,OPTS)
     [[[
-    mkdir -p "@[plat%EXECrt]" "@[plat%INCrt]"
-    rm -f "@[NEMS.x]" "@[modules.nems]"
-    cd @[plat%HOMEnems]
-
-    # NOTE: Replace "rebuild" with "norebuild" to disable "gmake clean"
-    ./NEMS/NEMSAppBuilder rebuild $OPTS
-
-    cd @[plat%SRCnems]
-    cp -fp ../exe/NEMS.x "@[NEMS.x]"
-    cp -fp conf/modules.nems "@[modules.nems]"
+        mkdir -p "@[plat%EXECrt]" "@[plat%INCrt]"
+        rm -f "@[NEMS.x]" "@[modules.nems]"
+        cd @[plat%HOMEnems]
+    
+        # NOTE: Replace "rebuild" with "norebuild" to disable "gmake clean"
+        ./NEMS/NEMSAppBuilder rebuild $OPTS
+    
+        cd @[plat%SRCnems]
+        cp -fp ../exe/NEMS.x "@[NEMS.x]"
+        cp -fp conf/modules.nems "@[modules.nems]"
     ]]]
 
-Notice that the four variables we're passing from gsm_gocart.x%build
+Notice that the four variables we're passing from `gsm_gocart.x%build`
 are in the definition line of NEMSAppBuilder:
 
     embed bash NEMSAppBuilder(NEMS.x,modules.nems,OPTS)
@@ -631,11 +686,11 @@ are in the definition line of NEMSAppBuilder:
     build=NEMSAppBuilder(NEMS.x="@[NEMS.x]",modules.nems="@[modules.nems]",
     OPTS="app=GSM-GOCART")
 
-### Tests
+### Compsets
 
-A test is a module that defines the following:
+A compset block is a module that defines the following:
 
-* dependencies - any other tests or builds that have to run first
+* dependencies - any other compsets or builds that have to run first
 
 * `prep` - a preparation step to run before anything else.  This is
 generally `mkdir`, `module` or `cd` commands.
@@ -648,96 +703,96 @@ described below.
 This is also used to generate job cards to request the needed
 resources.
 
-* `output` - criteria for validating the test output.  These are
+* `output` - criteria for validating the compset output.  These are
 usually `criteria` blocks, described below.
 
-This is the `test` block for the global nmm control.  Later text
+This is the `compset` block for the global nmm control.  Later text
 describe the meaning of each part:
 
-    # nmm_cntrl test
-    test nmm_cntrl: nmm.x {
-    use nmm_vars_global
-
-    # Convenience variables:
-    RUNDIR_ROOT="@[plat%TMPrt]"
-    RUNDIR="@[RUNDIR_ROOT]/@[TEST_NAME]"
-    TEST_DESCR="Compare NMMB-global results with previous trunk version"
-    CNTL="@[plat%BASELINE]/@[CNTL_NAME]"      # Control baseline area
-    TEST_IN="@[plat%INPUTS]/@[CNTL_NAME]"   # Test-specific input data
-    COM="@[plat%COMrt]/@[TEST_NAME]"
-
-    criteria output {
-    #    NEMS.x output file --------- comparison - control file or dir
-    "nmmb_hst_01_bin_0000h_00m_00.00s" .bitcmp. "@[CNTL]"
-    "nmmb_hst_01_bin_0024h_00m_00.00s" .bitcmp. "@[CNTL]"
-    "nmmb_hst_01_bin_0048h_00m_00.00s" .bitcmp. "@[CNTL]"
-    "nmmb_hst_01_nio_0000h_00m_00.00s" .bitcmp. "@[CNTL]"
-    "nmmb_hst_01_nio_0024h_00m_00.00s" .bitcmp. "@[CNTL]"
-    "nmmb_hst_01_nio_0048h_00m_00.00s" .bitcmp. "@[CNTL]"
-    "nmmb_rst_01_bin_0024h_00m_00.00s" .bitcmp. "@[CNTL]"
-    "nmmb_rst_01_nio_0024h_00m_00.00s" .bitcmp. "@[CNTL]"
+    # nmm_cntrl compset
+    compset nmm_cntrl: nmm.x {
+        use nmm_vars_global
+    
+        # Convenience variables:
+        RUNDIR_ROOT="@[plat%TMPrt]"
+        RUNDIR="@[RUNDIR_ROOT]/@[TEST_NAME]"
+        TEST_DESCR="Compare NMMB-global results with previous trunk version"
+        CNTL="@[plat%BASELINE]/@[CNTL_NAME]"      # Control baseline area
+        TEST_IN="@[plat%INPUTS]/@[CNTL_NAME]"   # Compset-specific input data
+        COM="@[plat%COMrt]/@[TEST_NAME]"
+    
+        criteria output {
+            #    NEMS.x output file --------- comparison - control file or dir
+            "nmmb_hst_01_bin_0000h_00m_00.00s" .bitcmp. "@[CNTL]"
+            "nmmb_hst_01_bin_0024h_00m_00.00s" .bitcmp. "@[CNTL]"
+            "nmmb_hst_01_bin_0048h_00m_00.00s" .bitcmp. "@[CNTL]"
+            "nmmb_hst_01_nio_0000h_00m_00.00s" .bitcmp. "@[CNTL]"
+            "nmmb_hst_01_nio_0024h_00m_00.00s" .bitcmp. "@[CNTL]"
+            "nmmb_hst_01_nio_0048h_00m_00.00s" .bitcmp. "@[CNTL]"
+            "nmmb_rst_01_bin_0024h_00m_00.00s" .bitcmp. "@[CNTL]"
+            "nmmb_rst_01_nio_0024h_00m_00.00s" .bitcmp. "@[CNTL]"
+        }
+    
+        # The prep is run at the top of any job.  It should do such things
+        # like making directories and loading modules.
+        prep=nems_compset_prep(
+        RUNDIR="@[RUNDIR]",modules="@[nmm.x%modules.nems]",
+        CNTL="@[CNTL]")
+    
+        # The execute step runs the program:
+        spawn execute {
+            { "@[nmm.x%NEMS.x]", ranks="@[TASKS]", threads="@[OpenMPThreads]" }
+        }
+    
+        filters input {
+            # work file         operation   input file
+            "input_domain_01"        <=copy= "@[TEST_IN]/test_input_nmmb_global"
+            "input_domain_01_nemsio" <=copy= "@[TEST_IN]/test_input_nmmb_global.nemsio"
+            "GWD_bin_01"             <=copy= "@[TEST_IN]/GWD_bin_01"
+        
+            "nems.configure"      <=atparse= "@[CONF]/nems.configure.@[nems_configure].IN"
+            "atmos.configure"     <=atparse= "@[CONF]/atmos.configure_nmm"
+        
+            "configure_file_01"   <=atparse= "@[CONF]/nmm_conf/nmm_@[GBRG]_conf.IN"
+            "model_configure"        <=copy= "configure_file_01"
+        
+            "*"                   <=copydir= "@[plat%NMM_DATA]"
+        
+            "VEGPARM.TBL"            <=copy= "IGBP_VEGPARM.TBL"
+            "LANDUSE.TBL"            <=copy= "IGBP_LANDUSE.TBL"
+            "ETAMPNEW_DATA"          <=copy= "ETAMPNEW_DATA.expanded_rain"
+            "fort.28"                <=link= "global_o3prdlos.f77"
+            "fort.48"                <=link= "global_o3clim.txt"
+        
+            "solver_state.txt"       <=copy= "@[plat%PARMnems]/solver_state.txt"
+            "nests.txt"              <=copy= "@[plat%PARMnems]/nests.txt"
+        }
     }
 
-    # The prep is run at the top of any job.  It should do such things
-    # like making directories and loading modules.
-    prep=nems_regtest_prep(
-    RUNDIR="@[RUNDIR]",modules="@[nmm.x%modules.nems]",
-    CNTL="@[CNTL]")
-
-    # The execute step runs the program:
-    spawn execute {
-    { "@[nmm.x%NEMS.x]", ranks="@[TASKS]", threads="@[OpenMPThreads]" }
-    }
-
-    filters input {
-    # work file         operation   input file
-    "input_domain_01"        .copy. "@[TEST_IN]/test_input_nmmb_global"
-    "input_domain_01_nemsio" .copy. "@[TEST_IN]/test_input_nmmb_global.nemsio"
-    "GWD_bin_01"             .copy. "@[TEST_IN]/GWD_bin_01"
-
-    "nems.configure"      .atparse. "@[CONF]/nems.configure.@[nems_configure].IN"
-    "atmos.configure"     .atparse. "@[CONF]/atmos.configure_nmm"
-
-    "configure_file_01"   .atparse. "@[CONF]/nmm_conf/nmm_@[GBRG]_conf.IN"
-    "model_configure"        .copy. "configure_file_01"
-
-    "*"                   .copydir. "@[plat%NMM_DATA]"
-
-    "VEGPARM.TBL"            .copy. "IGBP_VEGPARM.TBL"
-    "LANDUSE.TBL"            .copy. "IGBP_LANDUSE.TBL"
-    "ETAMPNEW_DATA"          .copy. "ETAMPNEW_DATA.expanded_rain"
-    "fort.28"                .link. "global_o3prdlos.f77"
-    "fort.48"                .link. "global_o3clim.txt"
-
-    "solver_state.txt"       .copy. "@[plat%PARMnems]/solver_state.txt"
-    "nests.txt"              .copy. "@[plat%PARMnems]/nests.txt"
-    }
-    }
-
-#### Test Dependencies
+#### Compset Dependencies
 
 The first line (after the comment) is this:
 
-    test nmm_cntrl: nmm.x {
+    compset nmm_cntrl: nmm.x {
 
 The `: nmm.x` indicates that the `nmm.x` build has to run before the
 `nmm_cntrl` can start.  The test suite will include that dependency in
-its Rocoto or ecFlow automation system.
+its Rocoto automation system.
 
-#### Test Prep
+#### Compset Prep
 
 The prep step is a simple script that prepares the environment.  In
-this case, it just runs the nems_regtest_prep, which we discussed
+this case, it just runs the nems_compset_prep, which we discussed
 earlier:
 
     # The prep is run at the top of any job.  It should do such things
     # like making directories and loading modules.
-    prep=nems_regtest_prep(
-    RUNDIR="@[RUNDIR]",modules="@[nmm.x%modules.nems]",
-    CNTL="@[CNTL]")
+    prep=nems_compset_prep(
+        RUNDIR="@[RUNDIR]",modules="@[nmm.x%modules.nems]",
+        CNTL="@[CNTL]")
 
 Note that it refers to `@[RUNDIR]` and `@[CNTL]`.  Those variables are
-defined earlier in the same test:
+defined earlier in the same compset:
 
     # Convenience variables:
     RUNDIR_ROOT="@[plat%TMPrt]"
@@ -747,72 +802,72 @@ defined earlier in the same test:
     TEST_IN="@[plat%INPUTS]/@[CNTL_NAME]"   # Test-specific input data
     COM="@[plat%COMrt]/@[TEST_NAME]"
 
-#### Test Input Filter
+#### Compset Input Filter
 
 This block specifies the input files and how to prepare them.  It
-declares an `input` variable inside the `nmm_cntrl` test, which is of
+declares an `input` variable inside the `nmm_cntrl` compset, which is of
 type `filters`:
 
     filters input {
-    # work file         operation   input file
-    "input_domain_01"        .copy. "@[TEST_IN]/test_input_nmmb_global"
-    "input_domain_01_nemsio" .copy. "@[TEST_IN]/test_input_nmmb_global.nemsio"
-    "GWD_bin_01"             .copy. "@[TEST_IN]/GWD_bin_01"
-
-    "nems.configure"      .atparse. "@[CONF]/nems.configure.@[nems_configure].IN"
-    "atmos.configure"     .atparse. "@[CONF]/atmos.configure_nmm"
-
-    "configure_file_01"   .atparse. "@[CONF]/nmm_conf/nmm_@[GBRG]_conf.IN"
-    "model_configure"        .copy. "configure_file_01"
-
-    "*"                   .copydir. "@[plat%NMM_DATA]"
-
-    "VEGPARM.TBL"            .copy. "IGBP_VEGPARM.TBL"
-    "LANDUSE.TBL"            .copy. "IGBP_LANDUSE.TBL"
-    "ETAMPNEW_DATA"          .copy. "ETAMPNEW_DATA.expanded_rain"
-    "fort.28"                .link. "global_o3prdlos.f77"
-    "fort.48"                .link. "global_o3clim.txt"
-
-    "solver_state.txt"       .copy. "@[plat%PARMnems]/solver_state.txt"
-    "nests.txt"              .copy. "@[plat%PARMnems]/nests.txt"
+        # work file           operation  input file
+        "input_domain_01"        <=copy= "@[TEST_IN]/test_input_nmmb_global"
+        "input_domain_01_nemsio" <=copy= "@[TEST_IN]/test_input_nmmb_global.nemsio"
+        "GWD_bin_01"             <=copy= "@[TEST_IN]/GWD_bin_01"
+    
+        "nems.configure"      <=atparse= "@[CONF]/nems.configure.@[nems_configure].IN"
+        "atmos.configure"     <=atparse= "@[CONF]/atmos.configure_nmm"
+    
+        "configure_file_01"   <=atparse= "@[CONF]/nmm_conf/nmm_@[GBRG]_conf.IN"
+        "model_configure"        <=copy= "configure_file_01"
+    
+        "*"                   <=copydir= "@[plat%NMM_DATA]"
+    
+        "VEGPARM.TBL"            <=copy= "IGBP_VEGPARM.TBL"
+        "LANDUSE.TBL"            <=copy= "IGBP_LANDUSE.TBL"
+        "ETAMPNEW_DATA"          <=copy= "ETAMPNEW_DATA.expanded_rain"
+        "fort.28"                <=link= "global_o3prdlos.f77"
+        "fort.48"                <=link= "global_o3clim.txt"
+    
+        "solver_state.txt"       <=copy= "@[plat%PARMnems]/solver_state.txt"
+        "nests.txt"              <=copy= "@[plat%PARMnems]/nests.txt"
     }
 
 Notice that there are four different operations in the middle column:
 
-| Local file          | Operation   | Remote file or directory        |  
-| ------------------- | ----------- | ------------------------------- |
-| `"GWD_bin_01"`      | `.copy.`    | `"@[TEST_IN]/GWD_bin_01"`       |
-| `"*"`               | `.copydir.` | `"@[plat%NMM_DATA]"`            |
-| `"fort.28"`         | `.link.`    | `"global_o3prdlos.f77"`         |
-| `"atmos.configure"` | `.atparse.` | `"@[CONF]/atmos.configure_nmm"` |
+| Local file          | Operation    | Remote file or directory        |  
+| ------------------- | ------------ | ------------------------------- |
+| `"GWD_bin_01"`      | `<=copy=`    | `"@[TEST_IN]/GWD_bin_01"`       |
+| `"*"`               | `<=copydir=` | `"@[plat%NMM_DATA]"`            |
+| `"fort.28"`         | `<=link=`    | `"global_o3prdlos.f77"`         |
+| `"atmos.configure"` | `<=atparse=` | `"@[CONF]/atmos.configure_nmm"` |
 
-* `.copy.` - copies the remote file (third column) to the local file
+* `<=copy=` - copies the remote file (third column) to the local file
 (first column).  
 
     cp -p "$third_column" "$first_column"
 
-* `.link.` - makes a symbolic link to the remote file (third column)
+* `<=link=` - makes a symbolic link to the remote file (third column)
 from the local file (first column)
 
     ln -s "$third_column" "$first_column"
 
-* `.copydir.` - copies from the remote file or directory (third
+* `<=copydir=` - copies from the remote file or directory (third
 column) all files that match the glob (first column) into the local
 directory.
 
     cp -rp "$third_column"/$first_column
 
-* `.atparse.` - runs the remote file (third column) through a filter
+* `<=atparse=` - runs the remote file (third column) through a filter
 to create the local file (first column).  The filter will replace
 text like `@[varname]` with the corresponding variable.  
 
-In the `.atparse.` variable replacement, only variables from the
-test's module are replaced.  Hence, if you want many variables
-accessible to `.atparse.`d files, you need to either declare or
-`use` them.  The `nmm_cntrl` test does that at the top of its
+In the `<=atparse=` variable replacement, only variables from the
+compset's module are replaced.  Hence, if you want many variables
+accessible to `<=atparse=`d files, you need to either declare or
+`use` them.  The `nmm_cntrl` compset does that at the top of its
 declaration:
 
-    test nmm_cntrl: nmm.x {
+    compset nmm_cntrl: nmm.x {
     use nmm_vars_global
 
     # Convenience variables:
@@ -820,7 +875,7 @@ declaration:
     RUNDIR="@[RUNDIR_ROOT]/@[TEST_NAME]"
     TEST_DESCR="Compare NMMB-global results with previous trunk version"
     CNTL="@[plat%BASELINE]/@[CNTL_NAME]"      # Control baseline area
-    TEST_IN="@[plat%INPUTS]/@[CNTL_NAME]"   # Test-specific input data
+    TEST_IN="@[plat%INPUTS]/@[CNTL_NAME]"   # Compset-specific input data
     COM="@[plat%COMrt]/@[TEST_NAME]"
 
 Everything in the `nmm_vars_global` module will be available plus
@@ -829,7 +884,7 @@ all six of the declared "convenience variables"
 Note that variables with a period (".") or percent ("%") in their
 name are not yet available.  That will be fixed in a later release.
 
-#### Test Execution
+#### Compset Execution
 
 The next step is to actually run the `NEMS.x`:
 
@@ -853,7 +908,7 @@ calculated automatically by the system, and will be the largest
 number of MPI ranks possible.
 
 \anchor criteria
-#### Test Verification or Baseline Generation
+#### Compset Verification or Baseline Generation
 
 The last step is to either verify the results or generate the
 baseline.  Both cases are handled by the output criteria block:
@@ -884,3 +939,33 @@ In verification mode, the comparisons are performed after running NEMS.x
 
 In baseline generation mode, the local file (first column) is copied
 to the remote location (third column).
+
+### List of Available Compsets and Sets
+
+The configuration for `rtgen` is stored in the compsets/all.input file
+in the app level repository.  This is where you specify the available
+compsets and sets of compsets.
+
+The top few lines of that file look like this
+
+    load 'gsm.input'
+    load 'nmm.input'
+    run nmm_cntrl              @ nmm, standard, baseline, nmmglob
+    run nmm_nemsio             @ nmm,                     nmmglob
+    run nmm_rest               @ nmm,                     nmmglob
+    ... many more "run" statements ...
+
+The first two lines import the details of the compset from other files.
+The lines beginning with `run` specify a compset to run and the sets it
+belongs to.  The compset must be one declared in the other file,
+as discussed later in this document.
+
+The list of sets after the @ sign are the ones recognized by the
+\ref run_sub "subsetting functionality of rtgen".
+
+Note that you can enable compsets on only certain platforms by including
+a comparison operator in the list of subsets:
+
+run gfs_slg_2thread        @ gfs, standard, baseline, slg, plat==wcoss.phase1
+
+This line ensures the `gfs_slg_2thread` is only available on WCOSS Phase 1.
