@@ -688,9 +688,13 @@ def decide_tmp_wcoss(pex):
                 [ '/ptmpp2', '-j', 'ptmp-p2', 'gpfs-'+tg+'p2'] ]
         max_area='/ptmpp2' # default on failure
     else: # assume cray (pex=0)
-        ptmps=[ [ '/gpfs/hps/ptmp', '-j', 'hps-ptmp', 'hps'],
-                [ '/gpfs/hps/stmp', '-j', 'hps-stmp', 'hps'] ]
-        max_area='/gpfs/hps/ptmp' # default on failure
+        ptmps=[ [ '/gpfs/hps', '-j', 'hps-ptmp', 'hps'],
+                [ '/gpfs/hps/stmp', '-j', 'hps-stmp', 'hps'],
+                [ '/gpfs/hps2/ptmp', '-j', 'hps2-ptmp', 'hps2'],
+                [ '/gpfs/hps2/stmp', '-j', 'hps2-stmp', 'hps2'],
+                [ '/gpfs/hps3/ptmp', '-j', 'hps3-ptmp', 'hps3'],
+                [ '/gpfs/hps3/stmp', '-j', 'hps3-stmp', 'hps3'] ]
+        max_area='/gpfs/hps2/ptmp' # default on failure
     
     # Area with maximum space available and available space in TB:
     max_avail=0
@@ -735,7 +739,7 @@ def decide_tmp_wcoss(pex):
                     ( max_area, max_avail) = ( area, avail )
         except(EnvironmentError,ExitStatusException,KeyError,ValueError) as e:
             # Log all likely errors before emergency fallback option:
-            logger.error(str(e),exc_info=True)
+            logger.error(str(e),exc_info=False)
 
     if max_area:
         logger.info('%s: use this ptmp with %d TB available'%(
