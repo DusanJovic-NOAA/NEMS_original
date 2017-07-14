@@ -2556,6 +2556,31 @@
           return  ! bail out
       endif
 
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "wave_z0_roughness_length")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="wave_z0_roughness_length", &
+          canonicalUnits="m", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "wave_bottom_current_period")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="wave_bottom_current_period", &
+          canonicalUnits="s", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+
+
       ! Fields from WAM to IPE
 
       if (.not.NUOPC_FieldDictionaryHasEntry( &
