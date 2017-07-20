@@ -688,7 +688,7 @@ def decide_tmp_wcoss(pex):
                 [ '/ptmpp2', '-j', 'ptmp-p2', 'gpfs-'+tg+'p2'] ]
         max_area='/ptmpp2' # default on failure
     else: # assume cray (pex=0)
-        ptmps=[ [ '/gpfs/hps', '-j', 'hps-ptmp', 'hps'],
+        ptmps=[ [ '/gpfs/hps/ptmp', '-j', 'hps-ptmp', 'hps'],
                 [ '/gpfs/hps/stmp', '-j', 'hps-stmp', 'hps'],
                 [ '/gpfs/hps2/ptmp', '-j', 'hps2-ptmp', 'hps2'],
                 [ '/gpfs/hps2/stmp', '-j', 'hps2-stmp', 'hps2'],
@@ -700,6 +700,8 @@ def decide_tmp_wcoss(pex):
     max_avail=0
 
     for ptmp in ptmps:
+        if not os.path.exists(ptmp[0]):
+            jlogger.info('%s: does not exist'%(ptmp[0],))
         try:
             args=['/usr/lpp/mmfs/bin/mmlsquota', '--block-size', '1T' ]
             args.extend(ptmp[1:])
