@@ -627,6 +627,7 @@ module module_MEDIATOR
     call fld_list_add(fldsToOcn,"net_heat_flx_to_ocn"     , "will provide")
     call fld_list_add(fldsToOcn,"mean_fresh_water_to_ocean_rate", "will provide")
     call fld_list_add(fldsToOcn,"mean_salt_rate"          , "will provide")
+    call fld_list_add(fldsToOcn,"ice_fraction"          , "will provide")
  
     ! Fields from OCN
     call fld_list_add(fldsFrOcn,"ocean_mask"              , "cannot provide","conservedst")
@@ -4937,12 +4938,13 @@ module module_MEDIATOR
 !      line=__LINE__, file=__FILE__)) return  ! bail out
 
 ! not used by mom, mom uses evap
-!    call fieldBundle_FieldMerge(is_local%wrap%FBforOcn     , 'mean_laten_heat_flx'             , & 
-!                                is_local%wrap%FBAccumAtmOcn, 'mean_laten_heat_flx_atm_into_ocn', atmwgt1, &
-!                                is_local%wrap%FBAtm_o      , 'mean_laten_heat_flx'             , wgtp01, &
-!                                rc=rc)
-!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-!      line=__LINE__, file=__FILE__)) return  ! bail out
+! hycom uses latent heat flux
+    call fieldBundle_FieldMerge(is_local%wrap%FBforOcn     , 'mean_laten_heat_flx'             , & 
+                                is_local%wrap%FBAccumAtmOcn, 'mean_laten_heat_flx_atm_into_ocn', atmwgt1, &
+                                is_local%wrap%FBAtm_o      , 'mean_laten_heat_flx'             , wgtm01, &
+                                rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
 
     call fieldBundle_FieldMerge(is_local%wrap%FBforOcn     , 'mean_net_lw_flx'   , & 
                                 is_local%wrap%FBAtm_o      , 'mean_down_lw_flx'  , atmwgt1, &
@@ -5001,6 +5003,13 @@ module module_MEDIATOR
 
     customwgt = atmwgt * (1.0 - 0.06)
 !    customwgt = (1.0 - 0.06)
+    call fieldBundle_FieldMerge(is_local%wrap%FBforOcn,'mean_net_sw_flx' , & 
+                                is_local%wrap%FBAtm_o ,'mean_down_sw_flx',customwgt, &
+                                is_local%wrap%FBIce_o ,'mean_sw_pen_to_ocn' ,icewgt, &
+                                rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
     call fieldBundle_FieldMerge(is_local%wrap%FBforOcn,'mean_net_sw_vis_dir_flx' , & 
                                 is_local%wrap%FBAtm_o ,'mean_down_sw_vis_dir_flx',customwgt, &
                                 is_local%wrap%FBIce_o ,'mean_net_sw_vis_dir_flx' ,icewgt, &
