@@ -815,13 +815,13 @@ class RTGen(TestGen):
         if here.name in [ 'tide', 'gyre' ]:
             out.write('module load lsf\n')
             out.write('module use /hwrf/noscrub/soft/modulefiles\n')
-            out.write('module load rocoto\n')
+            out.write('module load rocoto/1.2.4-RC3\n')
             out.write('module load ruby # workaround for libxml2 bug\n')
             out.write('module load emc-utils ; have_qoutql=YES\n')
         elif here.name in [ 'surge', 'luna' ]:
             out.write('module load xt-lsfhpc\n')
             out.write('module use /usrx/local/emc_rocoto/modulefiles\n')
-            out.write('module load rocoto/issue_8\n')
+            out.write('module load rocoto/1.2.4-RC3\n')
             out.write('module use /gpfs/hps/emc/hwrf/noscrub/soft/modulefiles\n')
             out.write('module load emc-utils ; have_qoutql=YES\n')
         elif 'jet' in here.name:
