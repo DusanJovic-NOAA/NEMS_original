@@ -98,6 +98,11 @@ case "$CONF_OPTION" in
         EXTERNALS_NEMS="${EXTERNALS_NEMS:-../../conf/externals.nems.Wcoss}"
         CHOSEN_MODULE="${CHOSEN_MODULE:-wcoss.phase1/ESMF_NUOPC}"
         ;;
+    coupled_intel_wcoss_cray)
+        CONF_FILE="${CONF_FILE:-../../conf/configure.nems.Wcoss_C.intel}"
+        EXTERNALS_NEMS="${EXTERNALS_NEMS:-../../conf/externals.nems.Wcoss_C}"
+        CHOSEN_MODULE="${CHOSEN_MODULE:-wcoss.cray/ESMF_NUOPC}"
+        ;;
     coupled_intel_gaea)
         CONF_FILE="${CONF_FILE:-../../conf/configure.nems.Gaea.intel}"
         EXTERNALS_NEMS="${EXTERNALS_NEMS:-../../conf/externals.nems.Gaea}"
