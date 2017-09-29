@@ -860,6 +860,7 @@ UNIQUE_ID={unique_id} ## Unique id used to identify this workflow
 TEMP_AREA={temp_area} ## temporary area, auto-detected or specified at command line
 RUNDIR={run_dir} ## top directory of generated workflow
 SETS='{setarith}' ## set arithmetic specification of which sets to run
+RUN_MODE='{run_mode}' ## BASELINE = generate baseline, otherwise verify
 """
         contents=contents.format(
             platform_name=self.scope.resolve('plat%PLATFORM_NAME'),
@@ -868,7 +869,8 @@ SETS='{setarith}' ## set arithmetic specification of which sets to run
             unique_id=self.unique_id,
             temp_area=os.path.dirname(os.path.realpath(self.outloc)),
             run_dir=self.outloc,
-            setarith=self.setarith
+            setarith=self.setarith,
+            run_mode='BASELINE' if self.run_mode==BASELINE else 'EXECUTION'
             )
         self.make_rtscript(self.outloc,"info.sh.inc",contents)
     def make_rtreport(self):
@@ -1076,7 +1078,7 @@ def parse_rtsh_arguments():
         info_sh_inc=os.path.join(resume,'info.sh.inc')
         with open(info_sh_inc,'rt') as fd:
             for line in fd:
-                m=re.match('([A-Za-z][A-Za-z0-9_]*)=(.*?) ##',line)
+                m=re.match(r'''([A-Za-z][A-Za-z0-9_]*)=["']?(.*?)['"]? ##''',line)
                 if not m: continue
                 (var,val)=m.groups()
                 if var.lower()=='baseline_dir':
@@ -1096,8 +1098,13 @@ def parse_rtsh_arguments():
                     jlogger.info('Platform name: %s'%(repr(platform_name),))
                     assert('/' not in platform_name)
                 elif var.lower()=='sets':
-                    resume_sets=val[1:-1] # 'set,set,set' => set,set,set
+                    resume_sets=val # 'set,set,set' => set,set,set
                     jlogger.info('Set specification: %s'%(repr(resume_sets),))
+                elif var.lower()=='run_mode':
+                    if val.lower()=='baseline':
+                        baseline=True
+                    elif val.lower()=='execution':
+                        baseline=False
 
         if baseline_dir is None or unique_id is None or temp is None \
                 or run_dir is None or platform_name is None or resume_sets is None:
@@ -1261,7 +1268,8 @@ def rtgen(verbose,baseline_dir,dry_run,baseline,unique_id,temp,
     testgen.parse()
 
     jlogger.info('Verifying repo fingerprint against data fingerprint.')
-    verify_fingerprint(baseline,testgen,logger)
+    if not baseline:
+        verify_fingerprint(baseline,testgen,logger)
 
     try:
         jlogger.info('Generating workflow with id %s.'%(repr(unique_id),))
