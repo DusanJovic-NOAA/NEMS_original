@@ -822,7 +822,7 @@ class RTGen(TestGen):
             out.write('module load xt-lsfhpc\n')
             out.write('module use /usrx/local/emc_rocoto/modulefiles\n')
             out.write('module load rocoto/1.2.4-RC3\n')
-            out.write('module use /gpfs/hps/emc/hwrf/noscrub/soft/modulefiles\n')
+            out.write('module use /gpfs/hps3/emc/hwrf/noscrub/soft/modulefiles\n')
             out.write('module load emc-utils ; have_qoutql=YES\n')
         elif 'jet' in here.name:
             out.write('module load hpss rocoto\n')
