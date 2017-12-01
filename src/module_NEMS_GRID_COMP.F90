@@ -691,6 +691,497 @@
 !
       END IF
 !
+!=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+!=-=-=-=-=-=-=-=-=-=-=-= ADDED BY SWD 27Nov2017  =-=-=-=-=-=-=-=-=-=-=-=
+!=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+!
+!-----------------------------------------------------------------------
+!***    Reconcile 'EARTH_exp_state' across all pets. [It was created only on src_petlist.]
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        !MESSAGE_CHECK = "  DEMO_init:  Reconciling 'src_exp_state' across global VM"
+        MESSAGE_CHECK = "  NEMS_init:  Reconciling 'earth_exp_state' across global VM"
+        CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      DO i = 1, TOTAL_MEMBER
+!
+        IF(MEMBER_ID == i) THEN
+        CALL ESMF_StateReconcile(state=earth_exp_state(i)     &
+                                ,rc=rc)
+!
+          ESMF_ERR_RETURN(RC,RC_INIT)
+!
+          ESMF_ERR_RETURN(RC_USER,RC_INIT)
+!
+        END IF
+!
+      END DO
+!
+        CALL ESMF_VMBarrier(vm=VM_GLOBAL)
+!
+!-----------------------------------------------------------------------
+!***  Get the global VM (Virtual Machine).
+!***  Obtain the total task count and the local task ID.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      !MESSAGE_CHECK="  DEMO_init:  Get the VM of the demo Grid Component"
+      MESSAGE_CHECK="  NEMS_init:  Get the VM of the NEMS Grid Component"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=rc)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGet(gridcomp = nems_grid_comp          &
+                           ,vm       = vm_global               &
+                           ,rc       = rc)
+!
+      ESMF_ERR_RETURN(RC,RC_INIT)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      !MESSAGE_CHECK="  DEMO_init:  Get the #_global_tasks and mype_global from the global VM"
+      MESSAGE_CHECK="  NEMS_init:  Get the #_global_tasks and mype_global from the global VM"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ESMF_VMGet(vm       = vm_global       &  !<-- The ESMF global Virtual Machine
+                     ,pecount  = global_tasks    &  !<-- Total # of MPI tasks
+                     ,localpet = mype_global     &  !<-- This task's global rank
+                     ,rc       = RC)
+!
+      ESMF_ERR_RETURN(RC,RC_INIT)
+!
+!-----------------------------------------------------------------------
+!***    Get Attributes from the configure file to create the PETlist for the dst_gridcomp
+!-----------------------------------------------------------------------
+!
+      CALL ESMF_VMBarrier(vm=vm_global)
+!
+!-----------------------------------------------------------------------
+!***  Extract the total number of (independent) nested domains
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      !MESSAGE_CHECK="  DEMO_init:  Extract the Total Number of Storms (nested domains) from Config File"
+      MESSAGE_CHECK="  NEMS_init:  Extract the Total Number of Storms (nested domains) from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      cf_main=ESMF_ConfigCreate(rc=RC)
+!
+      CALL ESMF_ConfigLoadFile(config   = cf_main         &  !<-- The configure object
+                              ,filename = 'demo.conf'     &  !<-- The name of the configure file
+                              ,rc       = RC)
+!
+      ESMF_ERR_RETURN(RC,RC_INIT)
+!
+      CALL ESMF_ConfigGetAttribute(config = cf_main                     &  !<-- The DEMO configure object
+                                  ,value  = nstorms                     &  !<-- Total # of ensemble members
+                                  ,label  = 'total_storms:'             &  !<-- Flag in configure file
+                                  ,rc     = RC)
+!
+      ESMF_ERR_RETURN(RC,RC_INIT)
+!
+!-----------------------------------------------------------------------
+!***  Allocate a set of arrays for each storm.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        !MESSAGE_CHECK="  DEMO_init:  Allocate array to create unique 'dst gridded component' for each storm"
+        MESSAGE_CHECK="  NEMS_init:  Allocate array to create unique 'dst gridded component' for each storm"
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ALLOCATE(dst_gridcomp  (nstorms))
+      ALLOCATE(dst_imp_state (nstorms))
+      ALLOCATE(dst_exp_state (nstorms))
+      ALLOCATE(storm_name    (nstorms))
+      ALLOCATE(configfile    (nstorms))
+      ALLOCATE(cf_dst        (nstorms))
+!
+      ALLOCATE(src2dst_cplcomp   (nstorms))
+      ALLOCATE(src2dst_imp_state (nstorms))
+      ALLOCATE(src2dst_exp_state (nstorms))
+!
+      do i=1,nstorms
+        write(storm_name(i), '("storm0", I2.2)') i
+        write(configfile(i), '("dst.conf_0", I2.2)') i
+      end do
+!
+        CALL ESMF_VMBarrier(vm=vm_global)
+!
+!-----------------------------------------------------------------------
+!***  Create the configure object for (each of?) the 'dst gridded components'.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="  NEMS_init:  Create the dst.conf object"
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+        cf_dst(i)=ESMF_ConfigCreate(rc=RC)
+      end do
+!
+        CALL ESMF_VMBarrier(vm=vm_global)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="  NEMS_init:  Load the dst.conf object"
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+        CALL ESMF_ConfigLoadFile(config   = cf_dst(i)           &  !<-- The configure object
+                                ,filename = 'dst.conf_001'      &  !<-- The name of the configure file
+                                ,rc       = RC)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="  NEMS_init:  Extract Number of compute tasks in the I direction for each dst gridcomp"
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=cf_dst(i)             &
+                                    ,value = dst_inpes            &
+                                    ,label ='dst_inpes:'          &
+                                    ,rc    =RC)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="  DEMO_init:  Extract Number of compute tasks in the J direction for each dst gridcomp"
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=cf_dst(i)             &
+                                    ,value = dst_jnpes            &
+                                    ,label ='dst_jnpes:'          &
+                                    ,rc    =RC)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+      end do
+!
+!-----------------------------------------------------------------------
+!***  Create petlist for the DST Gridded Component
+!-----------------------------------------------------------------------
+!
+      dst_pets=dst_inpes*dst_jnpes
+!
+      allocate(dst_petlist(nstorms,dst_pets))
+!
+      !*define petlist for each storm
+      do i=1,nstorms
+        do j=1,dst_pets
+          dst_petlist(i,j)=(src_petlist_count-1)+((i-1)*dst_pets)+j
+        end do
+      end do
+!
+!-----------------------------------------------------------------------
+!***  Create the 'dst' Gridded Components
+!***
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Create dst Gridded Components"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+        dst_gridcomp(i) = ESMF_GridCompCreate(name=storm_name(i)         &  !<-- Name of the DST component
+                                             ,petlist=dst_petlist(i,:)   &  !<-- Element I's PE list
+                                             ,configFile=configfile(i)   &  !<-- Associate the name of the config $
+                                             ,rc=RC)
+!
+        if(rc.ne.0)write(0,*)"Check total processors in run script vs. # domains."
+        ESMF_ERR_RETURN(RC,RC_INIT)
+      end do
+!
+!-----------------------------------------------------------------------
+!***  Register the Initialize, Run, and Finalize routines
+!***  of the 'dst' gridded component.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Register dst Init, Run, Finalize"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+        CALL ESMF_GridCompSetServices(gridcomp=dst_gridcomp(i)         &  !<-- The ith dst gridded component
+                                     ,userRoutine=dst_register        &  !<-- User's name for the Register routine
+                                     ,rc=RC)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+      end do
+!
+!-----------------------------------------------------------------------
+!***  Create the DST component's import/export states.
+!***  Currently they are not required to perform an actual function.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="  NEMS_init:  Create the (array of) DST import & export states"
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+        write(imp_state_name, '("storm0",I2.2,"_imp_state")') i
+!
+        dst_imp_state(i) = ESMF_StateCreate(name=imp_state_name     &
+                                           ,stateintent=ESMF_STATEINTENT_IMPORT  &
+                                           ,rc=RC)
+!
+        write(exp_state_name, '("storm0",I2.2,"_exp_state")') i
+!
+        dst_exp_state(i) = ESMF_StateCreate(name=exp_state_name     &
+                                           ,stateintent=ESMF_STATEINTENT_EXPORT  &
+                                           ,rc=RC)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+!
+!-----------------------------------------------------------------------
+!***    Associate a config file with each 'dst' gridded component.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!        MESSAGE_CHECK = "  DEMO: Associate a config file with each 'dst' gridded component"
+!        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_GridCompGet(dst_gridcomp(i)                &
+                               ,name=myname                    &
+                               ,config=cf_dst(i)               &
+                               ,configFileIsPresent=cfpresent  &
+                               ,configFile=cfname              &     !<== import the config file with the name
+                               ,rc=rc)
+!
+      ESMF_ERR_RETURN(RC,RC_INIT)
+!
+!-----------------------------------------------------------------------
+!***    Get Attributes from the configure file to create the clock for the dst_gridcomp
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!        MESSAGE_CHECK="  DEMO_init:  Extract timestep from configure file for i-th dst gridded component"
+!        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=cf_dst(i)          &
+                                    ,value = dt_int            &
+                                    ,label ='dt_int:'          &
+                                    ,rc    =rc)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!        MESSAGE_CHECK="  DEMO_init:  Extract Number of compute tasks in the I direction for the dst gridded compo$
+!        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=cf_dst(i)          &
+                                    ,value = dt_num            &
+                                    ,label ='dt_num:'          &
+                                    ,rc    =rc)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!        MESSAGE_CHECK="  DEMO_init:  Extract Number of compute tasks in the I direction for the dst gridded compo$
+!        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=cf_dst(i)          &
+                                    ,value = dt_den            &
+                                    ,label ='dt_den:'          &
+                                    ,rc    =rc)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+      end do
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Set time interval in Destination Clock"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_TimeIntervalSet(timeinterval=timestep_dst   &  !<-- Destination Clock's timestep
+                               ,s           =dt_int     &  !<-- Whole part of timestep
+                               ,sn          =dt_num     &  !<-- Numerator of fractional part
+                               ,sd          =dt_den     &  !<-- Denominator of fractional part
+                               ,rc          =RC)
+!
+      ESMF_ERR_ABORT(RC)
+!
+!-----------------------------------------------------------------------
+!***  Create the DST component's clock.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Creating clock_dst"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      clock_dst=ESMF_ClockCreate(name       ='CLOCK_DST'           &  !<-- The top-level ESMF Clock
+                                ,startTime  =starttime_demo        &  !<-- use same starttime as demo!!
+                                ,runDuration=runduration_demo      &  !<-- use same runduration as demo!!
+                                ,timeStep   =timestep_dst          &  !<--  use newly defined timestep!!
+                                ,rc         =RC)
+!
+      ESMF_ERR_ABORT(RC)
+!
+!-----------------------------------------------------------------------
+!***  Execute the Initialize step of the DST component.
+!***  The Initialize routine that is called here as well as the
+!***  Run and Finalize routines (invoked below) are those which are specified
+!***  in the Register routine called in ESMF_GridCompSetServices above.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Execute (array of) 'dst_initialize'."
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+       CALL ESMF_GridCompInitialize(gridcomp    = dst_gridcomp(i)    &
+                                   ,importState = dst_imp_state(i)   &
+                                   ,exportState = dst_exp_state(i)   &
+                                   ,clock       = clock_dst          &
+                                   ,phase       = 1                  &
+                                   ,userRc      = RC_USER            &
+                                   ,rc          = RC)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+        ESMF_ERR_RETURN(RC_USER,RC_INIT)
+      end do
+!
+      CALL ESMF_VMBarrier(vm=vm_global)
+!
+!-----------------------------------------------------------------------
+!***    Reconcile 'dst_exp_state(i)' across all pets. [It was created only on dst_petlist(i).]
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK = "  DEMO_init:  Reconciling 'dst_exp_state(i)' across global VM"
+        CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        do i=1,nstorms
+          CALL ESMF_StateReconcile(state=dst_exp_state(i)     &
+                                  ,rc=rc)
+!
+          ESMF_ERR_RETURN(rc,rc_init)
+        end do
+!
+        CALL ESMF_VMBarrier(vm=VM_global)
+!
+!-----------------------------------------------------------------------
+!***  Create the SRC2DST Coupler Component
+!***
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Create SRC2DST Coupler Component for each storm"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      !Use all PETs to create the SRC2dst component.
+      do i=1,nstorms
+      src2dst_cplcomp(i) = ESMF_CplCompCreate(name=storm_name(i)      &  !<-- Name of the SRC component
+                                             !,petlist=src2dst_petlist(i,:)  &  !<-- i-th element's PETlist
+                                             ,configFile=configfile(i)   &  !<-- Associate the name of the config $
+                                             ,rc=RC)
+!
+      ESMF_ERR_RETURN(RC,RC_INIT)
+      end do
+!
+!-----------------------------------------------------------------------
+!***  Register the Initialize, Run, and Finalize routines
+!***  of the SRC2DST coupler component.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Register SRC2DST Init, Run, Finalize"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+        call ESMF_CPLCompSetServices(cplcomp    =src2dst_cplcomp(i)       &  !<-- The SRC gridded component
+                                    ,userRoutine=src2dst_register      &  !<-- User's name for the Register routine
+                                    ,rc=RC)
+!
+        ESMF_ERR_RETURN(RC,RC_INIT)
+      end do
+!
+!-----------------------------------------------------------------------
+!***  Create the SRC2DST component's import/export states.
+!***  Currently they are not required to perform an actual function.  <-- They're not?? 18Jul2017
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Create the SRC2DST import & export states"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+        write(imp_state_name, '("storm0",I2.2,"_cpl_imp_state")') i
+        src2dst_imp_state(i) = ESMF_StateCreate(name=imp_state_name                  &
+                                               ,stateintent=ESMF_STATEINTENT_IMPORT  &
+                                               ,rc=RC)
+!
+        write(exp_state_name, '("storm0",I2.2,"_cpl_exp_state")') i
+        src2dst_exp_state(i) = ESMF_StateCreate(name=exp_state_name                  &
+                                               ,stateintent=ESMF_STATEINTENT_EXPORT  &
+                                               ,rc=RC)
+!
+      ESMF_ERR_RETURN(RC,RC_INIT)
+      end do
+!
+!-----------------------------------------------------------------------
+!***  Execute the Initialize step of the SRC2DST component.
+!***  The Initialize routine that is called here as well as the
+!***  Run and Finalize routines invoked below are those specified
+!***  in the Register routine called in ESMF_CplCompSetServices above.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Create the SRC2DST component's clock.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Creating clock_src2dst"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      clock_src2dst=ESMF_ClockCreate(name    = 'CLOCK_SRC2DST'       &  !<-- The coupler Clock
+                                ,startTime   = starttime_demo        &  !<-- use same starttime as dst!!
+                                ,runDuration = runduration_demo      &  !<-- use same runduration as dst!!
+                                ,timeStep    = timestep_dst          &  !<-- use timestep as dst!!
+                                ,rc          = RC)
+!
+      ESMF_ERR_ABORT(RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="  NEMS_init:  Execute (array of) 'src2dst_initialize'"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      do i=1,nstorms
+        call ESMF_CplCompInitialize(cplcomp     = src2dst_cplcomp(i)    &
+                                   ,importState = src2dst_imp_state(i)  &
+                                   ,exportState = src2dst_exp_state(i)  &
+                                   ,clock       = clock_src2dst         &
+                                   ,phase       = 1                     &
+                                   ,userRc      = RC_USER               &
+                                   ,rc          = RC)
+        ESMF_ERR_RETURN(RC,RC_INIT)
+        ESMF_ERR_RETURN(RC_USER,RC_INIT)
+      end do
+!
+      CALL ESMF_VMBarrier(VM_global)
+!
+!=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+!=-=-=-=-=-=-=-=-=-=-=-= END OF STEVE'S DOING  =-=-=-=-=-=-=-=-=-=-=-=-=
+!=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE NEMS_INITIALIZE
@@ -729,6 +1220,13 @@
       TYPE(ESMF_Time) :: CURRTIME
 !
       TYPE(ESMF_TimeInterval) :: RUNDURATION
+      type(ESMF_TimeInterval) :: timeStep     !swd
+!
+!=-=-=-=-= Steve's doing -=-=-=-=-=
+      !* local integers for printing clock information
+      integer(ESMF_KIND_I4) :: yy, h, m, s         !<-- why these are ESMF_KIND...
+      integer               :: mm, dd              !<-- and these are not, is beyond me....
+!=-=-= END Steve's doing -=-=-=-=-=
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -765,6 +1263,19 @@
                                ,rc          = RC)
           ESMF_ERR_RETURN(RC,RC_RUN)
           ESMF_ERR_RETURN(RC_USER,RC_RUN)
+!
+!=-=-=-=  Steve's doing  =-=-=-=-=-=-=-=-=-=--=
+          CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(I)        &
+                               ,importState = EARTH_IMP_STATE(I)        &
+                               ,exportState = EARTH_EXP_STATE(I)        &
+                               ,clock       = CLOCK_NEMS                &
+                               ,phase       = 2                         &
+                               ,userRc      = RC_USER                   &
+                               ,rc          = RC)
+          ESMF_ERR_RETURN(RC,RC_RUN)
+          ESMF_ERR_RETURN(RC_USER,RC_RUN)
+!=-=-= END Steve's doing  =-=-=-=-=-=-=-=-=-=--=
+!
         END IF
 !
       END DO
